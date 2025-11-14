@@ -36,11 +36,7 @@ class RiskAssessmentController extends AbstractController
 
             $this->logRequest();
             $riskAssessment = $this->service->store($request->validated());
-            GenerateAlertsJob::dispatch(
-                $request->entity_id,
-
-                $riskAssessment->risk_level
-            );
+            
             $this->logToDatabase(
                 type: 'entity',
                 level: 'info',
