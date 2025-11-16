@@ -33,5 +33,6 @@ class DatabaseSeeder extends Seeder
          $this->call(ProductRiskSeeder::class);
           $this->call(ChannelSeed::class);
          $this->call(PermissionSeed::class);
+         $this->call(RiskFormulaSeed::class);
     }
 }

@@ -1,8 +1,9 @@
 <?php
 
+use App\Http\Controllers\AlertAttachment\AlertAttachmentController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\User\UserController;
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(function () {
     Route::prefix('entities')->group(base_path('routes/entities/entities.php'));
     Route::prefix('diligence')->group(base_path('routes/diligence/diligence.php'));
     Route::prefix('indicator')->group(base_path('routes/indicator/indicator.php'));
@@ -19,3 +20,6 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::post('/auth/login', [UserController::class, 'login']);
 Route::prefix('auth')->middleware('guest')->group(base_path('routes/user/auth.php'));
 Route::post('auth/2fa', [UserController::class, 'verify2fa']);
+
+Route::middleware('web')->get('/alert/show/{id}/file', [AlertAttachmentController::class, 'showFile'])
+    ->name('reports.showFile');

@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests\Entities;
+namespace App\Http\Requests\AlertAttachment;
 
 use App\Http\Requests\BaseFormRequest;
 
-class BeneficialOwnerRequest extends BaseFormRequest
+class AlertAttachmentRequest extends BaseFormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,15 +22,7 @@ class BeneficialOwnerRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required',
-            'pep' => 'required',
-            'risk_assessment_id' => 'required',
-            'nationality' => 'string',
-            'percentage' => 'string',
-            'is_legal_representative' => 'string',
-
-
-
+            'attachments.*' => 'required',   
         ];
     }
 }

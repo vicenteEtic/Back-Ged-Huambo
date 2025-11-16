@@ -10,10 +10,12 @@ use Illuminate\Support\Facades\Auth;
 use App\Services\Diligence\DiligenceService;
 use Illuminate\Database\Eloquent\Collection;
 use App\Repositories\Entities\RiskAssessmentRepository;
+use App\Repositories\Entities\RiskFormulaRepository;
 use App\Repositories\Indicator\IndicatorTypeRepository;
 
 class RiskAssessmentService extends AbstractService
 {
+    public $riskFormulaRepository;
     private const MONTHS = [
         1 => 'Janeiro',
         2 => 'Fevereiro',
@@ -35,9 +37,12 @@ class RiskAssessmentService extends AbstractService
         private readonly DiligenceService $diligenceService,
         private readonly ProductRiskService $productRiskService,
         private readonly BeneficialOwnerService $beneficialOwnerService,
+        private readonly PepService $pepService,
+        RiskFormulaRepository $riskFormulaRepository,
         private AlertService $alertService
     ) {
         parent::__construct($repository);
+        $this->riskFormulaRepository = $riskFormulaRepository;
     }
 
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
@@ -88,15 +93,18 @@ class RiskAssessmentService extends AbstractService
             $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id);
         }
 
-
+        if (!empty($data['pep']) && $data['pep'] === true) {
+            $this->pepService->createEntityPep($data['entity_id']);
+        }
 
         $riskProducts = $this->indicatorTypeRepository->getByIds($data['product_risk']);
         $this->productRiskService->storeProductRisks($riskProducts, $riskAssessment->id);
 
         $this->loadRelations($riskAssessment);
-
+        $entityType = $riskAssessment['entity']['entity_type'];
+        $formula = $this->riskFormulaRepository->findByEntityType($entityType);
         $totalRiskProduct = $riskProducts->sum('score');
-        $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct);
+        $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula);
 
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
 
@@ -135,20 +143,26 @@ class RiskAssessmentService extends AbstractService
         ]);
     }
 
-    private function calculateTotalScore($riskAssessment, $totalRiskProduct): int
+    private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula): int
     {
+
+
         $fromEstablishment = $riskAssessment->form_establishment == 0 ? 1 : 3;
         $statusResidence = $riskAssessment->status_residence == 0 ? 1 : 3;
+
+        $santion = $riskAssessment->santion == 0 ? 0 : 20;
+        $distributionChannel = $riskAssessment->distributionChannel == 0 ? 0 : 3;
         $pep = $riskAssessment->pep == 1 ? 20 : 0;
 
-        return
-            $riskAssessment?->channel()?->first()?->score +
-            $riskAssessment?->indetificationCapacity()?->first()?->score +
-            $riskAssessment?->profession()?->first()?->score +
-            $fromEstablishment +
-            $statusResidence +
-            $pep +
-            $totalRiskProduct;
+        return ($riskAssessment?->channel()?->first()?->score * $formula->channel) +
+            ($riskAssessment?->indetificationCapacity()?->first()?->score * $formula->identification_capacity) +
+            $riskAssessment?->profession()?->first()?->score * $formula->profession +
+            ($fromEstablishment * $formula->fromEstablishment)  +
+            ($statusResidence * $formula->status_residence) +
+            ($santion * $formula->santion) +
+            ($distributionChannel * $formula->distributionChannel) +
+            ($pep * $formula->pep) +
+            ($totalRiskProduct * $formula->product_risk);
     }
 
     private function updateEntityRisk($riskAssessment, $total, $diligence): void

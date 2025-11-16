@@ -11,9 +11,14 @@ class BeneficialOwner extends Model
     use HasFactory, SoftDeletes;
     protected $table = 'beneficial_owner';
     protected $primaryKey = 'id';
+    
+
     protected $fillable = [
         'name',
         'pep',
-        'risk_assessment_id'
+        'risk_assessment_id',
+        'percentage',
+        'is_legal_representative',
+        'nationality',
     ];
 }

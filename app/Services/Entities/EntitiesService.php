@@ -78,9 +78,9 @@ class EntitiesService extends AbstractService
 
         foreach ($chunks as $index => $chunk) {
             ImportDataJob::dispatch($chunk, $userId, $batchId)
-            ->onQueue('default')
-            ->delay(Carbon::now()->addSeconds($index * 10)); // garante Carbon
-        
+                ->onQueue('default')
+                ->delay(Carbon::now()->addSeconds($index * 10)); // garante Carbon
+
         }
     }
 
@@ -88,6 +88,8 @@ class EntitiesService extends AbstractService
     {
         return $this->repository->getLastEntities($limit);
     }
-
-    
+    public function findOrFail($id)
+    {
+        return $this->model->findOrFail($id);
+    }
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Alert\CommentAlert\CommentAlertController;
 use App\Http\Controllers\Alert\GrupoAlertEmails\GrupoAlertEmailsController;
 use App\Http\Controllers\Alert\GrupoType\GrupoTypeController;
 use App\Http\Controllers\Alert\UserGrupoAlert\UserGrupoAlertController;
+use App\Http\Controllers\AlertAttachment\AlertAttachmentController;
 use App\Http\Requests\Alert\CommentAlert\CommentAlertRequest;
 use App\Models\Alert\AlertUser\AlertUser;
 
@@ -22,7 +23,7 @@ Route::get('/user', [AlertUserController::class, 'getAllUsersAlertSummary'])
 Route::get('/user', [AlertUserController::class, 'getAllUsersAlertSummary'])
     ->name('alertUser.getAllUsersAlertSummary');
 
-    Route::post('/user', [AlertUserController::class, 'store'])
+Route::post('/user', [AlertUserController::class, 'store'])
     ->name('alertUser.store');
 
 Route::get('/total', [AlertController::class, 'getTotalAlerts'])
@@ -42,14 +43,14 @@ Route::get('/me/notifications/', [AlertUserController::class, 'countActiveAlerts
     ->name('notifications.index');
 
 
-    Route::get('/grupoAlertEmails', [GrupoAlertEmailsController::class, 'index'])
+Route::get('/grupoAlertEmails', [GrupoAlertEmailsController::class, 'index'])
     ->name('grupoAlertEmails.index');
 Route::get('/grupoAlertEmails/{id}', [GrupoAlertEmailsController::class, 'show'])
     ->name('grupoAlertEmails.show');
 Route::post('/grupoAlertEmails', [GrupoAlertEmailsController::class, 'store'])
     ->name('grupoAlertEmails.store');
 
-    Route::get('/grupoType', [GrupoTypeController::class, 'listTypGrup'])
+Route::get('/grupoType', [GrupoTypeController::class, 'listTypGrup'])
     ->name('grupoType.listTypGrup');
 Route::get('/grupoType/{id}', [GrupoTypeController::class, 'show'])
     ->name('grupoType.show');
@@ -57,13 +58,17 @@ Route::post('/grupoType', [GrupoTypeController::class, 'store'])
     ->name('grupoType.store');
 
 
-    Route::get('/userGrupo', [UserGrupoAlertController::class, 'index'])
+Route::get('/userGrupo', [UserGrupoAlertController::class, 'index'])
     ->name('userGrupo.index');
 Route::get('/userGrupo/{id}', [UserGrupoAlertController::class, 'show'])
     ->name('userGrupo.show');
 Route::post('/userGrupo', [UserGrupoAlertController::class, 'store'])
     ->name('userGrupo.store');
+Route::put('/{id}/status', [AlertController::class, 'status']);
 
-    Route::put('/{id}/status', [AlertController::class, 'status']);
 
-    
+
+Route::get('/files', [AlertAttachmentController::class, 'index'])
+    ->name('alertAttachment.index');
+Route::post('/files/{id}', [AlertAttachmentController::class, 'store'])
+    ->name('alertAttachment.store');

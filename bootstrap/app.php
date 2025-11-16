@@ -19,14 +19,15 @@ return Application::configure(basePath: dirname(__DIR__))
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
 
+        // ✅ todos os aliases aqui juntos
         $middleware->alias([
-            'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
-        ]);
-
-        $middleware->alias([
-            'can' => \App\Http\Middleware\Can::class
+      'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
+    'can' => \App\Http\Middleware\Can::class,
+    'track.activity' => \App\Http\Middleware\TrackUserActivity::class,
+    'auto.logout' => \App\Http\Middleware\AutoLogoutInactiveUser::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
-    })->create();
+    })
+    ->create();

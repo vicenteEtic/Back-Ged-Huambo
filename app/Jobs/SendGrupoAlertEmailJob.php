@@ -78,11 +78,18 @@ class SendGrupoAlertEmailJob implements ShouldQueue
                         Log::info("Usuário ID {$user->id} já vinculado ao alert ID {$alert->id}");
                         continue;
                     }
+                    $now = now();
 
-                    AlertUser::create([
-                        'alert_id' => $alert->id,
-                        'user_id'  => $user->id,
-                    ]);
+                    AlertUser::updateOrCreate(
+                        [
+                            'alert_id' => $alert->id,
+                            'user_id'  => $user->id,
+                        ],
+                        [
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ]
+                    );
                     // Envia email
                     Mail::to($user->email)->send(new GrupoAlertMail($user, $alert));
 

@@ -122,7 +122,8 @@ class GenerateAlertsJob implements ShouldQueue
     {
         foreach ($data as $item) {
             $alert=    $this->alertRepository->storeOrUpdate(
-                ['origin_id' => $item['id']],
+                ['origin_id' => $item['id'],
+               'name' => $item['name'],],
                 [
                     'name' => $item['name'],
                     'level' => 'Alto',

@@ -12,6 +12,8 @@ class IdentificationCapacitySeeder extends Seeder
     {
         $IndicatorType = [
             ['description' => "Capacidade para realizar a totalidade dos procedimentos de ID&V",  "risk" => "Baixo", "score" => "1", "indicator_id" => 1],
+            ['description' => "Incapacidade em obter outros dados",  "risk" => "Médio", "score" => "3", "indicator_id" => 1],
+            ['description' => "Incapacidade em obter os dados identificados e de contacto do cliente",  "risk" => "Alto", "score" => "20", "indicator_id" => 1],
         ];
 
         //inserindo os indicadores

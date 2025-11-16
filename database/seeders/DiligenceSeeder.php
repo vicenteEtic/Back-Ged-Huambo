@@ -18,10 +18,10 @@ class  DiligenceSeeder extends Seeder
 
         $RiskType = [
 
-            ['risk' => "Baixo", 'name' => 'Simplificada', 'min' => "0", 'max' => "10", 'color' => "#92D050"],
-            ['risk' => "Médio", 'name' => 'Standard', 'min' => "11", 'max' => "19", 'color' => "#ffc107"],
-            ['risk' => "Alto", 'name' => 'Reforçada', 'min' => "20", 'max' => "100", 'color' => "#FFC000"],
-            ['risk' => "Inaceitável", 'name' => 'Cliente Inaceitável', 'min' => "101", 'max' => "150", 'color' => "#ff0000"],
+            ['risk' => "Baixo", 'name' => 'Simplificada', 'min' => "1", 'max' => "1.5", 'color' => "#92D050"],
+            ['risk' => "Médio", 'name' => 'Standard', 'min' => "1.6", 'max' => "2.5", 'color' => "#ffc107"],
+            ['risk' => "Alto", 'name' => 'Reforçada', 'min' => "2.6", 'max' => "20", 'color' => "#FFC000"],
+            ['risk' => "Inaceitável", 'name' => 'Cliente Inaceitável', 'min' => "20.01", 'max' => "1000", 'color' => "#ff0000"],
         ];
 
         //inserindo os departamentos

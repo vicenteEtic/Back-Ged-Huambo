@@ -3,10 +3,30 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Entities\RiskAssessmentController;
 use App\Http\Controllers\Entities\RiskAssessmentControlController;
+use App\Http\Controllers\Entities\RiskFormulaController;
 
 Route::get('', [RiskAssessmentController::class, 'index'])
     ->name('risk_assessment.index');
 
+      Route::get('/riskFormula', [RiskFormulaController::class, 'index'])
+    ->name('riskFormula.index')
+    ->middleware('can:entidades-show');
+
+Route::post('/riskFormula', [RiskFormulaController::class, 'store'])
+    ->name('riskFormula.import');
+
+
+
+Route::put('/riskFormula/{id}', [RiskFormulaController::class, 'update'])
+    ->name('riskFormula.update')
+    ->middleware('can:entidades-edit');
+
+Route::delete('/riskFormula/{id}', [RiskFormulaController::class, 'destroy'])
+    ->name('riskFormula.destroy')
+    ->middleware('can:entidades-delete');
+
+  Route::get('{id}', [RiskAssessmentController::class, 'show'])
+    ->name('risk_assessment.show');
 Route::get('risk-assessment-control', [RiskAssessmentControlController::class, 'index'])
     ->name('risk_assessment_control.index');
 
@@ -18,6 +38,8 @@ Route::post('', [RiskAssessmentController::class, 'store'])
 
 Route::put('{id}', [RiskAssessmentController::class, 'update'])
     ->name('risk_assessment.update');
+
+  
 
 Route::delete('{id}', [RiskAssessmentController::class, 'destroy'])
     ->name('risk_assessment.destroy');
@@ -48,3 +70,8 @@ Route::get('heat-map/{year?}', [RiskAssessmentController::class, 'getHeatMap'])
 
 Route::get('{id}', [RiskAssessmentController::class, 'show'])
     ->name('risk_assessment.show');
+
+
+
+
+  

@@ -11,16 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('diligence', function (Blueprint $table) {
-            $table->bigIncrements('id');
+        Schema::create('alert_attachment', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('alert_id');
             $table->string('name');
-            $table->longText('description')->nullable();
-            $table->float('max');
-            $table->float('min');
-            $table->string('risk');
-            $table->string('color');
+            $table->string('file');
             $table->softDeletes();
             $table->timestamps();
+       
         });
     }
 
@@ -29,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('diligence');
+        Schema::dropIfExists('_alert_attachment');
     }
 };

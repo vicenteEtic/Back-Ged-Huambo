@@ -17,6 +17,7 @@ class BeneficialOwnerService extends AbstractService
         foreach ($data['beneficial_owners'] as $owner) {
             $owner['risk_assessment_id'] = $riskAssessmentId;
             $this->repository->store($owner);
+          
             if ($owner['pep']) {
                 $this->pepService->storeOrUpdate([
                     "name" => $owner['name'],

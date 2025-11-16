@@ -17,5 +17,5 @@ Recebemos um pedido para redefinir sua senha. Para continuar, clique no botão a
 Se você não solicitou essa alteração, ignore este e-mail.
 
 Atenciosamente,<br>
-**Equipe de suporte Kixicrédito**
+**Equipe de suporte **
 @endcomponent
