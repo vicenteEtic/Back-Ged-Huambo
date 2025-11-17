@@ -177,7 +177,7 @@ class RiskAssessmentService extends AbstractService
 
         return ($riskAssessment?->indetificationCapacity()?->first()?->score * (float)$formula->identification_capacity) +
             ($fromEstablishment * (float)$formula->form_establishment) +
-            ($riskAssessment?->channel()?->first()?->score * (float)$formula->distributionChannel) +
+            ($riskAssessment?->channel()?->first()?->score * (float)$formula->channel) +
             ($riskAssessment?->category()?->first()?->score * (float)$formula->category) +
             ($statusResidence * (float)$formula->status_residence) +
             ($riskAssessment?->profession()?->first()?->score * (float)$formula->profession) +
