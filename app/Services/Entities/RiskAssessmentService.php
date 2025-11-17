@@ -158,26 +158,28 @@ class RiskAssessmentService extends AbstractService
     private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula): int
     {
 
-$fromEstablishment = $riskAssessment->form_establishment == 0 ? 1 : 3;
-$statusResidence = $riskAssessment->status_residence == 0 ? 1 : 3;
-$santion = $riskAssessment->santion ? 20 : 0;
-$processesReportedAuthoritie = $riskAssessment->processesReportedAuthoritie ? 3 : 0;
-$pep = $riskAssessment->pep ? 20 : 0;
+        $fromEstablishment = $riskAssessment->form_establishment == 0 ? 1 : 3;
+        $statusResidence = $riskAssessment->status_residence == 0 ? 1 : 3;
+        $santion = $riskAssessment->santion == 1 ? 20 : 0;
+        $processesReportedAuthoritie = $riskAssessment->processesReportedAuthoritie  == 1 ? 3 : 0;
+        $pep = $riskAssessment->pep == 1 ? 20 : 0;
 
-return 
-    ($riskAssessment?->channel()?->first()?->score * (float)$formula->channel) +
-    ($riskAssessment?->indetificationCapacity()?->first()?->score * (float)$formula->identification_capacity) +
-    ($riskAssessment?->profession()?->first()?->score * (float)$formula->profession) +
-    ($fromEstablishment * (float)$formula->form_establishment) +
-    ($riskAssessment?->nationlity()?->first()?->score * (float)$formula->nationality) +
-    ($riskAssessment?->category()?->first()?->score * (float)$formula->category) +
-    ($riskAssessment?->countryResidence()?->first()?->score * (float)$formula->country_residence) +
-    ($statusResidence * (float)$formula->status_residence) +
-    ($santion * (float)$formula->santion) +
-    ($processesReportedAuthoritie * (float)$formula->processesReportedAuthoritie) +
-    ($pep * (float)$formula->pep) +
-    ($totalRiskProduct * (float)$formula->product_risk);
+        return ($riskAssessment?->indetificationCapacity()?->first()?->score * (float)$formula->identification_capacity) +
+            ($fromEstablishment * (float)$formula->form_establishment) +
+            ($riskAssessment?->channel()?->first()?->score * (float)$formula->distributionChannel) +
+            ($riskAssessment?->category()?->first()?->score * (float)$formula->category) +
+            ($statusResidence * (float)$formula->status_residence) +
+            ($riskAssessment?->profession()?->first()?->score * (float)$formula->profession) +
 
+            ($pep * (float)$formula->pep) +
+
+            ($riskAssessment?->country_residence()?->first()?->score * (float)$formula->country_residence) +
+            ($riskAssessment?->nationlity()?->first()?->score * (float)$formula->nationality) +
+
+            ($processesReportedAuthoritie * (float)$formula->processesReportedAuthoritie) +
+            ($santion * (float)$formula->santion) +
+
+            ($totalRiskProduct * (float)$formula->product_risk);
     }
 
     private function updateEntityRisk($riskAssessment, $total, $diligence): void
