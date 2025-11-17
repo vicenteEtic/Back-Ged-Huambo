@@ -101,16 +101,17 @@ class RiskAssessmentService extends AbstractService
 
         $riskProducts = $this->indicatorTypeRepository->getByIds($data['product_risk']);
         $this->productRiskService->storeProductRisks($riskProducts, $riskAssessment->id);
-
-        $this->loadRelations($riskAssessment);
-        $entityType = $riskAssessment['entity']['entity_type'];
+       $entityType = $riskAssessment['entity']['entity_type'];
         $formula = $this->riskFormulaRepository->findByEntityType($entityType);
-        $totalRiskProduct = $riskProducts->sum('score');
-        $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula);
         // Atualizar o campo id_risk_formula
         $riskAssessment->update([
             'id_risk_formula' =>   $formula->id
         ]);
+        $this->loadRelations($riskAssessment);
+   
+        $totalRiskProduct = $riskProducts->sum('score');
+        $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula);
+     
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
 
         $this->updateEntityRisk($riskAssessment, $total, $diligence);
@@ -134,6 +135,7 @@ class RiskAssessmentService extends AbstractService
     private function loadRelations($riskAssessment): void
     {
         $riskAssessment->load([
+            "riskFormula",
             'entity',
             'user',
             'profession',
@@ -144,8 +146,8 @@ class RiskAssessmentService extends AbstractService
             'nationlity',
             'beneficialOwners',
             'productRisk',
-            'productRisk.product',
-            "riskFormula"
+            'productRisk.product'
+
         ]);
     }
 
