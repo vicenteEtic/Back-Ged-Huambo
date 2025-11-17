@@ -47,8 +47,8 @@ class RiskAssessment extends Model
     public $casts = [
         'form_establishment' => FormEstablishment::class,
         'status_residence' =>  StatusResidence::class,
-  'santion' => 'boolean',
-    'processesReportedAuthoritie' => 'boolean',
+        'santion' => 'boolean',
+        'processesReportedAuthoritie' => 'boolean',
 
     ];
 

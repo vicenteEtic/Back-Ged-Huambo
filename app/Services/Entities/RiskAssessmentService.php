@@ -2,6 +2,8 @@
 
 namespace App\Services\Entities;
 
+use App\Enum\FormEstablishment;
+use App\Enum\StatusResidence;
 use InvalidArgumentException;
 use App\Jobs\GenerateAlertsJob;
 use App\Services\AbstractService;
@@ -160,8 +162,15 @@ class RiskAssessmentService extends AbstractService
     private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula): int
     {
 
-        $fromEstablishment = $riskAssessment->form_establishment == 0 ? 1 : 3;
-        $statusResidence = $riskAssessment->status_residence == 0 ? 1 : 3;
+     $fromEstablishment = $riskAssessment->form_establishment === FormEstablishment::PRESENCIAL
+    ? 1 
+    : 3;
+
+  $fromEstablishment = $riskAssessment->status_residence === StatusResidence::RESIDENTE
+    ? 1 
+    : 3;
+
+   
         $santion = $riskAssessment->santion == 1 ? 20 : 0;
         $processesReportedAuthoritie = $riskAssessment->processesReportedAuthoritie  == 1 ? 3 : 0;
         $pep = $riskAssessment->pep == 1 ? 20 : 0;
