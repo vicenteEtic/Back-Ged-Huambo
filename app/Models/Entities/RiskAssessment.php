@@ -46,7 +46,10 @@ class RiskAssessment extends Model
 
     public $casts = [
         'form_establishment' => FormEstablishment::class,
-        'status_residence' =>  StatusResidence::class
+        'status_residence' =>  StatusResidence::class,
+  'santion' => 'boolean',
+    'processesReportedAuthoritie' => 'boolean',
+
     ];
 
     public function entity()
@@ -97,7 +100,7 @@ class RiskAssessment extends Model
         return $this->hasMany(BeneficialOwner::class, 'risk_assessment_id', 'id');
     }
 
-     public function riskFormula()
+    public function riskFormula()
     {
         return $this->belongsTo(riskFormula::class, 'id_risk_formula', 'id');
     }
