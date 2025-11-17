@@ -166,7 +166,7 @@ class RiskAssessmentService extends AbstractService
     ? 1 
     : 3;
 
-  $fromEstablishment = $riskAssessment->status_residence === StatusResidence::RESIDENTE
+  $statusResidence = $riskAssessment->status_residence === StatusResidence::RESIDENTE
     ? 1 
     : 3;
 
