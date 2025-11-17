@@ -125,6 +125,8 @@ class RiskAssessmentService extends AbstractService
         $riskAssessment->diligence = $diligence->name;
         $riskAssessment->save();
 
+return $riskAssessment?->countryResidence()?->first()?->score;
+
         if ($riskAssessment->entity->entity_type == 1) {
             GenerateAlertsJob::dispatch($riskAssessment->entity->id, true, $riskAssessment->id)
                 ->onQueue('high');
@@ -173,7 +175,7 @@ class RiskAssessmentService extends AbstractService
 
             ($pep * (float)$formula->pep) +
 
-            ($riskAssessment?->country_residence()?->first()?->score * (float)$formula->country_residence) +
+            ($riskAssessment?->countryResidence()?->first()?->score * (float)$formula->country_residence) +
             ($riskAssessment?->nationlity()?->first()?->score * (float)$formula->nationality) +
 
             ($processesReportedAuthoritie * (float)$formula->processesReportedAuthoritie) +
