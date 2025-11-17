@@ -22,4 +22,4 @@ yarn-error.log
 storage/**/app/public/logos-cache
 /coverage
 .env
-
+docker-compose.yml
