@@ -30,7 +30,7 @@ class RiskFormulaSeed extends Seeder
                 'category'          => 1,
                 'country_residence' => 0.25,
                 'nationality'       => 0.15,
-                'entity_type'       => 1,
+                'entity_type'       => 2,
                 'beneficialOwner'   => 1,
             ],
             [
@@ -38,7 +38,7 @@ class RiskFormulaSeed extends Seeder
                 'category'          => 0.05,
                 'country_residence' => 0.15,
                 'nationality'       => 0.15,
-                'entity_type'       => 2,
+                'entity_type'       => 1,
                 'beneficialOwner'   => 0.2,
             ]
         ];
