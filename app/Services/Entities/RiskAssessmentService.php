@@ -89,9 +89,9 @@ class RiskAssessmentService extends AbstractService
     {
         $data['user_id'] = Auth::id() ?? $data['user_id'];
 
-       $data['beneficialOwner']=$this->countPepTrue($data)*20;
-  
-  $riskAssessment = $this->repository->store($data);
+        $data['beneficialOwner'] = $this->countPepTrue($data) * 20;
+
+        $riskAssessment = $this->repository->store($data);
 
         if (isset($data['beneficial_owners'])) {
             $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id);
@@ -103,17 +103,17 @@ class RiskAssessmentService extends AbstractService
 
         $riskProducts = $this->indicatorTypeRepository->getByIds($data['product_risk']);
         $this->productRiskService->storeProductRisks($riskProducts, $riskAssessment->id);
-         $entityType = $riskAssessment['entity']['entity_type'];
+        $entityType = $riskAssessment['entity']['entity_type'];
         $formula = $this->riskFormulaRepository->findByEntityType($entityType);
         // Atualizar o campo id_risk_formula
         $riskAssessment->update([
             'id_risk_formula' =>   $formula->id
         ]);
         $this->loadRelations($riskAssessment);
- 
+
         $totalRiskProduct = $riskProducts->sum('score');
         $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula);
-     
+
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
 
 
@@ -139,7 +139,7 @@ class RiskAssessmentService extends AbstractService
     private function loadRelations($riskAssessment): void
     {
         $riskAssessment->load([
-         "riskFormula",
+            "riskFormula",
             'entity',
             'user',
             'profession',
@@ -166,11 +166,13 @@ class RiskAssessmentService extends AbstractService
         $processesReportedAuthoritie = $riskAssessment->processesReportedAuthoritie == 0 ? 0 : 3;
         $pep = $riskAssessment->pep == 1 ? 20 : 0;
 
-        return ($riskAssessment?->channel()?->first()?->score * $formula->channel) +
+        return ($riskAssessment?->channel()?->first()?->score * $formula->distributionChannel) +
             ($riskAssessment?->indetificationCapacity()?->first()?->score * $formula->identification_capacity) +
             ($riskAssessment?->profession()?->first()?->score * $formula->profession) +
             ($fromEstablishment * $formula->fromEstablishment) +
-              ($riskAssessment?->nationlity()?->first()?->score * $formula->nationality) +
+            ($riskAssessment?->nationlity()?->first()?->score * $formula->nationality) +
+            ($riskAssessment?->category()?->first()?->score * $formula->category) +
+            ($riskAssessment?->countryResidence()?->first()?->score * $formula->country_residence) +
             ($statusResidence * $formula->status_residence) +
             ($santion * $formula->santion) +
             ($processesReportedAuthoritie * $formula->processesReportedAuthoritie) +
