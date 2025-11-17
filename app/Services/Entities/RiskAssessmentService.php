@@ -173,7 +173,7 @@ class RiskAssessmentService extends AbstractService
    
         $santion = $riskAssessment->santion == 1 ? 20 : 0;
         $processesReportedAuthoritie = $riskAssessment->processesReportedAuthoritie  == 1 ? 3 : 0;
-        $pep = $riskAssessment->pep == 1 ? 20 : 0;
+        $pep = $riskAssessment->pep == 1 ? 3 : 0;
 
         return ($riskAssessment?->indetificationCapacity()?->first()?->score * (float)$formula->identification_capacity) +
             ($fromEstablishment * (float)$formula->form_establishment) +
