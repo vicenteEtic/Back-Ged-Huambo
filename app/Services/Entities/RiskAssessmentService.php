@@ -58,7 +58,8 @@ class RiskAssessmentService extends AbstractService
             'nationlity',
             'beneficialOwners',
             'productRisk',
-            'productRisk.product'
+            'productRisk.product',
+            "riskFormula"
         ];
 
         $orderByParams = $orderByParams ?? ['created_at' => 'desc'];
@@ -78,7 +79,8 @@ class RiskAssessmentService extends AbstractService
             'nationlity',
             'beneficialOwners',
             'productRisk',
-            'productRisk.product'
+            'productRisk.product',
+            "riskFormula"
         ];
         return $this->repository->show($id, $relationships);
     }
@@ -105,7 +107,10 @@ class RiskAssessmentService extends AbstractService
         $formula = $this->riskFormulaRepository->findByEntityType($entityType);
         $totalRiskProduct = $riskProducts->sum('score');
         $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula);
-
+        // Atualizar o campo id_risk_formula
+        $riskAssessment->update([
+            'id_risk_formula' =>   $formula->id
+        ]);
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
 
         $this->updateEntityRisk($riskAssessment, $total, $diligence);
@@ -139,7 +144,8 @@ class RiskAssessmentService extends AbstractService
             'nationlity',
             'beneficialOwners',
             'productRisk',
-            'productRisk.product'
+            'productRisk.product',
+            "riskFormula"
         ]);
     }
 
@@ -151,16 +157,16 @@ class RiskAssessmentService extends AbstractService
         $statusResidence = $riskAssessment->status_residence == 0 ? 1 : 3;
 
         $santion = $riskAssessment->santion == 0 ? 0 : 20;
-        $distributionChannel = $riskAssessment->distributionChannel == 0 ? 0 : 3;
+        $processesReportedAuthoritie = $riskAssessment->processesReportedAuthoritie == 0 ? 0 : 3;
         $pep = $riskAssessment->pep == 1 ? 20 : 0;
 
         return ($riskAssessment?->channel()?->first()?->score * $formula->channel) +
             ($riskAssessment?->indetificationCapacity()?->first()?->score * $formula->identification_capacity) +
-            $riskAssessment?->profession()?->first()?->score * $formula->profession +
-            ($fromEstablishment * $formula->fromEstablishment)  +
+            ($riskAssessment?->profession()?->first()?->score * $formula->profession) +
+            ($fromEstablishment * $formula->fromEstablishment) +
             ($statusResidence * $formula->status_residence) +
             ($santion * $formula->santion) +
-            ($distributionChannel * $formula->distributionChannel) +
+            ($processesReportedAuthoritie * $formula->processesReportedAuthoritie) +
             ($pep * $formula->pep) +
             ($totalRiskProduct * $formula->product_risk);
     }
@@ -289,5 +295,25 @@ class RiskAssessmentService extends AbstractService
     public function getLastAssessment(int $limit = 3): ?Collection
     {
         return $this->repository->getLastAssessment($limit);
+    }
+
+
+    public function countPepTrue(array $data): int
+    {
+        // Verifica se existe a chave beneficial_owners e se é um array
+        if (!isset($data['beneficial_owners']) || !is_array($data['beneficial_owners'])) {
+            return 0;
+        }
+
+        // Conta quantos PEP = true existem
+        $count = 0;
+
+        foreach ($data['beneficial_owners'] as $owner) {
+            if (isset($owner['pep']) && $owner['pep'] === true) {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 }

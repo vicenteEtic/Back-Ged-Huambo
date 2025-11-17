@@ -28,9 +28,7 @@ return new class extends Migration
             $table->string('santion')->default(1);
             $table->string('distributionChannel')->default(1);
             $table->string('beneficialOwner')->default(1);
-            $table->string(column: 'processesReportedAuthoritie')->default(1);
-            
-           
+            $table->string('processesReportedAuthoritie')->default(1);
             $table->timestamps();
             $table->softDeletes();
         });

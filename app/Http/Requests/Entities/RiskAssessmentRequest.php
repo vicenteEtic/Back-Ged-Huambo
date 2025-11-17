@@ -30,7 +30,7 @@ class RiskAssessmentRequest extends BaseFormRequest
         return [
             'identification_capacity' => ['required', Rule::exists(IndicatorType::class, 'id')],
             'form_establishment' => ['required', Rule::enum(FormEstablishment::class)],
-            'category' => [ 'nullable'],
+            'category' => ['nullable'],
             'status_residence' => ['required', Rule::enum(StatusResidence::class)],
             'profession' => ['required', Rule::exists(IndicatorType::class, 'id')],
             'pep' => ['required', 'boolean'],
@@ -39,12 +39,16 @@ class RiskAssessmentRequest extends BaseFormRequest
             'entity_id' => ['required', Rule::exists(Entities::class, 'id')],
             'channel' => ['required', Rule::exists(IndicatorType::class, 'id')],
             'product_risk' => ['nullable', 'array'],
+
+            'processesReportedAuthoritie' => ['nullable'],
+            'beneficialOwner' => ['nullable'],
+            'santion' => ['nullable'],
             'product_risk.*' => ['required', Rule::exists(IndicatorType::class, 'id')],
             'beneficial_owners' => ['nullable', 'array'],
             'beneficial_owners.*.name' => ['required', 'string', 'max:255'],
-         'beneficial_owners.*.percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'beneficial_owners.*.percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
             'beneficial_owners.*.is_legal_representative' => ['nullable', 'boolean'],
-              'beneficial_owners.*.nationality' => [ 'nullable','string', 'max:255'],
+            'beneficial_owners.*.nationality' => ['nullable', 'string', 'max:255'],
 
 
             'beneficial_owners.*.pep' => ['required', 'boolean'],

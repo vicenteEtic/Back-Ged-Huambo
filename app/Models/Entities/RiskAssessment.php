@@ -36,7 +36,11 @@ class RiskAssessment extends Model
         'diligence',
         'type_assessment',
         'status',
-        'risk_assessment_control_id'
+        'risk_assessment_control_id',
+        "processesReportedAuthoritie",
+        "beneficialOwner",
+        "santion",
+        "id_risk_formula"
     ];
 
 
@@ -91,5 +95,10 @@ class RiskAssessment extends Model
     public function beneficialOwners()
     {
         return $this->hasMany(BeneficialOwner::class, 'risk_assessment_id', 'id');
+    }
+
+     public function riskFormula()
+    {
+        return $this->belongsTo(riskFormula::class, 'id_risk_formula', 'id');
     }
 }
