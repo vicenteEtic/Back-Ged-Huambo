@@ -31,12 +31,12 @@ class RiskAssessmentController extends AbstractController
     public function store(RiskAssessmentRequest $request)
     {
         try {
-       
+
             DB::beginTransaction();
 
             $this->logRequest();
             $riskAssessment = $this->service->store($request->validated());
-            
+
             $this->logToDatabase(
                 type: 'entity',
                 level: 'info',
