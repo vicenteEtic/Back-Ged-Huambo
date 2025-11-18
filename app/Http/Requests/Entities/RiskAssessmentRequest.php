@@ -35,7 +35,7 @@ class RiskAssessmentRequest extends BaseFormRequest
             'profession' => ['required', Rule::exists(IndicatorType::class, 'id')],
             'pep' => ['required', 'boolean'],
             'country_residence' => ['required', Rule::exists(IndicatorType::class, 'id')],
-            'nationality' => ['required', Rule::exists(IndicatorType::class, 'id')],
+            'nationality' => ['nullable', Rule::exists(IndicatorType::class, 'id')],
             'entity_id' => ['required', Rule::exists(Entities::class, 'id')],
             'channel' => ['required', Rule::exists(IndicatorType::class, 'id')],
             'product_risk' => ['nullable', 'array'],

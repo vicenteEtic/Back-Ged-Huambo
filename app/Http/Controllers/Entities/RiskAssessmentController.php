@@ -35,7 +35,7 @@ class RiskAssessmentController extends AbstractController
             DB::beginTransaction();
 
             $this->logRequest();
-            $riskAssessment = $this->service->store($request->validated());
+         return   $riskAssessment = $this->service->store($request->validated());
 
             $this->logToDatabase(
                 type: 'entity',
