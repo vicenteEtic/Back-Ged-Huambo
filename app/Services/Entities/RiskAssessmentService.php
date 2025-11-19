@@ -171,6 +171,7 @@ class RiskAssessmentService extends AbstractService
             'pep'               => $riskAssessment->pep ? 3 : 0,
             'channel'           => $riskAssessment?->channel()?->first()?->score ?? 0,
             'totalRiskProduct'  => (float) $totalRiskProduct,
+            'category'    => $riskAssessment?->category()?->first()?->score ?? 0,
         ];
 
         // --- Somar total dinamicamente ---
@@ -200,6 +201,7 @@ class RiskAssessmentService extends AbstractService
             $total += $baseScores['processesReported'] * (float)$formula->processesReportedAuthoritie;
             $total += $baseScores['santion'] * (float)$formula->santion;
             $total += $baseScores['channel'] * (float)$formula->channel;
+            $total += $baseScores['category'] * (float)$formula->category;
             // $total += $baseScores['pep'] * (float)$formula->pep;
 
         }
