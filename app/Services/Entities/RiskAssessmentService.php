@@ -119,9 +119,6 @@ class RiskAssessmentService extends AbstractService
         $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $data['beneficialOwner']);
 
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
-
-
-
         $this->updateEntityRisk($riskAssessment, $total, $diligence);
         $riskAssessment->score = $total;
         $riskAssessment->color = $diligence->color;
