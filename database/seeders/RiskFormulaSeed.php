@@ -15,7 +15,7 @@ class RiskFormulaSeed extends Seeder
             'status_residence'            => 0.1,
             'profession'                  => 0.2,
             'pep'                         => 1,
-            'channel'                     => 0.05,
+        
             'product_risk'                => 0.1,
             'processesReportedAuthoritie' => 1,
             'santion'                     => 1,
@@ -28,7 +28,7 @@ class RiskFormulaSeed extends Seeder
                 'country_residence' => 0.25,
                 'nationality'       => 0.15,
                 'entity_type'       => 2,
-          
+              'channel'                     => 0.05,
             ],
             [
                 'name'              => 'Entidades Colectiva',
@@ -38,6 +38,7 @@ class RiskFormulaSeed extends Seeder
                 'status_residence'  => 0.1,
                 'beneficialOwner'   => 0.2,
                 'entity_type'       => 1,
+                    'channel'                     => 0.05,
                 // remover nationality (não existe na fórmula)
             ]
         ];

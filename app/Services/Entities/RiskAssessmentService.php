@@ -93,8 +93,7 @@ class RiskAssessmentService extends AbstractService
         $data['user_id'] = Auth::id() ?? $data['user_id'];
 
 
-
-        $data['beneficialOwner'] = $this->countPepTrue($data) * 20;
+        $data['beneficialOwner'] = $this->countPepTrueBeneficialOwner($data);
 
         $riskAssessment = $this->repository->store($data);
 
@@ -117,7 +116,7 @@ class RiskAssessmentService extends AbstractService
         $this->loadRelations($riskAssessment);
 
         $totalRiskProduct = $riskProducts->sum('score');
-        $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula);
+        $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $data['beneficialOwner']);
 
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
 
@@ -159,61 +158,59 @@ class RiskAssessmentService extends AbstractService
 
         ]);
     }
-    private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula): float
-{
-    // --- Scores básicos ---
-    $baseScores = [
-        'identification'    => $riskAssessment?->indetificationCapacity()?->first()?->score ?? 0,
-        'profession'        => $riskAssessment?->profession()?->first()?->score ?? 0, // Particulares
-        'activityCode'      => $riskAssessment?->category()?->first()?->score ?? 0,   // Empresas
-        'nationality'       => $riskAssessment?->nationlity()?->first()?->score ?? 0,
-        'countryResidence'  => $riskAssessment?->countryResidence()?->first()?->score ?? 0,
-        'statusResidence'   => $riskAssessment->status_residence === StatusResidence::RESIDENTE ? 1 : 3,
-        'formEstablishment' => $riskAssessment->form_establishment === FormEstablishment::PRESENCIAL ? 1 : 3,
-        'processesReported' => $riskAssessment->processesReportedAuthoritie ? 3 : 0,
-        'santion'           => $riskAssessment->santion ? 20 : 0,
-        'pep'               => $riskAssessment->pep ? 1 : 0,
-        'channel'           => $riskAssessment?->channel()?->first()?->score ?? 0,
-        'totalRiskProduct'  => (float) $totalRiskProduct,
-    ];
+    private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $beneficialOwnerScore): float
+    {
+        // --- Scores básicos ---
+        $baseScores = [
+            'identification'    => $riskAssessment?->indetificationCapacity()?->first()?->score ?? 0,
+            'profession'        => $riskAssessment?->profession()?->first()?->score ?? 0, // Particulares
+            'activityCode'      => $riskAssessment?->category()?->first()?->score ?? 0,   // Empresas
+            'nationality'       => $riskAssessment?->nationlity()?->first()?->score ?? 0,
+            'countryResidence'  => $riskAssessment?->countryResidence()?->first()?->score ?? 0,
+            'statusResidence'   => $riskAssessment->status_residence === StatusResidence::RESIDENTE ? 1 : 3,
+            'formEstablishment' => $riskAssessment->form_establishment === FormEstablishment::PRESENCIAL ? 1 : 3,
+            'processesReported' => $riskAssessment->processesReportedAuthoritie ? 3 : 0,
+            'santion'           => $riskAssessment->santion ? 20 : 0,
+            'pep'               => $riskAssessment->pep ? 3 : 0,
+            'channel'           => $riskAssessment?->channel()?->first()?->score ?? 0,
+            'totalRiskProduct'  => (float) $totalRiskProduct,
+        ];
 
-    // --- Risco de Beneficiários PEP ---
-    $beneficialOwnerScore = 0;
-    foreach ($riskAssessment->beneficialOwners ?? [] as $owner) {
-        if (!empty($owner->pep)) {
-            $beneficialOwnerScore += (float) ($owner->percentage ?? 0) / 100;
+
+
+        // --- Somar total dinamicamente ---
+        $total = 0;
+
+        if ($formula->entity_type == 2) { // Entidade Particular
+            $total += $baseScores['identification'] * (float)$formula->identification_capacity;
+            $total += $baseScores['profession'] * (float)$formula->profession;
+            $total += $baseScores['nationality'] * (float)$formula->nationality;
+            $total += $baseScores['countryResidence'] * (float)$formula->country_residence;
+            $total += $baseScores['statusResidence'] * (float)$formula->status_residence;
+            // $total += $baseScores['formEstablishment'] * (float)$formula->form_establishment;
+            $total += $baseScores['processesReported'] * (float)$formula->processesReported;
+            $total += $baseScores['totalRiskProduct'] * (float)$formula->product_risk;
+            $total += $baseScores['santion'] * (float)$formula->santion;;
+            $total += $baseScores['pep'] * (float)$formula->pep;
+            // $total += $beneficialOwnerScore;
+            $total += $baseScores['channel'] * (float)$formula->channel;
+        } else { // Entidade Coletiva
+            $total += $baseScores['identification'] * (float)$formula->identification_capacity;
+            $total += $baseScores['activityCode'] * (float)$formula->category;
+            // $total += $baseScores['formEstablishment'] * (float)$formula->form_establishment;
+            $total += $baseScores['countryResidence'] * (float)$formula->country_residence;
+            $total += $baseScores['statusResidence'] * (float)$formula->status_residence;
+            $total += $beneficialOwnerScore * (float)$formula->beneficialOwner;
+            $total += $baseScores['totalRiskProduct'] * (float)$formula->product_risk;
+            $total += $baseScores['processesReported'] * (float)$formula->processesReportedAuthoritie;
+            $total += $baseScores['santion'] * (float)$formula->santion;
+            $total += $baseScores['channel'] * (float)$formula->channel;
+            // $total += $baseScores['pep'] * (float)$formula->pep;
+
         }
+
+        return $total;
     }
-
-    // --- Somar total dinamicamente ---
-    $total = 0;
-
-    if ($formula->entity_type == 2) { // Entidade Particular
-        $total += $baseScores['identification'] * (float)$formula->identification_capacity;
-        $total += $baseScores['profession'] * (float)$formula->profession;
-        $total += $baseScores['nationality'] * (float)$formula->nationality;
-        $total += $baseScores['countryResidence'] * (float)$formula->country_residence;
-        $total += $baseScores['statusResidence'] * (float)$formula->status_residence;
-        $total += $baseScores['formEstablishment'] * (float)$formula->form_establishment;
-        $total += $baseScores['processesReported'];
-        $total += $baseScores['santion'];
-        $total += $beneficialOwnerScore;
-        $total += $baseScores['channel'] * (float)$formula->channel;
-    } else { // Entidade Coletiva
-        $total += $baseScores['identification'] * (float)$formula->identification_capacity;
-        $total += $baseScores['activityCode'] * (float)$formula->category;
-        $total += $baseScores['formEstablishment'] * (float)$formula->form_establishment;
-        $total += $baseScores['countryResidence'] * (float)$formula->country_residence;
-        $total += $baseScores['statusResidence'] * (float)$formula->status_residence;
-        $total += $beneficialOwnerScore * (float)$formula->beneficialOwner;
-        $total += $baseScores['totalRiskProduct'] * (float)$formula->product_risk;
-        $total += $baseScores['processesReported'] * (float)$formula->processesReportedAuthoritie;
-        $total += $baseScores['santion'] * (float)$formula->santion;
-        $total += $baseScores['channel'] * (float)$formula->channel;
-    }
-
-    return $total;
-}
 
 
 
@@ -345,22 +342,16 @@ class RiskAssessmentService extends AbstractService
     }
 
 
-    public function countPepTrue(array $data): int
+    public function countPepTrueBeneficialOwner(array $data)
     {
-        // Verifica se existe a chave beneficial_owners e se é um array
-        if (!isset($data['beneficial_owners']) || !is_array($data['beneficial_owners'])) {
-            return 0;
-        }
-
-        // Conta quantos PEP = true existem
-        $count = 0;
-
-        foreach ($data['beneficial_owners'] as $owner) {
-            if (isset($owner['pep']) && $owner['pep'] === true) {
-                $count++;
+        // --- Risco de Beneficiários PEP ---
+        $beneficialOwnerScore = 0;
+        foreach ($data['beneficial_owners'] ?? [] as $owner) {
+            if (!empty($owner->pep)) {
+                $beneficialOwnerScore += (float) ($owner->percentage ?? 0) / 100;
             }
         }
 
-        return $count;
+        return     $beneficialOwnerScore;
     }
 }
