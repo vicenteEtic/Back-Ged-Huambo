@@ -202,7 +202,7 @@ class RiskAssessmentService extends AbstractService
             $total += $baseScores['santion'] * (float)$formula->santion;
             $total += $baseScores['channel'] * (float)$formula->channel;
             $total += $baseScores['category'] * (float)$formula->category;
-            // $total += $baseScores['pep'] * (float)$formula->pep;
+         
 
         }
 
