@@ -340,16 +340,19 @@ class RiskAssessmentService extends AbstractService
     }
 
 
-    public function countPepTrueBeneficialOwner(array $data)
-    {
-        // --- Risco de Beneficiários PEP ---
-        $beneficialOwnerScore = 0;
-        foreach ($data['beneficial_owners'] ?? [] as $owner) {
-            if (!empty($owner->pep)) {
-                $beneficialOwnerScore += (float) ($owner->percentage ?? 0) / 100;
-            }
-        }
+  public function countPepTrueBeneficialOwner(array $data)
+{
+    // Contar quantos beneficiários têm PEP = true
+    $pepCount = 0;
 
-        return     $beneficialOwnerScore;
+    foreach ($data['beneficial_owners'] ?? [] as $owner) {
+        if (!empty($owner->pep)) {
+            $pepCount++;
+        }
     }
+
+    // Multiplicar o total por 3 (pontuação)
+    return $pepCount * 3;
+}
+
 }
