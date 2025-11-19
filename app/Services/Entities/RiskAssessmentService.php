@@ -183,10 +183,10 @@ class RiskAssessmentService extends AbstractService
             $total += $baseScores['identification'] * (float)$formula->identification_capacity;
             $total += $baseScores['profession'] * (float)$formula->profession;
             $total += $baseScores['nationality'] * (float)$formula->nationality;
-            $total += $baseScores['countryResidence'] * (float)$formula->countryResidence;
+            $total += $baseScores['countryResidence'] * (float)$formula->country_residence;
             $total += $baseScores['statusResidence'] * (float)$formula->status_residence;
             // $total += $baseScores['formEstablishment'] * (float)$formula->form_establishment;
-            $total += $baseScores['processesReported'] * (float)$formula->processesReported;
+            $total += $baseScores['processesReported'] * (float)$formula->processesReportedAuthoritie;
             $total += $baseScores['totalRiskProduct'] * (float)$formula->product_risk;
             $total += $baseScores['santion'] * (float)$formula->santion;;
             $total += $baseScores['pep'] * (float)$formula->pep;
@@ -196,7 +196,7 @@ class RiskAssessmentService extends AbstractService
             $total += $baseScores['identification'] * (float)$formula->identification_capacity;
             $total += $baseScores['activityCode'] * (float)$formula->category;
             // $total += $baseScores['formEstablishment'] * (float)$formula->form_establishment;
-            $total += $baseScores['countryResidence'] * (float)$formula->countryResidence;
+            $total += $baseScores['countryResidence'] * (float)$formula->country_residence;
             $total += $baseScores['statusResidence'] * (float)$formula->status_residence;
             $total += $beneficialOwnerScore * (float)$formula->beneficialOwner;
             $total += $baseScores['totalRiskProduct'] * (float)$formula->product_risk;
