@@ -13,7 +13,7 @@ class SanctionExternalApi
         $api = Http::get("{$baseUrl}/sanction/search", [
             "filters" => [
                 "name"        => $name,
-                "min_score"   => 50,
+                "min_score"   => 70,
                 "limitSearch" => 5
             ]
         ]);

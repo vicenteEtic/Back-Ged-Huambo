@@ -63,7 +63,7 @@ class GenerateAlertsJob implements ShouldQueue
         // Consultar APIs externas
         $externalData = PepExternalApi::getDataPepExternal($entityName);
         $externalDataSanction = SanctionExternalApi::getDataSanctionExternal($entityName);
-   
+
         // Criar alertas se houver retorno
         if (!empty($externalData)) {
             $this->createAlerts($externalData, $entity->id, "PEP");
@@ -72,8 +72,8 @@ class GenerateAlertsJob implements ShouldQueue
             $this->createAlerts($externalDataSanction, $entity->id, "SANCTION");
         }
     }
-    
-    
+
+
     /**
      * Process entities for PEP checks.
      */
@@ -121,11 +121,16 @@ class GenerateAlertsJob implements ShouldQueue
     private function createAlerts(array $data, int $entityId, string $type = "PEP"): void
     {
         foreach ($data as $item) {
-            $alert=    $this->alertRepository->storeOrUpdate(
-                ['origin_id' => $item['id'],
-               'name' => $item['name'],],
+            $alert =    $this->alertRepository->storeOrUpdate(
+                [
+                    'origin_id' => $item['id'],
+                    'name' => $item['name'],
+                ],
                 [
                     'name' => $item['name'],
+                    'country' => $item['country']??null,
+                    'birth_date' => $item['birth_date'] ??null,
+
                     'level' => 'Alto',
                     'from_id' => $entityId,
                     'origin_id' => $item['id'],
@@ -136,7 +141,7 @@ class GenerateAlertsJob implements ShouldQueue
                     'is_active' => true,
                 ]
             );
-            SendGrupoAlertEmailJob::dispatch( $alert->id);
+            SendGrupoAlertEmailJob::dispatch($alert->id);
         }
     }
 }

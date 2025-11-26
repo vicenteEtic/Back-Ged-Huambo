@@ -13,7 +13,7 @@ class PepExternalApi
         $api = Http::get("{$baseUrl}/pep/search", [
             "filters" => [
                 "name"       => $name,
-                "min_score"  => 50,
+                "min_score"  => 70,
                 "limitSearch"=> 5
             ]
         ]);
