@@ -47,6 +47,7 @@ class GenerateAlertsJob implements ShouldQueue
             $this->entityId,
             $this->riskAssessment
         );
+        Log::info('GenerateAlertsJob iniciado', ['entityId' => $this->entityId, 'riskAssessment' => $this->riskAssessment]);
     }
 
     /**
@@ -64,13 +65,21 @@ class GenerateAlertsJob implements ShouldQueue
         $externalData = PepExternalApi::getDataPepExternal($entityName);
         $externalDataSanction = SanctionExternalApi::getDataSanctionExternal($entityName);
 
+        // Registrar nos logs
+      Log::info('externalData:', $externalData);
+
+      Log::info('externalDataSanction', $externalData);
+
         // Criar alertas se houver retorno
-        if (!empty($externalData)) {
-            $this->createAlerts($externalData, $entity->id, "PEP");
-        }
-        if (!empty($externalDataSanction)) {
-            $this->createAlerts($externalDataSanction, $entity->id, "SANCTION");
-        }
+        // Criar alertas se houver retorno
+if (!empty($externalData['data'])) {
+    $this->createAlerts($externalData['data'], $entityId, 'PEP');
+}
+
+if (!empty($externalDataSanction['data'])) {
+    $this->createAlerts($externalDataSanction['data'], $entityId, 'SANCTION');
+}
+
     }
 
 
@@ -121,6 +130,7 @@ class GenerateAlertsJob implements ShouldQueue
     private function createAlerts(array $data, int $entityId, string $type = "PEP"): void
     {
         foreach ($data as $item) {
+
             $alert =    $this->alertRepository->storeOrUpdate(
                 [
                     'origin_id' => $item['id'],
@@ -128,8 +138,8 @@ class GenerateAlertsJob implements ShouldQueue
                 ],
                 [
                     'name' => $item['name'],
-                    'country' => $item['country']??null,
-                    'birth_date' => $item['birth_date'] ??null,
+                    'country' => $item['country'] ?? null,
+                    'birth_date' => $item['birth_date'] ?? null,
 
                     'level' => 'Alto',
                     'from_id' => $entityId,

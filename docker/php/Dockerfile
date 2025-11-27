@@ -1,7 +1,9 @@
+# Imagem base
 FROM php:8.2-fpm
 
 WORKDIR /var/www
 
+# Remover html default
 RUN rm -rf /var/www/html
 
 # Instalar dependências do sistema
@@ -21,7 +23,9 @@ RUN apt-get update && apt-get install -y \
     apt-utils \
     libonig-dev \
     supervisor \
+    procps \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Extensões PHP básicas
 RUN docker-php-ext-install zip pdo_mysql mbstring exif bcmath
@@ -46,6 +50,14 @@ RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
 # Copiar código do app
 COPY . /var/www
 
+# Copiar configuração do supervisor
+COPY supervisord.conf /etc/supervisor/supervisord.conf
+
+
+# Criar diretórios para logs
+RUN mkdir -p /var/www/storage/logs
+
 EXPOSE 9000
 
-CMD ["php-fpm"]
+# CMD para rodar supervisor (gerenciar PHP-FPM e worker)
+CMD ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]

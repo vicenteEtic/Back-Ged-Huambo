@@ -10,7 +10,8 @@ class PepExternalApi
     {
         $baseUrl = config('services.pep.url');
 
-        $api = Http::get("{$baseUrl}/pep/search", [
+        // Timeout de 60 segundos e retry 3 vezes em caso de falha
+        $api = Http::timeout(60)->retry(3, 1000)->get("{$baseUrl}/pep/search", [
             "filters" => [
                 "name"       => $name,
                 "min_score"  => 70,
@@ -22,7 +23,10 @@ class PepExternalApi
             return $api->json();
         }
 
-        return response()->json(['error' => 'Failed to fetch data from PEP API'], $api->status());
+        return response()->json([
+            'error' => 'Failed to fetch data from PEP API',
+            'status' => $api->status()
+        ], $api->status());
     }
 
     public static function getAllPep($name = null)
@@ -35,12 +39,15 @@ class PepExternalApi
             ]
         ];
 
-        $api = Http::get("{$baseUrl}/pep", $data);
+        $api = Http::timeout(60)->retry(3, 1000)->get("{$baseUrl}/pep", $data);
 
         if ($api->successful()) {
             return $api->json();
         }
 
-        return response()->json(['error' => 'Failed to fetch data from PEP API'], $api->status());
+        return response()->json([
+            'error' => 'Failed to fetch data from PEP API',
+            'status' => $api->status()
+        ], $api->status());
     }
 }
