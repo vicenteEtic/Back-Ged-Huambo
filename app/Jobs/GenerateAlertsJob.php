@@ -27,7 +27,7 @@ class GenerateAlertsJob implements ShouldQueue
      * @param int    $entityId
      * @param string $riskAssessment
      */
-    public function __construct(int $entityId, string $riskAssessment)
+    public function __construct(int $entityId,  $riskAssessment)
     {
         $this->entityId = $entityId;
         $this->riskAssessment = $riskAssessment;
@@ -52,7 +52,7 @@ class GenerateAlertsJob implements ShouldQueue
     /**
      * Generate alerts for the given entity.
      */
-    public function generateAlertGeneral(int $entityId, string $riskAssessment): void
+    public function generateAlertGeneral(int $entityId,  $riskAssessment): void
     {
         $entity = Entities::find($entityId);
         if (!$entity) {

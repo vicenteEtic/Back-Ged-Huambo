@@ -126,14 +126,10 @@ class RiskAssessmentService extends AbstractService
         $riskAssessment->diligence = $diligence->name;
         $riskAssessment->save();
 
-        if ($riskAssessment->entity->entity_type == 1) {
-            GenerateAlertsJob::dispatch($riskAssessment->entity->id, true, $riskAssessment->id)
-                ->onQueue('high');
-        } else {
-            GenerateAlertsJob::dispatch($riskAssessment->entity->id, true, $riskAssessment->id)
-                ->onQueue('high');
-        }
+         GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
+    ->onQueue('high');
 
+    
         return $riskAssessment;
     }
 
