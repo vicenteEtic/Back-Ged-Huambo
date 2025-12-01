@@ -15,7 +15,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->string('social_denomination')->nullable();
             $table->string('customer_number')->unique()->nullable();
-            $table->string('policy_number')->unique()->nullable();
+            $table->string('policy_number')->nullable();
             $table->tinyInteger('entity_type')->nullable();
             $table->string('color')->nullable();
             $table->string('risk_level')->nullable();
