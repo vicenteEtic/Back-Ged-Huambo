@@ -61,6 +61,7 @@ RUN mkdir -p /var/run/supervisor && \
 COPY supervisord.conf /etc/supervisor/supervisord.conf
 
 EXPOSE 9000
+RUN mkdir -p /var/log/supervisord && chmod -R 777 /var/log/supervisord
 
 # Iniciar supervisor (gestor do php-fpm + queue worker)
 CMD ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
