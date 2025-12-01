@@ -39,8 +39,9 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 COPY . /var/www
 
 # Criar diretórios para logs e socket
-RUN mkdir -p /var/run/supervisor /var/log/supervisor /var/www/storage/logs \
-    && chmod -R 777 /var/www/storage /var/run/supervisor /var/log/supervisor
+RUN mkdir -p /var/run/supervisor /var/log/supervisord /var/www/storage/logs \
+    && chmod -R 777 /var/run/supervisor /var/log/supervisord /var/www/storage
+
 
 # Copiar configuração do supervisor
 COPY supervisord.conf /etc/supervisor/supervisord.conf
