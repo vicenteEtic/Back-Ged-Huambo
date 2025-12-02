@@ -40,7 +40,8 @@ class RiskAssessment extends Model
         "processesReportedAuthoritie",
         "beneficialOwner",
         "santion",
-        "id_risk_formula"
+        "id_risk_formula",
+     
     ];
 
 
@@ -49,6 +50,9 @@ class RiskAssessment extends Model
         'status_residence' =>  StatusResidence::class,
         'santion' => 'boolean',
         'processesReportedAuthoritie' => 'boolean',
+        'pep'=> 'boolean',
+        'is_legal_representative'=> 'boolean',
+        'status_residence'=> 'boolean',
 
     ];
 

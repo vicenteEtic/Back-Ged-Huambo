@@ -10,4 +10,6 @@ class RiskAssessmentControlRepository extends AbstractRepository
     {
         parent::__construct($model);
     }
+
+    
 }

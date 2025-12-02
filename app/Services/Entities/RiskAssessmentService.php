@@ -4,6 +4,7 @@ namespace App\Services\Entities;
 
 use App\Enum\FormEstablishment;
 use App\Enum\StatusResidence;
+use App\Http\Resources\RiskAssessmentResource;
 use InvalidArgumentException;
 use App\Jobs\GenerateAlertsJob;
 use App\Services\AbstractService;
@@ -33,7 +34,20 @@ class RiskAssessmentService extends AbstractService
         11 => 'Novembro',
         12 => 'Dezembro',
     ];
-
+    private $relationships = [
+        'entity',
+        'user',
+        'profession',
+        'indetificationCapacity',
+        'channel',
+        'countryResidence',
+        'category',
+        'nationlity',
+        'beneficialOwners',
+        'productRisk',
+        'productRisk.product',
+        "riskFormula"
+    ];
     public function __construct(
         RiskAssessmentRepository $repository,
         private readonly IndicatorTypeRepository $indicatorTypeRepository,
@@ -50,42 +64,19 @@ class RiskAssessmentService extends AbstractService
 
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
     {
-        $relationships = [
-            'entity',
-            'user',
-            'profession',
-            'indetificationCapacity',
-            'channel',
-            'countryResidence',
-            'category',
-            'nationlity',
-            'beneficialOwners',
-            'productRisk',
-            'productRisk.product',
-            "riskFormula"
-        ];
-
+        $relationships = $this->relationships;
         $orderByParams = $orderByParams ?? ['created_at' => 'desc'];
-        return $this->repository->index($paginate, $filterParams, $orderByParams, $relationships);
-    }
+   
+         $assessment= $this->repository->index($paginate, $filterParams, $orderByParams, $relationships);
+         return RiskAssessmentResource::collection($assessment);
+        }
 
     public function show($id)
     {
-        $relationships =  [
-            'entity',
-            'user',
-            'profession',
-            'indetificationCapacity',
-            'channel',
-            'countryResidence',
-            'category',
-            'nationlity',
-            'beneficialOwners',
-            'productRisk',
-            'productRisk.product',
-            "riskFormula"
-        ];
-        return $this->repository->show($id, $relationships);
+        $relationships = $this->relationships;
+         $assessment=$this->repository->show($id, $relationships);
+         return new RiskAssessmentResource($assessment);
+        
     }
 
     public function store(array $data)
@@ -126,10 +117,10 @@ class RiskAssessmentService extends AbstractService
         $riskAssessment->diligence = $diligence->name;
         $riskAssessment->save();
 
-         GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
-   ->onQueue('high');
+        GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
+            ->onQueue('high');
 
-    
+
         return $riskAssessment;
     }
 
@@ -198,8 +189,6 @@ class RiskAssessmentService extends AbstractService
             $total += $baseScores['santion'] * (float)$formula->santion;
             $total += $baseScores['channel'] * (float)$formula->channel;
             $total += $baseScores['category'] * (float)$formula->category;
-         
-
         }
 
         return $total;
@@ -335,19 +324,18 @@ class RiskAssessmentService extends AbstractService
     }
 
 
-  public function countPepTrueBeneficialOwner(array $data)
-{
-    // Contar quantos beneficiários têm PEP = true
-    $pepCount = 0;
+    public function countPepTrueBeneficialOwner(array $data)
+    {
+        // Contar quantos beneficiários têm PEP = true
+        $pepCount = 0;
 
-    foreach ($data['beneficial_owners'] ?? [] as $owner) {
-        if (!empty($owner->pep)) {
-            $pepCount++;
+        foreach ($data['beneficial_owners'] ?? [] as $owner) {
+            if (!empty($owner->pep)) {
+                $pepCount++;
+            }
         }
+
+        // Multiplicar o total por 3 (pontuação)
+        return $pepCount * 3;
     }
-
-    // Multiplicar o total por 3 (pontuação)
-    return $pepCount * 3;
-}
-
 }
