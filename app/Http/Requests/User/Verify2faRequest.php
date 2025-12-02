@@ -22,7 +22,10 @@ class Verify2faRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-         'code' => 'required|numeric'
+        'email' => 'required|email',
+'code' => 'required|digits:6'
+
+
         ];
     }
 
@@ -30,6 +33,7 @@ class Verify2faRequest extends BaseFormRequest
     {
         return [
             'code' => 'código',
+            
             
         ];
     }
