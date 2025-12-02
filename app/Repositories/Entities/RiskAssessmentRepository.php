@@ -29,25 +29,7 @@ class RiskAssessmentRepository extends AbstractRepository
         parent::__construct($model);
     }
 
-      public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
-    {
-        // Carrega os relationships normais primeiro
-        $query = $this->model->with($relationships);
-
-        // Sobrescreve carregamento de category com campos selecionados
-        $query->with([
-            'category' => function ($q) {
-                $q->select( 'id','score', 'description');
-            },
-        ]);
-
-        // aplica filtros e ordenação usando os métodos do AbstractRepository
-        $query = $this->applyFilter($query, $filterParams);
-        $query = $this->applyOrder($query, $orderByParams);
-
-        // usa mesma paginação do AbstractRepository
-        return $this->paginateQuery($query, $paginate, $filterParams);
-    }
+    
 
     /**
      * Generate risk level summary by entity type and grouping field

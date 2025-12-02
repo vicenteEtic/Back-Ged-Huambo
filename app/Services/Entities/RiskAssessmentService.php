@@ -4,7 +4,10 @@ namespace App\Services\Entities;
 
 use App\Enum\FormEstablishment;
 use App\Enum\StatusResidence;
+use App\Http\Resources\RiskAssessmentCollection;
 use App\Http\Resources\RiskAssessmentResource;
+use App\Http\Resources\RiskAssessmentResourceCollection;
+use App\Http\Resources\RiskAssessmentResourceGET;
 use InvalidArgumentException;
 use App\Jobs\GenerateAlertsJob;
 use App\Services\AbstractService;
@@ -67,8 +70,8 @@ class RiskAssessmentService extends AbstractService
         $relationships = $this->relationships;
         $orderByParams = $orderByParams ?? ['created_at' => 'desc'];
    
-         $assessment= $this->repository->index($paginate, $filterParams, $orderByParams, $relationships);
-         return RiskAssessmentResource::collection($assessment);
+          $assessment= $this->repository->index($paginate, $filterParams, $orderByParams, $relationships);
+      return $assessment;
         }
 
     public function show($id)
