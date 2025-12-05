@@ -2,11 +2,11 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <title>Código de Autenticação - Nossa Seguros</title>
+    <title>Código de Autenticação - keepcompay</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #f0f4f9, #d9e4f5); /* degrade suave */
+            background: linear-gradient(135deg, #f0f4f9, #d9e4f5);
             margin: 0;
             padding: 20px;
         }
@@ -17,7 +17,7 @@
             border-radius: 16px;
             padding: 35px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-            border: 2px solid #0072CE; /* borda azul */
+            border: 2px solid #0072CE;
             position: relative;
         }
         .container::before {
@@ -39,12 +39,12 @@
             max-width: 180px;
         }
         h2 {
-            color: #003366; /* Azul institucional escuro */
+            color: #003366;
             font-size: 36px;
             margin: 25px 0;
             letter-spacing: 4px;
             text-align: center;
-            border: 2px dashed #0072CE; 
+            border: 2px dashed #0072CE;
             padding: 15px;
             border-radius: 10px;
             background: #f0f8ff;
@@ -70,12 +70,13 @@
 </head>
 <body>
     <div class="container">
-        
-     @php
+
+        @php
             use Illuminate\Support\Str;
             $currentHost = request()->getHost();
         @endphp
 
+        {{-- Logo --}}
         @if(in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
             <div class="logo">
                 <img src="https://nossa-denuncias.keepcomply.co.ao:1130/Keepcompy.png" alt="Keepcompy">
@@ -84,39 +85,37 @@
             <div class="logo">
                 <img src="https://www.nossaseguros.ao/assets/img/logo.png" alt="Nossa Seguros">
             </div>
-
-              @elseif(Str::contains($currentHost, 'globalseguros.keepcomply.co.ao',[ '172.17.100.14', '172.17.100.12:8083']))
+        @elseif(Str::contains($currentHost, ['globalseguros.keepcomply.co.ao', '172.17.100.14', '172.17.100.12:8083']))
             <div class="logo">
-               <img src="https://nossa-denuncias.keepcomply.co.ao:1130/global.png" alt="Keepcompy">
+                <img src="https://nossa-denuncias.keepcomply.co.ao:1130/global.png" alt="Global Seguros">
             </div>
-                @elseif(Str::contains($currentHost, 'fortaleza.keepcomply.co.ao',[ '102.219.127.167']))
+        @elseif(Str::contains($currentHost, ['fortaleza.keepcomply.co.ao', '102.219.127.167']))
             <div class="logo">
-               <img src="https://listapeps.keepcomply.co.ao:1130/fortaze.png" alt="Keepcompy">
+                <img src="https://listapeps.keepcomply.co.ao:1130/fortaze.png" alt="Fortaleza Seguros">
             </div>
         @endif
 
-        <p>Olá,{{ $user->first_name}}</p>
+        <p>Olá, {{ $user->first_name }}</p>
         <p>Seu código de autenticação é:</p>
-        
         <h2>{{ $user->two_factor_code }}</h2>
-
         <p>Este código expira em <span class="highlight">10 minutos</span>.</p>
         <p>Se você não solicitou este código, ignore esta mensagem.</p>
 
+        {{-- Footer --}}
         <div class="footer">
-            <p>&copy; {{ date('Y') }}  @if(in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
-             Keepcompy— Todos os direitos reservados.
-        @elseif(Str::contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
-            Nossa Seguros — Todos os direitos reservados.
-
-
-               @elseif(Str::contains($currentHost, 'globalseguros.keepcomply.co.ao',[ '172.17.100.14', '172.17.100.14:8083']))
-         Global Seguros — Todos os direitos reservados.
-        @endif
-      @elseif(Str::contains($currentHost, 'fortaleza.keepcomply.co.ao',[ '102.219.127.167']))
-         Fortaleza Seguros — Todos os direitos reservados.
-        @endif
-    </p>
+            <p>&copy; {{ date('Y') }}
+            @if(in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
+                Keepcompy — Todos os direitos reservados.
+            @elseif(Str::contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
+                Nossa Seguros — Todos os direitos reservados.
+            @elseif(Str::contains($currentHost, ['globalseguros.keepcomply.co.ao', '172.17.100.14', '172.17.100.14:8083']))
+                Global Seguros — Todos os direitos reservados.
+            @elseif(Str::contains($currentHost, ['fortaleza.keepcomply.co.ao', '102.219.127.167']))
+                Fortaleza Seguros — Todos os direitos reservados.
+            @else
+                Sistema — Todos os direitos reservados.
+            @endif
+            </p>
         </div>
     </div>
 </body>
