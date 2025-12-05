@@ -30,7 +30,7 @@ return [
     ],
 
     'pep' => [
-        'url' => env('URL_PEP_API', 'http://172.17.100.11:1090/api'),
+        'url' => env('URL_PEP_API', 'https://listapeps.keepcomply.co.ao/api'),
     ],
 
 ];

@@ -6,18 +6,28 @@ use Illuminate\Support\Facades\Http;
 
 class SanctionExternalApi
 {
+    /**
+     * Buscar dados de Sanctions por nome
+     */
     public static function getDataSanctionExternal($name)
     {
         $baseUrl = config('services.pep.url');
 
-        // Timeout de 60 segundos e retry 3 vezes em caso de falha
-        $api = Http::timeout(60)->retry(3, 1000)->get("{$baseUrl}/sanction/search", [
-            "filters" => [
-                "name"        => $name,
-                "min_score"   => 70,
-                "limitSearch" => 5
-            ]
-        ]);
+        // Caminho para o certificado da CA (opcional, se usar certificado autoassinado)
+        $caCertPath = '/etc/ssl/certs/listapeps-ca.crt'; // ajuste conforme necessário
+
+        $api = Http::timeout(60)
+            ->retry(3, 1000)
+            ->withOptions([
+                'verify' => file_exists($caCertPath) ? $caCertPath : false // fallback para teste
+            ])
+            ->get("{$baseUrl}/sanction/search", [
+                "filters" => [
+                    "name"        => $name,
+                    "min_score"   => 70,
+                    "limitSearch" => 5
+                ]
+            ]);
 
         if ($api->successful()) {
             return $api->json();
@@ -29,6 +39,9 @@ class SanctionExternalApi
         ], $api->status());
     }
 
+    /**
+     * Buscar todos os dados de Sanctions ou filtrados por nome
+     */
     public static function getAllSanctions($name = null)
     {
         $baseUrl = config('services.pep.url');
@@ -39,7 +52,14 @@ class SanctionExternalApi
             ]
         ];
 
-        $api = Http::timeout(60)->retry(3, 1000)->get("{$baseUrl}/sanction", $data);
+        $caCertPath = '/etc/ssl/certs/listapeps-ca.crt'; // ajuste conforme necessário
+
+        $api = Http::timeout(60)
+            ->retry(3, 1000)
+            ->withOptions([
+                'verify' => file_exists($caCertPath) ? $caCertPath : false
+            ])
+            ->get("{$baseUrl}/sanction", $data);
 
         if ($api->successful()) {
             return $api->json();
