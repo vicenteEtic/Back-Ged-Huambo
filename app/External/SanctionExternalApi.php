@@ -13,14 +13,9 @@ class SanctionExternalApi
     {
         $baseUrl = config('services.pep.url');
 
-        // Caminho para o certificado da CA (opcional, se usar certificado autoassinado)
-        $caCertPath = '/etc/ssl/certs/listapeps-ca.crt'; // ajuste conforme necessário
-
         $api = Http::timeout(60)
             ->retry(3, 1000)
-            ->withOptions([
-                'verify' => file_exists($caCertPath) ? $caCertPath : false // fallback para teste
-            ])
+            ->withOptions(['verify' => false]) // Ignora verificação SSL
             ->get("{$baseUrl}/sanction/search", [
                 "filters" => [
                     "name"        => $name,
@@ -52,13 +47,9 @@ class SanctionExternalApi
             ]
         ];
 
-        $caCertPath = '/etc/ssl/certs/listapeps-ca.crt'; // ajuste conforme necessário
-
         $api = Http::timeout(60)
             ->retry(3, 1000)
-            ->withOptions([
-                'verify' => file_exists($caCertPath) ? $caCertPath : false
-            ])
+            ->withOptions(['verify' => false]) // Ignora verificação SSL
             ->get("{$baseUrl}/sanction", $data);
 
         if ($api->successful()) {

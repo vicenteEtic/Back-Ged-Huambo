@@ -10,14 +10,17 @@ class PepExternalApi
     {
         $baseUrl = config('services.pep.url');
 
-        // Timeout de 60 segundos e retry 3 vezes em caso de falha
-        $api = Http::timeout(60)->retry(3, 1000)->get("{$baseUrl}/pep/search", [
-            "filters" => [
-                "name"       => $name,
-                "min_score"  => 70,
-                "limitSearch"=> 5
-            ]
-        ]);
+        // Timeout de 60 segundos, retry 3 vezes e ignorar verificação SSL
+        $api = Http::timeout(60)
+            ->retry(3, 1000)
+            ->withOptions(['verify' => false])
+            ->get("{$baseUrl}/pep/search", [
+                "filters" => [
+                    "name"       => $name,
+                    "min_score"  => 70,
+                    "limitSearch"=> 5
+                ]
+            ]);
 
         if ($api->successful()) {
             return $api->json();
@@ -39,7 +42,10 @@ class PepExternalApi
             ]
         ];
 
-        $api = Http::timeout(60)->retry(3, 1000)->get("{$baseUrl}/pep", $data);
+        $api = Http::timeout(60)
+            ->retry(3, 1000)
+            ->withOptions(['verify' => false])
+            ->get("{$baseUrl}/pep", $data);
 
         if ($api->successful()) {
             return $api->json();
