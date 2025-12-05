@@ -14,7 +14,7 @@ services:
     networks:
       - setupNossaSeguros-network
     ports:
-      - '8080:8080' # expõe a porta do reverb/websocket
+      - '8080:8080'
 
   nginx:
     container_name: setupNossaSeguros-nginx
@@ -76,6 +76,8 @@ services:
       - '6388:6379'
     networks:
       - setupNossaSeguros-network
+    volumes:
+      - redis-data:/data
 
 networks:
   setupNossaSeguros-network:
@@ -83,4 +85,6 @@ networks:
 
 volumes:
   setupNossaSeguros-data:
+    driver: local
+  redis-data:
     driver: local

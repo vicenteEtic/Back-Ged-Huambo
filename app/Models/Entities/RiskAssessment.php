@@ -36,13 +36,24 @@ class RiskAssessment extends Model
         'diligence',
         'type_assessment',
         'status',
-        'risk_assessment_control_id'
+        'risk_assessment_control_id',
+        "processesReportedAuthoritie",
+        "beneficialOwner",
+        "santion",
+        "id_risk_formula",
+     
     ];
 
 
     public $casts = [
         'form_establishment' => FormEstablishment::class,
-        'status_residence' =>  StatusResidence::class
+        'status_residence' =>  StatusResidence::class,
+        'santion' => 'boolean',
+        'processesReportedAuthoritie' => 'boolean',
+        'pep'=> 'boolean',
+        'is_legal_representative'=> 'boolean',
+        'status_residence'=> 'boolean',
+
     ];
 
     public function entity()
@@ -91,5 +102,10 @@ class RiskAssessment extends Model
     public function beneficialOwners()
     {
         return $this->hasMany(BeneficialOwner::class, 'risk_assessment_id', 'id');
+    }
+
+    public function riskFormula()
+    {
+        return $this->belongsTo(riskFormula::class, 'id_risk_formula', 'id');
     }
 }

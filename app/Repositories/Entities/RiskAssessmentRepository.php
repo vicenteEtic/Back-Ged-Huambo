@@ -29,6 +29,8 @@ class RiskAssessmentRepository extends AbstractRepository
         parent::__construct($model);
     }
 
+    
+
     /**
      * Generate risk level summary by entity type and grouping field
      *

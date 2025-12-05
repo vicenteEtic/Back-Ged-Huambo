@@ -27,7 +27,7 @@ class GenerateAlertsJob implements ShouldQueue
      * @param int    $entityId
      * @param string $riskAssessment
      */
-    public function __construct(int $entityId, string $riskAssessment)
+    public function __construct(int $entityId,  $riskAssessment)
     {
         $this->entityId = $entityId;
         $this->riskAssessment = $riskAssessment;
@@ -47,12 +47,13 @@ class GenerateAlertsJob implements ShouldQueue
             $this->entityId,
             $this->riskAssessment
         );
+        Log::info('GenerateAlertsJob iniciado', ['entityId' => $this->entityId, 'riskAssessment' => $this->riskAssessment]);
     }
 
     /**
      * Generate alerts for the given entity.
      */
-    public function generateAlertGeneral(int $entityId, string $riskAssessment): void
+    public function generateAlertGeneral(int $entityId,  $riskAssessment): void
     {
         $entity = Entities::find($entityId);
         if (!$entity) {
@@ -63,17 +64,25 @@ class GenerateAlertsJob implements ShouldQueue
         // Consultar APIs externas
         $externalData = PepExternalApi::getDataPepExternal($entityName);
         $externalDataSanction = SanctionExternalApi::getDataSanctionExternal($entityName);
-   
+
+        // Registrar nos logs
+      Log::info('externalData:', $externalData);
+
+      Log::info('externalDataSanction', $externalData);
+
         // Criar alertas se houver retorno
-        if (!empty($externalData)) {
-            $this->createAlerts($externalData, $entity->id, "PEP");
-        }
-        if (!empty($externalDataSanction)) {
-            $this->createAlerts($externalDataSanction, $entity->id, "SANCTION");
-        }
+        // Criar alertas se houver retorno
+if (!empty($externalData['data'])) {
+    $this->createAlerts($externalData['data'], $entityId, 'PEP');
+}
+
+if (!empty($externalDataSanction['data'])) {
+    $this->createAlerts($externalDataSanction['data'], $entityId, 'SANCTION');
+}
+
     }
-    
-    
+
+
     /**
      * Process entities for PEP checks.
      */
@@ -121,11 +130,17 @@ class GenerateAlertsJob implements ShouldQueue
     private function createAlerts(array $data, int $entityId, string $type = "PEP"): void
     {
         foreach ($data as $item) {
-            $alert=    $this->alertRepository->storeOrUpdate(
-                ['origin_id' => $item['id'],
-               'name' => $item['name'],],
+
+            $alert =    $this->alertRepository->storeOrUpdate(
+                [
+                    'origin_id' => $item['id'],
+                    'name' => $item['name'],
+                ],
                 [
                     'name' => $item['name'],
+                    'country' => $item['country'] ?? null,
+                    'birth_date' => $item['birth_date'] ?? null,
+
                     'level' => 'Alto',
                     'from_id' => $entityId,
                     'origin_id' => $item['id'],
@@ -136,7 +151,7 @@ class GenerateAlertsJob implements ShouldQueue
                     'is_active' => true,
                 ]
             );
-            SendGrupoAlertEmailJob::dispatch( $alert->id);
+            SendGrupoAlertEmailJob::dispatch($alert->id);
         }
     }
 }

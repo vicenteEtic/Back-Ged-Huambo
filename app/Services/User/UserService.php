@@ -50,7 +50,8 @@ class UserService extends AbstractService
         //return $token;
         return response()->json([
             'message' => 'Código 2FA enviado para seu email',
-            'user_id' => $user->id // necessário para validar o código depois
+            'user_id' => $user->id,
+            'email' => $user->email,
         ]);
     }
 
@@ -96,13 +97,16 @@ class UserService extends AbstractService
     public function verify2fa(array $request)
     {
         $code = $request['code'] ?? null; // <- pega o campo do array
+        $email = $request['email'] ?? null;
 
-        $user = User::where('two_factor_code', $code)->first();
+        $user = User::where('email', $email)
+            ->where('two_factor_code', $code)
+            ->first();
 
         if (!$user) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Código inválido.'
+                'message' => 'Código ou email inválido.'
             ], 401);
         }
 
@@ -121,11 +125,12 @@ class UserService extends AbstractService
             'status' => 'success',
             'message' => 'Autenticação 2FA validada com sucesso.',
             'token' => $token,
-           // 'user'  => $user
+            // 'user'  => $user
         ];
     }
 
-    public function changePassword(array $data,$id){
-         return $this->repository->changePassword($data,$id);  
+    public function changePassword(array $data, $id)
+    {
+        return $this->repository->changePassword($data, $id);
     }
 }

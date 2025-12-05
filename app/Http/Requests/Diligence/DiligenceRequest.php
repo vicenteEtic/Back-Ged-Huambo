@@ -24,8 +24,8 @@ class DiligenceRequest extends BaseFormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'max' => ['required', 'integer'],
-            'min' => ['required', 'integer'],
+            'max' => ['required'],
+            'min' => ['required'],
             'risk' => ['required', 'string', 'max:255'],
             'color' => ['required', 'string', 'max:255'],
         ];

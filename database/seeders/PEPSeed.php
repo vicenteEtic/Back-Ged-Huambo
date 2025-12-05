@@ -14,8 +14,8 @@ class PEPSeed extends Seeder
            $IndicatorType = [
 
                  /**A entidade é considerada PPE ? */
-                 ['description' => 'Sim PEP', 'risk' => 'Muito Elevado', 'score' => 20, 'indicator_id' => 6],
-                 ['description' => 'Não PEP', 'risk' => 'Baixo', 'score' => 1, 'indicator_id' => 6],
+                 ['description' => 'Sim PEP', 'risk' => 'Muito Elevado', 'score' => 3, 'indicator_id' => 6],
+                 ['description' => 'Não PEP', 'risk' => 'Baixo', 'score' => 0, 'indicator_id' => 6],
 
 
         ];

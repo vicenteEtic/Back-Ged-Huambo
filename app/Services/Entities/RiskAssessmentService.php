@@ -2,6 +2,12 @@
 
 namespace App\Services\Entities;
 
+use App\Enum\FormEstablishment;
+use App\Enum\StatusResidence;
+use App\Http\Resources\RiskAssessmentCollection;
+use App\Http\Resources\RiskAssessmentResource;
+use App\Http\Resources\RiskAssessmentResourceCollection;
+use App\Http\Resources\RiskAssessmentResourceGET;
 use InvalidArgumentException;
 use App\Jobs\GenerateAlertsJob;
 use App\Services\AbstractService;
@@ -12,6 +18,7 @@ use Illuminate\Database\Eloquent\Collection;
 use App\Repositories\Entities\RiskAssessmentRepository;
 use App\Repositories\Entities\RiskFormulaRepository;
 use App\Repositories\Indicator\IndicatorTypeRepository;
+use Illuminate\Support\Facades\Log;
 
 class RiskAssessmentService extends AbstractService
 {
@@ -30,7 +37,20 @@ class RiskAssessmentService extends AbstractService
         11 => 'Novembro',
         12 => 'Dezembro',
     ];
-
+    private $relationships = [
+        'entity',
+        'user',
+        'profession',
+        'indetificationCapacity',
+        'channel',
+        'countryResidence',
+        'category',
+        'nationlity',
+        'beneficialOwners',
+        'productRisk',
+        'productRisk.product',
+        "riskFormula"
+    ];
     public function __construct(
         RiskAssessmentRepository $repository,
         private readonly IndicatorTypeRepository $indicatorTypeRepository,
@@ -47,45 +67,27 @@ class RiskAssessmentService extends AbstractService
 
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
     {
-        $relationships = [
-            'entity',
-            'user',
-            'profession',
-            'indetificationCapacity',
-            'channel',
-            'countryResidence',
-            'category',
-            'nationlity',
-            'beneficialOwners',
-            'productRisk',
-            'productRisk.product'
-        ];
-
+        $relationships = $this->relationships;
         $orderByParams = $orderByParams ?? ['created_at' => 'desc'];
-        return $this->repository->index($paginate, $filterParams, $orderByParams, $relationships);
-    }
+   
+          $assessment= $this->repository->index($paginate, $filterParams, $orderByParams, $relationships);
+      return $assessment;
+        }
 
     public function show($id)
     {
-        $relationships =  [
-            'entity',
-            'user',
-            'profession',
-            'indetificationCapacity',
-            'channel',
-            'countryResidence',
-            'category',
-            'nationlity',
-            'beneficialOwners',
-            'productRisk',
-            'productRisk.product'
-        ];
-        return $this->repository->show($id, $relationships);
+        $relationships = $this->relationships;
+         $assessment=$this->repository->show($id, $relationships);
+         return new RiskAssessmentResource($assessment);
+        
     }
 
     public function store(array $data)
     {
         $data['user_id'] = Auth::id() ?? $data['user_id'];
+
+
+        $data['beneficialOwner'] = $this->countPepTrueBeneficialOwner($data);
 
         $riskAssessment = $this->repository->store($data);
 
@@ -99,15 +101,18 @@ class RiskAssessmentService extends AbstractService
 
         $riskProducts = $this->indicatorTypeRepository->getByIds($data['product_risk']);
         $this->productRiskService->storeProductRisks($riskProducts, $riskAssessment->id);
-
-        $this->loadRelations($riskAssessment);
         $entityType = $riskAssessment['entity']['entity_type'];
         $formula = $this->riskFormulaRepository->findByEntityType($entityType);
+        // Atualizar o campo id_risk_formula
+        $riskAssessment->update([
+            'id_risk_formula' =>   $formula->id
+        ]);
+        $this->loadRelations($riskAssessment);
+
         $totalRiskProduct = $riskProducts->sum('score');
-        $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula);
+        $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $data['beneficialOwner']);
 
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
-
         $this->updateEntityRisk($riskAssessment, $total, $diligence);
         $riskAssessment->score = $total;
         $riskAssessment->color = $diligence->color;
@@ -115,13 +120,9 @@ class RiskAssessmentService extends AbstractService
         $riskAssessment->diligence = $diligence->name;
         $riskAssessment->save();
 
-        if ($riskAssessment->entity->entity_type == 1) {
-            GenerateAlertsJob::dispatch($riskAssessment->entity->id, true, $riskAssessment->id)
-                ->onQueue('high');
-        } else {
-            GenerateAlertsJob::dispatch($riskAssessment->entity->id, true, $riskAssessment->id)
-                ->onQueue('high');
-        }
+        GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
+            ->onQueue('high');
+
 
         return $riskAssessment;
     }
@@ -129,6 +130,7 @@ class RiskAssessmentService extends AbstractService
     private function loadRelations($riskAssessment): void
     {
         $riskAssessment->load([
+            "riskFormula",
             'entity',
             'user',
             'profession',
@@ -140,30 +142,63 @@ class RiskAssessmentService extends AbstractService
             'beneficialOwners',
             'productRisk',
             'productRisk.product'
+
         ]);
     }
-
-    private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula): int
+    private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $beneficialOwnerScore): float
     {
+        // --- Scores básicos ---
+        $baseScores = [
+            'identification'    => $riskAssessment?->indetificationCapacity()?->first()?->score ?? 0,
+            'profession'        => $riskAssessment?->profession()?->first()?->score ?? 0, // Particulares
+            'activityCode'      => $riskAssessment?->category()?->first()?->score ?? 0,   // Empresas
+            'nationality'       => $riskAssessment?->nationlity()?->first()?->score ?? 0,
+            'countryResidence'  => $riskAssessment?->countryResidence()?->first()?->score ?? 0,
+            'statusResidence'   => $riskAssessment->status_residence === StatusResidence::RESIDENTE ? 1 : 3,
+            'formEstablishment' => $riskAssessment->form_establishment === FormEstablishment::PRESENCIAL ? 1 : 3,
+            'processesReported' => $riskAssessment->processesReportedAuthoritie ? 3 : 0,
+            'santion'           => $riskAssessment->santion ? 20 : 0,
+            'pep'               => $riskAssessment->pep ? 3 : 0,
+            'channel'           => $riskAssessment?->channel()?->first()?->score ?? 0,
+            'totalRiskProduct'  => (float) $totalRiskProduct,
+            'category'    => $riskAssessment?->category()?->first()?->score ?? 0,
+        ];
 
+        // --- Somar total dinamicamente ---
+        $total = 0;
 
-        $fromEstablishment = $riskAssessment->form_establishment == 0 ? 1 : 3;
-        $statusResidence = $riskAssessment->status_residence == 0 ? 1 : 3;
+        if ($formula->entity_type == 2) { // Entidade Particular
+            $total += $baseScores['identification'] * (float)$formula->identification_capacity;
+            $total += $baseScores['profession'] * (float)$formula->profession;
+            $total += $baseScores['nationality'] * (float)$formula->nationality;
+            $total += $baseScores['countryResidence'] * (float)$formula->country_residence;
+            $total += $baseScores['statusResidence'] * (float)$formula->status_residence;
+            // $total += $baseScores['formEstablishment'] * (float)$formula->form_establishment;
+            $total += $baseScores['processesReported'] * (float)$formula->processesReportedAuthoritie;
+            $total += $baseScores['totalRiskProduct'] * (float)$formula->product_risk;
+            $total += $baseScores['santion'] * (float)$formula->santion;;
+            $total += $baseScores['pep'] * (float)$formula->pep;
+            // $total += $beneficialOwnerScore;
+            $total += $baseScores['channel'] * (float)$formula->channel;
+        } else { // Entidade Coletiva
+            $total += $baseScores['identification'] * (float)$formula->identification_capacity;
+            $total += $baseScores['activityCode'] * (float)$formula->category;
+            // $total += $baseScores['formEstablishment'] * (float)$formula->form_establishment;
+            $total += $baseScores['countryResidence'] * (float)$formula->country_residence;
+            $total += $baseScores['statusResidence'] * (float)$formula->status_residence;
+            $total += $beneficialOwnerScore * (float)$formula->beneficialOwner;
+            $total += $baseScores['totalRiskProduct'] * (float)$formula->product_risk;
+            $total += $baseScores['processesReported'] * (float)$formula->processesReportedAuthoritie;
+            $total += $baseScores['santion'] * (float)$formula->santion;
+            $total += $baseScores['channel'] * (float)$formula->channel;
+            $total += $baseScores['category'] * (float)$formula->category;
+        }
 
-        $santion = $riskAssessment->santion == 0 ? 0 : 20;
-        $distributionChannel = $riskAssessment->distributionChannel == 0 ? 0 : 3;
-        $pep = $riskAssessment->pep == 1 ? 20 : 0;
-
-        return ($riskAssessment?->channel()?->first()?->score * $formula->channel) +
-            ($riskAssessment?->indetificationCapacity()?->first()?->score * $formula->identification_capacity) +
-            $riskAssessment?->profession()?->first()?->score * $formula->profession +
-            ($fromEstablishment * $formula->fromEstablishment)  +
-            ($statusResidence * $formula->status_residence) +
-            ($santion * $formula->santion) +
-            ($distributionChannel * $formula->distributionChannel) +
-            ($pep * $formula->pep) +
-            ($totalRiskProduct * $formula->product_risk);
+        return $total;
     }
+
+
+
 
     private function updateEntityRisk($riskAssessment, $total, $diligence): void
     {
@@ -289,5 +324,21 @@ class RiskAssessmentService extends AbstractService
     public function getLastAssessment(int $limit = 3): ?Collection
     {
         return $this->repository->getLastAssessment($limit);
+    }
+
+
+    public function countPepTrueBeneficialOwner(array $data)
+    {
+        // Contar quantos beneficiários têm PEP = true
+        $pepCount = 0;
+
+        foreach ($data['beneficial_owners'] ?? [] as $owner) {
+            if (!empty($owner->pep)) {
+                $pepCount++;
+            }
+        }
+
+        // Multiplicar o total por 3 (pontuação)
+        return $pepCount * 3;
     }
 }
