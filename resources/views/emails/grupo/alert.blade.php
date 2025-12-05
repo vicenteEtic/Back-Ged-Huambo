@@ -89,7 +89,7 @@
 
         @if(in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12','102.219.127.167']))
             <div class="logo">
-                <img src="https://listapeps.keepcomply.co.ao:1130/Keepcompay.png" alt="Keepcompay">
+                <img src="https://listapeps.keepcomply.co.ao:1130/Keepcompy.png" alt="Keepcompy">
             </div>
         @elseif(Str::contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
             <div class="logo">
@@ -97,12 +97,12 @@
             </div>
               @elseif(Str::contains($currentHost, 'globalseguros.keepcomply.co.ao',[ '172.17.100.14', '172.17.100.14:8083']))
             <div class="logo">
-               <img src="https://listapeps.keepcomply.co.ao:1130/global.png" alt="Keepcompay">
+               <img src="https://listapeps.keepcomply.co.ao:1130/global.png" alt="Keepcompy">
             </div>
 
               @elseif(Str::contains($currentHost, 'fortaleza.keepcomply.co.ao',[ '102.219.127.167']))
             <div class="logo">
-               <img src="https://listapeps.keepcomply.co.ao:1130/fortaze.png" alt="Keepcompay">
+               <img src="https://listapeps.keepcomply.co.ao:1130/fortaze.png" alt="Keepcompy">
             </div>
         @endif
 
