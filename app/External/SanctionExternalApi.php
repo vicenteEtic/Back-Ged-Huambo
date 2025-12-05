@@ -13,9 +13,9 @@ class SanctionExternalApi
     {
         $baseUrl = config('services.pep.url');
 
-        $api = Http::timeout(60)
+        $api = Http::withOptions(['verify' => false]) // Ignora verificação SSL
+            ->timeout(60)
             ->retry(3, 1000)
-            ->withOptions(['verify' => false]) // Ignora verificação SSL
             ->get("{$baseUrl}/sanction/search", [
                 "filters" => [
                     "name"        => $name,
@@ -28,10 +28,10 @@ class SanctionExternalApi
             return $api->json();
         }
 
-        return response()->json([
-            'error' => 'Failed to fetch data from Sanction API',
+        return [
+            'error'  => 'Failed to fetch data from Sanction API',
             'status' => $api->status()
-        ], $api->status());
+        ];
     }
 
     /**
@@ -47,18 +47,18 @@ class SanctionExternalApi
             ]
         ];
 
-        $api = Http::timeout(60)
+        $api = Http::withOptions(['verify' => false]) // Ignora verificação SSL
+            ->timeout(60)
             ->retry(3, 1000)
-            ->withOptions(['verify' => false]) // Ignora verificação SSL
             ->get("{$baseUrl}/sanction", $data);
 
         if ($api->successful()) {
             return $api->json();
         }
 
-        return response()->json([
-            'error' => 'Failed to fetch data from Sanction API',
+        return [
+            'error'  => 'Failed to fetch data from Sanction API',
             'status' => $api->status()
-        ], $api->status());
+        ];
     }
 }
