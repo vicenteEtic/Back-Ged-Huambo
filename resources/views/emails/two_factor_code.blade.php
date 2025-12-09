@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <title>Código de Autenticação - keepcompay</title>
+    <title>Código de Autenticação - Keepcomply</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
