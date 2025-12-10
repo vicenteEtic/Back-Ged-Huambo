@@ -1,20 +1,19 @@
-version: '3'
+version: '3.9'
 
 services:
   php:
     container_name: setupNossaSeguros-php
     build:
-      context: ./docker/php
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/php/Dockerfile
     restart: always
     tty: true
     volumes:
       - ./:/var/www
-      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
     networks:
       - setupNossaSeguros-network
     ports:
-      - '8080:8080'
+      - '8080:9000'  # PHP-FPM
 
   nginx:
     container_name: setupNossaSeguros-nginx
