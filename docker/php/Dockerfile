@@ -35,7 +35,7 @@ COPY . /var/www
 RUN mkdir -p /var/run/supervisor /var/log/supervisord /var/www/storage/logs \
     && chmod -R 777 /var/run/supervisor /var/log/supervisord /var/www/storage
 
-COPY supervisord.conf /etc/supervisor/supervisord.conf
+COPY docker/php/supervisord.conf /etc/supervisor/supervisord.conf
 
 # SSL
 COPY cacert.pem /usr/local/share/ca-certificates/cacert.pem
