@@ -46,6 +46,14 @@ RUN mkdir -p /var/run/supervisor /var/log/supervisord /var/www/storage/logs \
 # Copiar configuração do supervisor
 COPY supervisord.conf /etc/supervisor/supervisord.conf
 
+# Copiar o cacert.pem para dentro do container
+COPY cacert.pem /usr/local/share/ca-certificates/cacert.pem
+RUN update-ca-certificates
+
+
+# Copiar seu php.ini customizado (opcional)
+COPY ./php.ini /usr/local/etc/php/conf.d/local.ini
+
 EXPOSE 9000
 
 # Iniciar supervisor (gestor do php-fpm + queue worker)

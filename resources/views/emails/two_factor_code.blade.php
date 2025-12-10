@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <title>Código de Autenticação - keepcompay</title>
+    <title>Código de Autenticação - Keepcomply</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -79,7 +79,7 @@
         {{-- Logo --}}
         @if(in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
             <div class="logo">
-                <img src="https://nossa-denuncias.keepcomply.co.ao:1130/Keepcompy.png" alt="Keepcompy">
+                <img src="https://nossa-denuncias.keepcomply.co.ao:1130/Keepcomply.png" alt="Keepcomply">
             </div>
         @elseif(Str::contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
             <div class="logo">
@@ -105,7 +105,7 @@
         <div class="footer">
             <p>&copy; {{ date('Y') }}
             @if(in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
-                Keepcompy — Todos os direitos reservados.
+               Keepcomply— Todos os direitos reservados.
             @elseif(Str::contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
                 Nossa Seguros — Todos os direitos reservados.
             @elseif(Str::contains($currentHost, ['globalseguros.keepcomply.co.ao', '172.17.100.14', '172.17.100.14:8083']))
