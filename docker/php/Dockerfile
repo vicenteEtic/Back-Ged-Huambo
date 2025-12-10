@@ -52,7 +52,7 @@ RUN update-ca-certificates
 
 
 # Copiar seu php.ini customizado (opcional)
-COPY ./php.ini /usr/local/etc/php/conf.d/local.ini
+COPY ./docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 
 EXPOSE 9000
 
