@@ -41,8 +41,13 @@ COPY docker/php/supervisord.conf /etc/supervisor/supervisord.conf
 COPY cacert.pem /usr/local/share/ca-certificates/cacert.pem
 RUN update-ca-certificates
 
+# Copiar cacert e atualizar certificados do sistema
+COPY cacert.pem /usr/local/share/ca-certificates/cacert.crt
+RUN update-ca-certificates
+
 # PHP ini custom
 COPY ./docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
+
 
 EXPOSE 9000
 
