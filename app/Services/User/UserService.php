@@ -12,6 +12,7 @@ use App\Repositories\User\UserRepository;
 use Exception;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use TwoFactorCodeMail;
 
 class UserService extends AbstractService
@@ -23,8 +24,17 @@ class UserService extends AbstractService
 
     public function store(array $data)
     {
-        $data['password'] = Hash::make($data['password']);
-        return $this->repository->store($data);
+      // 1. Gerar uma senha aleatória caso não venha do front
+    $password = Str::random(12); // gera senha aleatória de 12 caracteres
+    $data['password'] = Hash::make($password);
+
+    // 2. Salvar o usuário no repositório
+    $user = $this->repository->store($data);
+
+    // 3. Enviar a senha por email para o usuário
+    Mail::to($data['email'])->send(new \App\Mail\UserCreatedMail($user, $password));
+
+    return $user;
     }
 
     public function login(Request $request)

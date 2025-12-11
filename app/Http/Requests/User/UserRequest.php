@@ -30,7 +30,7 @@ class UserRequest extends BaseFormRequest
             'is_active' => ['nullable', 'boolean'],
             'role_id' => ['required', 'integer', 'exists:role,id'],
             ...($id === null ? [
-                'password' => ['required', 'string', 'min:8'],
+               
             ] : []),
         ];
     }
