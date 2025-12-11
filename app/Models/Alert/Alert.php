@@ -11,18 +11,19 @@ class Alert extends Model
     use HasFactory;
     protected $table = 'alert';
     protected $primaryKey = 'id';
-    protected $fillable = [
-        'name',
-        'level',
-        'origin_id',
-        'entity_id',
-        'score',
-        'type',
-        'list',
-        'is_active',
-        'country'
-        ,'birth_date'
-    ];
+  protected $fillable = [
+    'name',
+    'level',
+    'origin_id',
+    'entity_id',
+    'from_id',
+    'score',
+    'type',
+    'list',
+    'is_active',
+    'country',
+    'birth_date',
+];
 
 
     public function entity()
