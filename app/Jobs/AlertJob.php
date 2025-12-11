@@ -100,6 +100,8 @@ class AlertJob implements ShouldQueue
                 'origin_id' => $item['id'],
                 'entity_id' => $entityId,
                 'score' => $item['score'] ?? 0,
+                 'country' => $item['country'] ?? null,
+                  'birth_date' => $item['birth_date'] ?? null,
                 'type' => $type,
                 'list' => $item['type'] ?? "PEP List world",
                 'is_active' => true,

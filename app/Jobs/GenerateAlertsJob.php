@@ -66,20 +66,19 @@ class GenerateAlertsJob implements ShouldQueue
         $externalDataSanction = SanctionExternalApi::getDataSanctionExternal($entityName);
 
         // Registrar nos logs
-      Log::info('externalData:', $externalData);
+        Log::info('externalData:', $externalData);
 
-      Log::info('externalDataSanction', $externalData);
+        Log::info('externalDataSanction', $externalData);
+
 
         // Criar alertas se houver retorno
-        // Criar alertas se houver retorno
-if (!empty($externalData['data'])) {
-    $this->createAlerts($externalData['data'], $entityId, 'PEP');
-}
+        if (!empty($externalData['data'])) {
+            $this->createAlerts($externalData['data'], $entityId, 'PEP');
+        }
 
-if (!empty($externalDataSanction['data'])) {
-    $this->createAlerts($externalDataSanction['data'], $entityId, 'SANCTION');
-}
-
+        if (!empty($externalDataSanction['data'])) {
+            $this->createAlerts($externalDataSanction['data'], $entityId, 'SANCTION');
+        }
     }
 
 
@@ -138,8 +137,12 @@ if (!empty($externalDataSanction['data'])) {
                 ],
                 [
                     'name' => $item['name'],
+
+
                     'country' => $item['country'] ?? null,
                     'birth_date' => $item['birth_date'] ?? null,
+
+
 
                     'level' => 'Alto',
                     'from_id' => $entityId,
@@ -147,7 +150,7 @@ if (!empty($externalDataSanction['data'])) {
                     'entity_id' => $entityId,
                     'score' => $item['score'] ?? 0,
                     'type' => $type,
-                    'list' => $item['type'] ?? ($type === "PEP" ? "PEP List world" : "Sanctions List"),
+                    'list' => $item['datasets'] ?? ($type === "PEP" ? "PEP List world" : "Sanctions List"),
                     'is_active' => true,
                 ]
             );
