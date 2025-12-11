@@ -137,13 +137,8 @@ class GenerateAlertsJob implements ShouldQueue
                 ],
                 [
                     'name' => $item['name'],
-
-
-                    'country' => $item['country'] ?? null,
-                    'birth_date' => $item['birth_date'] ?? null,
-
-
-
+                    'country' => $item['country'] ,
+                    'birth_date' => $item['birth_date'] ,
                     'level' => 'Alto',
                     'from_id' => $entityId,
                     'origin_id' => $item['id'],
