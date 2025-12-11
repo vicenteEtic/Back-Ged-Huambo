@@ -104,6 +104,7 @@ class AlertJob implements ShouldQueue
             ], [
                 'name' => $item['name'],
                 'level' =>   $level ,
+                'from_id' => $entityId,
                 'origin_id' => $item['id'],
                 'entity_id' => $entityId,
                 'score' => $item['score'] ?? 0,
