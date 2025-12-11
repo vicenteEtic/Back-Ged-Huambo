@@ -19,8 +19,11 @@ class Alert extends Model
         'score',
         'type',
         'list',
-        'is_active'
+        'is_active',
+        'country'
+        ,'birth_date'
     ];
+
 
     public function entity()
     {

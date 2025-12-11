@@ -129,6 +129,13 @@ class GenerateAlertsJob implements ShouldQueue
     private function createAlerts(array $data, int $entityId, string $type = "PEP"): void
     {
         foreach ($data as $item) {
+       if ($item['score'] >= 70) {
+    $level = "Alto";
+} elseif ($item['score'] >= 50) {
+    $level = "Médio";
+} else {
+    $level = "Baixo";
+}
 
             $alert =    $this->alertRepository->storeOrUpdate(
                 [
@@ -139,7 +146,7 @@ class GenerateAlertsJob implements ShouldQueue
                     'name' => $item['name'],
                     'country' => $item['country'] ,
                     'birth_date' => $item['birth_date'] ,
-                    'level' => 'Alto',
+                    'level' =>   $level,
                     'from_id' => $entityId,
                     'origin_id' => $item['id'],
                     'entity_id' => $entityId,
