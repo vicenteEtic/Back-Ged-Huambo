@@ -16,7 +16,6 @@ class Alert extends Model
     'level',
     'origin_id',
     'entity_id',
-    'from_id',
     'score',
     'type',
     'list',
