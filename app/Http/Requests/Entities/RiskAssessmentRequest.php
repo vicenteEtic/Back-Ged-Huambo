@@ -50,7 +50,6 @@ class RiskAssessmentRequest extends BaseFormRequest
             'beneficial_owners.*.is_legal_representative' => ['nullable', 'boolean'],
             'beneficial_owners.*.nationality' => ['nullable', 'string', 'max:255'],
 
-
             'beneficial_owners.*.pep' => ['required', 'boolean'],
         ];
     }

@@ -7,6 +7,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use App\Models\Entities\RiskAssessment;
 use App\Repositories\AbstractRepository;
+use Carbon\Carbon;
 
 class RiskAssessmentRepository extends AbstractRepository
 {
@@ -29,37 +30,40 @@ class RiskAssessmentRepository extends AbstractRepository
         parent::__construct($model);
     }
 
-    
-
     /**
-     * Generate risk level summary by entity type and grouping field
-     *
-     * @param string $groupByField Field to group by
-     * @param string|null $joinTable Table to join for description (null for PEP)
-     * @param string $nameField SQL expression for name column
-     * @return array
+     * Summary com filtro por data
      */
-    private function getRiskLevelSummary(string $groupByField, ?string $joinTable, string $nameField): array
+    private function getRiskLevelSummary(string $groupByField, ?string $joinTable, string $nameField, array $data = []): array
     {
         $results = [
             'coletive' => [],
             'individual' => []
         ];
 
+        $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay() : null;
+        $endDate   = !empty($data['endDate']) ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay() : null;
+
         foreach (['coletive' => TypeEntity::COLECTIVA, 'individual' => TypeEntity::SINGULAR] as $key => $type) {
+
             $query = $this->model
                 ->join('entities', 'risk_assessment.entity_id', '=', 'entities.id')
                 ->where('entities.entity_type', $type);
 
+            // Aplicar filtro de data
+            if ($startDate && $endDate) {
+                $query->whereBetween('risk_assessment.created_at', [$startDate, $endDate]);
+            } elseif ($startDate) {
+                $query->where('risk_assessment.created_at', '>=', $startDate);
+            } elseif ($endDate) {
+                $query->where('risk_assessment.created_at', '<=', $endDate);
+            }
+
             if ($groupByField === 'product_id') {
                 $query->join('product_risk', 'product_risk.risk_assessment_id', '=', 'risk_assessment.id');
                 $query->join('indicator_type', 'indicator_type.id', '=', "product_risk.$groupByField");
-            }
-
-            if ($joinTable) {
+            } elseif ($joinTable) {
                 $query->join('indicator_type', 'indicator_type.id', '=', "risk_assessment.$groupByField");
             }
-
 
             $select = array_merge(
                 [DB::raw("$nameField AS name")],
@@ -71,84 +75,25 @@ class RiskAssessmentRepository extends AbstractRepository
                 [DB::raw('COUNT(*) AS total_geral')]
             );
 
+            $groupBy = match (true) {
+                $groupByField === 'product_id', $joinTable => ['indicator_type.description'],
+                default => ["risk_assessment.$groupByField"]
+            };
 
-
-            if ($joinTable && $nameField === 'indicator_type.description') {
-                $groupBy[] = 'indicator_type.description';
-            } elseif (!$joinTable && $nameField === '(CASE WHEN pep = 1 THEN "SIM" ELSE "NÃO" END)') {
-                $groupBy[] = 'risk_assessment.pep';
-            } elseif ($groupByField === 'product_id') {
-                $groupBy[] = 'indicator_type.description';
-            } else {
-                $groupBy = ["risk_assessment.$groupByField"];
-            }
-
-            $data = $query
-                ->select($select)
-                ->groupBy($groupBy)
-                ->get();
-
-            $results[$key] = $this->formatResults($data);
+            $dataResult = $query->select($select)->groupBy($groupBy)->get();
+            $results[$key] = $this->formatResults($dataResult);
         }
 
         return $results;
     }
 
-    private function getRiskLevelSummaryWithOutEntityType(string $groupByField, ?string $joinTable, string $nameField): array
-    {
-
-        $query = $this->model
-            ->join('entities', 'risk_assessment.entity_id', '=', 'entities.id');
-
-        if ($groupByField === 'product_id') {
-            $query->join('product_risk', 'product_risk.risk_assessment_id', '=', 'risk_assessment.id');
-            $query->join('indicator_type', 'indicator_type.id', '=', "product_risk.$groupByField");
-        }
-
-        if ($joinTable) {
-            $query->join('indicator_type', 'indicator_type.id', '=', "risk_assessment.$groupByField");
-        }
-
-
-        $select = array_merge(
-            [DB::raw("$nameField AS name")],
-            array_map(
-                fn($level, $field) => DB::raw("SUM(CASE WHEN risk_assessment.risk_level = '$level' THEN 1 ELSE 0 END) AS $field"),
-                array_keys(self::RISK_LEVELS),
-                self::RISK_LEVELS
-            ),
-            [DB::raw('COUNT(*) AS total_geral')]
-        );
-
-
-
-        if ($joinTable && $nameField === 'indicator_type.description') {
-            $groupBy[] = 'indicator_type.description';
-        } elseif (!$joinTable && $nameField === '(CASE WHEN pep = 1 THEN "SIM" ELSE "NÃO" END)') {
-            $groupBy[] = 'risk_assessment.pep';
-        } elseif ($groupByField === 'product_id') {
-            $groupBy[] = 'indicator_type.description';
-        } else {
-            $groupBy = ["risk_assessment.$groupByField"];
-        }
-
-        $data = $query
-            ->select($select)
-            ->groupBy($groupBy)
-            ->get()->toArray();
-
-        return $data;
-    }
-
     /**
-     * Format query results into standardized array structure
-     *
-     * @param Collection $data Query results
-     * @return array
+     * Summary sem considerar entity_type (ex: product risk geral)
      */
     private function formatResults(Collection $data): array
     {
         if ($data->isEmpty()) {
+            // Retorna a estrutura padrão zerada
             return [self::DEFAULT_RESULT];
         }
 
@@ -161,71 +106,96 @@ class RiskAssessmentRepository extends AbstractRepository
         ])->toArray();
     }
 
-    public function totalRiskLevelByProductRisk(): array
+    private function getRiskLevelSummaryWithOutEntityType(string $groupByField, ?string $joinTable, string $nameField, array $data = []): array
     {
-        return $this->getRiskLevelSummaryWithOutEntityType(
-            'product_id',
-            null,
-            'indicator_type.description'
-        );
-    }
+        $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay() : null;
+        $endDate   = !empty($data['endDate']) ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay() : null;
 
-    public function totalRiskLevelByCategory(): array
-    {
-        return $this->getRiskLevelSummary(
-            'category',
-            'indicator_type',
-            'indicator_type.description'
-        );
-    }
+        $query = $this->model->join('entities', 'risk_assessment.entity_id', '=', 'entities.id');
 
-    public function totalRiskLevelByProfession(): array
-    {
-        return $this->getRiskLevelSummary(
-            'profession',
-            'indicator_type',
-            'indicator_type.description'
-        );
-    }
+        // Filtro de data
+        if ($startDate && $endDate) {
+            $query->whereBetween('risk_assessment.created_at', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            $query->where('risk_assessment.created_at', '>=', $startDate);
+        } elseif ($endDate) {
+            $query->where('risk_assessment.created_at', '<=', $endDate);
+        }
 
-    public function totalRiskLevelByChannel(): array
-    {
-        return $this->getRiskLevelSummaryWithOutEntityType(
-            'channel',
-            'indicator_type',
-            'indicator_type.description'
-        );
-    }
+        if ($groupByField === 'product_id') {
+            $query->join('product_risk', 'product_risk.risk_assessment_id', '=', 'risk_assessment.id');
+            $query->join('indicator_type', 'indicator_type.id', '=', "product_risk.$groupByField");
+        } elseif ($joinTable) {
+            $query->join('indicator_type', 'indicator_type.id', '=', "risk_assessment.$groupByField");
+        }
 
-    public function totalRiskLevelByNationality(): array
-    {
-        return $this->getRiskLevelSummary(
-            'nationality',
-            'indicator_type',
-            'indicator_type.description'
+        $select = array_merge(
+            [DB::raw("$nameField AS name")],
+            array_map(
+                fn($level, $field) => DB::raw("SUM(CASE WHEN risk_assessment.risk_level = '$level' THEN 1 ELSE 0 END) AS $field"),
+                array_keys(self::RISK_LEVELS),
+                self::RISK_LEVELS
+            ),
+            [DB::raw('COUNT(*) AS total_geral')]
         );
-    }
 
-    public function totalRiskLevelByPep(): array
-    {
-        return $this->getRiskLevelSummary(
-            'pep',
-            null,
-            '(CASE WHEN pep = 1 THEN "SIM" ELSE "NÃO" END)'
-        );
-    }
+        $groupBy = match (true) {
+            $joinTable && $nameField === 'indicator_type.description', $groupByField === 'product_id' => ['indicator_type.description'],
+            !$joinTable && $nameField === '(CASE WHEN pep = 1 THEN "SIM" ELSE "NÃO" END)' => ['risk_assessment.pep'],
+            default => ["risk_assessment.$groupByField"]
+        };
 
-    public function totalRiskLevelByCountryResidence(): array
-    {
-        return $this->getRiskLevelSummary(
-            'country_residence',
-            'indicator_type',
-            'indicator_type.description'
-        );
+        $dataResult = $query->select($select)->groupBy($groupBy)->get();
+
+        // Sempre retornar a mesma estrutura, mesmo se vazio
+        return $this->formatResults($dataResult);
     }
 
 
-    public  function getDistinctYears(): array
+    // =====================
+    // MÉTODOS PÚBLICOS TOTAL RISK LEVEL
+    // =====================
+
+    public function totalRiskLevelByCategory(array $data = []): array
+    {
+        return $this->getRiskLevelSummary('category', 'indicator_type', 'indicator_type.description', $data);
+    }
+
+    public function totalRiskLevelByProfession(array $data = []): array
+    {
+        return $this->getRiskLevelSummary('profession', 'indicator_type', 'indicator_type.description', $data);
+    }
+
+    public function totalRiskLevelByChannel(array $data = []): array
+    {
+        return $this->getRiskLevelSummaryWithOutEntityType('channel', 'indicator_type', 'indicator_type.description', $data);
+    }
+
+    public function totalRiskLevelByNationality(array $data = []): array
+    {
+        return $this->getRiskLevelSummary('nationality', 'indicator_type', 'indicator_type.description', $data);
+    }
+
+    public function totalRiskLevelByPep(array $data = []): array
+    {
+        return $this->getRiskLevelSummary('pep', null, '(CASE WHEN pep = 1 THEN "SIM" ELSE "NÃO" END)', $data);
+    }
+
+    public function totalRiskLevelByCountryResidence(array $data = []): array
+    {
+        return $this->getRiskLevelSummary('country_residence', 'indicator_type', 'indicator_type.description', $data);
+    }
+
+    public function totalRiskLevelByProductRisk(array $data = []): array
+    {
+        return $this->getRiskLevelSummaryWithOutEntityType('product_id', null, 'indicator_type.description', $data);
+    }
+
+    // =====================
+    // OUTROS MÉTODOS EXISTENTES
+    // =====================
+
+    public function getDistinctYears(): array
     {
         return $this->model->select(DB::raw('YEAR(created_at) as ano'))
             ->distinct()
@@ -234,7 +204,7 @@ class RiskAssessmentRepository extends AbstractRepository
             ->toArray();
     }
 
-    public  function getMonthlyData(int $year): array
+    public function getMonthlyData(int $year): array
     {
         $monthlyData = $this->model
             ->select(
@@ -242,11 +212,11 @@ class RiskAssessmentRepository extends AbstractRepository
                 DB::raw('MONTHNAME(risk_assessment.created_at) AS monthName'),
                 DB::raw('risk_assessment.diligence AS name'),
                 DB::raw('COUNT(*) AS total'),
-                'diligence.color'  // Supondo que a cor esteja na tabela 'diligences'
+                'diligence.color'
             )
-            ->join('diligence', 'diligence.name', '=', 'risk_assessment.diligence') // Adiciona o JOIN com a tabela de diligências
+            ->join('diligence', 'diligence.name', '=', 'risk_assessment.diligence')
             ->whereYear('risk_assessment.created_at', $year)
-            ->groupBy('month', 'monthName', 'name', 'diligence.color', 'risk_assessment.diligence')  // Agora estamos agrupando pela cor também
+            ->groupBy('month', 'monthName', 'name', 'diligence.color', 'risk_assessment.diligence')
             ->orderBy('month')
             ->get()
             ->toArray();
@@ -258,6 +228,7 @@ class RiskAssessmentRepository extends AbstractRepository
     {
         return $this->model->count();
     }
+
     public function getLastAssessment(int $limit = 3): ?Collection
     {
         return $this->model

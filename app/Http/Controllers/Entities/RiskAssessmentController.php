@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Entities;
 
 use App\Http\Controllers\AbstractController;
+use App\Http\Requests\Entities\RiskAssessmentFindDateRequest;
 use App\Services\Entities\RiskAssessmentService;
 use App\Http\Requests\Entities\RiskAssessmentRequest;
 use App\Jobs\GenerateAlertsJob;
@@ -66,11 +67,11 @@ class RiskAssessmentController extends AbstractController
         }
     }
 
-    public function getTotalRiskLevelByCategory()
+    public function getTotalRiskLevelByCategory(RiskAssessmentFindDateRequest $request)
     {
         try {
             $this->logRequest();
-            $result = $this->service->getTotalRiskLevelByCategory();
+            $result = $this->service->getTotalRiskLevelByCategory($request->validated());
             return response()->json($result, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
@@ -81,11 +82,11 @@ class RiskAssessmentController extends AbstractController
         }
     }
 
-    public function getTotalRiskLevelByProfession()
+    public function getTotalRiskLevelByProfession(RiskAssessmentFindDateRequest $request)
     {
         try {
             $this->logRequest();
-            $result = $this->service->getTotalRiskLevelByProfession();
+            $result = $this->service->getTotalRiskLevelByProfession($request->validated());
             return response()->json($result, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
@@ -96,11 +97,11 @@ class RiskAssessmentController extends AbstractController
         }
     }
 
-    public function getTotalRiskLevelByChannel()
+    public function getTotalRiskLevelByChannel(RiskAssessmentFindDateRequest $request)
     {
         try {
             $this->logRequest();
-            $result = $this->service->getTotalRiskLevelByChannel();
+            $result = $this->service->getTotalRiskLevelByChannel($request->validated());
             return response()->json($result, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
@@ -111,11 +112,11 @@ class RiskAssessmentController extends AbstractController
         }
     }
 
-    public function getTotalRiskLevelByPep()
+    public function getTotalRiskLevelByPep(RiskAssessmentFindDateRequest $request)
     {
         try {
             $this->logRequest();
-            $result = $this->service->getTotalRiskLevelByPep();
+            $result = $this->service->getTotalRiskLevelByPep($request->validated());
             return response()->json($result, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
@@ -126,11 +127,11 @@ class RiskAssessmentController extends AbstractController
         }
     }
 
-    public function getTotalRiskLevelByCountryResidence()
+    public function getTotalRiskLevelByCountryResidence(RiskAssessmentFindDateRequest $request)
     {
         try {
             $this->logRequest();
-            $result = $this->service->getTotalRiskLevelByCountryResidence();
+            $result = $this->service->getTotalRiskLevelByCountryResidence($request->validated());
             return response()->json($result, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
@@ -141,11 +142,11 @@ class RiskAssessmentController extends AbstractController
         }
     }
 
-    public function getTotalRiskLevelByNationality()
+    public function getTotalRiskLevelByNationality(RiskAssessmentFindDateRequest $request)
     {
         try {
             $this->logRequest();
-            $result = $this->service->getTotalRiskLevelByNationality();
+            $result = $this->service->getTotalRiskLevelByNationality($request->validated());
             return response()->json($result, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
@@ -156,11 +157,11 @@ class RiskAssessmentController extends AbstractController
         }
     }
 
-    public function getTotalRiskLevelByProductRisk()
+    public function getTotalRiskLevelByProductRisk(RiskAssessmentFindDateRequest $request)
     {
         try {
             $this->logRequest();
-            $result = $this->service->getTotalRiskLevelByProductRisk();
+            $result = $this->service->getTotalRiskLevelByProductRisk($request->validated());
             return response()->json($result, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);

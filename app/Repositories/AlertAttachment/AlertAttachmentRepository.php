@@ -92,7 +92,7 @@ class AlertAttachmentRepository extends AbstractRepository
         $currentDomain = request()->getSchemeAndHttpHost();
 
         if (Str::contains($currentDomain, 'nossa-denuncias.keepcomply.co.ao')) {
-            $baseUrl = 'https://nossa-denuncias.keepcomply.co.ao:1130/';
+            $baseUrl = 'https://listapeps.keepcomply.co.ao/';
         } else {
             $baseUrl = 'http://172.17.100.11:1129';
         }

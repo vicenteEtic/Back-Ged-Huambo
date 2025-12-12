@@ -1,39 +1,151 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <title>Conta Criada com Sucesso</title>
+    <title>Código de Autenticação - Keepcomply</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+            margin: 0;
+            padding: 0;
+        }
+        .wrapper {
+            width: 100%;
+            padding: 30px 0;
+        }
+        .container {
+            max-width: 550px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 35px 30px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+            border-top: 4px solid #0072CE;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .logo img {
+            max-width: 160px;
+        }
+        h2 {
+            color: #003366;
+            font-size: 26px;
+            margin: 20px 0 10px;
+            text-align: center;
+            font-weight: 700;
+        }
+        p {
+            color: #444;
+            font-size: 15px;
+            line-height: 1.6;
+            margin: 10px 0;
+        }
+        .highlight {
+            color: #0072CE;
+            font-weight: bold;
+        }
+        .info-box {
+            background: #eef5ff;
+            padding: 18px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #0072CE;
+        }
+        .info-line {
+            margin: 6px 0;
+            font-size: 15px;
+        }
+        .password {
+            color: #003d99;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .footer {
+            margin-top: 35px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            border-top: 1px solid #e6e6e6;
+            padding-top: 12px;
+        }
+    </style>
 </head>
-<body style="font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 0;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 20px;">
-        <tr>
-            <td>
-                <h2 style="color: #333333;">Olá {{ $name }},</h2>
-                <p style="color: #555555; line-height: 1.6;">
-                    Sua conta no nosso portal foi criada com sucesso!
-                </p>
+<body>
+<div class="wrapper">
+    <div class="container">
 
-                <p style="color: #555555; line-height: 1.6;">Para acessar sua conta, utilize os seguintes dados temporários:</p>
+        @php
+            use Illuminate\Support\Str;
+            $currentHost = request()->getHost();
+        @endphp
 
-                <div style="background-color: #f0f4ff; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-                    <p style="margin: 5px 0;"><strong>Email:</strong> {{ $user->email }}</p>
-                    <p style="margin: 5px 0;"><strong>Senha temporária:</strong> <span style="color: #1a73e8; font-weight: bold;">{{ $password }}</span></p>
-                </div>
+        {{-- Logo --}}
+        @if(in_array($currentHost, ['localhost','127.0.0.1','172.17.100.11','172.17.100.12']))
+            <div class="logo">
+                <img src="https://listapeps.keepcomply.co.ao/Keepcompay.png" alt="Keepcomply">
+            </div>
+        @elseif(Str::contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
+            <div class="logo">
+                <img src="https://www.nossaseguros.ao/assets/img/logo.png" alt="Nossa Seguros">
+            </div>
+        @elseif(Str::contains($currentHost, ['globalseguros.keepcomply.co.ao','172.17.100.14','172.17.100.12:8083']))
+            <div class="logo">
+                <img src="https://listapeps.keepcomply.co.ao/global.png" alt="Global Seguros">
+            </div>
+        @elseif(Str::contains($currentHost, ['fortaleza.keepcomply.co.ao','102.219.127.167']))
+            <div class="logo">
+                <img src="https://listapeps.keepcomply.co.ao/fortaze.png" alt="Fortaleza Seguros">
+            </div>
+        @endif
 
-                <p style="color: #555555; line-height: 1.6;">
-                    Após o primeiro login, recomendamos que altere imediatamente sua senha para manter sua conta segura.
-                </p>
+        <h2>Bem-vindo ao Keepcomply</h2>
 
-                <p style="color: #555555; line-height: 1.6;">
-                    Se você não solicitou a criação desta conta, por favor, ignore este e-mail ou entre em contato com nossa equipe de suporte.
-                </p>
+        <p>Olá <span class="highlight">{{ $name }}</span>,</p>
+        <p>Sua conta no portal Keepcomply foi criada com sucesso.</p>
 
-                <p style="color: #555555; line-height: 1.6; margin-top: 30px;">
-                    Atenciosamente,<br>
-                    <strong>Equipe de Suporte</strong>
-                </p>
-            </td>
-        </tr>
-    </table>
+        <p>Use os dados abaixo para fazer login:</p>
+
+        <div class="info-box">
+            <p class="info-line"><strong>Email:</strong> {{ $user->email }}</p>
+            <p class="info-line">
+                <strong>Senha temporária:</strong>
+                <span class="password">{{ $password }}</span>
+            </p>
+        </div>
+
+        <p>
+            Após acessar pela primeira vez, recomendamos que altere sua senha para garantir a segurança da sua conta.
+        </p>
+
+        <p>
+            Caso você não tenha solicitado esta conta, ignore esta mensagem ou contacte o suporte.
+        </p>
+
+        <p style="margin-top: 25px;">
+            Atenciosamente,<br>
+            <strong>Equipe de Suporte</strong>
+        </p>
+
+        <div class="footer">
+            <p>&copy; {{ date('Y') }}
+                @if(in_array($currentHost, ['localhost','127.0.0.1','172.17.100.11','172.17.100.12']))
+                    Keepcomply — Todos os direitos reservados.
+                @elseif(Str::contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
+                    Nossa Seguros — Todos os direitos reservados.
+                @elseif(Str::contains($currentHost, ['globalseguros.keepcomply.co.ao','172.17.100.14']))
+                    Global Seguros — Todos os direitos reservados.
+                @elseif(Str::contains($currentHost, ['fortaleza.keepcomply.co.ao','102.219.127.167']))
+                    Fortaleza Seguros — Todos os direitos reservados.
+                @else
+                    Sistema — Todos os direitos reservados.
+                @endif
+            </p>
+        </div>
+
+    </div>
+</div>
 </body>
 </html>

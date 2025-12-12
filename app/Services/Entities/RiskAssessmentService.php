@@ -157,11 +157,10 @@ class RiskAssessmentService extends AbstractService
     };
 
     $baseScores = [
-        'identification'    => $getScore('indetificationCapacity'),
-        'profession'        => $getScore('profession'),
-        'activityCode'      => $getScore('category'),
-        'nationality'       => $getScore('nationlity'),
-        'countryResidence'  => $getScore('countryResidence'),
+        'identification'    => $getScore('indetificationCapacity')?? 0,
+        'profession'        => $getScore('profession')?? 0,
+        'nationality'       => $getScore('nationlity')?? 0,
+        'countryResidence'  => $getScore('countryResidence')?? 0,
         'statusResidence'   => ($riskAssessment?->status_residence == StatusResidence::RESIDENTE) ? 1 : 3,
         'formEstablishment' => ($riskAssessment?->form_establishment == FormEstablishment::PRESENCIAL) ? 1 : 3,
         'processesReported' => $riskAssessment?->processesReportedAuthoritie ? 3 : 0,
@@ -169,7 +168,7 @@ class RiskAssessmentService extends AbstractService
         'pep'               => $riskAssessment?->pep ? 3 : 0,
         'channel'           => $getScore('channel'),
         'totalRiskProduct'  => (float)($totalRiskProduct ?? 0),
-        'category'          => $getScore('category'),
+        'category'          => $getScore('category')?? 0, 
     ];
 
     // garante que formula nunca dá erro
@@ -197,7 +196,7 @@ class RiskAssessmentService extends AbstractService
     // --- Entidade Coletiva ---
     } else {
         $total += $baseScores['identification']    * $safeFormula('identification_capacity');
-        $total += $baseScores['activityCode']      * $safeFormula('category');
+        $total += $baseScores['activityCode']      * $safeFormula('profession');
         $total += $baseScores['countryResidence']  * $safeFormula('country_residence');
         $total += $baseScores['statusResidence']   * $safeFormula('status_residence');
         $total += $safeBeneficial                 * $safeFormula('beneficialOwner');
@@ -225,40 +224,41 @@ class RiskAssessmentService extends AbstractService
         ]);
     }
 
+public function getTotalRiskLevelByCategory(array $data = []): array
+{
+    return $this->repository->totalRiskLevelByCategory($data);
+}
 
-    public function getTotalRiskLevelByCategory(): array
-    {
-        return $this->repository->totalRiskLevelByCategory();
-    }
+public function getTotalRiskLevelByProfession(array $data = []): array
+{
+    return $this->repository->totalRiskLevelByProfession($data);
+}
 
-    public function getTotalRiskLevelByProfession(): array
-    {
-        return $this->repository->totalRiskLevelByProfession();
-    }
+public function getTotalRiskLevelByChannel(array $data = []): array
+{
+    return $this->repository->totalRiskLevelByChannel($data);
+}
 
-    public function getTotalRiskLevelByChannel(): array
-    {
-        return $this->repository->totalRiskLevelByChannel();
-    }
+public function getTotalRiskLevelByPep(array $data = []): array
+{
+    return $this->repository->totalRiskLevelByPep($data);
+}
 
-    public function getTotalRiskLevelByPep(): array
-    {
-        return $this->repository->totalRiskLevelByPep();
-    }
+public function getTotalRiskLevelByCountryResidence(array $data = []): array
+{
+    return $this->repository->totalRiskLevelByCountryResidence($data);
+}
 
-    public function getTotalRiskLevelByCountryResidence(): array
-    {
-        return $this->repository->totalRiskLevelByCountryResidence();
-    }
-    public function getTotalRiskLevelByNationality(): array
-    {
-        return $this->repository->totalRiskLevelByNationality();
-    }
+public function getTotalRiskLevelByNationality(array $data = []): array
+{
+    return $this->repository->totalRiskLevelByNationality($data);
+}
 
-    public function getTotalRiskLevelByProductRisk(): array
-    {
-        return $this->repository->totalRiskLevelByProductRisk();
-    }
+public function getTotalRiskLevelByProductRisk(array $data = []): array
+{
+    return $this->repository->totalRiskLevelByProductRisk($data);
+}
+
 
     public function getHeatMap(?int $year = null): array
     {
