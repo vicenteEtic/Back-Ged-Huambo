@@ -194,7 +194,7 @@ class RiskAssessmentService extends AbstractService
     // --- Entidade Coletiva ---
     } else {
         $total += $baseScores['identification']    * $safeFormula('identification_capacity');
-        $total += $baseScores['activityCode']      * $safeFormula('profession');
+        $total += $baseScores['profession']      * $safeFormula('profession');
         $total += $baseScores['countryResidence']  * $safeFormula('country_residence');
         $total += $baseScores['statusResidence']   * $safeFormula('status_residence');
         $total += $safeBeneficial                 * $safeFormula('beneficialOwner');
