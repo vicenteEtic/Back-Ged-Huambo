@@ -122,8 +122,6 @@ class RiskAssessmentService extends AbstractService
 
         GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
             ->onQueue('high');
-
-
         return $riskAssessment;
     }
 
@@ -168,7 +166,7 @@ class RiskAssessmentService extends AbstractService
         'pep'               => $riskAssessment?->pep ? 3 : 0,
         'channel'           => $getScore('channel'),
         'totalRiskProduct'  => (float)($totalRiskProduct ?? 0),
-        'category'          => $getScore('category')?? 0, 
+       // 'category'          => $getScore('category')?? 0, 
     ];
 
     // garante que formula nunca dá erro

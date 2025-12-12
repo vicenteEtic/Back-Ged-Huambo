@@ -30,7 +30,7 @@ class RiskAssessmentRequest extends BaseFormRequest
         return [
             'identification_capacity' => ['required', Rule::exists(IndicatorType::class, 'id')],
             'form_establishment' => ['required', Rule::enum(FormEstablishment::class)],
-            'category' => ['nullable'],
+            //'category' => ['nullable'],
             'status_residence' => ['required', Rule::enum(StatusResidence::class)],
             'profession' => ['required', Rule::exists(IndicatorType::class, 'id')],
             'pep' => ['required', 'boolean'],
