@@ -78,6 +78,22 @@ services:
     volumes:
       - redis-data:/data
 
+  python-ml:
+    container_name: setupNossaSeguros-python-ml
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    restart: always
+    tty: true
+    working_dir: /app
+    volumes:
+      - ./ml-service:/app
+    ports:
+      - '5000:5000'
+    networks:
+      - setupNossaSeguros-network
+
+# **Definição da rede e volumes**
 networks:
   setupNossaSeguros-network:
     driver: bridge

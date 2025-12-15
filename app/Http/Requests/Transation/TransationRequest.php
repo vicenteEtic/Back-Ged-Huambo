@@ -19,22 +19,23 @@ class TransationRequest extends BaseFormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
-    public function rules(): array
-    {
-        return [
-            'entite_id' => 'required',
-            'amount' => 'required',
-            'currency' => 'required',
-            'date' => 'required',
-            'type' => 'required',
-            'status' => 'required',
-            'channel' => 'required',
-            'description' => 'required',
-            'category' => 'required',
-            'risk_score' => 'required',
-            'ip_address' => 'required',
-            'device' => 'required',
-            'notes' => 'required'
-        ];
-    }
+  public function rules(): array
+{
+    return [
+        '*.entite_id' => 'required',
+        '*.amount'    => 'required|numeric',
+        '*.currency'  => 'required|string',
+        '*.date'      => 'required|date',
+        '*.type'      => 'required|string',
+        '*.status'    => 'required|string',
+        '*.channel'   => 'required|string',
+        '*.description' => 'nullable|string',
+        '*.category'    => 'nullable|string',
+        '*.risk_score'  => 'nullable|numeric',
+        '*.ip_address'  => 'nullable|ip',
+        '*.device'      => 'nullable|string',
+        '*.notes'       => 'nullable|string',
+    ];
+}
+
 }
