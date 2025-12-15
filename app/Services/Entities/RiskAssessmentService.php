@@ -209,8 +209,6 @@ class RiskAssessmentService extends AbstractService
 
 
 
-
-
     private function updateEntityRisk($riskAssessment, $total, $diligence): void
     {
         $entity = $riskAssessment?->entity();

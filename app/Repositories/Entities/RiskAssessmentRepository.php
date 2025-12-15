@@ -34,7 +34,7 @@ class RiskAssessmentRepository extends AbstractRepository
      * Summary com filtro por data
      */
     private function getRiskLevelSummary(string $groupByField, ?string $joinTable, string $nameField, array $data = []): array
-    {
+    { 
         $results = [
             'coletive' => [],
             'individual' => []
