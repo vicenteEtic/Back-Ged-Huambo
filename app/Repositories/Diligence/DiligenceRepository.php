@@ -14,8 +14,18 @@ class DiligenceRepository extends AbstractRepository
 
     public function getDilligenceAssessment($riskValue)
     {
-        return $this->model->where('min', '<=', $riskValue)
+        $result = $this->model
+            ->where('min', '<=', $riskValue)
             ->where('max', '>=', $riskValue)
             ->first();
+    
+        // Se não encontrar no ranking, pega o último elemento
+        if (!$result) {
+            return $this->model
+                ->orderBy('max', 'desc')
+                ->first();
+        }
+    
+        return $result;
     }
 }
