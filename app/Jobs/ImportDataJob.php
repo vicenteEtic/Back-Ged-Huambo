@@ -20,7 +20,7 @@ use App\Services\Indicator\IndicatorTypeService;
 use App\Traits\DatabaseLogger;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-
+use Illuminate\Support\Facades\Log;
 class ImportDataJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, DatabaseLogger;
@@ -103,9 +103,12 @@ class ImportDataJob implements ShouldQueue
             [
                 'policy_number'   => $record['policy_number'] ?? null,
                 'customer_number' => $record['customer_number'] ?? null,
+                'nif' => $record['nif'] ?? null,
             ],
             [
                 'policy_number'        => $record['policy_number'] ?? null,
+                'nif'        => $record['nif'] ?? null,
+                
                 'customer_number'      => $record['customer_number'] ?? null,
                 'social_denomination'  => $record['social_denomination'] ?? null,
                 'entity_type'          => $record['entity_type'] ?? null,
@@ -162,20 +165,24 @@ class ImportDataJob implements ShouldQueue
         $externalData = PepExternalApi::getDataPepExternal($entity->social_denomination);
         $externalDataSanction = SanctionExternalApi::getDataSanctionExternal($entity->social_denomination);
 
-        if (!empty($externalData)) {
-            $this->createAlerts($externalData, $entity->id, "PEP");
-        }
-        if (!empty($externalDataSanction)) {
-            $this->createAlerts($externalDataSanction, $entity->id, "SANCTION");
-        }
-
-        // Validar campos obrigatórios
-        foreach ($requiredFields as $field) {
-            $value = $data[$field] ?? null;
-            if (is_null($value) || (is_array($value) && empty($value))) {
-                $data['status'] = StatusAssessment::ERROR->value;
+        try {
+            $externalData = PepExternalApi::getDataPepExternal($entity->social_denomination);
+            if (!empty($externalData)) {
+                $this->createAlerts($externalData, $entity->id, "PEP");
             }
+        } catch (\Exception $e) {
+            Log::error("Erro PEP API: " . $e->getMessage());
         }
+        
+        try {
+            $externalDataSanction = SanctionExternalApi::getDataSanctionExternal($entity->social_denomination);
+            if (!empty($externalDataSanction)) {
+                $this->createAlerts($externalDataSanction, $entity->id, "SANCTION");
+            }
+        } catch (\Exception $e) {
+            Log::error("Erro SANCTION API: " . $e->getMessage());
+        }
+        
 
         return $data;
     }
