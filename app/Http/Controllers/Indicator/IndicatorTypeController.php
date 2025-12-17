@@ -82,7 +82,7 @@ class IndicatorTypeController extends AbstractController
         $this->logToDatabase(
             type: 'user',
             level: 'info',
-            customMessage: "O usuario " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
+            customMessage: "O utilizador " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
         );
         return $typeIndicator;
     }
@@ -94,7 +94,7 @@ class IndicatorTypeController extends AbstractController
         $this->logToDatabase(
             type: 'user',
             level: 'info',
-            customMessage: "O usuario " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
+            customMessage: "O utilizador " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
         );
         return $typeIndicator;
     }
@@ -105,7 +105,7 @@ class IndicatorTypeController extends AbstractController
         $this->logToDatabase(
             type: 'user',
             level: 'info',
-            customMessage: "O usuario " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
+            customMessage: "O utilizador " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
         );
         return $typeIndicator;
     }
@@ -116,7 +116,7 @@ class IndicatorTypeController extends AbstractController
         $this->logToDatabase(
             type: 'user',
             level: 'info',
-            customMessage: "O usuario " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
+            customMessage: "O utilizador " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
         );
         return $typeIndicator;
     }
@@ -127,7 +127,7 @@ class IndicatorTypeController extends AbstractController
         $this->logToDatabase(
             type: 'user',
             level: 'info',
-            customMessage: "O usuario " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
+            customMessage: "O utilizador " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
         );
         return $typeIndicator;
     }
@@ -138,7 +138,7 @@ class IndicatorTypeController extends AbstractController
         $this->logToDatabase(
             type: 'user',
             level: 'info',
-            customMessage: "O usuario " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
+            customMessage: "O utilizador " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
         );
         return $typeIndicator;
     }
@@ -149,7 +149,7 @@ class IndicatorTypeController extends AbstractController
         $this->logToDatabase(
             type: 'user',
             level: 'info',
-            customMessage: "O usuario " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
+            customMessage: "O utilizador " . auth()->user()->first_name . " criou o tipo de indicador " . $request->name . " com sucesso."
         );
         return $typeIndicator;
     }

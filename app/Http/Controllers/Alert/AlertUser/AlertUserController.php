@@ -29,7 +29,7 @@ class AlertUserController extends AbstractController
                 $this->logToDatabase(
                     type: $this->logType,
                     level: 'info',
-                    customMessage: "O usuario " . Auth::user()->first_name . " Visualizou todos os registros no módulo {$this->nameEntity}",
+                    customMessage: "O utilizador " . Auth::user()->first_name . " Visualizou todos os registros no módulo {$this->nameEntity}",
                 );
             }
     
@@ -55,7 +55,7 @@ class AlertUserController extends AbstractController
                 $this->logToDatabase(
                     type: $this->logType,
                     level: 'info',
-                    customMessage: "O usuario " . Auth::user()->first_name . " Visualizou todos os registros no módulo {$this->nameEntity}",
+                    customMessage: "O utilizador " . Auth::user()->first_name . " Visualizou todos os registros no módulo {$this->nameEntity}",
                 );
             }
 
