@@ -1,113 +1,127 @@
 from flask import Flask, request, jsonify
+import pymysql
 from datetime import datetime
 from collections import defaultdict
 
 app = Flask(__name__)
 
-# ---------------------------
-# Função de avaliação de transações
-# ---------------------------
-def evaluate_transaction(user_id, transactions):
-    """
-    Avalia um conjunto de transações do usuário e retorna alertas.
-    
-    Critérios de exemplo:
-    - Qualquer transação acima de 500.000 dispara alerta
-    - Somatório diário de transações acima de 1.000.000 dispara alerta
-    - Múltiplas transações repetidas no mesmo dia podem disparar alerta
-    """
+existing_alerts = set()
+PRODUCT_LIMITS = {}          # {"PROD-001": 2, ...}
+HIGH_RISK_COUNTRIES = set()  # {"Afeganistão", "África do Sul", ...}
+
+# Configuração MySQL
+DB_CONFIG = {
+    "host": "setupNossaSeguros-mysql",
+    "port": 3306,
+    "user": "user",
+    "password": "nf@204",
+    "db": "nf",
+    "cursorclass": pymysql.cursors.DictCursor
+}
+
+def load_dynamic_data():
+    global PRODUCT_LIMITS, HIGH_RISK_COUNTRIES
+    conn = pymysql.connect(**DB_CONFIG)
+    try:
+        with conn.cursor() as cursor:
+            # Limites por produto
+            cursor.execute("SELECT description, score FROM indicator_type")
+            PRODUCT_LIMITS = {row['description']: row['score'] for row in cursor.fetchall()}
+
+            # Países de risco alto (score >= 3)
+            cursor.execute("SELECT description, score FROM indicator_type  AND score >= 3")
+            HIGH_RISK_COUNTRIES.update(row['description'] for row in cursor.fetchall())
+    finally:
+        conn.close()
+
+# Carrega dados ao iniciar o serviço
+load_dynamic_data()
+
+def evaluate_transaction(transactions):
     alerts = []
     daily_totals = defaultdict(float)
     tx_count_by_day = defaultdict(int)
 
     for tx in transactions:
+        uid = tx.get("transaction_uid")
+        client_id = tx.get("client_id") or "unknown"
         amount = tx.get("amount", 0)
-        date_str = tx.get("date", None)
-        date_key = None
-        if date_str:
-            date_key = datetime.fromisoformat(date_str).date()
+        date_key = datetime.fromisoformat(tx.get("transaction_date")).date()
+        product = tx.get("product_code")
+        country = tx.get("country") or tx.get("high_risk_country", False)
 
-        # Alerta por valor alto
-        if amount > 500000:
+        # 1️⃣ Limite por produto
+        limit = PRODUCT_LIMITS.get(product, 2)
+        if amount > limit:
+            key = f"{uid}-product-limit"
+            if key not in existing_alerts:
+                existing_alerts.add(key)
+                alerts.append({
+                    "client_id": client_id,
+                    "transaction_ref": uid,
+                    "alert": True,
+                    "reason": f"Transação acima do limite do produto {product}",
+                    "severity": "high",
+                    "risk_score": limit // 1000000 + 1
+                })
+
+        # 2️⃣ País de risco alto
+        if country in HIGH_RISK_COUNTRIES or tx.get("high_risk_country"):
+            key = f"{uid}-high-risk-country"
+            if key not in existing_alerts:
+                existing_alerts.add(key)
+                alerts.append({
+                    "client_id": client_id,
+                    "transaction_ref": uid,
+                    "alert": True,
+                    "reason": f"Transação para país de risco elevado: {country}",
+                    "severity": "high",
+                    "risk_score": 10
+                })
+
+        # 3️⃣ Acúmulo diário e frequência
+        daily_totals[(client_id, date_key)] += amount
+        tx_count_by_day[(client_id, date_key)] += 1
+
+    for (client_id, date_key), total in daily_totals.items():
+        key = f"{client_id}-{date_key}-daily"
+        if total > 100 and key not in existing_alerts:
+            existing_alerts.add(key)
             alerts.append({
-                "user_id": user_id,
-                "transaction": tx,
-               # "risk_score": 10,
-                "alert": True,
-                "reason": "Transação acima do limite"
-            })
-
-        # Acumula total diário
-        if date_key:
-            daily_totals[date_key] += amount
-            tx_count_by_day[date_key] += 1
-
-    # Avaliação diária
-    for date_key, total in daily_totals.items():
-        if total > 1000000:
-            alerts.append({
-                "user_id": user_id,
+                "client_id": client_id,
+                "transaction_ref": None,
                 "transaction": {"date": str(date_key), "total_amount": total},
-                "risk_score": 8,
                 "alert": True,
-                "reason": "Acúmulo diário acima do limite"
+                "reason": "Acúmulo diário acima do limite",
+                "severity": "medium",
+                "risk_score": 8
             })
-        if tx_count_by_day[date_key] > 5:  # mais de 5 transações no mesmo dia
-            alerts.append({
-                "user_id": user_id,
-                "transaction": {"date": str(date_key), "count": tx_count_by_day[date_key]},
-                "risk_score": 5,
-                "alert": True,
-                "reason": "Muitas transações no mesmo dia"
-            })
+
+        if tx_count_by_day[(client_id, date_key)] > 5:
+            key = f"{client_id}-{date_key}-freq"
+            if key not in existing_alerts:
+                existing_alerts.add(key)
+                alerts.append({
+                    "client_id": client_id,
+                    "transaction_ref": None,
+                    "transaction": {"date": str(date_key), "count": tx_count_by_day[(client_id, date_key)]},
+                    "alert": True,
+                    "reason": "Muitas transações no mesmo dia",
+                    "severity": "low",
+                    "risk_score": 5
+                })
 
     return alerts
 
-# ---------------------------
-# Endpoints
-# ---------------------------
-@app.route("/health", methods=["GET"])
-def health():
-    return jsonify({"status": "ok"}), 200
-
-@app.route("/train/<int:user_id>", methods=["POST"])
-def train(user_id):
-    data = request.json
-    return jsonify({
-        "status": f"Perfil do utente {user_id} treinado",
-        "dados_recebidos": data
-    }), 200
-
-@app.route("/analyze/<int:user_id>", methods=["POST"])
-def analyze(user_id):
-    data = request.json
-    return jsonify({
-        "user_id": user_id,
-        "score_risco": 0,
-        "dados": data
-    }), 200
-
-@app.route('/evaluate', methods=['POST'])
+@app.route("/evaluate", methods=["POST"])
 def evaluate():
-    """
-    Recebe:
-    {
-        "user_id": 123,
-        "transactions": [ {transação1}, {transação2}, ... ]
-    }
-    """
-    data = request.json
-    user_id = data['user_id']
-    transactions = data['transactions']
+    data = request.get_json(force=True) or {}
+    transactions = data.get("transactions", [])
+    if not isinstance(transactions, list):
+        transactions = []
 
-    alerts = evaluate_transaction(user_id, transactions)
-
-    return jsonify({
-        "alerts": alerts,
-        "total_alerts": len(alerts)
-    })
-
+    alerts = evaluate_transaction(transactions)
+    return jsonify({"alerts": alerts, "total_alerts": len(alerts)})
 
 if __name__ == "__main__":
-    print("🔥 Flask iniciado na porta 5000")
     app.run(host="0.0.0.0", port=5000)

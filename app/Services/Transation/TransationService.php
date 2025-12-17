@@ -10,9 +10,13 @@ class TransationService extends AbstractService
     {
         parent::__construct($repository);
     }
-     public function storeManyTransactions(array $data)
-    {
-        return $this->repository->storeManyTransactions($data);
-    
-    }
+   
+
+
+public function storeManyTransactions(array $transactions)
+{
+    // Chama apenas o repository
+    return $this->repository->storeManyTransactions($transactions);
+}
+
 }

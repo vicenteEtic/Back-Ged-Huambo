@@ -23,23 +23,24 @@ class TransationController extends AbstractController
     /**
      * Store a newly created resource in storage.
      */
-   public function store(TransationRequest $request)
-{
-   try {
-        $this->logRequest();
+    public function store(TransationRequest $request)
+    {
+        try {
+            $this->logRequest();
 
-        $result = $this->service->storeManyTransactions($request->validated());
+            $result = $this->service->storeManyTransactions($request->validated());
 
-        return response()->json([
-            'status' => 'ok',
-            'transaction' => $result['transactions'],
-            'ml_evaluation' => $result['ml_evaluation']
-        ], Response::HTTP_CREATED);
-    } catch (\Exception $e) {
-        $this->logRequest($e);
-        return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json([
+                'status' => 'ok',
+                'transactions' => $result['transactions'],
+                'alerts' => $result['ml_evaluation']['alerts'],
+                'total_alerts' => $result['ml_evaluation']['total_alerts']
+            ], 201);
+        } catch (\Exception $e) {
+            $this->logRequest($e);
+            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
-}
 
 
 

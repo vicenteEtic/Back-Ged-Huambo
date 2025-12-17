@@ -8,6 +8,7 @@ class RiskAssessmentResource extends JsonResource
 {
     public function toArray($request)
     {
+        
         // Converte todo o modelo em array primeiro
         $data = parent::toArray($request);
 

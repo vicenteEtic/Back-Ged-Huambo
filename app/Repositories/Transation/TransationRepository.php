@@ -2,96 +2,85 @@
 
 namespace App\Repositories\Transation;
 
-use App\Jobs\EvaluateTransationJob;
 use App\Models\Transation\Transation;
 use App\Repositories\AbstractRepository;
+use App\Repositories\AmlAlert\AmlAlertRepository;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
 
 class TransationRepository extends AbstractRepository
 {
-    public function __construct(Transation $model)
+    protected $amlAlertRepository;
+
+    public function __construct(Transation $model, AmlAlertRepository $amlAlertRepository)
     {
+        $this->amlAlertRepository = $amlAlertRepository;
         parent::__construct($model);
     }
 
-    public function storeManyTransactions(array $transactions)
-    {
-        $now = now();
+  public function storeManyTransactions(array $transactions)
+{
+    $now = now();
+    $saved = [];
 
-        if (empty($transactions)) {
-            return [
-                'transactions' => [],
-                'ml_evaluation' => ['alerts' => [], 'total_alerts' => 0]
-            ];
-        }
-
-        $savedTransactions = [];
-
-        // 1️⃣ Salva as transações
-        foreach ($transactions as $tx) {
-            // Valida campos obrigatórios mínimos
-            if (!isset($tx['entite_id']) || !isset($tx['amount'])) {
-                continue;
-            }
-
-            $data = [
-                'entite_id'   => $tx['entite_id'],
-                'amount'      => $tx['amount'],
-                'currency'    => $tx['currency'] ?? 'AOA',
-                'type'        => $tx['type'] ?? 'transfer',
-                'status'      => $tx['status'] ?? 'pending',
-                'channel'     => $tx['channel'] ?? 'local',
-                'description' => $tx['description'] ?? null,
-                'category'    => $tx['category'] ?? null,
-                'ip_address'  => $tx['ip_address'] ?? null,
-                'device'      => $tx['device'] ?? null,
-                'notes'       => $tx['notes'] ?? null,
-                'date'        => $tx['date'] ?? $now,
-                'created_at'  => $now,
-                'updated_at'  => $now,
-            ];
-
-            $transaction = \App\Models\Transation\Transation::create($data);
-            $savedTransactions[] = $transaction;
-        }
-
-        // 2️⃣ Envia transações ao ML Service de forma síncrona
-        $mlResult = [
-            'alerts' => [],
-            'total_alerts' => 0
-        ];
-
-        if (!empty($savedTransactions)) {
-            try {
-                $responsePayton = Http::post('http://python-ml:5000/evaluate', [
-                    'user_id' => $savedTransactions[0]->entite_id,
-                    'transactions' => $savedTransactions
-                ]);
-
-                $mlResult = $responsePayton->json();
-
-                // Opcional: loga alertas
-                if (!empty($mlResult['alerts'])) {
-                    foreach ($mlResult['alerts'] as $alert) {
-                        Log::warning('Alerta AML gerado', [
-                            'user_id' => $alert['user_id'],
-                            'risk_score' => $alert['risk_score'],
-                            'transaction' => $alert['transaction'],
-                            'type' => 'AML_ALERT',
-                            'status' => 'pending'
-                        ]);
-                    }
-                }
-            } catch (\Exception $e) {
-                Log::error('Erro ao chamar ML Service: ' . $e->getMessage());
-            }
-        }
-
-        // 3️⃣ Retorna transações + avaliação ML
-        return [
-            'transactions' => $savedTransactions,
-            'ml_evaluation' => $mlResult
-        ];
+    foreach ($transactions as $tx) {
+        $saved[] = $this->model::create([
+            'transaction_uid'  => $tx['transaction_uid'] ?? null,
+            'transaction_date' => $tx['transaction_date'] ?? $now,
+            'transaction_type' => $tx['transaction_type'] ?? 'transfer',
+            'amount'           => $tx['amount'] ?? 0,
+            'currency'         => $tx['currency'] ?? 'AOA',
+            'payment_channel'  => $tx['payment_channel'] ?? 'local',
+            'client_id'        => $tx['client_id'] ?? 'unknown',
+            'policy_number'    => $tx['policy_number'] ?? null,
+            'product_code'     => $tx['product_code'] ?? null,
+            'beneficiary_id'   => $tx['beneficiary_id'] ?? null,
+            'status'           => $tx['status'] ?? 'pending',
+            'created_at'       => $now,
+            'updated_at'       => $now,
+        ]);
     }
+
+    return [
+        'transactions' => $saved,
+        'ml_evaluation' => $this->evaluateAllClients()
+    ];
+}
+
+
+public function evaluateAllClients(): array
+{
+    $allAlerts = [];
+    $totalAlerts = 0;
+
+    $clientsTransactions = Transation::all()->groupBy('client_id');
+
+    foreach ($clientsTransactions as $clientId => $transactions) {
+        $txArray = $transactions->map(function ($tx) {
+            return [
+                'transaction_uid'   => $tx->transaction_uid,
+                'user_id'           => $tx->client_id,
+                'amount'            => (float) $tx->amount,
+                'currency'          => $tx->currency ?? 'AOA',
+                'transaction_type'  => $tx->transaction_type,
+                'transaction_date'  => $tx->transaction_date instanceof \Carbon\Carbon
+                    ? $tx->transaction_date->toDateTimeString()
+                    : (string) $tx->transaction_date,
+                'payment_channel'   => $tx->payment_channel ?? 'local',
+                'status'            => $tx->status ?? 'pending',
+            ];
+        })->toArray();
+
+        $result = $this->amlAlertRepository->evaluateTransactions($txArray, $clientId);
+
+        $allAlerts = array_merge($allAlerts, $result['alerts']);
+        $totalAlerts += $result['total_alerts'];
+    }
+
+    return [
+        'alerts' => $allAlerts,
+        'total_alerts' => $totalAlerts
+    ];
+}
+
+
 }
