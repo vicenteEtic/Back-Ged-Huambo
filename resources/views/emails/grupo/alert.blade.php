@@ -1,26 +1,57 @@
 @php
-    use Illuminate\Support\Str;
-    $currentHost = request()->getHost();
+    $currentHost = request()->getHttpHost();
+
+    $tenants = [
+        'keepcomply' => [
+            'hosts' => [
+                'localhost',
+                '127.0.0.1',
+                '172.17.100.11',
+                '172.17.100.12',
+            ],
+            'logo' => 'https://listapeps.keepcomply.co.ao/Keepcompay.png',
+            'name' => 'Keepcomply'
+        ],
+
+        'nossa' => [
+            'hosts' => [
+                'nossa-denuncias.keepcomply.co.ao',
+            ],
+            'logo' => 'https://www.nossaseguros.ao/assets/img/logo.png',
+            'name' => 'Nossa Seguros'
+        ],
+
+        'global' => [
+            'hosts' => [
+                'globalseguros.keepcomply.co.ao',
+                '172.17.100.14',
+                '172.17.100.14:8083',
+            ],
+            'logo' => 'https://listapeps.keepcomply.co.ao/global.png',
+            'name' => 'Global Seguros'
+        ],
+
+        'fortaleza' => [
+            'hosts' => [
+                'fortaleza.keepcomply.co.ao',
+                '102.219.127.167',
+            ],
+            'logo' => 'https://listapeps.keepcomply.co.ao/fortaze.png',
+            'name' => 'Fortaleza Seguros'
+        ],
+    ];
+
+    $tenant = collect($tenants)->first(function ($tenant) use ($currentHost) {
+        return in_array($currentHost, $tenant['hosts']);
+    });
 @endphp
 
 <div class="container">
 
-    {{-- Logo --}}
-    @if(in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12','102.219.127.167']))
+    {{-- LOGO --}}
+    @if($tenant)
         <div class="logo">
-            <img src="https://listapeps.keepcomply.co.ao/Keepcompay.png" alt="Keepcomply">
-        </div>
-    @elseif(Str::contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
-        <div class="logo">
-            <img src="https://www.nossaseguros.ao/assets/img/logo.png" alt="Nossa Seguros">
-        </div>
-    @elseif(Str::contains($currentHost, ['globalseguros.keepcomply.co.ao', '172.17.100.14', '172.17.100.14:8083']))
-        <div class="logo">
-           <img src="https://listapeps.keepcomply.co.ao/global.png" alt="Global Seguros">
-        </div>
-    @elseif(Str::contains($currentHost, ['fortaleza.keepcomply.co.ao', '102.219.127.167']))
-        <div class="logo">
-           <img src="https://listapeps.keepcomply.co.ao/fortaze.png" alt="Fortaleza Seguros">
+            <img src="{{ $tenant['logo'] }}" alt="{{ $tenant['name'] }}">
         </div>
     @endif
 
@@ -36,19 +67,12 @@
         <p><strong>Data:</strong> {{ \Carbon\Carbon::parse($alert->created_at)->format('d/m/Y H:i') }}</p>
     </div>
 
+    {{-- FOOTER --}}
     <div class="footer">
-        <p>&copy; {{ date('Y') }}
-        @if(in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
-           Keepcomply— Todos os direitos reservados.
-        @elseif(Str::contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
-            Nossa Seguros — Todos os direitos reservados.
-        @elseif(Str::contains($currentHost, ['globalseguros.keepcomply.co.ao', '172.17.100.14', '172.17.100.12:8083']))
-            Global Seguros — Todos os direitos reservados.
-        @elseif(Str::contains($currentHost, ['fortaleza.keepcomply.co.ao', '102.219.127.167']))
-            Fortaleza Seguros — Todos os direitos reservados.
-        @else
-            Sistema — Todos os direitos reservados.
-        @endif
+        <p>
+            &copy; {{ date('Y') }}
+            {{ $tenant['name'] ?? 'Sistema' }} — Todos os direitos reservados.
         </p>
     </div>
+
 </div>
