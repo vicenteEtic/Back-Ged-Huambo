@@ -156,7 +156,7 @@ class GenerateAlertsJob implements ShouldQueue
                     'is_active' => true,
                 ]
             );
-            SendGrupoAlertEmailJob::dispatch($alert->id);
+            SendGrupoAlertEmailJob::dispatch($alert->id) ->onQueue('high');;
         }
     }
 }
