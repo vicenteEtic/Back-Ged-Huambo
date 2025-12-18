@@ -45,26 +45,26 @@
 <div class="container">
 
 @php
-    // ⚠️ VEM DO JOB / MAILABLE
-    $currentHost = $host;
+    // ⚠️ $host deve ser passado via Job/Mailable
+    $currentHost = $host ?? request()->getHost();
 @endphp
 
-{{-- LOGO (MESMA LÓGICA DO QUE FUNCIONA) --}}
+{{-- LOGO --}}
 @if(in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
     <div class="logo">
-        <img src="https://listapeps.keepcomply.co.ao/Keepcompay.png">
+        <img src="https://listapeps.keepcomply.co.ao/Keepcompay.png" alt="Keepcomply">
     </div>
 @elseif(str_contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
     <div class="logo">
-        <img src="https://www.nossaseguros.ao/assets/img/logo.png">
+        <img src="https://www.nossaseguros.ao/assets/img/logo.png" alt="Nossa Seguros">
     </div>
 @elseif(in_array($currentHost, ['globalseguros.keepcomply.co.ao', '172.17.100.14', '172.17.100.14:8083']))
     <div class="logo">
-        <img src="https://listapeps.keepcomply.co.ao/global.png">
+        <img src="https://listapeps.keepcomply.co.ao/global.png" alt="Global Seguros">
     </div>
 @elseif(in_array($currentHost, ['fortaleza.keepcomply.co.ao', '102.219.127.167']))
     <div class="logo">
-        <img src="https://listapeps.keepcomply.co.ao/fortaze.png">
+        <img src="https://listapeps.keepcomply.co.ao/fortaze.png" alt="Fortaleza Seguros">
     </div>
 @endif
 
@@ -77,7 +77,7 @@
 <p><strong>Tipo:</strong> {{ $alert->type }}</p>
 <p><strong>Nível:</strong> {{ $alert->level }}</p>
 <p><strong>Score:</strong> {{ $alert->score }}</p>
-<p><strong>Data:</strong> {{ $alert->created_at->format('d/m/Y H:i') }}</p>
+<p><strong>Data:</strong> {{ \Carbon\Carbon::parse($alert->created_at)->format('d/m/Y H:i') }}</p>
 
 <div class="footer">
     <p>&copy; {{ date('Y') }}
