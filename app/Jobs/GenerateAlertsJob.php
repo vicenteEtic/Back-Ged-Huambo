@@ -152,7 +152,7 @@ class GenerateAlertsJob implements ShouldQueue
                     'entity_id' => $entityId,
                     'score' => $item['score'] ?? 0,
                     'type' => "KYC",
-                    'list' => $item['datasets'] ?? ($type === "PEP" ? "PEP List world" : "Sanctions List"),
+                    'list' => $item['datasets'],
                     'is_active' => true,
                 ]
             );
