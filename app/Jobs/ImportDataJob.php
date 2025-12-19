@@ -230,8 +230,8 @@ class ImportDataJob implements ShouldQueue
                     'origin_id' => $item['id'],
                     'entity_id' => $entityId,
                     'score' => $item['score'] ?? 0,
-                    'type' => $type,
-                    'list' => $item['type'] ?? ($type === "PEP" ? "PEP List world" : "Sanctions List"),
+                    'type' =>"KYC",
+                    'list' => $item['datasets'],
                     'is_active' => true,
                 ]
             );
