@@ -114,7 +114,10 @@ class AlertJob implements ShouldQueue
                 'list' => $item['type'] ?? "PEP List world",
                 'is_active' => true,
             ]);
-            SendGrupoAlertEmailJob::dispatch($alert->id);
+            $host = config('app.url'); // ou outro host padrão
+            SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
+            
+            
         }
     }
 }
