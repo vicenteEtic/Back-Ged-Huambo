@@ -4,12 +4,17 @@ namespace App\Repositories\Alert\AlertUser;
 
 use App\Models\Alert\AlertUser\AlertUser;
 use App\Repositories\AbstractRepository;
+use App\Services\User\UserService;
 use Illuminate\Http\JsonResponse;
 
 class AlertUserRepository extends AbstractRepository
 {
-    public function __construct(AlertUser $model)
+
+    public $user;
+    public function __construct(AlertUser $model, UserService $user)
     {
+
+        $this->user = $user;
         parent::__construct($model);
     }
 
@@ -34,10 +39,37 @@ class AlertUserRepository extends AbstractRepository
     }
     public function getUsersWithAlerts()
     {
-        return $this->model
-            ->distinct()
-            ->pluck('user_id');
+        $user = $this->user->me(); // Pega os dados do usuário
+        $userArray = json_decode(json_encode($user), true); // Garante array
+
+        $permissionId = 57; // Permite listar Compliance Officer
+        $permissionFound = null;
+
+        // Busca a permissão
+        if (isset($userArray['role']['permissions'])) {
+            foreach ($userArray['role']['permissions'] as $permission) {
+                if ($permission['id'] == $permissionId) {
+                    $permissionFound = $permission;
+                    break;
+                }
+            }
+        }
+
+        if ($permissionFound) {
+            // Se tem permissão, pega todos os user_id distintos
+            $users = $this->model
+                ->distinct()
+                ->pluck('user_id');
+        } else {
+            // Se não tem permissão, pega apenas o user logado
+            $users = collect([$userArray['id']]);
+        }
+
+        // Retorna a coleção de IDs
+        return $users;
     }
+
+
     public function storeMany($data)
     {
         $now = now();
@@ -71,16 +103,14 @@ class AlertUserRepository extends AbstractRepository
     {
         $alerts = $this->model
             ->where('user_id', auth()->id())
-            ->whereHas('alert', fn ($q) => $q->where('is_active', 1))
-            ->with('alert:id,name,is_active,level') 
-            ->get(['id', 'alert_id', 'is_read']); 
-    
-        $data= [
+            ->whereHas('alert', fn($q) => $q->where('is_active', 1))
+            ->with('alert:id,name,is_active,level')
+            ->get(['id', 'alert_id', 'is_read']);
+
+        $data = [
             'total'  => $alerts->count(),
             'alerts' => $alerts,
         ];
         return $data;
     }
-    
-    
 }
