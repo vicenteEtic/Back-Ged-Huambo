@@ -53,7 +53,16 @@
 
         @php
             // ⚠️ $host deve ser passado via Job/Mailable
-            $currentHost = $host ?? request()->getHost();
+            $currentHost = $host ?? (request()->has('host') ? request()->getHost() : 'default.host');
+
+            // Define $type de forma segura
+            $type = match($alert->list) {
+                'PEP List world' => 'PEP',
+                'Sanctions List' => 'Sanctions List',
+                'Avaliação AML Reforçada' => 'Enhanced Due Diligence',
+                'Avaliação AML Cliente Inaceitável' => 'Unacceptable Customer',
+                default => 'Desconhecido',
+            };
         @endphp
 
         {{-- LOGO --}}
@@ -61,7 +70,7 @@
             <div class="logo">
                 <img src="https://listapeps.keepcomply.co.ao/Keepcompay.png" alt="Keepcomply">
             </div>
-        @elseif(str_contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
+        @elseif(strpos($currentHost, 'nossa-denuncias.keepcomply.co.ao') !== false)
             <div class="logo">
                 <img src="https://www.nossaseguros.ao/assets/img/logo.png" alt="Nossa Seguros">
             </div>
@@ -75,28 +84,11 @@
             </div>
         @endif
 
-        <p>Olá, <span class="highlight">{{ $user->first_name }}</span></p>
+        <p>Olá, <span class="highlight">{{ $user->first_name ?? 'Usuário' }}</span></p>
 
         <p>Foi identificado um <strong>novo alerta AML</strong> associado à entidade:</p>
 
         <h3>{{ $alert->entity->social_denomination }}</h3>
-
-        @php
-            if ($alert->list == 'PEP List world') {
-                $type = 'PEP';
-            }
-
-            if ($alert->list == 'Sanctions List') {
-                $type = 'Sanctions List';
-            }
-
-            if ($alert->list == 'Avaliação AML Reforçada') {
-                $type = 'Enhanced Due Diligence';
-            }
-            if ($alert->list == 'Avaliação AML Cliente Inaceitável') {
-                $type = 'Unacceptable Customer';
-            }
-        @endphp
 
         <p><strong>Tipo:</strong> {{ $type }}</p>
         <p><strong>Lista:</strong> {{ $alert->list }}</p>
@@ -108,11 +100,11 @@
             <p>&copy; {{ date('Y') }}
                 @if (in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
                     Keepcomply
-                @elseif(str_contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
+                @elseif(strpos($currentHost, 'nossa-denuncias.keepcomply.co.ao') !== false)
                     Nossa Seguros
-                @elseif(str_contains($currentHost, 'globalseguros'))
+                @elseif(strpos($currentHost, 'globalseguros') !== false)
                     Global Seguros
-                @elseif(str_contains($currentHost, 'fortaleza'))
+                @elseif(strpos($currentHost, 'fortaleza') !== false)
                     Fortaleza Seguros
                 @else
                     Sistema
