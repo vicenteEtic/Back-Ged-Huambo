@@ -35,50 +35,67 @@ class SendGrupoAlertEmailJob implements ShouldQueue
     {
         try {
             $alert = Alert::find($this->alertID);
-    
+            if ($alert->list == "PEP List world") {
+                $type = "PEP";
+            }
+
+            if ($alert->list == "Sanctions List") {
+                $type = "Sanctions List";
+            }
+
+              if ($alert->list == "Avaliação AML Reforçada") {
+                $type = "Enhanced Due Diligence";
+            }
+              if ($alert->list == "Avaliação AML Cliente Inaceitável") {
+                $type = "Unacceptable Customer";
+            }
+
+
             if (!$alert) {
                 Log::error("Alert com ID {$this->alertID} não encontrado.");
                 return;
             }
-    
-            Log::info("Processando Alert ID {$alert->id} | Tipo: {$alert->type}");
-    
-            $grupoTypes = GrupoType::where('name', $alert->type)->get();
-    
+
+            Log::info("Processando Alert ID {$alert->id} | Tipo: {$type}");
+
+
+
+            $grupoTypes = GrupoType::where('name', $type)->get();
+
             if ($grupoTypes->isEmpty()) {
-                Log::warning("Nenhum GrupoType encontrado para alert tipo '{$alert->type}'");
+                Log::warning("Nenhum GrupoType encontrado para alert tipo '{$type}'");
                 return;
             }
-    
+
             foreach ($grupoTypes as $grupo) {
                 Log::info("Processando GrupoType ID {$grupo->id} | Name: {$grupo->name}");
-    
+
                 $userGrupoAlerts = UserGrupoAlert::where('grup_alert_id', $grupo->grup_alert_id)
                     ->with('user')
                     ->get();
-    
+
                 foreach ($userGrupoAlerts as $uga) {
                     if (!$uga->user) {
                         Log::warning("UserGrupoAlert ID {$uga->id} não possui usuário relacionado.");
                         continue;
                     }
-    
+
                     $user = $uga->user;
-    
+
                     $alreadyLinked = AlertUser::where('alert_id', $alert->id)
                         ->where('user_id', $user->id)
                         ->exists();
-    
+
                     if ($alreadyLinked) {
                         Log::info("Usuário ID {$user->id} já vinculado ao alert ID {$alert->id}");
                         continue;
                     }
-    
+
                     AlertUser::create([
                         'alert_id' => $alert->id,
                         'user_id'  => $user->id,
                     ]);
-    
+
                     try {
                         Mail::to($user->email)->send(new GrupoAlertMail($user, $alert, $this->host));
                         Log::info("Email enviado para user ID {$user->id} ({$user->email})");
@@ -91,6 +108,4 @@ class SendGrupoAlertEmailJob implements ShouldQueue
             Log::error("Erro no Job SendGrupoAlertEmailJob: " . $e->getMessage());
         }
     }
-    
 }
-
