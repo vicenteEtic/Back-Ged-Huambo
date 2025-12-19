@@ -89,35 +89,33 @@ class AlertJob implements ShouldQueue
         foreach ($data as $item) {
             Log::info("Creating alert for: {$item['name']}");
 
-           if ($item['score'] >= 70) {
-    $level = "Alto";
-} elseif ($item['score'] >= 50) {
-    $level = "Médio";
-} else {
-    $level = "Baixo";
-}
+            if ($item['score'] >= 70) {
+                $level = "Alto";
+            } elseif ($item['score'] >= 50) {
+                $level = "Médio";
+            } else {
+                $level = "Baixo";
+            }
 
             $alert =  Alert::updateOrCreate([
                 'name' => $item['name'],
                 'entity_id' => $entityId,
-              
+
             ], [
                 'name' => $item['name'],
-                'level' =>   $level ,
+                'level' =>   $level,
                 'from_id' => $entityId,
                 'origin_id' => $item['id'],
                 'entity_id' => $entityId,
                 'score' => $item['score'] ?? 0,
-                 'country' => $item['country'],
-                  'birth_date' => $item['birth_date'],
-                'type' => $type,
+                'country' => $item['country'],
+                'birth_date' => $item['birth_date'],
+                'type' => "KYC",
                 'list' => $item['type'] ?? "PEP List world",
                 'is_active' => true,
             ]);
             $host = config('app.url'); // ou outro host padrão
             SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
-            
-            
         }
     }
 }
