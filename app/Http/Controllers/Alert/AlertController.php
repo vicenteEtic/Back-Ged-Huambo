@@ -54,7 +54,7 @@ class AlertController extends AbstractController
             if ($statusOlder == 4) {
                 $status = "Fechado";
             }
-         return   $commentAlert = $this->service->updateStatus($request->validated(), $id);
+            $commentAlert = $this->service->updateStatus($request->validated(), $id);
 
 
             $this->logToDatabase(
