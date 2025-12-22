@@ -22,7 +22,11 @@ class AlertUpdateStatusRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'is_active' => ['required'], // melhor validar como booleano
+            'is_active' => ['required'], 
+                'is_pep' => ['nullable'], 
+                    'is_sanctioned' => ['nullable'], 
+                        'is_reported' => ['nullable'], 
+
         ];
     }
 

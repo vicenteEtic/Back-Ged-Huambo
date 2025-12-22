@@ -31,6 +31,7 @@ class LogService extends AbstractService
         ?string $type,
         ?string $module,
         ?int $idEntity = null,
+        ?int $alert_id = null,
         ?string $customMessage = null
     ): void {
         $request = request();
@@ -48,6 +49,8 @@ class LogService extends AbstractService
             'http_user_agent' => $request->userAgent(),
             'message'         => $message,
             'entity_id'       => $idEntity,
+            'alert_id'       => $alert_id,
+            
         ]);
     }
 

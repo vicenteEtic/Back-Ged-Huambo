@@ -79,7 +79,13 @@ class AlertRepository extends AbstractRepository
         ];
     }
 
-    
-    
+   
+   public function updateStatus(array $data, int $id)
+    {
+        $model = $this->model->findOrFail($id);
+        $model->update($data);
+
+        return $model;
+    }
 
 }

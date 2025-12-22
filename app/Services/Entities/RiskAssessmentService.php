@@ -55,18 +55,18 @@ class RiskAssessmentService extends AbstractService
         "riskFormula"
     ];
     public function __construct(
-      RiskAssessmentRepository $repository,
-    private readonly IndicatorTypeRepository $indicatorTypeRepository,
-    private readonly DiligenceService $diligenceService,
-    private readonly ProductRiskService $productRiskService,
-    private readonly BeneficialOwnerService $beneficialOwnerService,
-    private readonly PepService $pepService,
-    RiskFormulaRepository $riskFormulaRepository,
-    private AlertRepository $alertRepository // ← agora injetado corretamente
+        RiskAssessmentRepository $repository,
+        private readonly IndicatorTypeRepository $indicatorTypeRepository,
+        private readonly DiligenceService $diligenceService,
+        private readonly ProductRiskService $productRiskService,
+        private readonly BeneficialOwnerService $beneficialOwnerService,
+        private readonly PepService $pepService,
+        RiskFormulaRepository $riskFormulaRepository,
+        private AlertRepository $alertRepository // ← agora injetado corretamente
     ) {
-       parent::__construct($repository);
-    $this->riskFormulaRepository = $riskFormulaRepository;
-    $this->alertRepository = $alertRepository; // ← garantir atribuição
+        parent::__construct($repository);
+        $this->riskFormulaRepository = $riskFormulaRepository;
+        $this->alertRepository = $alertRepository; // ← garantir atribuição
     }
 
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
@@ -134,12 +134,12 @@ class RiskAssessmentService extends AbstractService
                     'entity_id' => $riskAssessment->entity->id,
                     'score' => $riskAssessment->score,
                     'type' => "KYC",
-                    'list' => "Avaliação AML ".$riskAssessment->diligence,
+                    'list' => "Avaliação AML " . $riskAssessment->diligence,
                     'is_active' => true,
                 ]
             );
 
-          $host = config('app.url'); // ou outro host padrão
+            $host = config('app.url'); // ou outro host padrão
             SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         }
         GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
@@ -373,4 +373,29 @@ class RiskAssessmentService extends AbstractService
         // Multiplicar o total por 3 (pontuação)
         return $pepCount * 3;
     }
+
+public function is_pep(array $data, $id)
+{
+    $alert = $this->alertRepository->show($id);
+
+   
+   return $lastAssessment = $this->repository->getByEntityId($alert->entity_id);
+    // Inicializa dados mínimos
+    $data['pep'] = true;
+    $data['entity_id'] = $alert->entity_id;
+    $data['product_risk'] = $data['product_risk'] ?? []; 
+    $data['risk_assessment'] = $data['risk_assessment'] ?? null;
+
+    if ($lastAssessment) {
+        // Copia os dados do último assessment e sobrescreve com os novos dados
+        $data = array_merge($lastAssessment->toArray(), $data);
+        unset($data['id']); // Remove o ID para criar um novo registro
+        unset($data['created_at'], $data['updated_at']); // Remove timestamps
+    }
+
+    // Chama o método store existente para criar a nova avaliação
+    return $this->store($data);
+}
+
+
 }
