@@ -65,10 +65,14 @@ Route::get('/userGrupo/{id}', [UserGrupoAlertController::class, 'show'])
 Route::post('/userGrupo', [UserGrupoAlertController::class, 'store'])
     ->name('userGrupo.store');
 Route::put('/{id}/status', [AlertController::class, 'status']);
-
+Route::put('/userGrupo/{id}', [UserGrupoAlertController::class, 'update'])
+    ->name('userGrupo.update');
 
 
 Route::get('/files', [AlertAttachmentController::class, 'index'])
     ->name('alertAttachment.index');
 Route::post('/files/{id}', [AlertAttachmentController::class, 'store'])
     ->name('alertAttachment.store');
+
+
+    e');
