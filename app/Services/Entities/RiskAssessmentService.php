@@ -100,8 +100,14 @@ class RiskAssessmentService extends AbstractService
             $this->pepService->createEntityPep($data['entity_id']);
         }
 
+        if (!empty($data['pep']) && $data['pep'] === true) {
+            $this->pepService->createEntityPep($data['entity_id']);
+        }
+
         $riskProducts = $this->indicatorTypeRepository->getByIds($data['product_risk']);
         $this->productRiskService->storeProductRisks($riskProducts, $riskAssessment->id);
+
+
         $entityType = $riskAssessment['entity']['entity_type'];
         $formula = $this->riskFormulaRepository->findByEntityType($entityType);
         // Atualizar o campo id_risk_formula
@@ -374,28 +380,33 @@ class RiskAssessmentService extends AbstractService
         return $pepCount * 3;
     }
 
-public function is_pep(array $data, $id)
-{
-    $alert = $this->alertRepository->show($id);
+    public function is_pep(array $data, $id)
+    {
+        $alert = $this->alertRepository->show($id);
 
-   
-   return $lastAssessment = $this->repository->getByEntityId($alert->entity_id);
-    // Inicializa dados mínimos
-    $data['pep'] = true;
-    $data['entity_id'] = $alert->entity_id;
-    $data['product_risk'] = $data['product_risk'] ?? []; 
-    $data['risk_assessment'] = $data['risk_assessment'] ?? null;
 
-    if ($lastAssessment) {
-        // Copia os dados do último assessment e sobrescreve com os novos dados
-        $data = array_merge($lastAssessment->toArray(), $data);
-        unset($data['id']); // Remove o ID para criar um novo registro
-        unset($data['created_at'], $data['updated_at']); // Remove timestamps
+        $lastAssessment = $this->repository->getByEntityId($alert->entity_id);
+
+
+        $products = $this->productRiskService->showProduct($lastAssessment->id);
+
+        $data['product_risk'] = $products
+            ? $products->pluck('product_id')->toArray()
+            : $data['product_risk'] ?? [];
+
+        // Inicializa dados mínimos
+        $data['pep'] = true;
+        $data['entity_id'] = $alert->entity_id;
+
+        $data['risk_assessment'] = $lastAssessment->risk_assessment;
+        if ($lastAssessment) {
+            // Copia os dados do último assessment e sobrescreve com os novos dados
+            $data = array_merge($lastAssessment->toArray(), $data);
+            unset($data['id']); // Remove o ID para criar um novo registro
+            unset($data['created_at'], $data['updated_at']); // Remove timestamps
+        }
+
+        // Chama o método store existente para criar a nova avaliação
+        return $this->store($data);
     }
-
-    // Chama o método store existente para criar a nova avaliação
-    return $this->store($data);
-}
-
-
 }

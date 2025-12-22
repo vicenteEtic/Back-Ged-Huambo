@@ -10,4 +10,9 @@ class ProductRiskRepository extends AbstractRepository
     {
         parent::__construct($model);
     }
+
+      public function showProduct($data){
+    return     $this->model->where('risk_assessment_id',$data
+            )->get();
+    }
 }
