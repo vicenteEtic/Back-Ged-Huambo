@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
         });
           Http::macro('noVerify', function() {
         return Http::withOptions(['verify' => false]);
+
     });
     }
 }

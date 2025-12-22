@@ -53,7 +53,11 @@ COPY ./docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 
 RUN apt-get update && apt-get install -y ca-certificates \
     && update-ca-certificates
+    RUN mkdir -p /var/log/supervisord \
+    && chown -R www-data:www-data /var/log/supervisord
+
 
 EXPOSE 9000
+
 
 CMD ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
