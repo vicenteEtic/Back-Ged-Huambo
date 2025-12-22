@@ -55,29 +55,40 @@ class AlertUserService extends AbstractService
     /**
      * Retorna usuário com seus alerts
      */
-    public function getUserWithAlerts($userId)
-    {
-        $user = User::with('alerts')->findOrFail($userId);
+  public function getUserWithAlerts($userId)
+{
+    $user = User::with(['alerts.entity'])->findOrFail($userId);
 
-        return [
-            'id'    => $user->id,
-            'name'  => $user->first_name . ' ' . $user->last_name,
-            'email' => $user->email,
-            'alerts' => $user->alerts->map(function ($alert) {
-                return [
-                    'id'        => $alert->id,
-                    'type'      => $alert->type,
-                    'name'      => $alert->name,
-                    'level'     => $alert->level,
-                    'is_active' => $alert->is_active,
-                    'pivot'     => [
-                        'is_read'    => $alert->pivot->is_read,
-                        'created_at' => $alert->pivot->created_at,
-                    ]
-                ];
-            }),
-        ];
-    }
+    return [
+        'id'    => $user->id,
+        'name'  => $user->first_name . ' ' . $user->last_name,
+        'email' => $user->email,
+        'alerts' => $user->alerts->map(function ($alert) {
+            return [
+                'id'        => $alert->id,
+                'type'      => $alert->type,
+                'name'      => $alert->name,
+                'level'     => $alert->level,
+                'is_active' => $alert->is_active,
+
+                // 🔹 ENTIDADE RELACIONADA
+                'entity' => $alert->entity ? [
+                    'id'                => $alert->entity->id,
+                    'social_denomination'=> $alert->entity->social_denomination,
+                    'customer_number'   => $alert->entity->customer_number,
+                    'policy_number'     => $alert->entity->policy_number,
+                ] : null,
+
+                // 🔹 DADOS DO PIVOT
+                'pivot' => [
+                    'is_read'    => $alert->pivot->is_read,
+                    'created_at' => $alert->pivot->created_at,
+                ],
+            ];
+        }),
+    ];
+}
+
 
     public function storeMany(array $data)
 {

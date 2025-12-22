@@ -138,4 +138,6 @@ class User extends Model implements
             ->withPivot('is_read', 'created_at');
     }
 
+
+    
 }
