@@ -48,7 +48,7 @@ class AlertJob implements ShouldQueue
                     continue;
                 }
 
-                $this->createAlerts($externalData, $entity->id);
+                $this->createAlerts($externalData, $entity->id, "PEP");
             } catch (\Exception $e) {
                 Log::error("Error processing entity {$entityName}: {$e->getMessage()}");
             }
@@ -69,7 +69,7 @@ class AlertJob implements ShouldQueue
                     continue;
                 }
 
-                $this->createAlerts($externalData, $entity->id);
+                $this->createAlerts($externalData, $entity->id, "SANCTIONS");
             } catch (\Exception $e) {
                 Log::error("Error processing entity {$entityName}: {$e->getMessage()}");
             }
@@ -84,7 +84,7 @@ class AlertJob implements ShouldQueue
      * @param int $entityId
      * @return void
      */
-    private function createAlerts(array $data, int $entityId, $type = "PEP"): void
+    private function createAlerts(array $data, int $entityId, $type): void
     {
         foreach ($data as $item) {
             Log::info("Creating alert for: {$item['name']}");
@@ -110,13 +110,14 @@ class AlertJob implements ShouldQueue
                 'score' => $item['score'] ?? 0,
                 'country' => $item['country'],
                 'birth_date' => $item['birth_date'],
-                'type' => $item['type'] ?? match ($type) {
+                'type' => match ($type) {
                     'PEP' => 'PEP List world',
-                    'Sanctions List' => 'Sanctions List',
-                    default => 'KYC',
+                    'SANCTIONS' => 'Sanctions List',
+                    'KYC' => 'KYC List',
+                    default => 'KYC List',
                 },
                 'category' => "KYC",
-                'list' => $item['type'] ?? "PEP List world",
+                'list' => $item['datasets'] ?? "PEP List world",
                 'is_active' => true,
             ]);
             $host = config('app.url'); // ou outro host padrão

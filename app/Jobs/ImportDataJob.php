@@ -177,7 +177,7 @@ class ImportDataJob implements ShouldQueue
         try {
             $externalDataSanction = SanctionExternalApi::getDataSanctionExternal($entity->social_denomination);
             if (!empty($externalDataSanction)) {
-                $this->createAlerts($externalDataSanction, $entity->id, "SANCTION");
+                $this->createAlerts($externalDataSanction, $entity->id, "SANCTIONS");
             }
         } catch (\Exception $e) {
             Log::error("Erro SANCTION API: " . $e->getMessage());
@@ -218,7 +218,7 @@ class ImportDataJob implements ShouldQueue
     }
 
 
-    private function createAlerts(array $data, int $entityId, string $type = "PEP"): void
+    private function createAlerts(array $data, int $entityId, string $type): void
     {
         foreach ($data as $item) {
             $alert=    $this->alertRepository->storeOrUpdate(
@@ -230,7 +230,13 @@ class ImportDataJob implements ShouldQueue
                     'origin_id' => $item['id'],
                     'entity_id' => $entityId,
                     'score' => $item['score'] ?? 0,
-                    'type' =>"KYC",
+                    'type' => match ($type) {
+                    'PEP' => 'PEP List world',
+                    'SANCTIONS' => 'Sanctions List',
+                    'KYC' => 'KYC List',
+                    default => 'KYC List',
+                },
+                 'category' => "KYC",
                     'list' => $item['datasets'],
                     'is_active' => true,
                 ]

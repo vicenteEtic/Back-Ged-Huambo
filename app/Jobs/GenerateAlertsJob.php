@@ -77,7 +77,7 @@ class GenerateAlertsJob implements ShouldQueue
         }
 
         if (!empty($externalDataSanction['data'])) {
-            $this->createAlerts($externalDataSanction['data'], $entityId, 'SANCTION');
+            $this->createAlerts($externalDataSanction['data'], $entityId, 'SANCTIONS');
         }
     }
 
@@ -116,7 +116,7 @@ class GenerateAlertsJob implements ShouldQueue
                     continue;
                 }
 
-                $this->createAlerts($externalData, $entity->id, "SANCTION");
+                $this->createAlerts($externalData, $entity->id, "SANCTIONS");
             } catch (\Exception $e) {
                 Log::error("Error processing entity {$entityName}: {$e->getMessage()}");
             }
@@ -151,11 +151,12 @@ class GenerateAlertsJob implements ShouldQueue
                     'origin_id' => $item['id'],
                     'entity_id' => $entityId,
                     'score' => $item['score'] ?? 0,
-                    'type' => $item['type'] ?? match ($type) {
-                        'PEP' => 'PEP List world',
-                        'Sanctions List' => 'Sanctions List',
-                        default => 'KYC',
-                    },
+                    'type' => match ($type) {
+                    'PEP' => 'PEP List world',
+                    'SANCTIONS' => 'Sanctions List',
+                    'KYC' => 'KYC List',
+                    default => 'KYC List',
+                },
                     'category' => "KYC",
                     'list' => $item['datasets'],
                     'is_active' => true,
