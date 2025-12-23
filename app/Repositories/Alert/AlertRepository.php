@@ -4,13 +4,20 @@ namespace App\Repositories\Alert;
 
 use App\Models\Alert\Alert;
 use App\Repositories\AbstractRepository;
+use App\Services\Log\LogService;
+use App\Services\User\UserService;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 class AlertRepository extends AbstractRepository
 {
-    public function __construct(Alert $model)
+        public $user;
+    public $logService;
+
+    public function __construct(Alert $model , UserService $user, LogService $logService)
     {
+         $this->user = $user;
+        $this->logService = $logService;
         parent::__construct($model);
     }
 
