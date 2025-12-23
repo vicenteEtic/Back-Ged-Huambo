@@ -4,6 +4,7 @@ namespace App\Repositories\Alert\AlertUser;
 
 use App\Models\Alert\AlertUser\AlertUser;
 use App\Repositories\AbstractRepository;
+use App\Services\Log\LogService;
 use App\Services\User\UserService;
 use Illuminate\Http\JsonResponse;
 
@@ -11,10 +12,13 @@ class AlertUserRepository extends AbstractRepository
 {
 
     public $user;
-    public function __construct(AlertUser $model, UserService $user)
+    public $logService;
+
+    public function __construct(AlertUser $model, UserService $user, LogService $logService)
     {
 
         $this->user = $user;
+        $this->logService = $logService;
         parent::__construct($model);
     }
 
@@ -86,6 +90,26 @@ class AlertUserRepository extends AbstractRepository
 
         // dispara evento em tempo real para cada utilizador
         foreach ($data as $item) {
+            $alertId = $item['alert_id'];
+            $userId  = $item['user_id'];
+
+          $user = $this->user->show($userId)->first();
+
+            $this->logService->storeLog(
+                level: 'info',
+                typeAction: 'USER_ASSIGNED_TO_ALERT',
+                type: 'ALERT',
+                module: 'AlertUser',
+                idEntity: $userId,
+                alert_id: $alertId,
+                customMessage: sprintf(
+                    'Usuário %s ( foi adicionado ao alerta ID #%d',
+                    $user->first_name ?? 'N/D',
+                    $userId,
+                    $alertId
+                )
+            );
+
             $user = \App\Models\User::find($item['user_id']);
             if ($user) {
                 event(new \App\Events\AlertCreated($user));
