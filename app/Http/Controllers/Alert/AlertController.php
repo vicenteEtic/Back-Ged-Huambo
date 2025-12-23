@@ -61,7 +61,8 @@ class AlertController extends AbstractController
                 type: 'entity',
                 level: 'info',
                 alert_id: $id,
-              customMessage: "Alteração de status do alerta ID #{$id}: novo status '{$status}'"
+           customMessage: "Status do alerta ID #{$id} alterado para '{$status}'"
+
 
             );
             return response()->json($commentAlert, Response::HTTP_OK);
