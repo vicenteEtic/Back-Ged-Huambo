@@ -100,7 +100,7 @@ class RiskAssessmentService extends AbstractService
             $this->pepService->createEntityPep($data['entity_id']);
         }
 
-        if (!empty($data['pep']) && $data['pep'] === true) {
+        if (!empty($data['pep']) && $data['pep'] === 1) {
             $this->pepService->createEntityPep($data['entity_id']);
         }
 
