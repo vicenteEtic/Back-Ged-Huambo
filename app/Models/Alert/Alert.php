@@ -26,6 +26,7 @@ class Alert extends Model
         'is_pep',
         'is_sanctioned',
         'is_reported',
+        'category'
     ];
 
 

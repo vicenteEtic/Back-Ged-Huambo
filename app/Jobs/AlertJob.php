@@ -110,7 +110,12 @@ class AlertJob implements ShouldQueue
                 'score' => $item['score'] ?? 0,
                 'country' => $item['country'],
                 'birth_date' => $item['birth_date'],
-                'type' => "KYC",
+                'type' => $item['type'] ?? match ($type) {
+                    'PEP' => 'PEP List world',
+                    'Sanctions List' => 'Sanctions List',
+                    default => 'KYC',
+                },
+                'category' => "KYC",
                 'list' => $item['type'] ?? "PEP List world",
                 'is_active' => true,
             ]);

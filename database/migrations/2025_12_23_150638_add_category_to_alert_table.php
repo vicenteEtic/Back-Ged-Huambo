@@ -11,17 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('log', function (Blueprint $table) {
-            $table->unsignedBigInteger('alert_id')->nullable()->after('id');
+        Schema::table('alert', function (Blueprint $table) {
+            //
         });
-    } 
+    }
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::table('log', function (Blueprint $table) {
+        Schema::table('alert', function (Blueprint $table) {
             //
         });
     }
