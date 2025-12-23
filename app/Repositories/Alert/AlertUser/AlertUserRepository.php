@@ -103,10 +103,10 @@ class AlertUserRepository extends AbstractRepository
                 idEntity: $userId,
                 alert_id: $alertId,
                 customMessage: sprintf(
-                    'Usuário %s ( foi adicionado ao alerta ID #%d',
+                    'Usuário %s ( foi adicionado ao alerta ',
                     $user->first_name ?? 'N/D',
-                    $userId,
-                    $alertId
+                    $userId
+                   
                 )
             );
 
