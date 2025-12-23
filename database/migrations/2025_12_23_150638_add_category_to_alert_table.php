@@ -12,9 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('alert', function (Blueprint $table) {
-            //
+              $table->string('category')->nullable()->after('id');
         });
     }
+    
 
     /**
      * Reverse the migrations.
