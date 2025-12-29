@@ -1,20 +1,21 @@
 <?php
 
+use App\Http\Controllers\Transation\TransactionController;
 use App\Http\Controllers\Transation\TransationController;
 use Illuminate\Support\Facades\Route;
 
 
-Route::get('', [TransationController::class, 'index'])
+Route::get('', [TransactionController::class, 'index'])
     ->name('transation.index');
 
-Route::post('', [TransationController::class, 'store'])
+Route::post('', [TransactionController::class, 'store'])
     ->name('transation.store');
 
-Route::get('{transation}', [TransationController::class, 'show'])
+Route::get('{transation}', [TransactionController::class, 'show'])
     ->name('transation.show');
 
-Route::put('{transation}', [TransationController::class, 'update'])
+Route::put('{transation}', [TransactionController::class, 'update'])
     ->name('transation.update');
 
-Route::delete('{transation}', [TransationController::class, 'destroy'])
+Route::delete('{transation}', [TransactionController::class, 'destroy'])
     ->name('transation.destroy');

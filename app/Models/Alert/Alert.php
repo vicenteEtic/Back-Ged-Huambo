@@ -23,6 +23,7 @@ class Alert extends Model
     'is_active',
     'country',
     'birth_date',
+    'description'
 ];
 
 
