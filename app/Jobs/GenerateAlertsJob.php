@@ -126,7 +126,7 @@ class GenerateAlertsJob implements ShouldQueue
     /**
      * Create or update alerts based on external data.
      */
-    private function createAlerts(array $data, int $entityId, string $type = "PEP"): void
+    private function createAlerts(array $data, int $entityId, string $type): void
     {
         foreach ($data as $item) {
             if ($item['score'] >= 70) {
