@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('alert', function (Blueprint $table) {
-                  $table->boolean('is_pep')->nullable()->default(false)->comment('Indica se a entidade é Politically Exposed Person');
+            $table->boolean('is_pep')->nullable()->default(false)->comment('Indica se a entidade é Politically Exposed Person');
             $table->boolean('is_sanctioned')->nullable()->default(false)->comment('Indica se a entidade consta em listas de sanções');
             $table->boolean('is_reported')->nullable()->default(false)->comment('Detalhes de reporte: comunicação, data, entidade reguladora');
         });
@@ -23,8 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('alert', function (Blueprint $table) {
-
-        });
+        Schema::table('alert', function (Blueprint $table) {});
     }
 };
