@@ -149,9 +149,9 @@ class RiskAssessmentService extends AbstractService
             $host = config('app.url'); // ou outro host padrão
             SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         }
-        
-        GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
-            ->onQueue('high');
+
+   //     GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
+     //       ->onQueue('high');
         return $riskAssessment;
     }
 
