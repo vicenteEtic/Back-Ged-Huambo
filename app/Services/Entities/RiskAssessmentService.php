@@ -150,8 +150,8 @@ class RiskAssessmentService extends AbstractService
             SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         }
 
-   //     GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
-     //       ->onQueue('high');
+      GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
+           ->onQueue('high');
         return $riskAssessment;
     }
 
