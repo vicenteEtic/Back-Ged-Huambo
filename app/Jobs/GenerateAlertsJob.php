@@ -157,12 +157,7 @@ class GenerateAlertsJob implements ShouldQueue
         };
 
         // Resolver tipo/lista
-        $typeData = match ($source) {
-            'PEP' => ['type' => 'PEP', 'list' => 'PEP List world', 'is_pep' => 1, 'is_sanctioned' => 0],
-            'SANCTIONS' => ['type' => 'SANCTIONS', 'list' => 'Sanctions List', 'is_pep' => 0, 'is_sanctioned' => 1],
-            'KYC' => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
-            default => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
-        };
+         $typeData = $this->resolveAlertType($source);
 
         $alert = $this->alertRepository->storeOrUpdate(
             [
