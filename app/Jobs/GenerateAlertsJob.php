@@ -128,28 +128,26 @@ class GenerateAlertsJob implements ShouldQueue
      */
 
     private function resolveAlertType(string $source): array
-{
-    return match ($source) {
-        'PEP' => [
-            'type' => 'PEP',
-            'list' => 'PEP List world',
-        ],
-        'SANCTIONS' => [
-            'type' => 'SANCTIONS',
-            'list' => 'Sanctions List',
-        ],
-        'KYC' => [
-            'type' => 'KYC',
-            'list' => 'KYC List',
-        ],
-        default => throw new \InvalidArgumentException("Tipo de alerta inválido: {$source}"),
-    };
-}
+    {
+        return match ($source) {
+            'PEP' => [
+                'type' => 'PEP',
+                'list' => 'PEP List world',
+            ],
+            'SANCTIONS' => [
+                'type' => 'SANCTIONS',
+                'list' => 'Sanctions List',
+            ],
+            'KYC' => [
+                'type' => 'KYC',
+                'list' => 'KYC List',
+            ],
+            default => throw new \InvalidArgumentException("Tipo de alerta inválido: {$source}"),
+        };
+    }
 
-    private function createAlerts(array $data, int $entityId, string $source): void
+   private function createAlerts(array $data, int $entityId, string $source): void
 {
-    $typeData = $this->resolveAlertType($source);
-
     foreach ($data as $item) {
 
         $level = match (true) {
@@ -158,26 +156,36 @@ class GenerateAlertsJob implements ShouldQueue
             default => 'Baixo',
         };
 
+        // Resolver tipo/lista
+        $typeData = match ($source) {
+            'PEP' => ['type' => 'PEP', 'list' => 'PEP List world', 'is_pep' => 1, 'is_sanctioned' => 0],
+            'SANCTIONS' => ['type' => 'SANCTIONS', 'list' => 'Sanctions List', 'is_pep' => 0, 'is_sanctioned' => 1],
+            'KYC' => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
+            default => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
+        };
+
         $alert = $this->alertRepository->storeOrUpdate(
             [
                 'origin_id' => $item['id'],
                 'entity_id' => $entityId,
-                'type'      => $typeData['type'], // 🔒 chave técnica
+                'type'      => $typeData['type'],
             ],
             [
-                'name'       => $item['name'],
-                'country'    => $item['country'] ?? null,
-                'birth_date' => $item['birth_date'] ?? null,
-                'level'      => $level,
-                'from_id'    => $entityId,
-                'origin_id'  => $item['id'],
-                'entity_id'  => $entityId,
-                'score'      => $item['score'] ?? 0,
+                'name'        => $item['name'],
+                'country'     => $item['country'] ?? null,
+                'birth_date'  => $item['birth_date'] ?? null,
+                'level'       => $level,
+                'from_id'     => $entityId,
+                'origin_id'   => $item['id'],
+                'entity_id'   => $entityId,
+                'score'       => $item['score'] ?? 0,
 
-                'type'       => $typeData['type'], 
-                'list'       => $item['datasets'], // texto descritivo
-                'category'   => "KYC", 
-                'is_active'  => true,
+                'type'        => $typeData['type'],       // PEP / SANCTIONS / KYC
+                'category'    => $typeData['type'],       // mesmo que type ou outra classificação
+                'list'        => $typeData['list'],       // nome da lista
+                'is_pep'      => $typeData['is_pep'],
+                'is_sanctioned'=> $typeData['is_sanctioned'],
+                'is_active'   => true,
             ]
         );
 
