@@ -126,43 +126,63 @@ class GenerateAlertsJob implements ShouldQueue
     /**
      * Create or update alerts based on external data.
      */
-    private function createAlerts(array $data, int $entityId, string $type): void
-    {
-        foreach ($data as $item) {
-            if ($item['score'] >= 70) {
-                $level = "Alto";
-            } elseif ($item['score'] >= 50) {
-                $level = "Médio";
-            } else {
-                $level = "Baixo";
-            }
 
-            $alert =    $this->alertRepository->storeOrUpdate(
-                [
-                    'origin_id' => $item['id'],
-                    'name' => $item['name'],
-                ],
-                [
-                    'name' => $item['name'],
-                    'country' => $item['country'],
-                    'birth_date' => $item['birth_date'],
-                    'level' =>    $level,
-                    'from_id' => $entityId,
-                    'origin_id' => $item['id'],
-                    'entity_id' => $entityId,
-                    'score' => $item['score'] ?? 0,
-                    'type' => match ($type) {
-                    'PEP' => 'PEP List world',
-                    'SANCTIONS' => 'Sanctions List',
-                    'KYC' => 'KYC List',
-                    default => 'KYC List',
-                },
-                    'category' => "KYC",
-                    'list' => $item['datasets'],
-                    'is_active' => true,
-                ]
-            );
-            SendGrupoAlertEmailJob::dispatch($alert->id)->onQueue('high');;
-        }
+    private function resolveAlertType(string $source): array
+{
+    return match ($source) {
+        'PEP' => [
+            'type' => 'PEP',
+            'list' => 'PEP List world',
+        ],
+        'SANCTIONS' => [
+            'type' => 'SANCTIONS',
+            'list' => 'Sanctions List',
+        ],
+        'KYC' => [
+            'type' => 'KYC',
+            'list' => 'KYC List',
+        ],
+        default => throw new \InvalidArgumentException("Tipo de alerta inválido: {$source}"),
+    };
+}
+
+    private function createAlerts(array $data, int $entityId, string $source): void
+{
+    $typeData = $this->resolveAlertType($source);
+
+    foreach ($data as $item) {
+
+        $level = match (true) {
+            ($item['score'] ?? 0) >= 70 => 'Alto',
+            ($item['score'] ?? 0) >= 50 => 'Médio',
+            default => 'Baixo',
+        };
+
+        $alert = $this->alertRepository->storeOrUpdate(
+            [
+                'origin_id' => $item['id'],
+                'entity_id' => $entityId,
+                'type'      => $typeData['type'], // 🔒 chave técnica
+            ],
+            [
+                'name'       => $item['name'],
+                'country'    => $item['country'] ?? null,
+                'birth_date' => $item['birth_date'] ?? null,
+                'level'      => $level,
+                'from_id'    => $entityId,
+                'origin_id'  => $item['id'],
+                'entity_id'  => $entityId,
+                'score'      => $item['score'] ?? 0,
+
+                'type'       => $typeData['type'], 
+                'list'       => $item['datasets'], // texto descritivo
+                'category'   => "KYC", 
+                'is_active'  => true,
+            ]
+        );
+
+        SendGrupoAlertEmailJob::dispatch($alert->id)->onQueue('high');
     }
+}
+
 }
