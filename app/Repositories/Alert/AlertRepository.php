@@ -62,7 +62,7 @@ class AlertRepository extends AbstractRepository
                 1 => 'new',
                 2 => 'validation',
                 3 => 'supervision',
-                4 => 'closed',
+                0 => 'closed',
             ]),
 
             'by_communication' => $this->countByField('is_sanctioned', [

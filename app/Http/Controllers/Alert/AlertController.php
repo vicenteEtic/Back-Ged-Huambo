@@ -51,7 +51,7 @@ class AlertController extends AbstractController
             if ($statusOlder == 3) {
                 $status = "Em Supervisão";
             }
-            if ($statusOlder == 4) {
+            if ($statusOlder == 0) {
                 $status = "Fechado";
             }
             $commentAlert = $this->service->updateStatus($request->validated(), $id);
