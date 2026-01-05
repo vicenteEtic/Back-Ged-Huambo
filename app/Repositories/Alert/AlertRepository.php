@@ -41,14 +41,23 @@ class AlertRepository extends AbstractRepository
             $result[] = [
                 'month'      => $carbonMonth->translatedFormat('F'),
                 'total'      => $data->total ?? 0,
-                'is_active'  => $data->is_active ?? 0,
+                'is_pending'  => $data->is_active ?? 0,
                 'is_inative' => $data->is_inative ?? 0,
+                "by_type"=>[
+
+                ]
             ];
         }
 
         return $result;
     }
 
+
+    public function countwithTYpe($byType){
+            $counts = $this->model
+            ::where('')-> count()
+           ;
+    }
     public function getTotalAlerts(): array
     {
         $counts = $this->model
@@ -79,7 +88,6 @@ class AlertRepository extends AbstractRepository
         ];
     }
 
-    
-    
+
 
 }
