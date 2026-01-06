@@ -100,7 +100,7 @@ class RiskAssessmentService extends AbstractService
             $this->pepService->createEntityPep($data['entity_id']);
         }
 
-        if (!empty($data['pep']) && $data['pep'] === true) {
+        if (!empty($data['pep']) && $data['pep'] === 1) {
             $this->pepService->createEntityPep($data['entity_id']);
         }
 
@@ -139,7 +139,8 @@ class RiskAssessmentService extends AbstractService
                     'origin_id' => "AV#" . $riskAssessment->id,
                     'entity_id' => $riskAssessment->entity->id,
                     'score' => $riskAssessment->score,
-                    'type' => "KYC",
+                    'type' => "Diligence",
+                     'category'=> "KYC",
                     'list' => "Avaliação AML " . $riskAssessment->diligence,
                     'is_active' => true,
                 ]
@@ -148,8 +149,9 @@ class RiskAssessmentService extends AbstractService
             $host = config('app.url'); // ou outro host padrão
             SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         }
-        GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
-            ->onQueue('high');
+
+      GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
+           ->onQueue('high');
         return $riskAssessment;
     }
 

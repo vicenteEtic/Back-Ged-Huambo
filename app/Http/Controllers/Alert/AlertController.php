@@ -40,7 +40,7 @@ class AlertController extends AbstractController
     {
         try {
             $this->logRequest();
-            $statusOlder =$id;
+            $statusOlder =$request->validated()['is_active'];
 
             if ($statusOlder == 1) {
                 $status = "Novo";
@@ -51,8 +51,11 @@ class AlertController extends AbstractController
             if ($statusOlder == 3) {
                 $status = "Em Supervisão";
             }
-            if ($statusOlder == 4) {
+            if ($statusOlder == 0) {
                 $status = "Fechado";
+            }
+            else{
+                 $status = "Desconhecido";
             }
             $commentAlert = $this->service->updateStatus($request->validated(), $id);
 
@@ -60,8 +63,9 @@ class AlertController extends AbstractController
             $this->logToDatabase(
                 type: 'entity',
                 level: 'info',
-                alert_id: (int) $request->validated()['alert_id'],
-                customMessage: "Atualizou o status  do alerta #{$id} para  {$status}",
+                alert_id: $id,
+           customMessage: "Status do alerta ID #{$id} alterado para '{$status}'"
+
 
             );
             return response()->json($commentAlert, Response::HTTP_OK);

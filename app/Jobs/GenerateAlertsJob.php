@@ -77,7 +77,7 @@ class GenerateAlertsJob implements ShouldQueue
         }
 
         if (!empty($externalDataSanction['data'])) {
-            $this->createAlerts($externalDataSanction['data'], $entityId, 'SANCTION');
+            $this->createAlerts($externalDataSanction['data'], $entityId, 'SANCTIONS');
         }
     }
 
@@ -116,7 +116,7 @@ class GenerateAlertsJob implements ShouldQueue
                     continue;
                 }
 
-                $this->createAlerts($externalData, $entity->id, "SANCTION");
+                $this->createAlerts($externalData, $entity->id, "SANCTIONS");
             } catch (\Exception $e) {
                 Log::error("Error processing entity {$entityName}: {$e->getMessage()}");
             }
@@ -126,37 +126,74 @@ class GenerateAlertsJob implements ShouldQueue
     /**
      * Create or update alerts based on external data.
      */
-    private function createAlerts(array $data, int $entityId, string $type = "PEP"): void
-    {
-        foreach ($data as $item) {
-            if ($item['score'] >= 70) {
-                $level = "Alto";
-            } elseif ($item['score'] >= 50) {
-                $level = "Médio";
-            } else {
-                $level = "Baixo";
-            }
 
-            $alert =    $this->alertRepository->storeOrUpdate(
-                [
-                    'origin_id' => $item['id'],
-                    'name' => $item['name'],
-                ],
-                [
-                    'name' => $item['name'],
-                    'country' => $item['country'],
-                    'birth_date' => $item['birth_date'],
-                    'level' =>    $level,
-                    'from_id' => $entityId,
-                    'origin_id' => $item['id'],
-                    'entity_id' => $entityId,
-                    'score' => $item['score'] ?? 0,
-                    'type' => "KYC",
-                    'list' => $item['datasets'],
-                    'is_active' => true,
-                ]
-            );
-            SendGrupoAlertEmailJob::dispatch($alert->id)->onQueue('high');;
-        }
+   private function resolveAlertType(string $source): array
+{
+    return match ($source) {
+        'PEP' => [
+            'type' => 'PEP',
+            'category' => 'PEP',
+            'list' => 'PEP List world',
+            'is_pep' => 1,
+            'is_sanctioned' => 0,
+        ],
+        'SANCTIONS' => [
+            'type' => 'SANCTIONS',
+            'category' => 'SANCTIONS',
+            'list' => 'Sanctions List',
+            'is_pep' => 0,
+            'is_sanctioned' => 1,
+        ],
+        'KYC' => [
+            'type' => 'KYC',
+            'category' => 'KYC',
+            'list' => 'KYC List',
+            'is_pep' => 0,
+            'is_sanctioned' => 0,
+        ],
+        default => throw new \InvalidArgumentException("Tipo de alerta inválido: {$source}"),
+    };
+}
+
+
+ private function createAlerts(array $data, int $entityId, string $source): void
+{
+    $typeData = $this->resolveAlertType($source); // resolver tipo/lista
+
+    foreach ($data as $item) {
+        $level = match (true) {
+            ($item['score'] ?? 0) >= 70 => 'Alto',
+            ($item['score'] ?? 0) >= 50 => 'Médio',
+            default => 'Baixo',
+        };
+
+        $alert = $this->alertRepository->storeOrUpdate(
+            [
+                'origin_id' => $item['id'],
+                'entity_id' => $entityId,
+                'type'      => $typeData['type'],
+            ],
+            [
+                'name'         => $item['name'],
+                'country'      => $item['country'] ?? null,
+                'birth_date'   => $item['birth_date'] ?? null,
+                'level'        => $level,
+                'from_id'      => $entityId,
+                'origin_id'    => $item['id'],
+                'entity_id'    => $entityId,
+                'score'        => $item['score'] ?? 0,
+                'type'         => "PEP List world",       
+                'category'     => $typeData['category'],   // mesma classificação
+                'list'         => $typeData['list'],       // nome da lista
+                'is_pep'       => $typeData['is_pep'],
+                'is_sanctioned'=> $typeData['is_sanctioned'],
+                'is_active'    => true,
+            ]
+        );
+
+        SendGrupoAlertEmailJob::dispatch($alert->id)->onQueue('high');
     }
+}
+
+
 }

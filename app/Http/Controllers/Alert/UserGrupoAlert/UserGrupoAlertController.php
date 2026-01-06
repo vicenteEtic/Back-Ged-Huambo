@@ -24,6 +24,8 @@
             try {
                 $this->logRequest();
                 $userGrupoAlert = $this->service->storeMany($request->validated());
+               
+        
                 return response()->json($userGrupoAlert, Response::HTTP_CREATED);
             } catch (Exception $e) {
                 $this->logRequest($e);

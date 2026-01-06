@@ -2,10 +2,8 @@ FROM php:8.2-fpm
 
 WORKDIR /var/www
 
-# Remover html antigo
 RUN rm -rf /var/www/html
 
-# Instala dependências e extensões PHP
 RUN apt-get update && apt-get install -y \
         build-essential \
         libpng-dev \
@@ -27,24 +25,28 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install zip pdo_mysql mbstring exif bcmath gd pcntl \
     && rm -rf /var/lib/apt/lists/*
 
-# Instala Redis via PECL
 RUN pecl install redis \
     && docker-php-ext-enable redis
 
-# Instala Composer
-RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
+    RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
     && php composer-setup.php --install-dir=/usr/local/bin --filename=composer \
     && php -r "unlink('composer-setup.php');"
 
-# Copia aplicação
+
 COPY . /var/www
 
-# Cria pastas necessárias e dá permissões
 RUN mkdir -p /var/run/supervisor /var/log/supervisord /var/www/storage/logs \
     && chmod -R 777 /var/run/supervisor /var/log/supervisord /var/www/storage
 
-# Configuração do Supervisor
 COPY docker/php/supervisord.conf /etc/supervisor/supervisord.conf
+
+# SSL
+COPY cacert.pem /usr/local/share/ca-certificates/cacert.pem
+RUN update-ca-certificates
+
+# Copiar cacert e atualizar certificados do sistema
+COPY cacert.pem /usr/local/share/ca-certificates/cacert.crt
+RUN update-ca-certificates
 
 # PHP ini custom
 COPY ./docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
@@ -53,8 +55,9 @@ RUN mkdir -p /var/www/storage/logs \
     && chmod -R 775 /var/www/storage
 
 
-# Expor porta do PHP-FPM
+RUN apt-get update && apt-get install -y ca-certificates \
+    && update-ca-certificates
+
 EXPOSE 9000
 
-# Iniciar Supervisor
 CMD ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]

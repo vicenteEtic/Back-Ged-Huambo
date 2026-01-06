@@ -11,20 +11,25 @@ use App\Http\Controllers\AlertAttachment\AlertAttachmentController;
 use App\Http\Requests\Alert\CommentAlert\CommentAlertRequest;
 use App\Models\Alert\AlertUser\AlertUser;
 
-Route::get('', [AlertController::class, 'index'])
-    ->name('alert.index');
+    Route::get('/', [AlertController::class, 'index']);
+    Route::get('/total', [AlertController::class, 'getTotalAlerts']);
+    Route::put('/{id}/status', [AlertController::class, 'status']);
 
-Route::get('/user/{id}', [AlertUserController::class, 'findByUser'])
-    ->name('alertUser.show');
+    Route::apiResource('grupoAlertEmails', GrupoAlertEmailsController::class);
+    Route::apiResource('grupoType', GrupoTypeController::class);
+    Route::apiResource('userGrupo', UserGrupoAlertController::class);
 
-Route::get('/user', [AlertUserController::class, 'getAllUsersAlertSummary'])
-    ->name('alertUser.getAllUsersAlertSummary');
+    Route::get('/user/{id}', [AlertUserController::class, 'findByUser']);
+    Route::get('/user', [AlertUserController::class, 'getAllUsersAlertSummary']);
+    Route::post('/user', [AlertUserController::class, 'store']);
+    Route::put('/user/{id}', [AlertUserController::class, 'update']);
 
-Route::get('/user', [AlertUserController::class, 'getAllUsersAlertSummary'])
-    ->name('alertUser.getAllUsersAlertSummary');
+    Route::apiResource('comment', CommentAlertController::class)->only([
+        'index', 'show', 'store'
+    ]);
 
-Route::post('/user', [AlertUserController::class, 'store'])
-    ->name('alertUser.store');
+    Route::get('/files', [AlertAttachmentController::class, 'index']);
+    Route::post('/files/{id}', [AlertAttachmentController::class, 'store']);
 
 Route::get('/total', [AlertController::class, 'getTotalAlerts'])
     ->name('alertUser.total');
