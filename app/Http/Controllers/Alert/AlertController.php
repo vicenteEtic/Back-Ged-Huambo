@@ -44,19 +44,16 @@ class AlertController extends AbstractController
 
             if ($statusOlder == 1) {
                 $status = "Novo";
-            }
-            if ($statusOlder == 2) {
+            } elseif ($statusOlder == 2) {
                 $status = "Em validação";
-            }
-            if ($statusOlder == 3) {
+            } elseif ($statusOlder == 3) {
                 $status = "Em Supervisão";
-            }
-            if ($statusOlder == 0) {
+            } elseif ($statusOlder == 0) {
                 $status = "Fechado";
+            } else {
+                $status = "Desconhecido";
             }
-            else{
-                 $status = "Desconhecido";
-            }
+            
             $commentAlert = $this->service->updateStatus($request->validated(), $id);
 
 
