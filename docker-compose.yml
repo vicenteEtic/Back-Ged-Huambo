@@ -1,5 +1,10 @@
 version: '3.9'
 
+
+	protected $casts = [
+
+	];
+
 services:
   php:
     container_name: setupNossaSeguros-php

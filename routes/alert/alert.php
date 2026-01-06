@@ -69,7 +69,9 @@ Route::put('/userGrupo/{id}', [UserGrupoAlertController::class, 'update'])
     ->name('userGrupo.update');
 
 
-Route::get('/files', [AlertAttachmentController::class, 'index'])
+Route::get('/files/{alertID}', [AlertAttachmentController::class, 'files'])
     ->name('alertAttachment.index');
-Route::post('/files/{id}', [AlertAttachmentController::class, 'store'])
+Route::post('/files/{idAlert}', [AlertAttachmentController::class, 'store'])
     ->name('alertAttachment.store');;
+    Route::get('/files/showFile/{id}', [AlertAttachmentController::class, 'showFile'])
+    ->name('alertAttachment.showFile');;

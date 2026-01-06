@@ -23,13 +23,34 @@ class AlertAttachmentController extends AbstractController
     {
         try {
             $this->logRequest();
-            $alertAttachment = $this->service->createComplaintAttachment($request->validated(), $alertID);
+    
+            // Pega arquivos enviados via form-data
+            $files = $request->file('attachments');
+    
+            $alertAttachment = $this->service->createComplaintAttachment($files, $alertID);
+    
             return response()->json($alertAttachment, Response::HTTP_CREATED);
         } catch (Exception $e) {
             $this->logRequest($e);
             return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+    
+
+
+    public function files($alertID)
+    {
+        try {
+            $this->logRequest();
+            $alertAttachment = $this->service->files($alertID);
+            return response()->json($alertAttachment, Response::HTTP_CREATED);
+        } catch (Exception $e) {
+            $this->logRequest($e);
+            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    
 
     /**
      * Update the specified resource in storage.
@@ -51,14 +72,26 @@ class AlertAttachmentController extends AbstractController
 
     public function showFile($id)
     {
-
         try {
-            $this->logRequest();
-            $complaint = $this->service->showFile($id);
-            return response()->json($complaint, Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            $filePath = $this->service->showFile($id); // Retorna caminho absoluto
+    
+            if (!file_exists($filePath)) {
+                return response()->json(['error' => 'Arquivo não encontrado.'], 404);
+            }
+    
+            $mimeType = \Illuminate\Support\Facades\File::mimeType($filePath);
+            $fileName = basename($filePath);
+    
+            return response()->file($filePath, [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'inline; filename="' . $fileName . '"'
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                "message" => "Falha ao abrir o arquivo.",
+                "error" => $th->getMessage()
+            ], 400);
         }
     }
+    
 }
