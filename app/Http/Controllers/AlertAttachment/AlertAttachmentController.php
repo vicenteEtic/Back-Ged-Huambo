@@ -23,7 +23,6 @@ class AlertAttachmentController extends AbstractController
     {
         try {
             $this->logRequest();
-    
             // Pega arquivos enviados via form-data
             $files = $request->file('attachments');
     
