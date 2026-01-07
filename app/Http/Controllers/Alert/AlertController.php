@@ -61,7 +61,7 @@ class AlertController extends AbstractController
                 type: 'entity',
                 level: 'info',
                 alert_id: $id,
-           customMessage: "Status do alerta ID #{$id} alterado para '{$status}'"
+           customMessage: "Estado do alerta ID #{$id} alterado para '{$status}'"
 
 
             );
