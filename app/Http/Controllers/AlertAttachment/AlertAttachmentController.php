@@ -28,7 +28,14 @@ class AlertAttachmentController extends AbstractController
             $files = $request->file('attachments');
     
             $alertAttachment = $this->service->createComplaintAttachment($files, $alertID);
-    
+            $this->logToDatabase(
+                type: 'entity',
+                level: 'info',
+                alert_id: $alertID,
+           customMessage: "Adicionou um anexo ao alerta #{$alertID} '"
+
+
+            );
             return response()->json($alertAttachment, Response::HTTP_CREATED);
         } catch (Exception $e) {
             $this->logRequest($e);
@@ -38,24 +45,14 @@ class AlertAttachmentController extends AbstractController
     
 
 
-    public function files($alertID)
-    {
-        try {
-            $this->logRequest();
-            $alertAttachment = $this->service->files($alertID);
-            return response()->json($alertAttachment, Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
+  
 
     
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(AlertAttachmentRequest $request, $id)
+    public function update(AlertAttachmentRequest $request, $alertID)
     {
         try {
             $this->logRequest();
@@ -64,6 +61,26 @@ class AlertAttachmentController extends AbstractController
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+        } catch (Exception $e) {
+            $this->logRequest($e);
+            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function files($alertID)
+    {
+        try {
+            $this->logRequest();
+            $alertAttachment = $this->service->files($alertID);
+            $this->logToDatabase(
+                type: 'entity',
+                level: 'info',
+                alert_id: $alertID,
+           customMessage: "Listou os documentos do alerta #{$alertID} '"
+
+
+            );
+            return response()->json($alertAttachment, Response::HTTP_CREATED);
         } catch (Exception $e) {
             $this->logRequest($e);
             return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
