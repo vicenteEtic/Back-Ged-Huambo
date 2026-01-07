@@ -14,7 +14,7 @@ class AlertAttachmentRequest extends BaseFormRequest
     {
         return [
             'attachments'   => 'required|array|min:1',
-            'attachments.*' => 'required|file|max:1024', // max 5MB por arquivo
+           'attachments.*' => 'required|file|max:1048576', // max 1GB por arquivo
         ];
     }
 
