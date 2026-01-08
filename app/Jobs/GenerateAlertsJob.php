@@ -184,9 +184,7 @@ class GenerateAlertsJob implements ShouldQueue
                 'score'        => $item['score'] ?? 0,
                 'type'         => "PEP List world",       
                 'category'     => $typeData['category'],   // mesma classificação
-                'list'         => $typeData['list'],       // nome da lista
-                'is_pep'       => $typeData['is_pep'],
-                'is_sanctioned'=> $typeData['is_sanctioned'],
+                'list'         =>  $item['datasets'] ?? "PEP List world",       // nome da lista
                 'is_active'    => true,
             ]
         );
