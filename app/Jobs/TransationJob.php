@@ -12,6 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class TransationJob implements ShouldQueue
 {
@@ -49,19 +50,19 @@ class TransationJob implements ShouldQueue
                     ]
                 );
 
-                $policieService->store([
 
-                    
+
+                $policieService->store([
                     'control_id' => $this->batchId,
                     'entity_id' => $entity->id,
                     'contract_number' => $record['contract_number'],
                     'product' => $record['product'],
                     'channel' => $record['channel'],
                     'agent' => $record['agent'],
-                    'start_date' => $record['start_date'],
-                    'end_date' => $record['end_date'],
-                    'issue_date' => $record['issue_date'],
-                    'renewal_date' => $record['renewal_date'],
+                    'start_date' => Carbon::parse($record['start_date'])->format('Y-m-d H:i:s'),
+                    'end_date' => Carbon::parse($record['end_date'])->format('Y-m-d H:i:s'),
+                    'issue_date' => Carbon::parse($record['issue_date'])->format('Y-m-d H:i:s'),
+                    'renewal_date' => Carbon::parse($record['renewal_date'])->format('Y-m-d H:i:s'),
                     'capital' => $record['capital'],
                     'premium_simple' => $record['premium_simple'],
                     'premium_total' => $record['premium_total'],
@@ -69,7 +70,8 @@ class TransationJob implements ShouldQueue
                     'interest' => $record['interest'],
                     'status' => $record['status'],
                 ]);
-                  $this->incrementSuccessCount();
+
+                $this->incrementSuccessCount();
 
                 DB::commit();
             } catch (\Exception $e) {
@@ -81,14 +83,9 @@ class TransationJob implements ShouldQueue
                 ]);
             }
         }
-
-
-
-        
-
     }
 
-      private function incrementSuccessCount()
+    private function incrementSuccessCount()
     {
         $errorRecord = transaionControl::find($this->batchId);
 

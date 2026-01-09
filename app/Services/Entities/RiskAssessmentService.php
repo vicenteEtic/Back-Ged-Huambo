@@ -129,7 +129,6 @@ class RiskAssessmentService extends AbstractService
 
         if ($diligence->name == "Cliente Inaceitável" || $diligence->name == "Reforçada") {
             $alert =    $this->alertRepository->store(
-
                 [
                     'name' => $riskAssessment->entity->social_denomination,
                     'country' => $riskAssessment->nationlity->description,
@@ -139,7 +138,7 @@ class RiskAssessmentService extends AbstractService
                     'origin_id' => "AV#" . $riskAssessment->id,
                     'entity_id' => $riskAssessment->entity->id,
                     'score' => $riskAssessment->score,
-                    'type' => "Diligence",
+                    'type' => "Baseado em Risco",
                      'category'=> "KYC",
                     'list' => "Avaliação AML " . $riskAssessment->diligence,
                     'is_active' => true,
