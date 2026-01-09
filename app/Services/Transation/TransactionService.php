@@ -14,8 +14,8 @@ class TransactionService extends AbstractService
 {
 
 
-    private const BATCH_SIZE = 8000;
-    private const TIME_LIMIT_SECONDS = 10;
+    private const BATCH_SIZE = 500;
+    private const TIME_LIMIT_SECONDS = 40;
     public function __construct(TransactionRepository $repository,  private readonly transaionControlService $transaionControlService,)
     {
         parent::__construct($repository);
