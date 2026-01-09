@@ -50,6 +50,10 @@ class SendGrupoAlertEmailJob implements ShouldQueue
                 $type = "Unacceptable Customer";
             }
 
+              if ($alert->category == "KYT") {
+                $type = "Transaction Monitoring";
+            }
+
 
             if (!$alert) {
                 Log::error("Alert com ID {$this->alertID} não encontrado.");

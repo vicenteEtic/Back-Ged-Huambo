@@ -1,0 +1,29 @@
+
+   INFO  Running migrations.  
+
+  2025_12_17_082938_create_aml_alerts_table ...................... 2.91ms FAIL
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'aml_alerts' already exists (Connection: mysql, SQL: create table `aml_alerts` (`id` bigint unsigned not null auto_increment primary key, `created_at` timestamp null, `updated_at` timestamp null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:825
+    821▕                     $this->getName(), $query, $this->prepareBindings($bindings), $e
+    822▕                 );
+    823▕             }
+    824▕ 
+  ➜ 825▕             throw new QueryException(
+    826▕                 $this->getName(), $query, $this->prepareBindings($bindings), $e
+    827▕             );
+    828▕         }
+    829▕     }
+
+      [2m+9 vendor frames [22m
+
+  10  database/migrations/2025_12_17_082938_create_aml_alerts_table.php:14
+      Illuminate\Support\Facades\Facade::__callStatic("create")
+      [2m+26 vendor frames [22m
+
+  37  artisan:13
+      Illuminate\Foundation\Application::handleCommand(Object(Symfony\Component\Console\Input\ArgvInput))
+
