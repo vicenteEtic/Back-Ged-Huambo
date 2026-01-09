@@ -12,6 +12,7 @@ class Alert extends Model
     protected $table = 'alert';
     protected $primaryKey = 'id';
     protected $fillable = [
+           'description',
         'name',
         'level',
         'origin_id',
@@ -27,8 +28,8 @@ class Alert extends Model
         'is_sanctioned',
         'is_reported',
         'category',
-        
-        'description'
+
+     
     ];
 
 
