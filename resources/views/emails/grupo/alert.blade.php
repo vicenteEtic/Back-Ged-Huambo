@@ -61,7 +61,7 @@
                 'Sanctions List' => 'Sanctions List',
                 'Avaliação AML Reforçada' => 'Enhanced Due Diligence',
                 'Avaliação AML Cliente Inaceitável' => 'Unacceptable Customer',
-                default => 'Desconhecido',
+                default => $alert->type,
             };
         @endphp
 
