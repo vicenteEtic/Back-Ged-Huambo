@@ -1,11 +1,14 @@
 <?php
 
+
+
+use App\Http\Controllers\Transation\PoliciesController;
 use App\Http\Controllers\Transation\TransactionController;
-use App\Http\Controllers\Transation\TransationController;
+
 use Illuminate\Support\Facades\Route;
 
 
-Route::get('', [TransactionController::class, 'index'])
+Route::get('', [PoliciesController::class, 'index'])
     ->name('transation.index');
 
 Route::post('', [TransactionController::class, 'store'])

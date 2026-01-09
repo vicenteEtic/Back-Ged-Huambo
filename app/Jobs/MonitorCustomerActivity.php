@@ -2,132 +2,209 @@
 
 namespace App\Jobs;
 
-use App\Models\Entities\Entities; // Model correto para os clientes
+use App\Models\Entities\Entities;
 use App\Models\Transation\Policies;
-use App\Models\Transation\Transaction as TransationTransaction;
-use App\Models\Alert\Alert as ModelsAlert;
+use App\Models\Alert\Alert;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class MonitorCustomerActivity implements ShouldQueue
 {
     use Dispatchable, Queueable;
 
-    public function handle()
+    public function handle(): void
     {
-        Log::info('Iniciando MonitorCustomerActivity Job');
+        Log::info('🔍 KYT Monitor iniciado');
 
-        $customers = Entities::all(); // pega todos os clientes
-        Log::info('Total de clientes encontrados: ' . $customers->count());
+        $customers = Entities::all();
 
         foreach ($customers as $customer) {
-            Log::info("Processando cliente ID: {$customer->id}");
-            $this->checkPEP($customer);
-            $this->checkSmallTransactions($customer);
-            $this->checkPolicyChanges($customer);
-           // $this->checkEarlyRedemption($customer);
+            $this->checkHighCapitalIncrease($customer);
+            $this->checkEarlyRedemption($customer);
+            $this->checkHighPremiumLowRisk($customer);
+            $this->checkMultipleShortPolicies($customer);
+            $this->checkPolicyChurning($customer);
+            $this->checkRapidPolicyReplacement($customer);
         }
 
-        Log::info('Finalizado MonitorCustomerActivity Job');
+        Log::info('✅ KYT Monitor finalizado');
     }
 
-    private function checkSmallTransactions(Entities $customer)
+    private function checkHighCapitalIncrease(Entities $customer): void
     {
-        Log::info("Verificando transações pequenas para cliente ID: {$customer->id}");
-
-        $transactions = TransationTransaction::where('entity_id', $customer->id)
-            ->where('amount', '<', 1000)
-            ->where('transaction_date', '>=', now()->subMonth())
-            ->get();
-
-        Log::info("Transações pequenas encontradas: " . $transactions->count());
-
-        if ($transactions->count() >= 5) {
-            ModelsAlert::create([
-                'entity_id' => $customer->id,
-                'type' => 'Multiple Small Transactions',
-                'description' => 'Cliente fez muitas transações pequenas em um curto período.',
-            ]);
-            Log::info("Alerta 'Multiple Small Transactions' criado para cliente ID: {$customer->id}");
-        }
-    }
-
-    private function checkPolicyChanges(Entities $customer)
-    {
-        Log::info("Verificando mudanças de capital para cliente ID: {$customer->id}");
-
         $policies = Policies::where('entity_id', $customer->id)
             ->orderBy('start_date', 'desc')
             ->take(2)
             ->get();
 
-        Log::info("Políticas encontradas: " . $policies->count());
+        if ($policies->count() < 2) return;
 
-        if ($policies->count() == 2) {
-            $prev = $policies[1];
-            $curr = $policies[0];
+        $current = $policies[0];
+        $previous = $policies[1];
 
-            if ($curr->capital > $prev->capital * 10) {
-                ModelsAlert::create([
-                    'entity_id' => $customer->id,
-                    'type' => 'High Capital Increase',
-                    'description' => "Cliente aumentou capital de {$prev->capital} para {$curr->capital}.",
-                ]);
-                Log::info("Alerta 'High Capital Increase' criado para cliente ID: {$customer->id}");
-            }
+        if ($current->capital > ($previous->capital * 10)) {
+            $description = sprintf(
+                "Aumento abrupto de capital detectado.\nApólice anterior: %s (Capital: %s)\nApólice atual: %s (Capital: %s)\nCliente: %s",
+                $previous->contract_number,
+                number_format($previous->capital, 2, ',', '.'),
+                $current->contract_number,
+                number_format($current->capital, 2, ',', '.'),
+                $customer->social_denomination
+            );
+
+            $this->createAlertOnce($customer->id, 'KYT_HIGH_CAPITAL_INCREASE', $description, 'high');
         }
     }
 
-   private function checkEarlyRedemption(Entities $customer)
-{
-    Log::info("Verificando resgate antecipado para cliente ID: {$customer->id}");
-
-    $policies = Policies::where('entity_id', $customer->id)
-        ->where('status', 'terminated')
-        ->where('end_date', '<', now())
-        ->get();
-
-    Log::info("Políticas terminadas encontradas: " . $policies->count());
-
-    foreach ($policies as $policy) {
-        try {
-            if (empty($policy->start_date) || empty($policy->end_date)) {
-                Log::warning("Datas inválidas para policy ID: {$policy->id}");
-                continue;
-            }
-
-            $startDate = \Carbon\Carbon::parse($policy->start_date);
-            $endDate = \Carbon\Carbon::parse($policy->end_date);
-
-            $diff = $endDate->diffInDays($startDate);
-
-            if ($diff < 365) {
-                ModelsAlert::create([
-                    'entity_id' => $customer->id,
-                    'type' => 'Early Redemption',
-                    'description' => "Política resgatada antes de completar 1 ano.",
-                ]);
-
-                Log::info(
-                    "Alerta 'Early Redemption' criado para cliente ID: {$customer->id}, policy ID: {$policy->id}"
-                );
-            }
-        } catch (\Exception $e) {
-            Log::error("Erro ao processar policy ID: {$policy->id}", [
-                'message' => $e->getMessage(),
-                'start_date' => $policy->start_date,
-                'end_date' => $policy->end_date
-            ]);
-        }
-    }
-}
-
-
-    private function checkPEP(Entities $customer)
+    private function checkEarlyRedemption(Entities $customer): void
     {
-        Log::info("Verificando PEP para cliente ID: {$customer->id}");
-        // Lógica para verificar PEP (Politicamente Exposto)
+        $policies = Policies::where('entity_id', $customer->id)
+            ->where('status', 'terminated')
+            ->get();
+
+        foreach ($policies as $policy) {
+            if (!$policy->start_date || !$policy->end_date) continue;
+
+            $days = Carbon::parse($policy->start_date)
+                ->diffInDays(Carbon::parse($policy->end_date));
+
+            if ($days < 365) {
+                $description = sprintf(
+                    "Apólice resgatada antes de 12 meses.\nApólice: %s\nPeríodo: %s a %s (%d dias)\nCapital: %s\nCliente: %s",
+                    $policy->contract_number,
+                    $policy->start_date,
+                    $policy->end_date,
+                    $days,
+                    number_format($policy->capital, 2, ',', '.'),
+                    $customer->social_denomination
+                );
+
+                $this->createAlertOnce($customer->id, 'KYT_EARLY_REDEMPTION', $description, 'medium');
+            }
+        }
+    }
+
+    private function checkHighPremiumLowRisk(Entities $customer): void
+    {
+        $policies = Policies::where('entity_id', $customer->id)
+            ->where('status', 'active')
+            ->get();
+    
+        foreach ($policies as $policy) {
+            $capital = (float) $policy->capital;
+            $premium_total = (float) $policy->premium_total;
+    
+            if ($capital <= 10000 && $premium_total >= 5000) {
+                $description = sprintf(
+                    "Prémio elevado incompatível com risco segurado.\nApólice: %s\nCapital: %s\nPrémio total: %s\nCliente: %s",
+                    $policy->contract_number,
+                    number_format($capital, 2, ',', '.'),
+                    number_format($premium_total, 2, ',', '.'),
+                    $customer->social_denomination
+                );
+    
+                $this->createAlertOnce($customer->id, 'KYT_HIGH_PREMIUM_LOW_RISK', $description, 'high');
+            }
+        }
+    }
+    
+    private function checkMultipleShortPolicies(Entities $customer): void
+    {
+        $policies = Policies::where('entity_id', $customer->id)
+            ->where('status', 'active')
+            ->get()
+            ->filter(function($policy) {
+                if (!$policy->start_date || !$policy->end_date) return false;
+                $days = Carbon::parse($policy->start_date)
+                            ->diffInDays(Carbon::parse($policy->end_date));
+                return $days < 180;
+            });
+    
+        if ($policies->count() >= 3) {
+            $list = $policies->pluck('contract_number')->join(', ');
+            $description = sprintf(
+                "Múltiplas apólices de curta duração detectadas.\nApólices: %s\nTotal: %d\nCliente: %s",
+                $list,
+                $policies->count(),
+                $customer->social_denomination
+            );
+    
+            $this->createAlertOnce($customer->id, 'KYT_MULTIPLE_SHORT_POLICIES', $description, 'medium');
+        }
+    }
+
+    private function checkPolicyChurning(Entities $customer): void
+    {
+        $terminated = Policies::where('entity_id', $customer->id)
+            ->where('status', 'terminated')
+            ->where('end_date', '>=', now()->subYear())
+            ->get();
+
+        if ($terminated->count() >= 3) {
+            $list = $terminated->pluck('contract_number')->join(', ');
+            $description = sprintf(
+                "Cancelamentos frequentes de apólices.\nApólices canceladas: %s\nTotal: %d\nCliente: %s",
+                $list,
+                $terminated->count(),
+                $customer->social_denomination
+            );
+
+            $this->createAlertOnce($customer->id, 'KYT_POLICY_CHURNING', $description, 'high');
+        }
+    }
+
+    private function checkRapidPolicyReplacement(Entities $customer): void
+    {
+        $policies = Policies::where('entity_id', $customer->id)
+            ->orderBy('start_date')
+            ->get();
+
+        if ($policies->count() < 2) return;
+
+        for ($i = 1; $i < $policies->count(); $i++) {
+            $gap = Carbon::parse($policies[$i]->start_date)
+                ->diffInDays(Carbon::parse($policies[$i - 1]->end_date));
+
+            if ($gap <= 7) {
+                $description = sprintf(
+                    "Substituição rápida de apólice.\nApólice anterior: %s\nApólice atual: %s\nIntervalo: %d dias\nCliente: %s",
+                    $policies[$i - 1]->contract_number,
+                    $policies[$i]->contract_number,
+                    $gap,
+                    $customer->social_denomination
+                );
+
+                $this->createAlertOnce($customer->id, 'KYT_RAPID_POLICY_REPLACEMENT', $description, 'medium');
+                break;
+            }
+        }
+    }
+
+    private function createAlertOnce(
+        int $entityId,
+        string $type,
+        string $description,
+        string $severity
+    ): void {
+        if (Alert::where('entity_id', $entityId)
+                 ->where('type', $type)
+                 ->where('description', $description)
+                 ->exists()) {
+            return;
+        }
+    
+        Alert::create([
+            'entity_id'   => $entityId,
+            'type'        => $type,
+            'description' => $description,
+            'severity'    => $severity,
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+    
+        Log::warning("🚨 {$type} | Cliente {$entityId}");
     }
 }
