@@ -193,7 +193,6 @@ class MonitorCustomerActivity implements ShouldQueue
         ) {
             return;
         }
-
         $entitie = Entities::find($entityId);
         $alert = Alert::create([
             'entity_id'   => $entityId,
