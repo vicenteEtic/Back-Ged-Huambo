@@ -51,8 +51,7 @@ class MonitorCustomerActivity implements ShouldQueue
                 $previous->contract_number,
                 number_format($previous->capital, 2, ',', '.'),
                 $current->contract_number,
-                number_format($current->capital, 2, ',', '.'),
-
+                number_format($current->capital, 2, ',', '.')
             );
 
             $this->createAlertOnce($customer->id, 'Aumento significativo de capital', $description, 'Médio', 'checkHighCapitalIncrease','30');
@@ -73,13 +72,12 @@ class MonitorCustomerActivity implements ShouldQueue
 
             if ($days < 365) {
                 $description = sprintf(
-                    "Apólice resgatada antes de 12 meses.\nApólice: %s\nPeríodo: %s a %s (%d dias)\nCapital: %s ",
+                    "Apólice resgatada antes de 12 meses.\nApólice: %s\nPeríodo: %s a %s (%d dias)\nCapital: %s",
                     $policy->contract_number,
                     $policy->start_date,
                     $policy->end_date,
                     $days,
-                    number_format($policy->capital, 2, ',', '.'),
-
+                    number_format($policy->capital, 2, ',', '.')
                 );
 
                 $this->createAlertOnce($customer->id, 'Resgate antecipado de capital', $description, 'Médio', 'checkEarlyRedemption','30');
@@ -102,8 +100,7 @@ class MonitorCustomerActivity implements ShouldQueue
                     "Prémio elevado incompatível com risco segurado.\nApólice: %s\nCapital: %s\nPrémio total: %s",
                     $policy->contract_number,
                     number_format($capital, 2, ',', '.'),
-                    number_format($premium_total, 2, ',', '.'),
-
+                    number_format($premium_total, 2, ',', '.')
                 );
 
                 $this->createAlertOnce($customer->id, 'Prémio elevado com baixo risco', $description, 'Médio', 'checkHighPremiumLowRisk','30');
@@ -128,8 +125,7 @@ class MonitorCustomerActivity implements ShouldQueue
             $description = sprintf(
                 "Múltiplas apólices de curta duração detectadas.\nApólices: %s\nTotal: %d",
                 $list,
-                $policies->count(),
-
+                $policies->count()
             );
 
             $this->createAlertOnce($customer->id, 'Fragmentação de contratos em apólices curtas', $description, 'Baixo', 'checkMultipleShortPolicies','19');
@@ -173,8 +169,7 @@ class MonitorCustomerActivity implements ShouldQueue
                     "Substituição rápida de apólice.\nApólice anterior: %s\nApólice atual: %s\nIntervalo: %d dias",
                     $policies[$i - 1]->contract_number,
                     $policies[$i]->contract_number,
-                    $gap,
-
+                    $gap
                 );
 
                 $this->createAlertOnce($customer->id, 'Substituição frequente e rápida de contratos', $description, 'Médio', 'checkRapidPolicyReplacement','30');
@@ -189,7 +184,7 @@ class MonitorCustomerActivity implements ShouldQueue
         string $description,
         string $severity,
         string $list,
-          string $score
+        string $score
     ): void {
         if (Alert::where('entity_id', $entityId)
             ->where('type', $type)
@@ -198,20 +193,22 @@ class MonitorCustomerActivity implements ShouldQueue
         ) {
             return;
         }
+
         $entitie = Entities::find($entityId);
-        $alert =  Alert::create([
+        $alert = Alert::create([
             'entity_id'   => $entityId,
             'type'        => $type,
-            'category' => "KYT",
+            'category'    => "KYT",
             'description' => $description,
-            'level'    => $severity,
-            'list'    => $list,
-               'score'    => $score,
-            'name'    => $entitie->social_denomination ?? "UNKNOWN",
+            'level'       => $severity,
+            'list'        => $list,
+            'score'       => $score,
+            'name'        => $entitie->social_denomination ?? "UNKNOWN",
             'created_at'  => now(),
             'updated_at'  => now(),
         ]);
-        $host = config('app.url'); // ou outro host padrão
+
+        $host = config('app.url');
         SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         Log::warning("🚨 {$type} | Cliente {$entityId}");
     }
