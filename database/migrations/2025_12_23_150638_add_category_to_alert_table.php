@@ -15,7 +15,7 @@ return new class extends Migration
               $table->string('category')->nullable()->after('id');
         });
     }
-    
+ 
 
     /**
      * Reverse the migrations.
