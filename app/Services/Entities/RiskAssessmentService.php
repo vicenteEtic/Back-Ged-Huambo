@@ -139,7 +139,7 @@ class RiskAssessmentService extends AbstractService
                     'origin_id' => "AV#" . $riskAssessment->id,
                     'entity_id' => $riskAssessment->entity->id,
                     'score' => $riskAssessment->score,
-                    'type' => "Diligence",
+                    'type' => "Baseado em Risco",
                      'category'=> "KYC",
                     'list' => "Avaliação AML " . $riskAssessment->diligence,
                     'is_active' => true,
