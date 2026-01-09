@@ -129,7 +129,6 @@ class RiskAssessmentService extends AbstractService
 
         if ($diligence->name == "Cliente Inaceitável" || $diligence->name == "Reforçada") {
             $alert =    $this->alertRepository->store(
-
                 [
                     'name' => $riskAssessment->entity->social_denomination,
                     'country' => $riskAssessment->nationlity->description,
