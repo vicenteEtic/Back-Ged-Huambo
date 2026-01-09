@@ -191,7 +191,8 @@ class GenerateAlertsJob implements ShouldQueue
             ]
         );
 
-        SendGrupoAlertEmailJob::dispatch($alert->id)->onQueue('high');
+       $host = config('app.url'); // ou outro host padrão
+            SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
     }
 }
 

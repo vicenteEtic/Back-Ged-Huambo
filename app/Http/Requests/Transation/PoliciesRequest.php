@@ -36,7 +36,11 @@ class PoliciesRequest extends BaseFormRequest
             'premium_total' => 'required',
             'charges' => 'required',
             'interest' => 'required',
-            'status' => 'required'
+            'status' => 'required',
+            'social_denomination' => 'nullable'  ,
+             'customer_number' => 'nullable'  
+
+            
         ];
     }
 }

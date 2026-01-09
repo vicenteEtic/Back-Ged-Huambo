@@ -19,31 +19,30 @@ class PoliciesRequest extends BaseFormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
-public function rules(): array
-{
-    return [
-        'records' => 'required|array|min:1',
+    public function rules(): array
+    {
+        return [
+            'records' => 'required|array|min:1',
 
-        'records.*.policy_number'   => 'required',
-        'records.*.customer_number' => 'required',
-        'records.*.nif'             => 'required',
-        'records.*.contract_number' => 'required',
-        'records.*.product'         => 'required',
-        'records.*.channel'         => 'required',
-        'records.*.agent'           => 'required',
-        'records.*.start_date'      => 'required|date',
-        'records.*.end_date'        => 'required|date',
-        'records.*.issue_date'      => 'required|date',
-        'records.*.renewal_date'    => 'required|date',
-        'records.*.capital'         => 'required|numeric',
-        'records.*.premium_simple'  => 'required|numeric',
-        'records.*.premium_total'   => 'required|numeric',
-        'records.*.charges'         => 'required|numeric',
-        'records.*.interest'        => 'required|numeric',
-        'records.*.status'          => 'required',
-    ];
-}
+            'records.*.policy_number'   => 'nullable',
+            'records.*.customer_number' => 'nullable',
+            'records.*.nif'             => 'required',
+            'records.*.contract_number' => 'required',
+            'records.*.product'         => 'required',
+            'records.*.channel'         => 'required',
+            'records.*.agent'           => 'required',
+            'records.*.start_date'      => 'required|date',
+            'records.*.end_date'        => 'required|date',
+            'records.*.issue_date'      => 'required|date',
+            'records.*.renewal_date'    => 'required|date',
+            'records.*.capital'         => 'required|numeric',
+            'records.*.premium_simple'  => 'required|numeric',
+            'records.*.premium_total'   => 'required|numeric',
+            'records.*.charges'         => 'required|numeric',
+            'records.*.interest'        => 'required|numeric',
+            'records.*.status'          => 'required',
+            'records.*.social_denomination'          => 'required',
 
-
-
+        ];
+    }
 }

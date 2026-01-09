@@ -52,10 +52,10 @@ class MonitorCustomerActivity implements ShouldQueue
                 number_format($previous->capital, 2, ',', '.'),
                 $current->contract_number,
                 number_format($current->capital, 2, ',', '.'),
-                
+
             );
 
-            $this->createAlertOnce($customer->id, 'Aumento significativo de capital', $description, 'high');
+            $this->createAlertOnce($customer->id, 'Aumento significativo de capital', $description, 'Médio', 'checkHighCapitalIncrease','30');
         }
     }
 
@@ -79,10 +79,10 @@ class MonitorCustomerActivity implements ShouldQueue
                     $policy->end_date,
                     $days,
                     number_format($policy->capital, 2, ',', '.'),
-                  
+
                 );
 
-                $this->createAlertOnce($customer->id, 'Resgate antecipado de capital', $description, 'medium');
+                $this->createAlertOnce($customer->id, 'Resgate antecipado de capital', $description, 'Médio', 'checkEarlyRedemption','30');
             }
         }
     }
@@ -92,47 +92,47 @@ class MonitorCustomerActivity implements ShouldQueue
         $policies = Policies::where('entity_id', $customer->id)
             ->where('status', 'active')
             ->get();
-    
+
         foreach ($policies as $policy) {
             $capital = (float) $policy->capital;
             $premium_total = (float) $policy->premium_total;
-    
+
             if ($capital <= 10000 && $premium_total >= 5000) {
                 $description = sprintf(
                     "Prémio elevado incompatível com risco segurado.\nApólice: %s\nCapital: %s\nPrémio total: %s",
                     $policy->contract_number,
                     number_format($capital, 2, ',', '.'),
                     number_format($premium_total, 2, ',', '.'),
-                    
+
                 );
-    
-                $this->createAlertOnce($customer->id, 'Prémio elevado com baixo risco', $description, 'high');
+
+                $this->createAlertOnce($customer->id, 'Prémio elevado com baixo risco', $description, 'Médio', 'checkHighPremiumLowRisk','30');
             }
         }
     }
-    
+
     private function checkMultipleShortPolicies(Entities $customer): void
     {
         $policies = Policies::where('entity_id', $customer->id)
             ->where('status', 'active')
             ->get()
-            ->filter(function($policy) {
+            ->filter(function ($policy) {
                 if (!$policy->start_date || !$policy->end_date) return false;
                 $days = Carbon::parse($policy->start_date)
-                            ->diffInDays(Carbon::parse($policy->end_date));
+                    ->diffInDays(Carbon::parse($policy->end_date));
                 return $days < 180;
             });
-    
+
         if ($policies->count() >= 3) {
             $list = $policies->pluck('contract_number')->join(', ');
             $description = sprintf(
                 "Múltiplas apólices de curta duração detectadas.\nApólices: %s\nTotal: %d",
                 $list,
                 $policies->count(),
-                
+
             );
-    
-            $this->createAlertOnce($customer->id, 'Fragmentação de contratos em apólices curtas', $description, 'medium');
+
+            $this->createAlertOnce($customer->id, 'Fragmentação de contratos em apólices curtas', $description, 'Baixo', 'checkMultipleShortPolicies','19');
         }
     }
 
@@ -152,7 +152,7 @@ class MonitorCustomerActivity implements ShouldQueue
                 $customer->social_denomination
             );
 
-            $this->createAlertOnce($customer->id, 'Substituição frequente de apólices', $description, 'high');
+            $this->createAlertOnce($customer->id, 'Substituição frequente de apólices', $description, 'Médio', 'checkPolicyChurning','30');
         }
     }
 
@@ -174,10 +174,10 @@ class MonitorCustomerActivity implements ShouldQueue
                     $policies[$i - 1]->contract_number,
                     $policies[$i]->contract_number,
                     $gap,
-                 
+
                 );
 
-                $this->createAlertOnce($customer->id, 'Substituição frequente e rápida de contratos', $description, 'medium');
+                $this->createAlertOnce($customer->id, 'Substituição frequente e rápida de contratos', $description, 'Médio', 'checkRapidPolicyReplacement','30');
                 break;
             }
         }
@@ -187,25 +187,32 @@ class MonitorCustomerActivity implements ShouldQueue
         int $entityId,
         string $type,
         string $description,
-        string $severity
+        string $severity,
+        string $list,
+          string $score
     ): void {
         if (Alert::where('entity_id', $entityId)
-                 ->where('type', $type)
-                 ->where('description', $description)
-                 ->exists()) {
+            ->where('type', $type)
+            ->where('description', $description)
+            ->exists()
+        ) {
             return;
         }
-    
-      $alert=  Alert::create([
+        $entitie = Entities::find($entityId);
+        $alert =  Alert::create([
             'entity_id'   => $entityId,
             'type'        => $type,
-            'category'=> "KYT",
+            'category' => "KYT",
             'description' => $description,
             'level'    => $severity,
+            'list'    => $list,
+               'score'    => $score,
+            'name'    => $entitie->social_denomination ?? "UNKNOWN",
             'created_at'  => now(),
             'updated_at'  => now(),
         ]);
-     SendGrupoAlertEmailJob::dispatch( $alert->id);
+        $host = config('app.url'); // ou outro host padrão
+        SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         Log::warning("🚨 {$type} | Cliente {$entityId}");
     }
 }
