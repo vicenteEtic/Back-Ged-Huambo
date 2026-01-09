@@ -198,7 +198,7 @@ class MonitorCustomerActivity implements ShouldQueue
             'entity_id'   => $entityId,
             'type'        => $type,
             'category'    => "KYT",
-            'description' => $description,
+            'description' => $description??"vicente",
             'level'       => $severity,
             'list'        => $list,
             'score'       => $score,
