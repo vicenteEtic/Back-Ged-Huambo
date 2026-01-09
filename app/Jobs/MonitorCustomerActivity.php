@@ -47,15 +47,15 @@ class MonitorCustomerActivity implements ShouldQueue
 
         if ($current->capital > ($previous->capital * 10)) {
             $description = sprintf(
-                "Aumento abrupto de capital detectado.\nApólice anterior: %s (Capital: %s)\nApólice atual: %s (Capital: %s)\nCliente: %s",
+                "Aumento abrupto de capital detectado.\nApólice anterior: %s (Capital: %s)\nApólice atual: %s (Capital: %s)",
                 $previous->contract_number,
                 number_format($previous->capital, 2, ',', '.'),
                 $current->contract_number,
                 number_format($current->capital, 2, ',', '.'),
-                $customer->social_denomination
+                
             );
 
-            $this->createAlertOnce($customer->id, 'KYT_HIGH_CAPITAL_INCREASE', $description, 'high');
+            $this->createAlertOnce($customer->id, 'Aumento significativo de capital', $description, 'high');
         }
     }
 
@@ -73,16 +73,16 @@ class MonitorCustomerActivity implements ShouldQueue
 
             if ($days < 365) {
                 $description = sprintf(
-                    "Apólice resgatada antes de 12 meses.\nApólice: %s\nPeríodo: %s a %s (%d dias)\nCapital: %s\nCliente: %s",
+                    "Apólice resgatada antes de 12 meses.\nApólice: %s\nPeríodo: %s a %s (%d dias)\nCapital: %s ",
                     $policy->contract_number,
                     $policy->start_date,
                     $policy->end_date,
                     $days,
                     number_format($policy->capital, 2, ',', '.'),
-                    $customer->social_denomination
+                  
                 );
 
-                $this->createAlertOnce($customer->id, 'KYT_EARLY_REDEMPTION', $description, 'medium');
+                $this->createAlertOnce($customer->id, 'Resgate antecipado de capital', $description, 'medium');
             }
         }
     }
@@ -99,14 +99,14 @@ class MonitorCustomerActivity implements ShouldQueue
     
             if ($capital <= 10000 && $premium_total >= 5000) {
                 $description = sprintf(
-                    "Prémio elevado incompatível com risco segurado.\nApólice: %s\nCapital: %s\nPrémio total: %s\nCliente: %s",
+                    "Prémio elevado incompatível com risco segurado.\nApólice: %s\nCapital: %s\nPrémio total: %s",
                     $policy->contract_number,
                     number_format($capital, 2, ',', '.'),
                     number_format($premium_total, 2, ',', '.'),
-                    $customer->social_denomination
+                    
                 );
     
-                $this->createAlertOnce($customer->id, 'KYT_HIGH_PREMIUM_LOW_RISK', $description, 'high');
+                $this->createAlertOnce($customer->id, 'Prémio elevado com baixo risco', $description, 'high');
             }
         }
     }
@@ -126,13 +126,13 @@ class MonitorCustomerActivity implements ShouldQueue
         if ($policies->count() >= 3) {
             $list = $policies->pluck('contract_number')->join(', ');
             $description = sprintf(
-                "Múltiplas apólices de curta duração detectadas.\nApólices: %s\nTotal: %d\nCliente: %s",
+                "Múltiplas apólices de curta duração detectadas.\nApólices: %s\nTotal: %d",
                 $list,
                 $policies->count(),
-                $customer->social_denomination
+                
             );
     
-            $this->createAlertOnce($customer->id, 'KYT_MULTIPLE_SHORT_POLICIES', $description, 'medium');
+            $this->createAlertOnce($customer->id, 'Fragmentação de contratos em apólices curtas', $description, 'medium');
         }
     }
 
@@ -152,7 +152,7 @@ class MonitorCustomerActivity implements ShouldQueue
                 $customer->social_denomination
             );
 
-            $this->createAlertOnce($customer->id, 'KYT_POLICY_CHURNING', $description, 'high');
+            $this->createAlertOnce($customer->id, 'Substituição frequente de apólices', $description, 'high');
         }
     }
 
@@ -170,14 +170,14 @@ class MonitorCustomerActivity implements ShouldQueue
 
             if ($gap <= 7) {
                 $description = sprintf(
-                    "Substituição rápida de apólice.\nApólice anterior: %s\nApólice atual: %s\nIntervalo: %d dias\nCliente: %s",
+                    "Substituição rápida de apólice.\nApólice anterior: %s\nApólice atual: %s\nIntervalo: %d dias",
                     $policies[$i - 1]->contract_number,
                     $policies[$i]->contract_number,
                     $gap,
-                    $customer->social_denomination
+                 
                 );
 
-                $this->createAlertOnce($customer->id, 'KYT_RAPID_POLICY_REPLACEMENT', $description, 'medium');
+                $this->createAlertOnce($customer->id, 'Substituição frequente e rápida de contratos', $description, 'medium');
                 break;
             }
         }
@@ -196,15 +196,16 @@ class MonitorCustomerActivity implements ShouldQueue
             return;
         }
     
-        Alert::create([
+      $alert=  Alert::create([
             'entity_id'   => $entityId,
             'type'        => $type,
+            'category'=> "KYT",
             'description' => $description,
-            'severity'    => $severity,
+            'level'    => $severity,
             'created_at'  => now(),
             'updated_at'  => now(),
         ]);
-    
+     SendGrupoAlertEmailJob::dispatch( $alert->id);
         Log::warning("🚨 {$type} | Cliente {$entityId}");
     }
 }

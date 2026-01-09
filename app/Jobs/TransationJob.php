@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Transation\transaionControl;
 use App\Services\Entities\EntitiesService;
 use App\Services\Transation\PoliciesService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -49,6 +50,9 @@ class TransationJob implements ShouldQueue
                 );
 
                 $policieService->store([
+
+                    
+                    'control_id' => $this->batchId,
                     'entity_id' => $entity->id,
                     'contract_number' => $record['contract_number'],
                     'product' => $record['product'],
@@ -65,6 +69,7 @@ class TransationJob implements ShouldQueue
                     'interest' => $record['interest'],
                     'status' => $record['status'],
                 ]);
+                  $this->incrementSuccessCount();
 
                 DB::commit();
             } catch (\Exception $e) {
@@ -78,5 +83,19 @@ class TransationJob implements ShouldQueue
         }
 
 
+
+        
+
+    }
+
+      private function incrementSuccessCount()
+    {
+        $errorRecord = transaionControl::find($this->batchId);
+
+        if ($errorRecord) {
+            $errorRecord->update([
+                'total' => $errorRecord->total + 1,
+            ]);
+        }
     }
 }

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('policies', function (Blueprint $table) {
             $table->integer('entity_id');
             $table->string('contract_number');
-           
+           $table->string('control_id')->nullable();
             $table->string('product');
             $table->string('channel')->nullable();
             $table->string('agent')->nullable();
