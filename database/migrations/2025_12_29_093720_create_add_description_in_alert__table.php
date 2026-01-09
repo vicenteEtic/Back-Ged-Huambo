@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('alert', function (Blueprint $table) {
-            $table->longText('description');
-         
+            // Torna a coluna 'description' nullable
+            $table->longText('description')->nullable()->change();
         });
     }
 
@@ -22,6 +22,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('add_description_in_alert_');
+        Schema::table('alert', function (Blueprint $table) {
+            // Reverte a coluna para NOT NULL
+            $table->longText('description')->nullable(false)->change();
+        });
     }
 };
