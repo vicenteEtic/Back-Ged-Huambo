@@ -34,56 +34,100 @@ class TransationJob implements ShouldQueue
 
     public function handle(): void
     {
+        Log::info('🚀 TransationJob iniciado', [
+            'batch_id' => $this->batchId,
+            'user_id'  => $this->userID,
+            'total_records' => count($this->data),
+        ]);
+    
         $policieService = app(PoliciesService::class);
-        $entityService = app(EntitiesService::class);
-
-        foreach ($this->data as $record) {
+        $entityService  = app(EntitiesService::class);
+    
+        foreach ($this->data as $index => $record) {
+    
+            Log::debug('📄 Processando registo', [
+                'batch_id' => $this->batchId,
+                'index'    => $index,
+                'nif'      => $record['nif'] ?? null,
+                'contract' => $record['contract_number'] ?? null,
+            ]);
+    
             DB::beginTransaction();
+    
             try {
+    
+                // Validação mínima defensiva
+                if (empty($record['contract_number']) || empty($record['nif'])) {
+                    Log::warning('⚠️ Registo inválido (dados obrigatórios ausentes)', [
+                        'record' => $record
+                    ]);
+                    DB::rollBack();
+                    continue;
+                }
+    
                 $entity = $entityService->storeOrUpdate(
-                    ['nif' => $record['nif'] ?? 'UNKNOWN'],
+                    ['nif' => $record['nif']],
                     [
-                        'policy_number' => $record['policy_number'] ?? 'UNKNOWN',
-                        'customer_number' => $record['customer_number'] ?? 'UNKNOWN',
-                        'nif' => $record['nif'] ?? 'UNKNOWN',
-                        'social_denomination' => $record['social_denomination'] ?? 'UNKNOWN',
+                        'policy_number'      => $record['policy_number'] ?? 'UNKNOWN',
+                        'customer_number'    => $record['customer_number'] ?? 'UNKNOWN',
+                        'nif'                => $record['nif'],
+                        'social_denomination'=> $record['social_denomination'] ?? 'UNKNOWN',
                     ]
                 );
-
-
-
-                $policieService->store([
-                    'control_id' => $this->batchId,
+    
+                Log::debug('👤 Entidade criada/atualizada', [
                     'entity_id' => $entity->id,
-                    'contract_number' => $record['contract_number'],
-                    'product' => $record['product'],
-                    'channel' => $record['channel'],
-                    'agent' => $record['agent'],
-                    'start_date' => Carbon::parse($record['start_date'])->format('Y-m-d H:i:s'),
-                    'end_date' => Carbon::parse($record['end_date'])->format('Y-m-d H:i:s'),
-                    'issue_date' => Carbon::parse($record['issue_date'])->format('Y-m-d H:i:s'),
-                    'renewal_date' => Carbon::parse($record['renewal_date'])->format('Y-m-d H:i:s'),
-                    'capital' => $record['capital'],
-                    'premium_simple' => $record['premium_simple'],
-                    'premium_total' => $record['premium_total'],
-                    'charges' => $record['charges'],
-                    'interest' => $record['interest'],
-                    'status' => $record['status'],
+                    'nif'       => $entity->nif,
                 ]);
-
+    
+                $policieService->store([
+                    'control_id'     => $this->batchId,
+                    'entity_id'      => $entity->id,
+                    'contract_number'=> $record['contract_number'],
+                    'product'        => $record['product'],
+                    'channel'        => $record['channel'],
+                    'agent'          => $record['agent'],
+                    'start_date'     => Carbon::parse($record['start_date']),
+                    'end_date'       => Carbon::parse($record['end_date']),
+                    'issue_date'     => Carbon::parse($record['issue_date']),
+                    'renewal_date'   => Carbon::parse($record['renewal_date']),
+                    'capital'        => $record['capital'],
+                    'premium_simple' => $record['premium_simple'],
+                    'premium_total'  => $record['premium_total'],
+                    'charges'        => $record['charges'],
+                    'interest'       => $record['interest'],
+                    'status'         => $record['status'],
+                ]);
+    
+                Log::info('✅ Apólice registada com sucesso', [
+                    'batch_id' => $this->batchId,
+                    'entity_id'=> $entity->id,
+                    'contract' => $record['contract_number'],
+                ]);
+    
                 $this->incrementSuccessCount();
-
+    
                 DB::commit();
-            } catch (\Exception $e) {
+    
+            } catch (\Throwable $e) {
+    
                 DB::rollBack();
-                Log::error('Erro no processamento do registro', [
-                    'record' => $record,
-                    'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
+    
+                Log::error('❌ Erro ao processar registo', [
+                    'batch_id' => $this->batchId,
+                    'record'   => $record,
+                    'error'    => $e->getMessage(),
+                    'file'     => $e->getFile(),
+                    'line'     => $e->getLine(),
                 ]);
             }
         }
+    
+        Log::info('🏁 TransationJob finalizado', [
+            'batch_id' => $this->batchId
+        ]);
     }
+    
 
     private function incrementSuccessCount()
     {
