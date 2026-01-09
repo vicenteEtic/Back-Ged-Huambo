@@ -27,6 +27,7 @@ class Alert extends Model
         'is_sanctioned',
         'is_reported',
         'category',
+        
         'description'
     ];
 
