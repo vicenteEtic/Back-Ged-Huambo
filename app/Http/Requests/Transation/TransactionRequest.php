@@ -4,7 +4,7 @@ namespace App\Http\Requests\Transation;
 
 use App\Http\Requests\BaseFormRequest;
 
-class TransationRequest extends BaseFormRequest
+class TransactionRequest extends BaseFormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,19 +22,10 @@ class TransationRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'entite_id' => 'required',
+            'entity_id' => 'required',
             'amount' => 'required',
-            'currency' => 'required',
-            'date' => 'required',
             'type' => 'required',
-            'status' => 'required',
-            'channel' => 'required',
-            'description' => 'required',
-            'category' => 'required',
-            'risk_score' => 'required',
-            'ip_address' => 'required',
-            'device' => 'required',
-            'notes' => 'required'
+            'transaction_date' => 'required'
         ];
     }
 }

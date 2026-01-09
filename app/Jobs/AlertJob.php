@@ -119,9 +119,8 @@ class AlertJob implements ShouldQueue
                 'score' => $item['score'] ?? 0,
                 'country' => $item['country'],
                 'birth_date' => $item['birth_date'],
-                'type' =>    $typeData,
-                'category' => "KYC",
-                'list' => $item['datasets'] ?? "PEP List world",
+                'type' => $type,
+                'list' => $item['type'] ?? "PEP List world",
                 'is_active' => true,
             ]);
             $host = config('app.url'); // ou outro host padrão

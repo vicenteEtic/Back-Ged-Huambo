@@ -7,6 +7,7 @@ use Illuminate\Bus\Queueable;
 use App\Enum\StatusAssessment;
 use App\External\PepExternalApi;
 use App\External\SanctionExternalApi;
+use App\Models\Entities\Entities;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Queue\InteractsWithQueue;
@@ -18,6 +19,7 @@ use App\Services\Entities\EntitiesService;
 use App\Services\Entities\RiskAssessmentService;
 use App\Services\Indicator\IndicatorTypeService;
 use App\Traits\DatabaseLogger;
+use Dotenv\Parser\Entry;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -221,6 +223,7 @@ class ImportDataJob implements ShouldQueue
     private function createAlerts(array $data, int $entityId, string $type): void
     {
         foreach ($data as $item) {
+       
             $alert=    $this->alertRepository->storeOrUpdate(
                 ['origin_id' => $item['id']],
                 [
@@ -241,7 +244,8 @@ class ImportDataJob implements ShouldQueue
                     'is_active' => true,
                 ]
             );
-            SendGrupoAlertEmailJob::dispatch( $alert->id);
+            $host = config('app.url'); // ou outro host padrão
+            SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         }
     }
 }

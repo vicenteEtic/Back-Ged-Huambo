@@ -26,7 +26,7 @@ class AlertUser extends Model
 
     public function users()
     {
-        return $this->belongsToMany(\App\Models\User::class, 'alert_user', 'alert_id', 'user_id')
+        return $this->belongsToMany(User::class, 'alert_user', 'alert_id', 'user_id')
             ->withTimestamps()
             ->withPivot('is_read', 'created_at');
     }
