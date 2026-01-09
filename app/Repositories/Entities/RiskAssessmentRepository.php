@@ -237,4 +237,14 @@ class RiskAssessmentRepository extends AbstractRepository
             ->limit($limit)
             ->get();
     }
+
+public function getByEntityId($entityId)
+{
+    return $this->model
+        ->where('entity_id', $entityId)
+        ->orderBy('id', 'desc') // garante que o último inserido venha primeiro
+        ->first(); // pega apenas o último elemento
+}
+
+
 }

@@ -6,17 +6,19 @@ use App\Services\AbstractService;
 use App\Repositories\Alert\AlertRepository;
 use App\Repositories\Entities\EntitiesRepository;
 use App\Repositories\Entities\BeneficialOwnerRepository;
-
+use App\Services\Entities\RiskAssessmentService;
 
 class AlertService extends AbstractService
 {
-    public function __construct(
-        AlertRepository $repository,
-        private EntitiesRepository $entitiesRepository,
-        private BeneficialOwnerRepository $beneficialOwnerRepository
-    ) {
-        parent::__construct($repository);
-    }
+  public function __construct(
+    AlertRepository $repository,
+    private EntitiesRepository $entitiesRepository,
+    private BeneficialOwnerRepository $beneficialOwnerRepository,
+    public RiskAssessmentService $riskAssessmentService
+) {
+    parent::__construct($repository);
+}
+
 
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
     {
@@ -32,10 +34,18 @@ class AlertService extends AbstractService
     }
 
 
-    public function status($data, $id): array
-    {
-        return $this->repository->status($data, $id);
+ public function updateStatus(array $data, int $id)
+{
+    // Atualiza o modelo
+    $alert = $this->repository->updateStatus($data, $id);
+
+    // Executa lógica adicional se for PEP
+    if (!empty($data['is_pep']) && $data['is_pep'] == true) {
+   
+     return  $this->riskAssessmentService->is_pep($data,$id);
     }
+    return $alert;
+}
 
 
   

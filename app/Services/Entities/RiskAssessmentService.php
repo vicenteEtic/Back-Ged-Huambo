@@ -10,6 +10,8 @@ use App\Http\Resources\RiskAssessmentResourceCollection;
 use App\Http\Resources\RiskAssessmentResourceGET;
 use InvalidArgumentException;
 use App\Jobs\GenerateAlertsJob;
+use App\Jobs\SendGrupoAlertEmailJob;
+use App\Repositories\Alert\AlertRepository;
 use App\Services\AbstractService;
 use App\Services\Alert\AlertService;
 use Illuminate\Support\Facades\Auth;
@@ -22,6 +24,7 @@ use Illuminate\Support\Facades\Log;
 
 class RiskAssessmentService extends AbstractService
 {
+
     public $riskFormulaRepository;
     private const MONTHS = [
         1 => 'Janeiro',
@@ -59,10 +62,11 @@ class RiskAssessmentService extends AbstractService
         private readonly BeneficialOwnerService $beneficialOwnerService,
         private readonly PepService $pepService,
         RiskFormulaRepository $riskFormulaRepository,
-        private AlertService $alertService
+        private AlertRepository $alertRepository // ← agora injetado corretamente
     ) {
         parent::__construct($repository);
         $this->riskFormulaRepository = $riskFormulaRepository;
+        $this->alertRepository = $alertRepository; // ← garantir atribuição
     }
 
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
@@ -85,9 +89,7 @@ class RiskAssessmentService extends AbstractService
     {
         $data['user_id'] = Auth::id() ?? $data['user_id'];
 
-
         $data['beneficialOwner'] = $this->countPepTrueBeneficialOwner($data);
-
         $riskAssessment = $this->repository->store($data);
 
         if (isset($data['beneficial_owners'])) {
@@ -98,8 +100,14 @@ class RiskAssessmentService extends AbstractService
             $this->pepService->createEntityPep($data['entity_id']);
         }
 
+        if (!empty($data['pep']) && $data['pep'] === 1) {
+            $this->pepService->createEntityPep($data['entity_id']);
+        }
+
         $riskProducts = $this->indicatorTypeRepository->getByIds($data['product_risk']);
         $this->productRiskService->storeProductRisks($riskProducts, $riskAssessment->id);
+
+
         $entityType = $riskAssessment['entity']['entity_type'];
         $formula = $this->riskFormulaRepository->findByEntityType($entityType);
         // Atualizar o campo id_risk_formula
@@ -119,8 +127,31 @@ class RiskAssessmentService extends AbstractService
         $riskAssessment->diligence = $diligence->name;
         $riskAssessment->save();
 
-        GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
-            ->onQueue('high');
+        if ($diligence->name == "Cliente Inaceitável" || $diligence->name == "Reforçada") {
+            $alert =    $this->alertRepository->store(
+
+                [
+                    'name' => $riskAssessment->entity->social_denomination,
+                    'country' => $riskAssessment->nationlity->description,
+                    'birth_date' => "",
+                    'level' =>  $riskAssessment->diligence,
+                    'from_id' => "AV#" . $riskAssessment->id,
+                    'origin_id' => "AV#" . $riskAssessment->id,
+                    'entity_id' => $riskAssessment->entity->id,
+                    'score' => $riskAssessment->score,
+                    'type' => "Diligence",
+                     'category'=> "KYC",
+                    'list' => "Avaliação AML " . $riskAssessment->diligence,
+                    'is_active' => true,
+                ]
+            );
+
+            $host = config('app.url'); // ou outro host padrão
+            SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
+        }
+
+      GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
+           ->onQueue('high');
         return $riskAssessment;
     }
 
@@ -349,5 +380,35 @@ class RiskAssessmentService extends AbstractService
 
         // Multiplicar o total por 3 (pontuação)
         return $pepCount * 3;
+    }
+
+    public function is_pep(array $data, $id)
+    {
+        $alert = $this->alertRepository->show($id);
+
+
+        $lastAssessment = $this->repository->getByEntityId($alert->entity_id);
+
+
+        $products = $this->productRiskService->showProduct($lastAssessment->id);
+
+        $data['product_risk'] = $products
+            ? $products->pluck('product_id')->toArray()
+            : $data['product_risk'] ?? [];
+
+        // Inicializa dados mínimos
+        $data['pep'] = true;
+        $data['entity_id'] = $alert->entity_id;
+
+        $data['risk_assessment'] = $lastAssessment->risk_assessment;
+        if ($lastAssessment) {
+            // Copia os dados do último assessment e sobrescreve com os novos dados
+            $data = array_merge($lastAssessment->toArray(), $data);
+            unset($data['id']); // Remove o ID para criar um novo registro
+            unset($data['created_at'], $data['updated_at']); // Remove timestamps
+        }
+
+        // Chama o método store existente para criar a nova avaliação
+        return $this->store($data);
     }
 }

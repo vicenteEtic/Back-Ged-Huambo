@@ -25,4 +25,10 @@ class ProductRiskService extends AbstractService
             );
         }
     }
+
+
+    public function showProduct($data){
+     return    $this->repository->showProduct($data
+            );
+    }
 }

@@ -15,6 +15,10 @@ class AlertAttachmentService extends AbstractService
      return $this->repository->createComplaintAttachment($data,$alertID);
     }
 
+
+    public function files($alertID){
+        return $this->repository->files($alertID);
+    }
       public function showFile($id)
     {
         return $this->repository->showFile($id);

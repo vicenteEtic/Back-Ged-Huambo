@@ -3,6 +3,7 @@
 namespace App\Models\Alert\AlertUser;
 
 use App\Models\Alert\Alert;
+use App\Models\Entities\Entities;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -36,5 +37,9 @@ class AlertUser extends Model
         ->withPivot('is_read', 'created_at');
 }
 
+ public function entity()
+    {
+        return $this->belongsTo(Entities::class, 'entity_id');
+    }
 
 }

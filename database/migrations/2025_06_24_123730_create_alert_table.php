@@ -15,6 +15,8 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->string('name', 100)->nullable();
             $table->string('level')->nullable();
+            $table->string('from_id')->nullable();
+
             $table->bigInteger('origin_id')->nullable();
             $table->bigInteger('entity_id')->unsigned()->nullable();
             $table->string('score')->nullable();

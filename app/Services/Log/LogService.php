@@ -31,6 +31,7 @@ class LogService extends AbstractService
         ?string $type,
         ?string $module,
         ?int $idEntity = null,
+        ?int $alert_id = null,
         ?string $customMessage = null
     ): void {
         $request = request();
@@ -48,25 +49,26 @@ class LogService extends AbstractService
             'http_user_agent' => $request->userAgent(),
             'message'         => $message,
             'entity_id'       => $idEntity,
+            'alert_id'       => $alert_id,
+
         ]);
     }
 
     protected function generateMessage(?string $action, ?string $module, ?string $level): string
-{
-    $module = $module ?? 'Unknown';
-    $action = $action ?? 'unknown';
-    $level = $level ?? 'info';
+    {
+        $module = $module ?? 'Unknown';
+        $action = $action ?? 'unknown';
+        $level = $level ?? 'info';
 
-    return match ($action) {
-        'create' => "$module criado com sucesso.",
-        'edit'   => "$module editado com sucesso.",
-        'view'   => "Visualização de $module.",
-        'try'    => $level === 'error'
-            ? "Erro ao tentar acessar $module."
-            : "Tentativa de ação em $module.",
-        'delete' => "$module removido com sucesso.",
-        default  => "$module - ação desconhecida.",
-    };
-}
-
+        return match ($action) {
+            'create' => "$module criado com sucesso.",
+            'edit'   => "$module editado com sucesso.",
+            'view'   => "Visualização de $module.",
+            'try'    => $level === 'error'
+                ? "Erro ao tentar acessar $module."
+                : "Tentativa de ação em $module.",
+            'delete' => "$module removido com sucesso.",
+            default  => "$module - ação desconhecida.",
+        };
+    }
 }

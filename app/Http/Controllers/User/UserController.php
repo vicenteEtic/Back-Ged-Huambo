@@ -35,6 +35,8 @@ class UserController extends AbstractController
                 type: 'user',
                 level: 'info',
                 customMessage: 'Iniciou sessão.',
+                
+                
             );
             return response()->json(['api_token' => $token], Response::HTTP_OK);
         } catch (Exception $e) {

@@ -21,7 +21,8 @@ class Log extends Model
         'user_id',
         'http_user_agent',
         'message',
-        'entity_id'
+        'entity_id',
+        'alert_id'
     ];
 
     public function entity()

@@ -48,7 +48,7 @@ class AlertJob implements ShouldQueue
                     continue;
                 }
 
-                $this->createAlerts($externalData, $entity->id);
+                $this->createAlerts($externalData, $entity->id, "PEP");
             } catch (\Exception $e) {
                 Log::error("Error processing entity {$entityName}: {$e->getMessage()}");
             }
@@ -69,7 +69,7 @@ class AlertJob implements ShouldQueue
                     continue;
                 }
 
-                $this->createAlerts($externalData, $entity->id);
+                $this->createAlerts($externalData, $entity->id, "SANCTIONS");
             } catch (\Exception $e) {
                 Log::error("Error processing entity {$entityName}: {$e->getMessage()}");
             }
@@ -84,9 +84,18 @@ class AlertJob implements ShouldQueue
      * @param int $entityId
      * @return void
      */
-    private function createAlerts(array $data, int $entityId, $type = "PEP"): void
+    private function createAlerts(array $data, int $entityId, $type): void
     {
         foreach ($data as $item) {
+
+            // Resolver tipo/lista
+            $typeData = match ($type) {
+                'PEP' => ['type' => 'PEP', 'list' => 'PEP List world', 'is_pep' => 1, 'is_sanctioned' => 0],
+                'SANCTIONS' => ['type' => 'SANCTIONS', 'list' => 'Sanctions List', 'is_pep' => 0, 'is_sanctioned' => 1],
+                'KYC' => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
+                default => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
+            };
+
             Log::info("Creating alert for: {$item['name']}");
 
             if ($item['score'] >= 70) {
@@ -114,7 +123,8 @@ class AlertJob implements ShouldQueue
                 'list' => $item['type'] ?? "PEP List world",
                 'is_active' => true,
             ]);
-            SendGrupoAlertEmailJob::dispatch($alert->id);
+            $host = config('app.url'); // ou outro host padrão
+            SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         }
     }
 }

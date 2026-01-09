@@ -37,6 +37,7 @@ class ImportDataRequest extends BaseFormRequest
             '*.profession'           => ['nullable'],
             '*.social_denomination'  => ['nullable'],
             '*.status_residence'     => ['nullable'],
+            'nif' =>  ['nullable'],
         ];
     }
 }

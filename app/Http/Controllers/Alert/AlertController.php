@@ -40,7 +40,31 @@ class AlertController extends AbstractController
     {
         try {
             $this->logRequest();
-            $commentAlert = $this->service->update($request->validated(), $id);
+            $statusOlder =$request->validated()['is_active'];
+
+            if ($statusOlder == 1) {
+                $status = "Novo";
+            } elseif ($statusOlder == 2) {
+                $status = "Em validação";
+            } elseif ($statusOlder == 3) {
+                $status = "Em Supervisão";
+            } elseif ($statusOlder == 0) {
+                $status = "Fechado";
+            } else {
+                $status = "Desconhecido";
+            }
+            
+            $commentAlert = $this->service->updateStatus($request->validated(), $id);
+
+
+            $this->logToDatabase(
+                type: 'entity',
+                level: 'info',
+                alert_id: $id,
+           customMessage: "Estado do alerta ID #{$id} alterado para '{$status}'"
+
+
+            );
             return response()->json($commentAlert, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
@@ -65,6 +89,4 @@ class AlertController extends AbstractController
             return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
-    
 }

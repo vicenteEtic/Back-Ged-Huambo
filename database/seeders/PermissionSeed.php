@@ -42,7 +42,8 @@ class PermissionSeed extends Seeder
             ['name' => 'Profissões', 'description' => 'Permite gerenciar profissões'],
             ['name' => 'CAE', 'description' => 'Permite gerenciar CAE'],
             ['name' => "Perfil", "description" => 'Permite gerenciar perfil'],
-            ['name' => "Alertas", "description" => 'Permite gerenciar alertas']
+            ['name' => "Receptores de Alertas", "description" => 'Permite gerenciar Receptores de Alertas'],
+             ['name' => "Compliance Officer", "description" => 'Permite gerenciar Compliance Officer']
         ];
 
         // Operações básicas
@@ -80,12 +81,12 @@ class PermissionSeed extends Seeder
         echo "Permissão {$permission->name} associada ao papel {$role->name}.\n";
 
         User::updateOrCreate([
-            'email' => 'admin@gmail.com'
+            'email' => 'vicentemanueleduardo@gmail.com'
         ], [
             'first_name' => 'Administrador',
             'last_name' => 'Sistema',
             'phone' => '11999999999',
-            'email' => 'admin@gmail.com',
+            'email' => 'vicentemanueleduardo@gmail.com',
             'password' => bcrypt('12345678'),
             'role_id' => $role->id,
             'is_active' => true

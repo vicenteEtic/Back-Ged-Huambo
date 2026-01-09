@@ -1,28 +1,30 @@
 <?php
-
 namespace App\Http\Requests\AlertAttachment;
 
 use App\Http\Requests\BaseFormRequest;
 
 class AlertAttachmentRequest extends BaseFormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            'attachments.*' => 'required',   
+            'attachments'   => 'required|array|min:1',
+           'attachments.*' => 'required|file|max:1048576', // max 1GB por arquivo
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'attachments.required'   => 'É necessário enviar pelo menos um anexo.',
+            'attachments.array'      => 'Os anexos devem ser enviados em formato de lista.',
+            'attachments.*.required' => 'Cada anexo é obrigatório.',
+            'attachments.*.string'   => 'Cada anexo deve estar em Base64.',
         ];
     }
 }
