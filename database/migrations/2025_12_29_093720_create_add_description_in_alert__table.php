@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('alert', function (Blueprint $table) {
             // Torna a coluna 'description' nullable
-            $table->longText('description')->nullable()->change();
+            $table->longText('description')->nullable();
         });
     }
 
