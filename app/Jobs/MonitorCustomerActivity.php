@@ -54,7 +54,7 @@ class MonitorCustomerActivity implements ShouldQueue
                 number_format($current->capital, 2, ',', '.')
             );
 
-            $this->createAlertOnce($customer->id, 'Aumento significativo de capital', $description, 'Médio', 'checkHighCapitalIncrease','30');
+            $this->createAlertOnce($customer->id, 'Aumento significativo de capital', $description, 'Médio', 'checkHighCapitalIncrease', '30');
         }
     }
 
@@ -80,7 +80,7 @@ class MonitorCustomerActivity implements ShouldQueue
                     number_format($policy->capital, 2, ',', '.')
                 );
 
-                $this->createAlertOnce($customer->id, 'Resgate antecipado de capital', $description, 'Médio', 'checkEarlyRedemption','30');
+                $this->createAlertOnce($customer->id, 'Resgate antecipado de capital', $description, 'Médio', 'checkEarlyRedemption', '30');
             }
         }
     }
@@ -103,7 +103,7 @@ class MonitorCustomerActivity implements ShouldQueue
                     number_format($premium_total, 2, ',', '.')
                 );
 
-                $this->createAlertOnce($customer->id, 'Prémio elevado com baixo risco', $description, 'Médio', 'checkHighPremiumLowRisk','30');
+                $this->createAlertOnce($customer->id, 'Prémio elevado com baixo risco', $description, 'Médio', 'checkHighPremiumLowRisk', '30');
             }
         }
     }
@@ -128,7 +128,7 @@ class MonitorCustomerActivity implements ShouldQueue
                 $policies->count()
             );
 
-            $this->createAlertOnce($customer->id, 'Fragmentação de contratos em apólices curtas', $description, 'Baixo', 'checkMultipleShortPolicies','19');
+            $this->createAlertOnce($customer->id, 'Fragmentação de contratos em apólices curtas', $description, 'Baixo', 'checkMultipleShortPolicies', '19');
         }
     }
 
@@ -148,7 +148,7 @@ class MonitorCustomerActivity implements ShouldQueue
                 $customer->social_denomination
             );
 
-            $this->createAlertOnce($customer->id, 'Substituição frequente de apólices', $description, 'Médio', 'checkPolicyChurning','30');
+            $this->createAlertOnce($customer->id, 'Substituição frequente de apólices', $description, 'Médio', 'checkPolicyChurning', '30');
         }
     }
 
@@ -172,7 +172,7 @@ class MonitorCustomerActivity implements ShouldQueue
                     $gap
                 );
 
-                $this->createAlertOnce($customer->id, 'Substituição frequente e rápida de contratos', $description, 'Médio', 'checkRapidPolicyReplacement','30');
+                $this->createAlertOnce($customer->id, 'Substituição frequente e rápida de contratos', $description, 'Médio', 'checkRapidPolicyReplacement', '30');
                 break;
             }
         }
@@ -186,29 +186,28 @@ class MonitorCustomerActivity implements ShouldQueue
         string $list,
         string $score
     ): void {
-        if (Alert::where('entity_id', $entityId)
-            ->where('type', $type)
-            ->where('description', $description)
-            ->exists()
-        ) {
-            return;
-        }
         $entitie = Entities::find($entityId);
-        $alert = Alert::create([
-            'entity_id'   => $entityId,
-            'type'        => $type,
-            'category'    => "KYT",
-            'description' => $description??"vicente",
-            'level'       => $severity,
-            'list'        => $list,
-            'score'       => $score,
-            'name'        => $entitie->social_denomination ?? "UNKNOWN",
-            'created_at'  => now(),
-            'updated_at'  => now(),
-        ]);
-
+    
+        $alert = Alert::updateOrCreate(
+            [
+                'entity_id' => $entityId,
+                'type' => $type,
+            ],
+            [
+                'category' => 'KYT',
+                'description' => $description,
+                'level' => $severity,
+                'list' => $list,
+                'score' => $score,
+                'name' => $entitie->social_denomination ?? "UNKNOWN",
+                'updated_at' => now(),
+            ]
+        );
+    
         $host = config('app.url');
         SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
-        Log::warning("🚨 {$type} | Cliente {$entityId}");
+    
+        Log::warning("🚨 {$type} | Cliente {$entityId} | Desc: {$description}");
     }
+    
 }
