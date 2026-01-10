@@ -105,7 +105,6 @@ class AlertJob implements ShouldQueue
             } else {
                 $level = "Baixo";
             }
-
             $alert =  Alert::updateOrCreate([
                 'name' => $item['name'],
                 'entity_id' => $entityId,
