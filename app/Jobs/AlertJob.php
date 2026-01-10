@@ -87,43 +87,64 @@ class AlertJob implements ShouldQueue
     private function createAlerts(array $data, int $entityId, $type): void
     {
         foreach ($data as $item) {
-
-            // Resolver tipo/lista
+    
             $typeData = match ($type) {
-                'PEP' => ['type' => 'PEP', 'list' => 'PEP List world', 'is_pep' => 1, 'is_sanctioned' => 0],
-                'SANCTIONS' => ['type' => 'SANCTIONS', 'list' => 'Sanctions List', 'is_pep' => 0, 'is_sanctioned' => 1],
-                'KYC' => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
-                default => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
+                'PEP' => [
+                    'type' => 'PEP',
+                    'list' => 'PEP List world',
+                    'is_pep' => 1,
+                    'is_sanctioned' => 0,
+                ],
+                'SANCTIONS' => [
+                    'type' => 'SANCTIONS',
+                    'list' => 'Sanctions List',
+                    'is_pep' => 0,
+                    'is_sanctioned' => 1,
+                ],
+                default => [
+                    'type' => 'KYC',
+                    'list' => 'KYC List',
+                    'is_pep' => 0,
+                    'is_sanctioned' => 0,
+                ],
             };
-
-            Log::info("Creating alert for: {$item['name']}");
-
-            if ($item['score'] >= 70) {
-                $level = "Alto";
-            } elseif ($item['score'] >= 50) {
-                $level = "Médio";
+    
+            $name  = $item['name'] ?? 'UNKNOWN';
+            $score = $item['score'] ?? 0;
+    
+            Log::info("Creating alert for: {$name}");
+    
+            if ($score >= 70) {
+                $level = 'Alto';
+            } elseif ($score >= 50) {
+                $level = 'Médio';
             } else {
-                $level = "Baixo";
+                $level = 'Baixo';
             }
-            $alert =  Alert::updateOrCreate([
-                'name' => $item['name'],
-                'entity_id' => $entityId,
-
-            ], [
-                'name' => $item['name'],
-                'level' =>   $level,
-                'from_id' => $entityId,
-                'origin_id' => $item['id'],
-                'entity_id' => $entityId,
-                'score' => $item['score'] ?? 0,
-                'country' => $item['country'],
-                'birth_date' => $item['birth_date'],
-                'type' =>   $typeData['type'],
-                'list' => $item['datasets'] ?? "PEP List world", 
-                'is_active' => true,
-            ]);
-            $host = config('app.url'); // ou outro host padrão
+    
+            $alert = Alert::updateOrCreate(
+                [
+                    'name'      => $name,
+                    'entity_id'=> $entityId,
+                ],
+                [
+                    'name'       => $name,
+                    'level'      => $level,
+                    'from_id'    => $entityId,
+                    'origin_id'  => $item['id'] ?? null,
+                    'entity_id'  => $entityId,
+                    'score'      => $score,
+                    'country'    => $item['country'] ?? null,
+                    'birth_date' => $item['birth_date'] ?? null,
+                    'type'       => $typeData['type'],
+                    'list'       => $item['datasets'] ?? $typeData['list'],
+                    'is_active'  => true,
+                ]
+            );
+    
+            $host = config('app.url');
             SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         }
     }
+    
 }
