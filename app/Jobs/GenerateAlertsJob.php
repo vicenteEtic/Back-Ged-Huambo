@@ -156,9 +156,17 @@ class GenerateAlertsJob implements ShouldQueue
 }
 
 
- private function createAlerts(array $data, int $entityId, string $source): void
+ private function createAlerts(array $data, int $entityId, string $type): void
 {
-    $typeData = $this->resolveAlertType($source); // resolver tipo/lista
+  
+
+
+    $typeData = match ($type) {
+        'PEP' => ['type' => 'PEP', 'list' => 'PEP List world', 'is_pep' => 1, 'is_sanctioned' => 0],
+        'SANCTIONS' => ['type' => 'SANCTIONS', 'list' => 'Sanctions List', 'is_pep' => 0, 'is_sanctioned' => 1],
+        'KYC' => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
+        default => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
+    };
 
     foreach ($data as $item) {
         $level = match (true) {
@@ -182,9 +190,9 @@ class GenerateAlertsJob implements ShouldQueue
                 'origin_id'    => $item['id'],
                 'entity_id'    => $entityId,
                 'score'        => $item['score'] ?? 0,
-                'type'         => "PEP List world",       
-                'category'     => $typeData['category'],   // mesma classificação
-                'list'         =>  $item['datasets'] ?? "PEP List world",       // nome da lista
+                'type'         => $typeData['type'],       
+                'category'     => "KYC",   // mesma classificação
+                'list'         =>  $$item['datasets'] ?? "PEP List world",,       // nome da lista
                 'is_active'    => true,
             ]
         );
