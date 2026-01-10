@@ -156,51 +156,66 @@ class GenerateAlertsJob implements ShouldQueue
 }
 
 
- private function createAlerts(array $data, int $entityId, string $type): void
+private function createAlerts(array $data, int $entityId, string $type): void
 {
-  
-
-
     $typeData = match ($type) {
-        'PEP' => ['type' => 'PEP', 'list' => 'PEP List world', 'is_pep' => 1, 'is_sanctioned' => 0],
-        'SANCTIONS' => ['type' => 'SANCTIONS', 'list' => 'Sanctions List', 'is_pep' => 0, 'is_sanctioned' => 1],
-        'KYC' => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
-        default => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
+        'PEP' => [
+            'type' => 'PEP',
+            'list' => 'PEP List world',
+            'is_pep' => 1,
+            'is_sanctioned' => 0
+        ],
+        'SANCTIONS' => [
+            'type' => 'SANCTIONS',
+            'list' => 'Sanctions List',
+            'is_pep' => 0,
+            'is_sanctioned' => 1
+        ],
+        default => [
+            'type' => 'KYC',
+            'list' => 'KYC List',
+            'is_pep' => 0,
+            'is_sanctioned' => 0
+        ],
     };
 
     foreach ($data as $item) {
+
+        $score = $item['score'] ?? 0;
+
         $level = match (true) {
-            ($item['score'] ?? 0) >= 70 => 'Alto',
-            ($item['score'] ?? 0) >= 50 => 'Médio',
-            default => 'Baixo',
+            $score >= 70 => 'Alto',
+            $score >= 50 => 'Médio',
+            default      => 'Baixo',
         };
 
         $alert = $this->alertRepository->storeOrUpdate(
             [
-                'origin_id' => $item['id'],
+                'origin_id' => $item['id'] ?? null,
                 'entity_id' => $entityId,
                 'type'      => $typeData['type'],
             ],
             [
-                'name'         => $item['name'],
-                'country'      => $item['country'] ?? null,
-                'birth_date'   => $item['birth_date'] ?? null,
-                'level'        => $level,
-                'from_id'      => $entityId,
-                'origin_id'    => $item['id'],
-                'entity_id'    => $entityId,
-                'score'        => $item['score'] ?? 0,
-                'type'         => $typeData['type'],       
-                'category'     => "KYC",   // mesma classificação
-                'list'         =>  $$item['datasets'] ?? "PEP List world",,       // nome da lista
-                'is_active'    => true,
+                'name'        => $item['name'] ?? 'UNKNOWN',
+                'country'     => $item['country'] ?? null,
+                'birth_date'  => $item['birth_date'] ?? null,
+                'level'       => $level,
+                'from_id'     => $entityId,
+                'origin_id'   => $item['id'] ?? null,
+                'entity_id'   => $entityId,
+                'score'       => $score,
+                'type'        => $typeData['type'],
+                'category'    => 'KYC',
+                'list'        => $item['datasets'] ?? $typeData['list'],
+                'is_active'   => true,
             ]
         );
 
-       $host = config('app.url'); // ou outro host padrão
-            SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
+        $host = config('app.url');
+        SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
     }
 }
+
 
 
 }
