@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   php:
-    container_name: setupNossaSeguros-php
+    container_name: globalSeguro-php
     build:
       context: .
       dockerfile: docker/php/Dockerfile
@@ -11,12 +11,12 @@ services:
     volumes:
       - ./:/var/www
     networks:
-      - setupNossaSeguros-network
+      - globalSeguro-network
     ports:
       - '8080:9000'  # PHP-FPM
 
   nginx:
-    container_name: setupNossaSeguros-nginx
+    container_name: globalSeguro-nginx
     build:
       context: ./docker/nginx
       dockerfile: Dockerfile
@@ -29,21 +29,21 @@ services:
       - ./:/var/www
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
     networks:
-      - setupNossaSeguros-network
+      - globalSeguro-network
     depends_on:
       - php
 
   mysql:
-    container_name: setupNossaSeguros-mysql
+    container_name: globalSeguro-mysql
     image: mysql:8.0
     command: --default-authentication-plugin=mysql_native_password
     restart: always
     tty: true
     volumes:
-      - setupNossaSeguros-data:/var/lib/mysql/
+      - globalSeguro-data:/var/lib/mysql/
       - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
     networks:
-      - setupNossaSeguros-network
+      - globalSeguro-network
     ports:
       - '3308:3306'
     environment:
@@ -53,20 +53,20 @@ services:
       MYSQL_PASSWORD: nf@204
 
   phpmyadmin:
-    container_name: setupNossaSeguros-phpmyadmin
+    container_name: globalSeguro-phpmyadmin
     image: phpmyadmin:5.2
     restart: always
     ports:
       - '8892:80'
     networks:
-      - setupNossaSeguros-network
+      - globalSeguro-network
     environment:
-      PMA_HOST: setupNossaSeguros-mysql
+      PMA_HOST: globalSeguro-mysql
     depends_on:
       - mysql
 
   redis:
-    container_name: setupNossaSeguros-redis
+    container_name: globalSeguro-redis
     build:
       context: ./docker/redis
       dockerfile: Dockerfile
@@ -74,12 +74,12 @@ services:
     ports:
       - '6388:6379'
     networks:
-      - setupNossaSeguros-network
+      - globalSeguro-network
     volumes:
       - redis-data:/data
 
   python-ml:
-    container_name: setupNossaSeguros-python-ml
+    container_name: globalSeguro-python-ml
     build:
       context: ./ml-service
       dockerfile: Dockerfile
@@ -91,18 +91,18 @@ services:
     ports:
       - '5000:5000'
     networks:
-      - setupNossaSeguros-network
+      - globalSeguro-network
 
 # **Definição da rede e volumes**
 networks:
-  setupNossaSeguros-network:
+  globalSeguro-network:
     driver: bridge
     ipam:
       config:
         - subnet: 192.168.100.0/24
 
 volumes:
-  setupNossaSeguros-data:
+  globalSeguro-data:
     driver: local
   redis-data:
     driver: local
