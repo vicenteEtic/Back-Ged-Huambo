@@ -10,4 +10,5 @@ class PoliciesService extends AbstractService
     {
         parent::__construct($repository);
     }
+
 }
