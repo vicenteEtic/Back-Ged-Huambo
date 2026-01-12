@@ -21,33 +21,39 @@ class TransactionController extends AbstractController
     /**
      * Store a newly created resource in storage.
      */
-    public function store(PoliciesRequest $request)
-    {
-        try {
-            $this->logRequest();
+   public function store(PoliciesRequest $request)
+{
+    try {
+        $this->logRequest();
 
-            // ✅ extrai apenas os registros
-            $records = $request->validated()['records'];
+        // 1️⃣ Salva JSON bruto no storage
+        $content = $request->getContent();
+        $path = \Illuminate\Support\Facades\Storage::put(
+            'imports/import_' . uniqid() . '.json',
+            $content
+        );
 
-            // ✅ despacha os jobs
-            $this->service->dispatchImportJobs($records, Auth::id());
+        $userId = Auth::id();
 
-            // ✅ resposta correta
-            return response()->json([
-                'success' => true,
-                'message' => 'Importação iniciada com sucesso',
-                'total_records' => count($records),
-            ], Response::HTTP_ACCEPTED);
-        } catch (\Exception $e) {
-            $this->logRequest($e);
+        // 2️⃣ Dispara job que vai processar depois da resposta
+        \App\Jobs\ProcessImportJsonJob::dispatch($path, $userId)->afterResponse();
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao iniciar importação',
-                'error' => $e->getMessage(),
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        // 3️⃣ Responde imediatamente
+        return response()->json([
+            'success'   => true,
+            'message'   => 'Importação recebida. Processamento será feito em background.',
+            'file_path' => $path
+        ], \Illuminate\Http\Response::HTTP_ACCEPTED);
+
+    } catch (\Throwable $e) {
+        $this->logRequest($e);
+        return response()->json([
+            'success' => false,
+            'message' => 'Erro ao iniciar importação',
+            'error'   => $e->getMessage(),
+        ], \Illuminate\Http\Response::HTTP_INTERNAL_SERVER_ERROR);
     }
+}
 
 
     /**
