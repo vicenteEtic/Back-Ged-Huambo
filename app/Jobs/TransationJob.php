@@ -3,8 +3,6 @@
 namespace App\Jobs;
 
 use App\Models\Transation\transaionControl;
-use App\Services\Entities\EntitiesService;
-use App\Services\Transation\PoliciesService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
@@ -42,6 +40,7 @@ class TransationJob implements ShouldQueue
 
         $batchSize = 1000; // insere/atualiza em lotes
         $chunks = array_chunk($this->data, $batchSize);
+        $totalInserted = 0; // contador total de registros inseridos
 
         foreach ($chunks as $chunkIndex => $records) {
             DB::beginTransaction();
@@ -71,7 +70,7 @@ class TransationJob implements ShouldQueue
 
                     // Prepara dados da apólice incluindo entity_id
                     $policiesData[] = [
-                        'entity_id' => $entityId, // obrigatório
+                        'entity_id' => $entityId,
                         'control_id' => $this->batchId,
                         'contract_number' => $record['contract_number'],
                         'product' => $record['product'] ?? null,
@@ -93,14 +92,22 @@ class TransationJob implements ShouldQueue
                 }
 
                 // Insert em massa das apólices
-                DB::table('policies')->insert($policiesData);
-    // Incrementa contador de sucesso
-    $this->incrementSuccessCount();
+                if (!empty($policiesData)) {
+                    DB::table('policies')->insert($policiesData);
+                    $insertedCount = count($policiesData);
+                    $totalInserted += $insertedCount;
+
+                    // Atualiza o contador no transaionControl
+                    $this->incrementSuccessCount($insertedCount);
+                }
+
                 DB::commit();
 
                 Log::info("✅ Lote $chunkIndex processado com sucesso", [
                     'batch_id' => $this->batchId,
-                    'records' => count($records),
+                    'records_in_chunk' => count($records),
+                    'inserted_in_chunk' => count($policiesData),
+                    'total_inserted_so_far' => $totalInserted,
                 ]);
 
             } catch (\Throwable $e) {
@@ -115,16 +122,17 @@ class TransationJob implements ShouldQueue
 
         Log::info('🏁 TransationJob finalizado', [
             'batch_id' => $this->batchId,
+            'total_inserted' => $totalInserted,
         ]);
     }
 
-    private function incrementSuccessCount()
+    private function incrementSuccessCount(int $count)
     {
-        $errorRecord = transaionControl::find($this->batchId);
+        $record = transaionControl::find($this->batchId);
 
-        if ($errorRecord) {
-            $errorRecord->update([
-                'total' => $errorRecord->total + 1,
+        if ($record) {
+            $record->update([
+                'total' => $record->total + $count,
             ]);
         }
     }
