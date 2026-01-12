@@ -21,28 +21,30 @@ class TransactionController extends AbstractController
     /**
      * Store a newly created resource in storage.
      */
-   public function store(PoliciesRequest $request)
+ public function store(PoliciesRequest $request)
 {
     try {
         $this->logRequest();
 
-        // 1️⃣ Salva JSON bruto no storage
+        // 1️⃣ Pega o JSON bruto da requisição
         $content = $request->getContent();
-        $path = \Illuminate\Support\Facades\Storage::put(
-            'imports/import_' . uniqid() . '.json',
-            $content
-        );
+
+        // 2️⃣ Define o nome do arquivo
+        $filename = 'imports/import_' . uniqid() . '.json';
+
+        // 3️⃣ Salva o arquivo no storage
+        \Illuminate\Support\Facades\Storage::put($filename, $content);
 
         $userId = Auth::id();
 
-        // 2️⃣ Dispara job que vai processar depois da resposta
-        \App\Jobs\ProcessImportJsonJob::dispatch($path, $userId)->afterResponse();
+        // 4️⃣ Dispara o job que processará os registros em background
+        \App\Jobs\ProcessImportJsonJob::dispatch($filename, $userId)->afterResponse();
 
-        // 3️⃣ Responde imediatamente
+        // 5️⃣ Resposta imediata para o front
         return response()->json([
             'success'   => true,
             'message'   => 'Importação recebida. Processamento será feito em background.',
-            'file_path' => $path
+            'file_path' => $filename
         ], \Illuminate\Http\Response::HTTP_ACCEPTED);
 
     } catch (\Throwable $e) {
