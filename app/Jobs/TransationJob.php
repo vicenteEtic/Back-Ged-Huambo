@@ -18,117 +18,133 @@ class TransationJob implements ShouldQueue
 
     protected array $data;
     protected int $userID;
-    protected $batchId;
+    protected int $batchId;
 
     public $tries = 5;
     public $timeout = 36000;
 
-    public function __construct(array $data, int $userID, $batchId)
+    public function __construct(array $data, int $userID, int $batchId)
     {
         $this->data = $data;
         $this->userID = $userID;
         $this->batchId = $batchId;
     }
 
-  public function handle(): void
-{
-    Log::info('🚀 TransationJob iniciado', [
-        'batch_id' => $this->batchId,
-        'user_id' => $this->userID,
-        'total_records' => count($this->data),
-    ]);
+    public function handle(): void
+    {
+        Log::info('🚀 TransationJob iniciado', [
+            'batch_id' => $this->batchId,
+            'user_id'  => $this->userID,
+            'records'  => count($this->data),
+        ]);
 
-    $batchSize = 1000;
-    $chunks = array_chunk($this->data, $batchSize);
-    $insertedCount = 0; // contador local do job
+        $batchSize = 1000;
+        $chunks = array_chunk($this->data, $batchSize);
 
-    foreach ($chunks as $chunkIndex => $records) {
-        DB::beginTransaction();
-        try {
-            $policiesData = [];
+        $insertedCount = 0; // TOTAL REAL INSERIDO POR ESTE JOB
 
-            foreach ($records as $record) {
-                if (empty($record['contract_number']) || empty($record['nif'])) {
-                    continue;
+        foreach ($chunks as $chunkIndex => $records) {
+            DB::beginTransaction();
+
+            try {
+                $policiesData = [];
+
+                foreach ($records as $record) {
+                    if (
+                        empty($record['contract_number']) ||
+                        empty($record['nif']) ||
+                        empty($record['customer_number'])
+                    ) {
+                        continue;
+                    }
+
+                    // 1️⃣ Entidade (upsert)
+                    DB::table('entities')->updateOrInsert(
+                        ['customer_number' => $record['customer_number']],
+                        [
+                            'nif'                  => $record['nif'],
+                            'policy_number'        => $record['policy_number'] ?? 'UNKNOWN',
+                            'social_denomination'  => $record['social_denomination'] ?? 'UNKNOWN',
+                            'updated_at'           => now(),
+                            'created_at'           => now(),
+                        ]
+                    );
+
+                    $entityId = DB::table('entities')
+                        ->where('customer_number', $record['customer_number'])
+                        ->value('id');
+
+                    if (!$entityId) {
+                        continue;
+                    }
+
+                    // 2️⃣ Apólice
+                    $policiesData[] = [
+                        'entity_id'       => $entityId,
+                        'control_id'      => $this->batchId,
+                        'contract_number' => $record['contract_number'],
+                        'product'         => $record['product'] ?? null,
+                        'channel'         => $record['channel'] ?? null,
+                        'agent'           => $record['agent'] ?? null,
+                        'start_date'      => !empty($record['start_date']) ? Carbon::parse($record['start_date']) : null,
+                        'end_date'        => !empty($record['end_date']) ? Carbon::parse($record['end_date']) : null,
+                        'issue_date'      => !empty($record['issue_date']) ? Carbon::parse($record['issue_date']) : null,
+                        'renewal_date'    => !empty($record['renewal_date']) ? Carbon::parse($record['renewal_date']) : null,
+                        'capital'         => $record['capital'] ?? 0,
+                        'premium_simple'  => $record['premium_simple'] ?? 0,
+                        'premium_total'   => $record['premium_total'] ?? 0,
+                        'charges'         => $record['charges'] ?? 0,
+                        'interest'        => $record['interest'] ?? 0,
+                        'status'          => $record['status'] ?? 'active',
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ];
                 }
 
-                DB::table('entities')->updateOrInsert(
-                    ['customer_number' => $record['customer_number']],
-                    [
-                        'nif' => $record['nif'],
-                        'policy_number' => $record['policy_number'] ?? 'UNKNOWN',
-                        'social_denomination' => $record['social_denomination'] ?? 'UNKNOWN',
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]
-                );
+                if (!empty($policiesData)) {
+                    DB::table('policies')->insert($policiesData);
+                    $insertedCount += count($policiesData);
+                }
 
-                $entityId = DB::table('entities')
-                    ->where('customer_number', $record['customer_number'])
-                    ->value('id');
+                DB::commit();
 
-                $policiesData[] = [
-                    'entity_id' => $entityId,
-                    'control_id' => $this->batchId,
-                    'contract_number' => $record['contract_number'],
-                    'product' => $record['product'] ?? null,
-                    'channel' => $record['channel'] ?? null,
-                    'agent' => $record['agent'] ?? null,
-                    'start_date' => $record['start_date'] ? Carbon::parse($record['start_date']) : null,
-                    'end_date' => $record['end_date'] ? Carbon::parse($record['end_date']) : null,
-                    'issue_date' => $record['issue_date'] ? Carbon::parse($record['issue_date']) : null,
-                    'renewal_date' => $record['renewal_date'] ? Carbon::parse($record['renewal_date']) : null,
-                    'capital' => $record['capital'] ?? 0,
-                    'premium_simple' => $record['premium_simple'] ?? 0,
-                    'premium_total' => $record['premium_total'] ?? 0,
-                    'charges' => $record['charges'] ?? 0,
-                    'interest' => $record['interest'] ?? 0,
-                    'status' => $record['status'] ?? 'active',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
+                Log::info('✅ Chunk processado', [
+                    'batch_id'        => $this->batchId,
+                    'chunk'           => $chunkIndex,
+                    'inserted_chunk'  => count($policiesData),
+                    'inserted_total'  => $insertedCount,
+                ]);
+
+            } catch (\Throwable $e) {
+                DB::rollBack();
+
+                Log::error('❌ Erro no chunk', [
+                    'batch_id' => $this->batchId,
+                    'chunk'    => $chunkIndex,
+                    'error'    => $e->getMessage(),
+                ]);
             }
-
-            if (!empty($policiesData)) {
-                DB::table('policies')->insert($policiesData);
-                $insertedCount += count($policiesData); // acumula localmente
-            }
-
-            DB::commit();
-
-            Log::info("✅ Lote $chunkIndex processado com sucesso", [
-                'batch_id' => $this->batchId,
-                'records_in_chunk' => count($records),
-                'inserted_in_chunk' => count($policiesData),
-                'inserted_so_far_in_job' => $insertedCount,
-            ]);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('❌ Erro no lote', [
-                'batch_id' => $this->batchId,
-                'chunk_index' => $chunkIndex,
-                'error' => $e->getMessage(),
-            ]);
         }
+
+        // 🔥 ATUALIZA UMA ÚNICA VEZ (SEGURA PARA JOBS PARALELOS)
+        $this->incrementSuccessCount($insertedCount);
+
+        Log::info('🏁 TransationJob finalizado', [
+            'batch_id'            => $this->batchId,
+            'total_inserted_job'  => $insertedCount,
+        ]);
     }
 
-    // Atualiza total de registros inseridos **uma única vez** no final do job
-    $this->incrementSuccessCount($insertedCount);
+    /**
+     * Incrementa contador global de forma atômica
+     */
+    private function incrementSuccessCount(int $count): void
+    {
+        if ($count <= 0) {
+            return;
+        }
 
-    Log::info('🏁 TransationJob finalizado', [
-        'batch_id' => $this->batchId,
-        'total_inserted_by_job' => $insertedCount,
-    ]);
-}
-
-private function incrementSuccessCount(int $count)
-{
-    $record = transaionControl::find($this->batchId);
-    if ($record && $count > 0) {
-        $record->increment('total', $count); // usa increment direto no banco, mais rápido
+        transaionControl::where('id', $this->batchId)
+            ->increment('total', $count);
     }
-}
-
-
 }

@@ -15,7 +15,8 @@ return new class extends Migration
              $table->bigIncrements('id');
             $table->unsignedBigInteger('user_id')->nullable();
             $table->foreign('user_id')->references('id')->on('users')->onDelete('CASCADE')->onUpgrade('CASCADE');
-            $table->tinyInteger('total');
+          $table->unsignedBigInteger('total')->default(0);
+
             $table->softDeletes();
             $table->timestamps();
         });
