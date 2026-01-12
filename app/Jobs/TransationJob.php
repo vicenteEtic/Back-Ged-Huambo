@@ -94,7 +94,8 @@ class TransationJob implements ShouldQueue
 
                 // Insert em massa das apólices
                 DB::table('policies')->insert($policiesData);
-
+    // Incrementa contador de sucesso
+    $this->incrementSuccessCount();
                 DB::commit();
 
                 Log::info("✅ Lote $chunkIndex processado com sucesso", [
