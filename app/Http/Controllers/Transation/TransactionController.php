@@ -10,7 +10,7 @@ use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+
 class TransactionController extends AbstractController
 {
     public function __construct(TransactionService $service)
@@ -21,40 +21,35 @@ class TransactionController extends AbstractController
     /**
      * Store a newly created resource in storage.
      */
-   public function store(PoliciesRequest $request)
-{
-    try {
-        $this->logRequest();
+    public function store(PoliciesRequest $request)
+    {
+        try {
+            $this->logRequest();
+        
 
-        // ✅ Pega o JSON bruto da requisição
-        $content = $request->getContent();
+            // ✅ extrai apenas os registros
+            $records = $request->validated()['records'];
 
-        // ✅ Salva em arquivo único no storage
-        $path = Storage::put('imports/import_' . uniqid() . '.json', $content);
+            // ✅ despacha os jobs
+            $this->service->dispatchImportJobs($records, Auth::id());
 
-        $userId = Auth::id();
+            // ✅ resposta correta
+            return response()->json([
+                'success' => true,
+                'message' => 'Importação iniciada com sucesso',
+                'total_records' => count($records),
+            ], Response::HTTP_ACCEPTED);
+        } catch (\Exception $e) {
+            $this->logRequest($e);
 
-        // 🚀 Dispara o job de processamento depois da resposta HTTP
-        ProcessImportJsonJob::dispatch($path, $userId)
-            ->afterResponse(); // ⚡ garante retorno imediato
-
-        // ⚡ resposta imediata para o front
-        return response()->json([
-            'success'       => true,
-            'message'       => 'Importação recebida e será processada em background',
-            'file_path'     => $path,
-        ], Response::HTTP_ACCEPTED);
-
-    } catch (\Throwable $e) {
-        $this->logRequest($e);
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Erro ao iniciar importação',
-            'error'   => $e->getMessage(),
-        ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao iniciar importação',
+                'error' => $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
-}
+
 
     /**
      * Update the specified resource in storage.
