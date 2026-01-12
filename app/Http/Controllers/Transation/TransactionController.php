@@ -37,10 +37,9 @@ public function store(PoliciesRequest $request)
 
         $userId = Auth::id();
 
-        // 🚀 DISPARA JOB DE PROCESSAMENTO DEPOIS DA RESPOSTA HTTP
-        dispatch(function () use ($path, $userId) {
-            app(\App\Jobs\ProcessImportJsonJob::class)->dispatch($path, $userId);
-        })->afterResponse();
+        // 🚀 Dispara o job diretamente DEPOIS DA RESPOSTA HTTP
+        \App\Jobs\ProcessImportJsonJob::dispatch($path, $userId)
+            ->afterResponse(); // ⚡ Isso garante retorno imediato
 
         // ⚡ resposta imediata
         return response()->json([
@@ -59,6 +58,7 @@ public function store(PoliciesRequest $request)
         ], \Illuminate\Http\Response::HTTP_INTERNAL_SERVER_ERROR);
     }
 }
+
 
 
 
