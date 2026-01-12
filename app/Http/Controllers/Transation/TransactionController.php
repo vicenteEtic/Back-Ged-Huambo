@@ -25,7 +25,6 @@ class TransactionController extends AbstractController
     {
         try {
             $this->logRequest();
-        
 
             // ✅ extrai apenas os registros
             $records = $request->validated()['records'];
