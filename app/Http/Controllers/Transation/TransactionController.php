@@ -10,7 +10,7 @@ use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Support\Facades\Storage;
 class TransactionController extends AbstractController
 {
     public function __construct(TransactionService $service)
@@ -21,7 +21,7 @@ class TransactionController extends AbstractController
     /**
      * Store a newly created resource in storage.
      */
-public function store(PoliciesRequest $request)
+   public function store(PoliciesRequest $request)
 {
     try {
         $this->logRequest();
@@ -30,23 +30,20 @@ public function store(PoliciesRequest $request)
         $content = $request->getContent();
 
         // ✅ Salva em arquivo único no storage
-        $path = \Illuminate\Support\Facades\Storage::put(
-            'imports/import_' . uniqid() . '.json',
-            $content
-        );
+        $path = Storage::put('imports/import_' . uniqid() . '.json', $content);
 
         $userId = Auth::id();
 
-        // 🚀 Dispara o job diretamente DEPOIS DA RESPOSTA HTTP
-        \App\Jobs\ProcessImportJsonJob::dispatch($path, $userId)
-            ->afterResponse(); // ⚡ Isso garante retorno imediato
+        // 🚀 Dispara o job de processamento depois da resposta HTTP
+        ProcessImportJsonJob::dispatch($path, $userId)
+            ->afterResponse(); // ⚡ garante retorno imediato
 
-        // ⚡ resposta imediata
+        // ⚡ resposta imediata para o front
         return response()->json([
             'success'       => true,
             'message'       => 'Importação recebida e será processada em background',
             'file_path'     => $path,
-        ], \Illuminate\Http\Response::HTTP_ACCEPTED);
+        ], Response::HTTP_ACCEPTED);
 
     } catch (\Throwable $e) {
         $this->logRequest($e);
@@ -55,12 +52,9 @@ public function store(PoliciesRequest $request)
             'success' => false,
             'message' => 'Erro ao iniciar importação',
             'error'   => $e->getMessage(),
-        ], \Illuminate\Http\Response::HTTP_INTERNAL_SERVER_ERROR);
+        ], Response::HTTP_INTERNAL_SERVER_ERROR);
     }
 }
-
-
-
 
     /**
      * Update the specified resource in storage.
