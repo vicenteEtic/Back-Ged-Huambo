@@ -181,38 +181,48 @@ class MonitorCustomerActivity implements ShouldQueue
         }
     }
 
-    private function createAlertOnce(
-        int $entityId,
-        string $type,
-        string $description,
-        string $severity,
-        string $list,
-        string $score
-    ): void {
-        $entitie = Entities::find($entityId);
+   private function createAlertOnce(
+    int $entityId,
+    string $type,
+    string $description,
+    string $severity,
+    string $list,
+    string $score
+): void {
+    $entity = Entities::find($entityId);
 
-        $description = str_replace(["\n", "\r"], ' ', $description); // garante linha única
-        $description = trim($description);
+    $description = trim(str_replace(["\n", "\r"], ' ', $description));
 
-        $alert = Alert::updateOrCreate(
-            [
-                'entity_id' => $entityId,
-                'type' => $type,
-            ],
-            [
-                'category' => 'KYT',
-                'description' => $description,
-                'level' => $severity,
-                'list' => $list,
-                'score' => $score,
-                'name' => $entitie->social_denomination ?? "UNKNOWN",
-                'updated_at' => now(),
-            ]
-        );
+    $alert = Alert::updateOrCreate(
+        [
+            'entity_id' => $entityId,
+            'type'      => $type,
+        ],
+        [
+            'category'    => 'KYT',
+            'description' => $description,
+            'level'       => $severity,
+            'list'        => $list,
+            'score'       => $score,
+            'name'        => $entity->social_denomination ?? 'UNKNOWN',
+        ]
+    );
 
+    // ✅ SÓ ENVIA EMAIL SE FOI CRIADO AGORA
+    if ($alert->wasRecentlyCreated) {
         $host = config('app.url');
-        SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
 
-        Log::warning("🚨 {$type} | Cliente {$entityId} | Desc: {$description}");
+        SendGrupoAlertEmailJob::dispatch($alert->id, $host)
+            ->onQueue('high');
+
+        Log::warning("🚨 NOVO ALERTA | {$type} | Cliente {$entityId}");
+    } else {
+        Log::info("ℹ️ Alerta já existente — email não enviado", [
+            'alert_id' => $alert->id,
+            'entity_id'=> $entityId,
+            'type'     => $type,
+        ]);
     }
+}
+
 }
