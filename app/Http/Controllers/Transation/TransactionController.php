@@ -21,26 +21,33 @@ class TransactionController extends AbstractController
     /**
      * Store a newly created resource in storage.
      */
-  public function store(PoliciesRequest $request)
+public function store(PoliciesRequest $request)
 {
     try {
         $this->logRequest();
 
-        $records = $request->validated()['records'];
-        $userId  = Auth::id();
+        // ✅ Pega o JSON bruto da requisição
+        $content = $request->getContent();
 
-        // 🚀 DISPARA DEPOIS DA RESPOSTA HTTP
-        dispatch(function () use ($records, $userId) {
-            app(\App\Services\Transation\TransactionService::class)
-                ->dispatchImportJobs($records, $userId);
+        // ✅ Salva em arquivo único no storage
+        $path = \Illuminate\Support\Facades\Storage::put(
+            'imports/import_' . uniqid() . '.json',
+            $content
+        );
+
+        $userId = Auth::id();
+
+        // 🚀 DISPARA JOB DE PROCESSAMENTO DEPOIS DA RESPOSTA HTTP
+        dispatch(function () use ($path, $userId) {
+            app(\App\Jobs\ProcessImportJsonJob::class)->dispatch($path, $userId);
         })->afterResponse();
 
         // ⚡ resposta imediata
         return response()->json([
-            'success'        => true,
-            'message'        => 'Importação recebida e será processada em background',
-            'total_records'  => count($records),
-        ], Response::HTTP_ACCEPTED);
+            'success'       => true,
+            'message'       => 'Importação recebida e será processada em background',
+            'file_path'     => $path,
+        ], \Illuminate\Http\Response::HTTP_ACCEPTED);
 
     } catch (\Throwable $e) {
         $this->logRequest($e);
@@ -48,9 +55,11 @@ class TransactionController extends AbstractController
         return response()->json([
             'success' => false,
             'message' => 'Erro ao iniciar importação',
-        ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            'error'   => $e->getMessage(),
+        ], \Illuminate\Http\Response::HTTP_INTERNAL_SERVER_ERROR);
     }
 }
+
 
 
     /**
