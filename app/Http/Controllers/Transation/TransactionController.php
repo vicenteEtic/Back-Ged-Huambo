@@ -21,33 +21,36 @@ class TransactionController extends AbstractController
     /**
      * Store a newly created resource in storage.
      */
-    public function store(PoliciesRequest $request)
-    {
-        try {
-            $this->logRequest();
+  public function store(PoliciesRequest $request)
+{
+    try {
+        $this->logRequest();
 
-            // ✅ extrai apenas os registros
-            $records = $request->validated()['records'];
+        $records = $request->validated()['records'];
+        $userId  = Auth::id();
 
-            // ✅ despacha os jobs
-            $this->service->dispatchImportJobs($records, Auth::id());
+        // 🚀 DISPARA DEPOIS DA RESPOSTA HTTP
+        dispatch(function () use ($records, $userId) {
+            app(\App\Services\Transation\TransactionService::class)
+                ->dispatchImportJobs($records, $userId);
+        })->afterResponse();
 
-            // ✅ resposta correta
-            return response()->json([
-                'success' => true,
-                'message' => 'Importação iniciada com sucesso',
-                'total_records' => count($records),
-            ], Response::HTTP_ACCEPTED);
-        } catch (\Exception $e) {
-            $this->logRequest($e);
+        // ⚡ resposta imediata
+        return response()->json([
+            'success'        => true,
+            'message'        => 'Importação recebida e será processada em background',
+            'total_records'  => count($records),
+        ], Response::HTTP_ACCEPTED);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao iniciar importação',
-                'error' => $e->getMessage(),
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+    } catch (\Throwable $e) {
+        $this->logRequest($e);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Erro ao iniciar importação',
+        ], Response::HTTP_INTERNAL_SERVER_ERROR);
     }
+}
 
 
     /**
