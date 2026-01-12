@@ -30,7 +30,6 @@ class ProcessImportJsonJob implements ShouldQueue
         if (empty($data['records'])) {
             return;
         }
-
         // Chama o service para despachar os jobs em batches
         app(TransactionService::class)->dispatchImportJobs($data['records'], $this->userId);
 
