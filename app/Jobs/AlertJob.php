@@ -126,6 +126,7 @@ class AlertJob implements ShouldQueue
                 [
                     'name'      => $name,
                     'entity_id'=> $entityId,
+                    'category'    => 'KYC',
                 ],
                 [
                     'name'       => $name,
