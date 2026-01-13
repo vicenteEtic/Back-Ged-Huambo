@@ -1,48 +1,51 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-   public function up(): void
+    public function up(): void
     {
-        Schema::table('alert', function (Blueprint $table) {
+        $columnsToDrop = [];
 
-            if (Schema::hasColumn('alert', 'is_pep')) {
-                $table->dropColumn('is_pep');
-            }
+        if (Schema::hasColumn('alert', 'is_pep')) {
+            $columnsToDrop[] = 'is_pep';
+        }
 
-            if (Schema::hasColumn('alert', 'is_sanctioned')) {
-                $table->dropColumn('is_sanctioned');
-            }
+        if (Schema::hasColumn('alert', 'is_sanctioned')) {
+            $columnsToDrop[] = 'is_sanctioned';
+        }
 
-            if (Schema::hasColumn('alert', 'is_reported')) {
-                $table->dropColumn('is_reported');
-            }
+        if (Schema::hasColumn('alert', 'is_reported')) {
+            $columnsToDrop[] = 'is_reported';
+        }
 
-        });
+        if (!empty($columnsToDrop)) {
+            Schema::table('alert', function (Blueprint $table) use ($columnsToDrop) {
+                $table->dropColumn($columnsToDrop);
+            });
+        }
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('alert', function (Blueprint $table) {
-            // recria apenas se precisar de rollback
-            $table->boolean('is_pep')->nullable()
-                ->comment('Indica se a entidade é Politically Exposed Person');
 
-            $table->boolean('is_sanctioned')->nullable()
-                ->comment('Indica se a entidade consta em listas de sanções');
+            if (!Schema::hasColumn('alert', 'is_pep')) {
+                $table->boolean('is_pep')->nullable()
+                    ->comment('Indica se a entidade é Politically Exposed Person');
+            }
 
-            $table->boolean('is_reported')->nullable()
-                ->comment('Detalhes de reporte: comunicação, data, entidade reguladora');
+            if (!Schema::hasColumn('alert', 'is_sanctioned')) {
+                $table->boolean('is_sanctioned')->nullable()
+                    ->comment('Indica se a entidade consta em listas de sanções');
+            }
+
+            if (!Schema::hasColumn('alert', 'is_reported')) {
+                $table->boolean('is_reported')->nullable()
+                    ->comment('Detalhes de reporte: comunicação, data, entidade reguladora');
+            }
         });
     }
 };
