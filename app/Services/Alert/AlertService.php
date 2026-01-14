@@ -4,6 +4,7 @@ namespace App\Services\Alert;
 
 use App\Services\AbstractService;
 use App\Repositories\Alert\AlertRepository;
+use App\Repositories\Alert\CommentAlert\CommentAlertRepository;
 use App\Repositories\Entities\EntitiesRepository;
 use App\Repositories\Entities\BeneficialOwnerRepository;
 use App\Services\Entities\RiskAssessmentService;
@@ -14,6 +15,7 @@ class AlertService extends AbstractService
     AlertRepository $repository,
     private EntitiesRepository $entitiesRepository,
     private BeneficialOwnerRepository $beneficialOwnerRepository,
+    private readonly CommentAlertRepository $commentAlertRepository,
     public RiskAssessmentService $riskAssessmentService
 ) {
     parent::__construct($repository);
@@ -44,6 +46,17 @@ class AlertService extends AbstractService
    
      return  $this->riskAssessmentService->is_pep($data,$id);
     }
+    if (!empty($data['comment'])) {
+        $commentData = [
+            "alert_id" => $id,
+            "comment"  => $data['comment'],
+        ];
+    
+        $alert = $this->commentAlertRepository->store($commentData);
+    }
+    
+   
+
     return $alert;
 }
 

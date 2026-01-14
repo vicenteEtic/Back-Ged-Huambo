@@ -26,6 +26,7 @@ class AlertUpdateStatusRequest extends FormRequest
                 'is_pep' => ['nullable'], 
                     'is_sanctioned' => ['nullable'], 
                         'is_reported' => ['nullable'], 
+                        'comment' => ['nullable'],
 
         ];
     }
