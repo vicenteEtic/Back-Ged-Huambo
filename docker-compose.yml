@@ -2,7 +2,11 @@ version: '3.9'
 
 services:
   php:
+<<<<<<< HEAD
     container_name: setupNossaSeguros-php
+=======
+    container_name: keepcomply-php
+>>>>>>> cc92fc2f11732c1b57bc3db2b3200f8e68fef4e0
     build:
       context: .
       dockerfile: docker/php/Dockerfile
@@ -11,12 +15,20 @@ services:
     volumes:
       - ./:/var/www
     networks:
+<<<<<<< HEAD
       - setupNossaSeguros-network
+=======
+      - keepcomply-network
+>>>>>>> cc92fc2f11732c1b57bc3db2b3200f8e68fef4e0
     ports:
       - '8080:9000'  # PHP-FPM
 
   nginx:
+<<<<<<< HEAD
     container_name: setupNossaSeguros-nginx
+=======
+    container_name: keepcomply-nginx
+>>>>>>> cc92fc2f11732c1b57bc3db2b3200f8e68fef4e0
     build:
       context: ./docker/nginx
       dockerfile: Dockerfile
@@ -29,21 +41,36 @@ services:
       - ./:/var/www
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
     networks:
+<<<<<<< HEAD
       - setupNossaSeguros-network
+=======
+      - keepcomply-network
+>>>>>>> cc92fc2f11732c1b57bc3db2b3200f8e68fef4e0
     depends_on:
       - php
 
   mysql:
+<<<<<<< HEAD
     container_name: setupNossaSeguros-mysql
+=======
+    container_name: keepcomply-mysql
+>>>>>>> cc92fc2f11732c1b57bc3db2b3200f8e68fef4e0
     image: mysql:8.0
     command: --default-authentication-plugin=mysql_native_password
     restart: always
     tty: true
     volumes:
+<<<<<<< HEAD
       - setupNossaSeguros-data:/var/lib/mysql/
       - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
     networks:
       - setupNossaSeguros-network
+=======
+      - keepcomply-data:/var/lib/mysql/
+      - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - keepcomply-network
+>>>>>>> cc92fc2f11732c1b57bc3db2b3200f8e68fef4e0
     ports:
       - '3308:3306'
     environment:
@@ -53,20 +80,34 @@ services:
       MYSQL_PASSWORD: nf@204
 
   phpmyadmin:
+<<<<<<< HEAD
     container_name: setupNossaSeguros-phpmyadmin
+=======
+    container_name: keepcomply-phpmyadmin
+>>>>>>> cc92fc2f11732c1b57bc3db2b3200f8e68fef4e0
     image: phpmyadmin:5.2
     restart: always
     ports:
       - '8892:80'
     networks:
+<<<<<<< HEAD
       - setupNossaSeguros-network
     environment:
       PMA_HOST: setupNossaSeguros-mysql
+=======
+      - keepcomply-network
+    environment:
+      PMA_HOST: keepcomply-mysql
+>>>>>>> cc92fc2f11732c1b57bc3db2b3200f8e68fef4e0
     depends_on:
       - mysql
 
   redis:
+<<<<<<< HEAD
     container_name: setupNossaSeguros-redis
+=======
+    container_name: keepcomply-redis
+>>>>>>> cc92fc2f11732c1b57bc3db2b3200f8e68fef4e0
     build:
       context: ./docker/redis
       dockerfile: Dockerfile
@@ -74,6 +115,7 @@ services:
     ports:
       - '6388:6379'
     networks:
+<<<<<<< HEAD
       - setupNossaSeguros-network
     volumes:
       - redis-data:/data
@@ -96,13 +138,28 @@ services:
 # **Definição da rede e volumes**
 networks:
   setupNossaSeguros-network:
+=======
+      - keepcomply-network
+    volumes:
+      - redis-data:/data
+
+
+
+# **Definição da rede e volumes**
+networks:
+  keepcomply-network:
+>>>>>>> cc92fc2f11732c1b57bc3db2b3200f8e68fef4e0
     driver: bridge
     ipam:
       config:
         - subnet: 192.168.100.0/24
 
 volumes:
+<<<<<<< HEAD
   setupNossaSeguros-data:
+=======
+  keepcomply-data:
+>>>>>>> cc92fc2f11732c1b57bc3db2b3200f8e68fef4e0
     driver: local
   redis-data:
     driver: local

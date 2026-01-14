@@ -21,33 +21,41 @@ class TransactionController extends AbstractController
     /**
      * Store a newly created resource in storage.
      */
-    public function store(PoliciesRequest $request)
-    {
-        try {
-            $this->logRequest();
+ public function store(PoliciesRequest $request)
+{
+    try {
+        $this->logRequest();
 
-            // ✅ extrai apenas os registros
-            $records = $request->validated()['records'];
+        // 1️⃣ Pega o JSON bruto da requisição
+        $content = $request->getContent();
 
-            // ✅ despacha os jobs
-            $this->service->dispatchImportJobs($records, Auth::id());
+        // 2️⃣ Define o nome do arquivo
+        $filename = 'imports/import_' . uniqid() . '.json';
 
-            // ✅ resposta correta
-            return response()->json([
-                'success' => true,
-                'message' => 'Importação iniciada com sucesso',
-                'total_records' => count($records),
-            ], Response::HTTP_ACCEPTED);
-        } catch (\Exception $e) {
-            $this->logRequest($e);
+        // 3️⃣ Salva o arquivo no storage
+        \Illuminate\Support\Facades\Storage::put($filename, $content);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao iniciar importação',
-                'error' => $e->getMessage(),
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        $userId = Auth::id();
+
+        // 4️⃣ Dispara o job que processará os registros em background
+        \App\Jobs\ProcessImportJsonJob::dispatch($filename, $userId)->afterResponse();
+
+        // 5️⃣ Resposta imediata para o front
+        return response()->json([
+            'success'   => true,
+            'message'   => 'Importação recebida. Processamento será feito em background.',
+            'file_path' => $filename
+        ], \Illuminate\Http\Response::HTTP_ACCEPTED);
+
+    } catch (\Throwable $e) {
+        $this->logRequest($e);
+        return response()->json([
+            'success' => false,
+            'message' => 'Erro ao iniciar importação',
+            'error'   => $e->getMessage(),
+        ], \Illuminate\Http\Response::HTTP_INTERNAL_SERVER_ERROR);
     }
+}
 
 
     /**

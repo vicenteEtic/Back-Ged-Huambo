@@ -76,6 +76,7 @@ class AlertRepository extends AbstractRepository
             ]),
 
             'pep' => $this->model->where('is_pep', 1)->count(),
+            'sanction' => $this->model->where('is_sanctioned', 1)->count(),
 
             'by_type' => $this->countByCategory(),
              'by_level' =>$this->countByLevel('level', [
