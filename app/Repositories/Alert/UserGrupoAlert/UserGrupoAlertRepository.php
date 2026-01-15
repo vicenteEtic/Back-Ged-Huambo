@@ -87,4 +87,56 @@ customMessage: sprintf(
         AND user_id NOT IN ($userIds)
     ", [$grupoId]);
     }
+
+
+
+    public function update(array $data, int $id)
+   
+{
+    $now = now();
+
+    // Se não vierem dados, não faz update
+    if (empty($data)) {
+        return;
+    }
+
+    // Normaliza os dados
+    $pairs = collect($data)->map(fn ($item) => [
+        'grup_alert_id' => (int) $item['grup_alert_id'],
+        'user_id'       => (int) $item['user_id'],
+    ]);
+
+    // Todos pertencem ao mesmo grupo
+    $grupoId = $pairs->first()['grup_alert_id'];
+
+    DB::transaction(function () use ($pairs, $grupoId, $now) {
+
+        // 1️⃣ Cria ou atualiza os registros enviados
+        foreach ($pairs as $item) {
+
+            $this->model->updateOrCreate(
+                [
+                    'grup_alert_id' => $item['grup_alert_id'],
+                    'user_id'       => $item['user_id'],
+                ],
+                [
+                    'updated_at' => $now,
+                    'deleted_at' => null, // restaura se estiver soft deleted
+                ]
+            );
+        }
+
+        // 2️⃣ Remove os usuários que NÃO vieram no payload
+        $userIds = $pairs->pluck('user_id')->toArray();
+
+        $this->model
+            ->where('grup_alert_id', $grupoId)
+            ->whereNotIn('user_id', $userIds)
+            ->delete();
+    });
+}
+
+
+
+
 }
