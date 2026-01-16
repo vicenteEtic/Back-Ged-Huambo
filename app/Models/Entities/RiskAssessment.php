@@ -96,7 +96,8 @@ class RiskAssessment extends Model
 
     public function productRisk()
     {
-        return $this->hasMany(productRisk::class, 'risk_assessment_id');
+     return $this->hasMany(ProductRisk::class, 'risk_assessment_id');
+
     }
 
     public function beneficialOwners()
@@ -106,6 +107,7 @@ class RiskAssessment extends Model
 
     public function riskFormula()
     {
-        return $this->belongsTo(riskFormula::class, 'id_risk_formula', 'id');
+        return $this->belongsTo(RiskFormula::class, 'id_risk_formula', 'id');
+
     }
 }
