@@ -24,7 +24,6 @@ use Illuminate\Support\Facades\Log;
 
 class RiskAssessmentService extends AbstractService
 {
-
     public $riskFormulaRepository;
     private const MONTHS = [
         1 => 'Janeiro',
