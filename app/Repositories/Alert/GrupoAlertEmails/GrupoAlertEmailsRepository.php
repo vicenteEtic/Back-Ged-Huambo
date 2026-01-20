@@ -30,6 +30,7 @@ class GrupoAlertEmailsRepository extends AbstractRepository
         return $grup->load('grupoTypes');
     }
     
+
     public function update(array $data, int $id)
 {
     // 🔹 busca o grupo
