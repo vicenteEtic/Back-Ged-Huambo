@@ -246,7 +246,6 @@ public function getByEntityId($entityId)
         ->first(); // pega apenas o último elemento
 }
 
-
 public function findByIndicatoryType($indicatorType,int $idIndicatorID)
 {
     return $this->model
