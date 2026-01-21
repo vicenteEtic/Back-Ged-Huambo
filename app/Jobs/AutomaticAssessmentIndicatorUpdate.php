@@ -50,7 +50,7 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
             ];
         
             foreach ($indicators as $indicatorType) {
-                $assessments = $riskAssessmentRepository->findByIndicatoryType(
+                $assessments = $riskAssessmentRepository->findByIndicatorType(
                     $indicatorType,
                     $this->id_indicator
                 );

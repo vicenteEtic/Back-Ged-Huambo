@@ -246,12 +246,13 @@ public function getByEntityId($entityId)
         ->first(); // pega apenas o último elemento
 }
 
-public function findByIndicatoryType($indicatorType,int $idIndicatorID)
+public function findByIndicatorType(string $indicatorType, int $idIndicator)
 {
     return $this->model
-        ->where($indicatorType, $idIndicatorID)
+        ->where($indicatorType, $idIndicator)
         ->get();
 }
+
 
 
 }
