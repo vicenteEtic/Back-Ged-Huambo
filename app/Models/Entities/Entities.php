@@ -23,7 +23,8 @@ class Entities extends Model
         'deleted_at',
         'created_at',
         'updated_at',
-        'nif'
+        'nif',
+      
     ];
 
     public function riskAssessments()

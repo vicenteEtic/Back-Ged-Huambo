@@ -10,4 +10,12 @@ class BeneficialOwnerRepository extends AbstractRepository
     {
         parent::__construct($model);
     }
+
+    public function showBeneficialOwner($data)
+    {
+      return     $this->model->where(
+        'risk_assessment_id',
+        $data
+      )->get();
+    }
 }

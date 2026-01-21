@@ -84,9 +84,9 @@ services:
 networks:
   keepcomply-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 192.168.100.0/24
+   # ipam:
+     # config:
+        #- subnet: 192.168.100.0/24
 
 volumes:
   keepcomply-data:

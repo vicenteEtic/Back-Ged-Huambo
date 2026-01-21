@@ -8,6 +8,7 @@ use App\Http\Resources\RiskAssessmentCollection;
 use App\Http\Resources\RiskAssessmentResource;
 use App\Http\Resources\RiskAssessmentResourceCollection;
 use App\Http\Resources\RiskAssessmentResourceGET;
+use App\Services\Indicator\IndicatorTypeService;
 use InvalidArgumentException;
 use App\Jobs\GenerateAlertsJob;
 use App\Jobs\SendGrupoAlertEmailJob;
@@ -20,6 +21,7 @@ use Illuminate\Database\Eloquent\Collection;
 use App\Repositories\Entities\RiskAssessmentRepository;
 use App\Repositories\Entities\RiskFormulaRepository;
 use App\Repositories\Indicator\IndicatorTypeRepository;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class RiskAssessmentService extends AbstractService
@@ -61,11 +63,13 @@ class RiskAssessmentService extends AbstractService
         private readonly BeneficialOwnerService $beneficialOwnerService,
         private readonly PepService $pepService,
         RiskFormulaRepository $riskFormulaRepository,
+       
         private AlertRepository $alertRepository // ← agora injetado corretamente
     ) {
         parent::__construct($repository);
         $this->riskFormulaRepository = $riskFormulaRepository;
         $this->alertRepository = $alertRepository; // ← garantir atribuição
+  
     }
 
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
@@ -88,7 +92,7 @@ class RiskAssessmentService extends AbstractService
     {
         $data['user_id'] = Auth::id() ?? $data['user_id'];
 
-        $data['beneficialOwner'] = $this->countPepTrueBeneficialOwner($data);
+        $data['beneficialOwner'] = $this->countRiskPoints($data);
         $riskAssessment = $this->repository->store($data);
 
         if (isset($data['beneficial_owners'])) {
@@ -120,10 +124,25 @@ class RiskAssessmentService extends AbstractService
 
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
         $this->updateEntityRisk($riskAssessment, $total, $diligence);
+      
+      
+        $reassessmentPeriod = $diligence?->reassessmentPeriod;
+
+        // Extrai o número do texto (1, 2, etc.)
+        $years = (int) filter_var($reassessmentPeriod, FILTER_SANITIZE_NUMBER_INT);
+        
+        // Cria a data de reavaliação
+        $nextReassessmentDate = Carbon::now()->addYears($years);
+        
+        // Formata como string
+        $nextReassessmentDateFormatted = $nextReassessmentDate->format('Y-m-d');
         $riskAssessment->score = $total;
         $riskAssessment->color = $diligence->color;
         $riskAssessment->risk_level = $diligence->risk;
         $riskAssessment->diligence = $diligence->name;
+        $riskAssessment->reassessmentPeriod = $nextReassessmentDateFormatted;
+
+
         $riskAssessment->save();
 
         if ($diligence->name == "Cliente Inaceitável" || $diligence->name == "Reforçada") {
@@ -244,10 +263,12 @@ class RiskAssessmentService extends AbstractService
     private function updateEntityRisk($riskAssessment, $total, $diligence): void
     {
         $entity = $riskAssessment?->entity();
+        
         $entity->update([
             'risk_level' => $diligence?->risk,
             'diligence' => $diligence?->name,
             'color' => $diligence?->color,
+           
             'last_evaluation' => now()
         ]);
     }
@@ -369,20 +390,46 @@ class RiskAssessmentService extends AbstractService
     }
 
 
-    public function countPepTrueBeneficialOwner(array $data)
+    public function countRiskPoints(array $data)
     {
-        // Contar quantos beneficiários têm PEP = true
         $pepCount = 0;
-
+        $sanctionCount = 0;
+        $nationalityScoreTotal = 0;
+    
         foreach ($data['beneficial_owners'] ?? [] as $owner) {
-            if (!empty($owner->pep)) {
+    
+            // PEP
+            $pep = is_array($owner) ? ($owner['pep'] ?? false) : ($owner->pep ?? false);
+    
+            // SANÇÃO
+            $santion = is_array($owner) ? ($owner['santion'] ?? false) : ($owner->santion ?? false);
+    
+            if ($pep) {
                 $pepCount++;
             }
+    
+            if ($santion) {
+                $sanctionCount++;
+            }
+    
+            // NATIONALITY
+            $nationality = is_array($owner) ? ($owner['nationality'] ?? null) : ($owner->nationality ?? null);
+    
+            if (!empty($nationality)) {
+                $indicator = $this->indicatorTypeRepository->getByDescription($nationality);
+                $nationalityScoreTotal += $indicator?->score ?? 0;
+            }
         }
-
-        // Multiplicar o total por 3 (pontuação)
-        return $pepCount * 3;
+    
+        $pepPoints = $pepCount * 3;
+        $sanctionPoints = $sanctionCount * 20;
+    
+        return $pepPoints + $sanctionPoints + $nationalityScoreTotal;
     }
+    
+    
+    
+    
 
     public function is_pep(array $data, $id)
     {

@@ -42,14 +42,15 @@ class RiskAssessmentRequest extends BaseFormRequest
 
             'processesReportedAuthoritie' => ['nullable'],
             'beneficialOwner' => ['nullable'],
-            'santion' => ['nullable'],
+            'santion' => ['required', 'boolean'],
             'product_risk.*' => ['required', Rule::exists(IndicatorType::class, 'id')],
             'beneficial_owners' => ['nullable', 'array'],
             'beneficial_owners.*.name' => ['required', 'string', 'max:255'],
             'beneficial_owners.*.percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
             'beneficial_owners.*.is_legal_representative' => ['nullable', 'boolean'],
             'beneficial_owners.*.nationality' => ['nullable', 'string', 'max:255'],
-
+            
+            'beneficial_owners.*.santion' => ['required', 'boolean'],
             'beneficial_owners.*.pep' => ['required', 'boolean'],
         ];
     }

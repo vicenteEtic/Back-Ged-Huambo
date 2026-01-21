@@ -20,6 +20,7 @@ class Diligence extends Model
         'color',
         'deleted_at',
         'created_at',
-        'updated_at'
+        'updated_at',
+        'reassessmentPeriod'
     ];
 }

@@ -24,5 +24,6 @@ class BeneficialOwner extends Model
         'percentage',
         'is_legal_representative',
         'nationality',
+        'santion'
     ];
 }

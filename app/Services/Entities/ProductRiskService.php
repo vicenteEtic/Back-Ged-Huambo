@@ -19,8 +19,7 @@ class ProductRiskService extends AbstractService
                 'score' => $product->score,
                 'risk_assessment_id' => $riskAssessmentId
             ];
-            $this->repository->storeOrUpdate(
-                ['product_id' => $product->id],
+            $this->repository->store(
                 $productRisk
             );
         }

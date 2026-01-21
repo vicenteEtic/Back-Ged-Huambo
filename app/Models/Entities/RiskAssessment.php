@@ -41,6 +41,8 @@ class RiskAssessment extends Model
         "beneficialOwner",
         "santion",
         "id_risk_formula",
+        'reassessmentPeriod'
+       
      
     ];
 

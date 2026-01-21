@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Indicator;
 
+use App\Jobs\AutomaticAssessmentIndicatorUpdate;
 use App\Models\Indicator\IndicatorType;
 use App\Repositories\AbstractRepository;
 
@@ -44,4 +45,15 @@ class IndicatorTypeRepository extends AbstractRepository
 
         return $data;
     }
+    public function update(array $data, int $id)
+    {
+        $model = $this->model->findOrFail($id);
+        $model->update($data);
+    
+        
+        AutomaticAssessmentIndicatorUpdate::dispatch($id)->onQueue('high');
+    
+        return $model;
+    }
+    
 }

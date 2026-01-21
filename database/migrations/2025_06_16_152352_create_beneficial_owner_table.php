@@ -15,6 +15,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->string('name');
             $table->boolean('pep')->default(false);
+            
             $table->unsignedBigInteger('risk_assessment_id');
             $table->softDeletes();
             $table->timestamps();

@@ -247,4 +247,12 @@ public function getByEntityId($entityId)
 }
 
 
+public function findByIndicatoryType($indicatorType,int $idIndicatorID)
+{
+    return $this->model
+        ->where($indicatorType, $idIndicatorID)
+        ->get();
+}
+
+
 }

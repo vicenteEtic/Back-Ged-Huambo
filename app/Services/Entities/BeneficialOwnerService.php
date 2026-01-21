@@ -19,9 +19,16 @@ class BeneficialOwnerService extends AbstractService
             $this->repository->store($owner);
           
             if ($owner['pep']) {
-                $this->pepService->storeOrUpdate([
+                $this->pepService->store([
                     "name" => $owner['name'],
-                ], $owner);
+                    "pep" => $owner['pep'],
+                    "santion" => $owner['santion'],
+                    "percentage" => $owner['percentage'],
+                    "is_legal_representative" => $owner['is_legal_representative'],
+                    "nationality" => $owner['nationality'],
+
+                    
+                ]);
             }
         }
     }

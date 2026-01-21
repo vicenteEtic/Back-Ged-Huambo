@@ -10,6 +10,8 @@ use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 
+use function PHPUnit\Framework\returnArgument;
+
 class IndicatorTypeController extends AbstractController
 {
     protected ?string $logType = 'user';
@@ -55,6 +57,7 @@ class IndicatorTypeController extends AbstractController
  
     public function update(IndicatorTypeRequest $request, $id)
     {
+        
         try {
             $this->logRequest();
             $indicatorTypeStore = $this->service->update($request->validated(), $id);
