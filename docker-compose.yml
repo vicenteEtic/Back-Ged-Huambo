@@ -13,7 +13,7 @@ services:
     networks:
       - keepcomply-QA-network
     ports:
-      - '8080:9000'  # PHP-FPM
+      - '9070:9000'  # PHP-FPM
 
   nginx:
     container_name: keepcomply-QA-nginx
@@ -23,8 +23,8 @@ services:
     restart: always
     tty: true
     ports:
-      - '1025:80'
-      - '450:443'
+      - '9080:80'
+      - '9443:443'
     volumes:
       - ./:/var/www
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
@@ -45,7 +45,7 @@ services:
     networks:
       - keepcomply-QA-network
     ports:
-      - '3308:3306'
+      - '3307:3306'
     environment:
       MYSQL_DATABASE: nf
       MYSQL_ROOT_PASSWORD: root
@@ -57,7 +57,7 @@ services:
     image: phpmyadmin:5.2
     restart: always
     ports:
-      - '8892:80'
+      - '9081:80'
     networks:
       - keepcomply-QA-network
     environment:
@@ -72,21 +72,15 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-      - '6388:6379'
+      - '6380:6379'
     networks:
       - keepcomply-QA-network
     volumes:
       - redis-data:/data
 
-
-
-# **Definição da rede e volumes**
 networks:
   keepcomply-QA-network:
     driver: bridge
-   # ipam:
-     # config:
-        #- subnet: 192.168.100.0/24
 
 volumes:
   keepcomply-QA-data:
