@@ -38,7 +38,7 @@ class TransationJob implements ShouldQueue
         $controlId = $this->controlId; // seu id de controle
 
         Log::info('🚀 TransationJob iniciado', [
-            'batch_id' => $batchId,
+            'batch_id' => $controlId,
             'user_id'  => $this->userID,
             'records'  => count($this->data),
         ]);
@@ -112,7 +112,7 @@ class TransationJob implements ShouldQueue
                 DB::commit();
 
                 Log::info('✅ Chunk processado', [
-                    'batch_id'       => $batchId,
+                    'batch_id'       => $controlId,
                     'chunk'          => $chunkIndex,
                     'inserted_chunk' => count($policiesData),
                     'inserted_total' => $insertedCount,
@@ -122,7 +122,7 @@ class TransationJob implements ShouldQueue
                 DB::rollBack();
 
                 Log::error('❌ Erro no chunk', [
-                    'batch_id' => $batchId,
+                    'batch_id' => $controlId,
                     'chunk'    => $chunkIndex,
                     'error'    => $e->getMessage(),
                 ]);
