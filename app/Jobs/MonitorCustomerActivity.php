@@ -15,25 +15,17 @@ class MonitorCustomerActivity implements ShouldQueue
 {
     use Dispatchable, Queueable;
 
-    public function handle(): void
+    public $timeout = 3600;
+
+    public function processCustomer(Entities $customer): void
     {
-        Log::info('🔍 KYT Monitor iniciado');
-
-        $customers = Entities::all();
-
-        foreach ($customers as $customer) {
-            $this->checkHighCapitalIncrease($customer);
-            $this->checkEarlyRedemption($customer);
-            $this->checkHighPremiumLowRisk($customer);
-            $this->checkMultipleShortPolicies($customer);
-            $this->checkPolicyChurning($customer);
-            $this->checkRapidPolicyReplacement($customer);
-        }
-
-        Log::info('✅ KYT Monitor finalizado');
+        $this->checkHighCapitalIncrease($customer);
+        $this->checkEarlyRedemption($customer);
+        $this->checkHighPremiumLowRisk($customer);
+        $this->checkMultipleShortPolicies($customer);
+        $this->checkPolicyChurning($customer);
+        $this->checkRapidPolicyReplacement($customer);
     }
-
-
 
 
 private function checkHighCapitalIncrease(Entities $customer): void

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Bus\Batch;
 use Illuminate\Support\Facades\Bus;
 use App\Jobs\TransationJob;
+use App\Models\Entities\Entities;
 
 class TransactionService extends AbstractService
 {
@@ -34,7 +35,7 @@ class TransactionService extends AbstractService
         return $dataArray->id;
     }
 
-   public function dispatchImportJobs(array $data, $userId): string
+  public function dispatchImportJobs(array $data, $userId): string
 {
     $batchId = $this->initializeImportBatch();
 
@@ -42,16 +43,24 @@ class TransactionService extends AbstractService
 
     $jobs = [];
     foreach ($chunks as $chunk) {
-        $jobs[] = new TransationJob($chunk, $userId);
+        $jobs[] = new TransationJob($chunk, $userId, $batchId);
     }
 
     $batch = Bus::batch($jobs)
         ->name("Importação - {$userId}")
-        ->dispatch();
+        ->then(function () {
 
-    MonitorCustomerActivity::dispatch();
+            // Só depois que a importação terminar
+            Entities::chunk(200, function ($customers) {
+                $ids = $customers->pluck('id')->toArray();
+                MonitorCustomerActivity::dispatch($ids);
+            });
+
+        })
+        ->dispatch();
 
     return $batch->id;
 }
+
 
 }
