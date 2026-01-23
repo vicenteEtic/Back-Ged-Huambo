@@ -17,23 +17,26 @@ class TransationJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, Batchable;
 
-    protected array $data;
+     protected array $data;
     protected int $userID;
- 
+    protected int $controlId;   // <-- novo
+
     public $tries = 5;
     public $timeout = 36000;
 
-    public function __construct(array $data, int $userID)
+    public function __construct(array $data, int $userID, int $controlId)
     {
         $this->data = $data;
         $this->userID = $userID;
-         $this->batchId = $batchId; // ✅ aqui é inicializado
+        $this->controlId = $controlId;
     }
+
 
     public function handle(): void
     {
         // ⚠️ Use com segurança (nullable)
-              $batchId = $this->batchId;
+             $batchId = $this->batchId;   // batch do Laravel
+        $controlId = $this->controlId; // seu id de controle
 
         Log::info('🚀 TransationJob iniciado', [
             'batch_id' => $batchId,

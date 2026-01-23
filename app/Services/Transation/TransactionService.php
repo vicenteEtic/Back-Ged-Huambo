@@ -35,27 +35,24 @@ class TransactionService extends AbstractService
         return $dataArray->id;
     }
 
-  public function dispatchImportJobs(array $data, $userId): string
+public function dispatchImportJobs(array $data, $userId): string
 {
-    $batchId = $this->initializeImportBatch();
+    $controlId = $this->initializeImportBatch(); // id do controle
 
     $chunks = array_chunk($data, self::BATCH_SIZE);
 
     $jobs = [];
     foreach ($chunks as $chunk) {
-        $jobs[] = new TransationJob($chunk, $userId, $batchId);
+        $jobs[] = new TransationJob($chunk, $userId, $controlId);
     }
 
     $batch = Bus::batch($jobs)
         ->name("Importação - {$userId}")
         ->then(function () {
-
-            // Só depois que a importação terminar
             Entities::chunk(200, function ($customers) {
                 $ids = $customers->pluck('id')->toArray();
                 MonitorCustomerActivity::dispatch($ids);
             });
-
         })
         ->dispatch();
 
