@@ -85,7 +85,7 @@ class TransationJob implements ShouldQueue
 
                     $policiesData[] = [
                         'entity_id'       => $entityId,
-                        'control_id'      => $batchId,
+                         'control_id'      => $controlId,
                         'contract_number' => $record['contract_number'],
                         'product'         => $record['product'] ?? null,
                         'channel'         => $record['channel'] ?? null,
