@@ -20,8 +20,6 @@ class TransationJob implements ShouldQueue
     protected array $data;
     protected int $userID;
 
-    // ❌ REMOVIDO: protected int $batchId;
-
     public $tries = 5;
     public $timeout = 36000;
 
@@ -33,7 +31,8 @@ class TransationJob implements ShouldQueue
 
     public function handle(): void
     {
-        $batchId = $this->batchId; // <-- pegando do Batchable
+        // ⚠️ Use com segurança (nullable)
+        $batchId = $this->batchId ?? null;
 
         Log::info('🚀 TransationJob iniciado', [
             'batch_id' => $batchId,
