@@ -32,7 +32,7 @@ class TransactionService extends AbstractService
             'total'   => 0
         ]);
 
-        return $dataArray->id;
+         return $dataArray->id;
     }
 
 public function dispatchImportJobs(array $data, $userId): string
