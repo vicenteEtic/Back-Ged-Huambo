@@ -35,7 +35,7 @@ class TransationJob implements ShouldQueue
     public function handle(): void
     {
         // ⚠️ Use com segurança (nullable)
-             $batchId = $this->batchId;   // batch do Laravel
+               $batchId = $this->batchId ?? null;   // <- CORRETO  // batch do Laravel
         $controlId = $this->controlId; // seu id de controle
 
         Log::info('🚀 TransationJob iniciado', [
@@ -138,13 +138,13 @@ class TransationJob implements ShouldQueue
         ]);
     }
 
-    private function incrementSuccessCount(int $count, ?string $batchId): void
+    private function incrementSuccessCount(int $count,   $controlId): void
     {
-        if ($count <= 0 || !$batchId) {
+        if ($count <= 0 || !$controlId) {
             return;
         }
 
-        transaionControl::where('id', $batchId)
+        transaionControl::where('id',  $controlId)
             ->increment('total', $count);
     }
 }
