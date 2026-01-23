@@ -19,11 +19,11 @@ class TransationJob implements ShouldQueue
 
     protected array $data;
     protected int $userID;
-  public ?string $batchId; // ⚠️ torna opcional
+ 
     public $tries = 5;
     public $timeout = 36000;
 
-    public function __construct(array $data, int $userID,?string $batchId = null)
+    public function __construct(array $data, int $userID)
     {
         $this->data = $data;
         $this->userID = $userID;
@@ -33,7 +33,7 @@ class TransationJob implements ShouldQueue
     public function handle(): void
     {
         // ⚠️ Use com segurança (nullable)
-        $batchId = $this->batchId ?? null;
+              $batchId = $this->batchId;
 
         Log::info('🚀 TransationJob iniciado', [
             'batch_id' => $batchId,
