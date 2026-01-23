@@ -19,14 +19,15 @@ class TransationJob implements ShouldQueue
 
     protected array $data;
     protected int $userID;
-
+  public ?string $batchId; // ⚠️ torna opcional
     public $tries = 5;
     public $timeout = 36000;
 
-    public function __construct(array $data, int $userID)
+    public function __construct(array $data, int $userID,?string $batchId = null)
     {
         $this->data = $data;
         $this->userID = $userID;
+         $this->batchId = $batchId; // ✅ aqui é inicializado
     }
 
     public function handle(): void
