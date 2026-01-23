@@ -8,13 +8,14 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Bus\Batchable; // <-- ADICIONE ISSO
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class TransationJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, Batchable; // <-- ADICIONE Batchable
 
     protected array $data;
     protected int $userID;
@@ -41,7 +42,7 @@ class TransationJob implements ShouldQueue
         $batchSize = 1000;
         $chunks = array_chunk($this->data, $batchSize);
 
-        $insertedCount = 0; // TOTAL REAL INSERIDO POR ESTE JOB
+        $insertedCount = 0;
 
         foreach ($chunks as $chunkIndex => $records) {
             DB::beginTransaction();
@@ -58,15 +59,14 @@ class TransationJob implements ShouldQueue
                         continue;
                     }
 
-                    // 1️⃣ Entidade (upsert)
                     DB::table('entities')->updateOrInsert(
                         ['customer_number' => $record['customer_number']],
                         [
-                            'nif'                  => $record['nif'],
-                            'policy_number'        => $record['policy_number'] ?? 'UNKNOWN',
-                            'social_denomination'  => $record['social_denomination'] ?? 'UNKNOWN',
-                            'updated_at'           => now(),
-                            'created_at'           => now(),
+                            'nif'                 => $record['nif'],
+                            'policy_number'       => $record['policy_number'] ?? 'UNKNOWN',
+                            'social_denomination' => $record['social_denomination'] ?? 'UNKNOWN',
+                            'updated_at'          => now(),
+                            'created_at'          => now(),
                         ]
                     );
 
@@ -78,7 +78,6 @@ class TransationJob implements ShouldQueue
                         continue;
                     }
 
-                    // 2️⃣ Apólice
                     $policiesData[] = [
                         'entity_id'       => $entityId,
                         'control_id'      => $this->batchId,
@@ -109,10 +108,10 @@ class TransationJob implements ShouldQueue
                 DB::commit();
 
                 Log::info('✅ Chunk processado', [
-                    'batch_id'        => $this->batchId,
-                    'chunk'           => $chunkIndex,
-                    'inserted_chunk'  => count($policiesData),
-                    'inserted_total'  => $insertedCount,
+                    'batch_id'       => $this->batchId,
+                    'chunk'          => $chunkIndex,
+                    'inserted_chunk' => count($policiesData),
+                    'inserted_total' => $insertedCount,
                 ]);
 
             } catch (\Throwable $e) {
@@ -126,18 +125,14 @@ class TransationJob implements ShouldQueue
             }
         }
 
-        // 🔥 ATUALIZA UMA ÚNICA VEZ (SEGURA PARA JOBS PARALELOS)
         $this->incrementSuccessCount($insertedCount);
 
         Log::info('🏁 TransationJob finalizado', [
-            'batch_id'            => $this->batchId,
-            'total_inserted_job'  => $insertedCount,
+            'batch_id'           => $this->batchId,
+            'total_inserted_job' => $insertedCount,
         ]);
     }
 
-    /**
-     * Incrementa contador global de forma atômica
-     */
     private function incrementSuccessCount(int $count): void
     {
         if ($count <= 0) {
