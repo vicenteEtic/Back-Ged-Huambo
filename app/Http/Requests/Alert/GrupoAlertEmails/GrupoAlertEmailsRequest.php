@@ -23,7 +23,7 @@ class GrupoAlertEmailsRequest extends BaseFormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'description' => ['string'],
+             'description'=> 'nullable',
             'grupo_Type'   => ['required', 'array'],   
             'grupo_Type.*' => ['required', 'string'],    // valida cada item do array
         ];
