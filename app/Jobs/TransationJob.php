@@ -8,33 +8,35 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Bus\Batchable; // <-- ADICIONE ISSO
+use Illuminate\Bus\Batchable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class TransationJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, Batchable; // <-- ADICIONE Batchable
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, Batchable;
 
     protected array $data;
     protected int $userID;
-    protected int $batchId;
+
+    // ❌ REMOVIDO: protected int $batchId;
 
     public $tries = 5;
     public $timeout = 36000;
 
-    public function __construct(array $data, int $userID, int $batchId)
+    public function __construct(array $data, int $userID)
     {
         $this->data = $data;
         $this->userID = $userID;
-        $this->batchId = $batchId;
     }
 
     public function handle(): void
     {
+        $batchId = $this->batchId; // <-- pegando do Batchable
+
         Log::info('🚀 TransationJob iniciado', [
-            'batch_id' => $this->batchId,
+            'batch_id' => $batchId,
             'user_id'  => $this->userID,
             'records'  => count($this->data),
         ]);
@@ -80,7 +82,7 @@ class TransationJob implements ShouldQueue
 
                     $policiesData[] = [
                         'entity_id'       => $entityId,
-                        'control_id'      => $this->batchId,
+                        'control_id'      => $batchId,
                         'contract_number' => $record['contract_number'],
                         'product'         => $record['product'] ?? null,
                         'channel'         => $record['channel'] ?? null,
@@ -108,7 +110,7 @@ class TransationJob implements ShouldQueue
                 DB::commit();
 
                 Log::info('✅ Chunk processado', [
-                    'batch_id'       => $this->batchId,
+                    'batch_id'       => $batchId,
                     'chunk'          => $chunkIndex,
                     'inserted_chunk' => count($policiesData),
                     'inserted_total' => $insertedCount,
@@ -118,28 +120,28 @@ class TransationJob implements ShouldQueue
                 DB::rollBack();
 
                 Log::error('❌ Erro no chunk', [
-                    'batch_id' => $this->batchId,
+                    'batch_id' => $batchId,
                     'chunk'    => $chunkIndex,
                     'error'    => $e->getMessage(),
                 ]);
             }
         }
 
-        $this->incrementSuccessCount($insertedCount);
+        $this->incrementSuccessCount($insertedCount, $batchId);
 
         Log::info('🏁 TransationJob finalizado', [
-            'batch_id'           => $this->batchId,
+            'batch_id'           => $batchId,
             'total_inserted_job' => $insertedCount,
         ]);
     }
 
-    private function incrementSuccessCount(int $count): void
+    private function incrementSuccessCount(int $count, ?string $batchId): void
     {
-        if ($count <= 0) {
+        if ($count <= 0 || !$batchId) {
             return;
         }
 
-        transaionControl::where('id', $this->batchId)
+        transaionControl::where('id', $batchId)
             ->increment('total', $count);
     }
 }
