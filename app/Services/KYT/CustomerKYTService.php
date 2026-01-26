@@ -1,56 +1,20 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Services\KYT;
 
 use App\Models\Entities\Entities;
 use App\Models\Transation\Policies;
 use App\Models\Alert\Alert;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use App\Jobs\SendGrupoAlertEmailJob;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
-class MonitorCustomerActivity implements ShouldQueue
+class CustomerKYTService
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-   
- public $timeout = 3600; // ok
-    public $tries   = 5;    // 👈 essencial
-    public $backoff = 120;  // 👈 2 minutos entre tentativas
-    protected array $ids;
-
-    public function __construct(array $ids)
-    {
-        $this->ids = $ids;
-    }
-
-  public function handle()
-{
-    try {
-        Entities::whereIn('id', $this->ids)
-            ->chunk(200, function ($customers) {
-                foreach ($customers as $customer) {
-                    $this->processCustomer($customer);
-                }
-            });
-
-    } catch (\Throwable $e) {
-
-        Log::error('❌ Erro no MonitorCustomerActivity', [
-            'message' => $e->getMessage(),
-            'trace'   => $e->getTraceAsString(),
-        ]);
-
-        throw $e; // importante para o retry funcionar
-    }
-}
-
-
-    private function processCustomer(Entities $customer): void
+    /**
+     * Executa todas as regras KYT
+     */
+    public function runAllChecks(Entities $customer): void
     {
         $this->checkHighCapitalIncrease($customer);
         $this->checkEarlyRedemption($customer);
@@ -58,9 +22,16 @@ class MonitorCustomerActivity implements ShouldQueue
         $this->checkMultipleShortPolicies($customer);
         $this->checkPolicyChurning($customer);
         $this->checkRapidPolicyReplacement($customer);
+        $this->exampleRule($customer);
     }
 
-    private function checkHighCapitalIncrease(Entities $customer): void
+    /* =========================
+       REGRAS KYT
+    ========================== */
+
+    
+   
+  private function checkHighCapitalIncrease(Entities $customer): void
     {
         $policies = Policies::where('entity_id', $customer->id)
             ->orderBy('start_date', 'desc')
@@ -445,6 +416,25 @@ class MonitorCustomerActivity implements ShouldQueue
             break;
         }
     }
+    private function exampleRule(Entities $customer): void
+    {
+        if ($customer->risk_level !== 'high') {
+            return;
+        }
+
+        $this->createAlertOnce(
+            $customer->id,
+            'KYT_EXAMPLE_RULE',
+            'Exemplo de alerta KYT.',
+            'Alto',
+            'exampleRule',
+            10
+        );
+    }
+
+    /* =========================
+       ALERTA ÚNICO
+    ========================== */
 
     private function createAlertOnce(
         int $entityId,
@@ -452,40 +442,27 @@ class MonitorCustomerActivity implements ShouldQueue
         string $description,
         string $severity,
         string $list,
-        string $score
+        int $score
     ): void {
-        $entity = Entities::find($entityId);
-
-        $description = trim(str_replace(["\n", "\r"], ' ', $description));
-
         $alert = Alert::updateOrCreate(
             [
                 'entity_id' => $entityId,
-                'type'      => $type,
+                'type' => $type,
             ],
             [
-                'category'    => 'KYT',
-                'description' => $description,
-                'level'       => $severity,
-                'list'        => $list,
-                'score'       => $score,
-                'name'        => $entity->social_denomination ?? 'UNKNOWN',
+                'category' => 'KYT',
+                'description' => trim($description),
+                'level' => $severity,
+                'list' => $list,
+                'score' => $score,
             ]
         );
 
         if ($alert->wasRecentlyCreated) {
-            $host = config('app.url');
-
-            SendGrupoAlertEmailJob::dispatch($alert->id, $host)
+            SendGrupoAlertEmailJob::dispatch($alert->id, config('app.url'))
                 ->onQueue('high');
 
-            Log::warning("🚨 NOVO ALERTA | {$type} | Cliente {$entityId}");
-        } else {
-            Log::info("ℹ️ Alerta já existente — email não enviado", [
-                'alert_id' => $alert->id,
-                'entity_id'=> $entityId,
-                'type'     => $type,
-            ]);
+            Log::warning("🚨 NOVO ALERTA KYT | {$type} | Cliente {$entityId}");
         }
     }
 }

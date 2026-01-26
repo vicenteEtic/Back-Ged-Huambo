@@ -2,6 +2,7 @@
 
 namespace App\Services\Transation;
 
+use App\Jobs\DispatchCustomerMonitoringJobs;
 use App\Jobs\MonitorCustomerActivity;
 use App\Repositories\Transation\TransactionRepository;
 use App\Services\AbstractService;
@@ -51,7 +52,7 @@ public function dispatchImportJobs(array $data, $userId): string
         ->then(function () {
             Entities::chunk(200, function ($customers) {
                 $ids = $customers->pluck('id')->toArray();
-                MonitorCustomerActivity::dispatch($ids);
+                DispatchCustomerMonitoringJobs::dispatch($ids);
             });
         })
         ->dispatch();
