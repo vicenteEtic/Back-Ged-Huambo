@@ -24,6 +24,7 @@ class DiligenceRequest extends BaseFormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'reassessmentPeriod'=> ['nullable', 'string'],
             'max' => ['required'],
             'min' => ['required'],
             'risk' => ['required', 'string', 'max:255'],
