@@ -45,7 +45,7 @@ class LogService extends AbstractService
             'remote_addr'     => $request->ip(),
             'path_info'       => $request->path(),
             'user_name'       => Auth::check() ? Auth::user()->first_name . " " . Auth::user()->last_name : 'guest',
-            'user_id'         => Auth::id(),
+            'user_id' => Auth::id() ?? null,
             'http_user_agent' => $request->userAgent(),
             'message'         => $message,
             'entity_id'       => $idEntity,
