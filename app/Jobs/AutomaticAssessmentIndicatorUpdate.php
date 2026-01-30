@@ -141,22 +141,33 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
         unset($data['id'], $data['created_at'], $data['updated_at']);
 
       
-      $assmentData=  $riskAssessmentService->store($data);
+   // Salva o assessment e pega o model atualizado
+$storedAssessment = $riskAssessmentService->store($data);
 
-     $customMessage = "Avaliação automática devido à alteração do indicador, resultando em uma pontuação de {$assmentData->score}, com nível de risco {$assmentData->risk_level} e tipo de diligência {$assmentData->diligence}.";
+// Garante valores mesmo se forem nulos
+$score = $storedAssessment->score ?? 'null';
+$riskLevel = $storedAssessment->risk_level ?? 'null';
+$diligence = $storedAssessment->diligence ?? 'null';
 
-        $logService->storeLog(
-            'info',
-            'edit',
-            'system',
-            'risk_assessment',
-            $assessment->entity_id,
-            null,
-            $customMessage
-        );
+// Mensagem customizada
+$customMessage = "Avaliação automática devido à alteração do indicador '{$indicatorTypeModel->description}', "
+    . "resultando em uma pontuação de {$score}, "
+    . "com nível de risco {$riskLevel} "
+    . "e tipo de diligência {$diligence}.";
 
-        Log::info('Store executado com sucesso.', [
-            'assessment_id' => $assessment->id
-        ]);
+// Salva log
+$logService->storeLog(
+    'info',
+    'edit',
+    'system',
+    'risk_assessment',
+    $assessment->entity_id,
+    null,
+    $customMessage
+);
+
+Log::info('Store executado com sucesso.', [
+    'assessment_id' => $assessment->id
+]);
     }
 }
