@@ -8,7 +8,6 @@ use App\Models\Alert\Alert;
 use App\Jobs\SendGrupoAlertEmailJob;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-
 class CustomerKYTService
 {
     /**
