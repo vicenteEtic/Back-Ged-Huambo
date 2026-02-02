@@ -14,16 +14,15 @@ class CustomerKYTService
     /**
      * Executa todas as regras KYT
      */
-    public function runAllChecks(Entities $customer): void
-    {
-        $this->checkHighCapitalIncrease($customer);
-        $this->checkEarlyRedemption($customer);
-        $this->checkHighPremiumLowRisk($customer);
-        $this->checkMultipleShortPolicies($customer);
-        $this->checkPolicyChurning($customer);
-        $this->checkRapidPolicyReplacement($customer);
-        $this->exampleRule($customer);
-    }
+  public function runAllChecks(Entities $customer): void
+{
+    $this->checkRapidPolicyReplacement($customer);
+    $this->checkEarlyRedemption($customer);
+    $this->checkHighPremiumLowRisk($customer);
+    $this->checkHighCapitalIncrease($customer);
+    $this->checkMultipleShortPolicies($customer);
+    $this->checkPolicyChurning($customer);
+}
 
     /* =========================
        REGRAS KYT
