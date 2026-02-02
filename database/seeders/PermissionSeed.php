@@ -43,12 +43,14 @@ class PermissionSeed extends Seeder
             ['name' => 'CAE', 'description' => 'Permite gerenciar CAE'],
             ['name' => "Perfil", "description" => 'Permite gerenciar perfil'],
             ['name' => "Receptores de Alertas", "description" => 'Permite gerenciar Receptores de Alertas'],
-             ['name' => "Compliance Officer", "description" => 'Permite gerenciar Compliance Officer'],
-             ['name' => "Entidades", "description" => 'Permite gerenciar Entidades'],
-             ['name' => "Peps Internos", "description" => 'Permite gerenciar Peps Internos'],
-             ['name' => "Peps Externos", "description" => 'Permite gerenciar Peps Externos'],
-             ['name' => "Sanções", "description" => 'Permite gerenciar Sanções'],
-             ['name' => "Transações", "description" => 'Permite gerenciar Transações'],
+            ['name' => "Compliance Officer", "description" => 'Permite gerenciar Compliance Officer'],
+            ['name' => "Entidades", "description" => 'Permite gerenciar Entidades'],
+            ['name' => "Peps Internos", "description" => 'Permite gerenciar Peps Internos'],
+            ['name' => "Peps Externos", "description" => 'Permite gerenciar Peps Externos'],
+            ['name' => "Sanções", "description" => 'Permite gerenciar Sanções'],
+            ['name' => "Transações", "description" => 'Permite gerenciar Transações'],
+            ['name' => "Riscos De Produtos", "description" => 'Permite gerenciar Riscos de Produtos'],
+            ['name' => "capacidades De Identificação", "description" => 'Permite gerenciar capacidades De Identificação'],
 
         ];
 

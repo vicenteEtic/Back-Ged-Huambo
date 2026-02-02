@@ -11,15 +11,15 @@ use App\Services\Entities\RiskAssessmentService;
 
 class AlertService extends AbstractService
 {
-  public function __construct(
-    AlertRepository $repository,
-    private EntitiesRepository $entitiesRepository,
-    private BeneficialOwnerRepository $beneficialOwnerRepository,
-    private readonly CommentAlertRepository $commentAlertRepository,
-    public RiskAssessmentService $riskAssessmentService
-) {
-    parent::__construct($repository);
-}
+    public function __construct(
+        AlertRepository $repository,
+        private EntitiesRepository $entitiesRepository,
+        private BeneficialOwnerRepository $beneficialOwnerRepository,
+        private readonly CommentAlertRepository $commentAlertRepository,
+        public RiskAssessmentService $riskAssessmentService
+    ) {
+        parent::__construct($repository);
+    }
 
 
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
@@ -36,30 +36,26 @@ class AlertService extends AbstractService
     }
 
 
- public function updateStatus(array $data, int $id)
-{
-    // Atualiza o modelo
-    $alert = $this->repository->updateStatus($data, $id);
+    public function updateStatus(array $data, int $id)
+    {
+        // Atualiza o modelo
+        $alert = $this->repository->updateStatus($data, $id);
 
-    // Executa lógica adicional se for PEP
-    if (!empty($data['is_pep']) && $data['is_pep'] == true) {
-   
-     return  $this->riskAssessmentService->is_pep($data,$id);
+        // Executa lógica adicional se for PEP
+        if (!empty($data['is_pep']) && $data['is_pep'] == true) {
+
+            return  $this->riskAssessmentService->is_pep($data, $id);
+        }
+        if (!empty($data['comment'])) {
+            $commentData = [
+                "alert_id" => $id,
+                "comment"  => $data['comment'],
+            ];
+
+            $alert = $this->commentAlertRepository->store($commentData);
+        }
+
+
+        return $alert;
     }
-    if (!empty($data['comment'])) {
-        $commentData = [
-            "alert_id" => $id,
-            "comment"  => $data['comment'],
-        ];
-    
-        $alert = $this->commentAlertRepository->store($commentData);
-    }
-    
-   
-
-    return $alert;
-}
-
-
-  
 }

@@ -159,7 +159,7 @@ class RiskAssessmentService extends AbstractService
                     'score' => $riskAssessment->score,
                     'type' => "AML",
                      'category'=> "KYC",
-                    'list' => "Avaliação AML " . $riskAssessment->diligence,
+                    'list' => "AML",
                     'is_active' => true,
                 ]
             );
