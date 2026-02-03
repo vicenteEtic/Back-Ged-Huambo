@@ -21,11 +21,11 @@ class UserCreatedMail extends Mailable
 
     public function build()
     {
-        return $this->subject('Criação de conta ')
-                    ->view('emails.user_created')
-                    ->with([
-                        'name' => $this->user->first_name,
-                        'password' => $this->password,
-                    ]);
+        return $this
+            ->from('SV001064@nossaseguros.ao', 'Nossa Seguros')
+            ->subject('Seu código de autenticação')
+            ->view('emails.two_factor_code');
     }
+    
+    
 }

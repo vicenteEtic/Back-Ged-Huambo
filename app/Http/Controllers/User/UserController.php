@@ -28,7 +28,7 @@ class UserController extends AbstractController
 
     public function login(AuthRequest $request)
     {
-        try {
+     
             $this->logRequest();
             $token = $this->service->login($request);
             $this->logToDatabase(
@@ -39,6 +39,7 @@ class UserController extends AbstractController
                 
             );
             return response()->json(['api_token' => $token], Response::HTTP_OK);
+            try {
         } catch (Exception $e) {
             $this->logRequest($e);
             $this->logToDatabase('error', 'Erro ao iniciar sessão do usuário.');
