@@ -74,6 +74,7 @@ class EntitiesRepository extends AbstractRepository
             'customer_number' => $entite->customer_number ?? null,
             'policy_number' => $entite->policy_number ?? null,
             'nif' => $entite->nif ?? null,
+            'reassessmentPeriod' => $entite->reassessmentPeriod ?? null,
 
             // Identification capacity
             'identification_capacity' => $valaiation
