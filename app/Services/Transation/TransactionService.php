@@ -34,16 +34,11 @@ class TransactionService extends AbstractService
     {
         $userID = Auth::id();
         $timeLimit = Carbon::now()->subSeconds(self::TIME_LIMIT_SECONDS);
-        $existingRecord = $this->transaionControlService->findOneBy(
-            [
-                [
-                    'updated_at',
-                    '>=',
-                    $timeLimit
-                ]
-            ]
-        );
-
+    
+        $existingRecord = $this->transaionControlService->findOneBy([
+            ['updated_at', '>=', $timeLimit]
+        ]);
+    
         if (!$existingRecord) {
             $dataArray = $this->transaionControlService->store([
                 'user_id' => $userID,
@@ -53,11 +48,10 @@ class TransactionService extends AbstractService
         } else {
             $recordId = $existingRecord->id;
         }
-       
     
-
-         return $$recordId;
+        return $recordId;
     }
+    
 
 public function dispatchImportJobs(array $data, $userId): string
 {
