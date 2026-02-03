@@ -169,7 +169,7 @@ class RiskAssessmentService extends AbstractService
         }
 
         // so dispara alerta se pep ou santion for true
-        if($data['pep'] == true || $data['santion'] == true){
+        if($data['pep'] == false || $data['santion'] == false){
             GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
             ->onQueue('high');
         } 
