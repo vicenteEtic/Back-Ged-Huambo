@@ -43,7 +43,7 @@ class TransationJob implements ShouldQueue
             'records'  => count($this->data),
         ]);
 
-        $batchSize = 1000;
+        $batchSize = 1500;
         $chunks = array_chunk($this->data, $batchSize);
 
         $insertedCount = 0;

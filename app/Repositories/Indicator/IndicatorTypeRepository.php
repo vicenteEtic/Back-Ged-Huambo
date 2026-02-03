@@ -5,6 +5,7 @@ namespace App\Repositories\Indicator;
 use App\Jobs\AutomaticAssessmentIndicatorUpdate;
 use App\Models\Indicator\IndicatorType;
 use App\Repositories\AbstractRepository;
+use Illuminate\Container\Attributes\Auth;
 
 class IndicatorTypeRepository extends AbstractRepository
 {
@@ -49,11 +50,23 @@ class IndicatorTypeRepository extends AbstractRepository
     {
         $model = $this->model->findOrFail($id);
         $model->update($data);
-    
+
         
-        AutomaticAssessmentIndicatorUpdate::dispatch($id)->onQueue('high');
+        AutomaticAssessmentIndicatorUpdate::dispatch($id,)->onQueue('high');
     
         return $model;
     }
     
+
+    public function getByDescriptionAll(?int $id = null)
+{
+    if (is_null($id)) {
+        return null;
+    }
+
+    return $this->model
+        ->where('id' , $id )
+        ->first();
+}
+
 }

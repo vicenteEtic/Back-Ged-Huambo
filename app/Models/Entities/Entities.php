@@ -24,6 +24,7 @@ class Entities extends Model
         'created_at',
         'updated_at',
         'nif',
+        'reassessmentPeriod'
       
     ];
 

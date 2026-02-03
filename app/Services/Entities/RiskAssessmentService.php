@@ -123,7 +123,7 @@ class RiskAssessmentService extends AbstractService
         $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $data['beneficialOwner']);
 
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
-        $this->updateEntityRisk($riskAssessment, $total, $diligence);
+     
       
       
         $reassessmentPeriod = $diligence?->reassessmentPeriod;
@@ -136,6 +136,7 @@ class RiskAssessmentService extends AbstractService
         
         // Formata como string
         $nextReassessmentDateFormatted = $nextReassessmentDate->format('Y-m-d');
+           $this->updateEntityRisk($riskAssessment, $total, $diligence, $nextReassessmentDateFormatted);
         $riskAssessment->score = $total;
         $riskAssessment->color = $diligence->color;
         $riskAssessment->risk_level = $diligence->risk;
@@ -158,7 +159,7 @@ class RiskAssessmentService extends AbstractService
                     'score' => $riskAssessment->score,
                     'type' => "AML",
                      'category'=> "KYC",
-                    'list' => "Avaliação AML " . $riskAssessment->diligence,
+                    'list' => "AML",
                     'is_active' => true,
                 ]
             );
@@ -260,7 +261,7 @@ class RiskAssessmentService extends AbstractService
 
 
 
-    private function updateEntityRisk($riskAssessment, $total, $diligence): void
+    private function updateEntityRisk($riskAssessment, $total, $diligence,$reassessmentPeriod): void
     {
         $entity = $riskAssessment?->entity();
         
@@ -268,7 +269,7 @@ class RiskAssessmentService extends AbstractService
             'risk_level' => $diligence?->risk,
             'diligence' => $diligence?->name,
             'color' => $diligence?->color,
-           
+           'reassessmentPeriod'=>$reassessmentPeriod,
             'last_evaluation' => now()
         ]);
     }

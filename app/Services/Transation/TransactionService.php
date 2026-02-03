@@ -16,6 +16,7 @@ use App\Models\Entities\Entities;
 class TransactionService extends AbstractService
 {
     private const BATCH_SIZE = 2000;
+    private const TIME_LIMIT_SECONDS = 10;
 
     public function __construct(
         TransactionRepository $repository,
@@ -24,16 +25,38 @@ class TransactionService extends AbstractService
         parent::__construct($repository);
     }
 
+
+
+   
+
+
     public function initializeImportBatch(): int
     {
         $userID = Auth::id();
+        $timeLimit = Carbon::now()->subSeconds(self::TIME_LIMIT_SECONDS);
+        $existingRecord = $this->transaionControlService->findOneBy(
+            [
+                [
+                    'updated_at',
+                    '>=',
+                    $timeLimit
+                ]
+            ]
+        );
 
-        $dataArray = $this->transaionControlService->store([
-            'user_id' => $userID,
-            'total'   => 0
-        ]);
+        if (!$existingRecord) {
+            $dataArray = $this->transaionControlService->store([
+                'user_id' => $userID,
+                'total'   => 0
+            ]);
+            $recordId = $dataArray->id;
+        } else {
+            $recordId = $existingRecord->id;
+        }
+       
+    
 
-         return $dataArray->id;
+         return $$recordId;
     }
 
 public function dispatchImportJobs(array $data, $userId): string

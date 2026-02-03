@@ -34,23 +34,30 @@ class AlertUserService extends AbstractService
     /**
      * Resumo de alertas de TODOS os usuários relacionados a alertas
      */
-    public function getAllUsersAlertSummary()
-    {
-        // busca todos os usuários que têm alertas associados
-        $userIds = $this->repository->getUsersWithAlerts();
+   public function getAllUsersAlertSummary()
+{
+    // Busca todos os usuários que têm alertas associados
+    $userIds = $this->repository->getUsersWithAlerts();
 
-        return collect($userIds)->map(function ($userId) {
-            $user = User::find($userId);
+    return collect($userIds)->map(function ($userId) {
+        $user = \App\Models\User::find($userId);
 
-            return [
-                'id'             => $user->id,
-                'name'           => $user->first_name . ' ' . $user->last_name,
-                'email'          => $user->email,
-                'active_alerts'  => $this->repository->countActiveAlertsByUser($userId),
-                'inactive_alerts' => $this->repository->countInactiveAlertsByUser($userId),
-            ];
-        })->values();
-    }
+        // Resumo por status do usuário
+        $summary = $this->repository->countAlertsByUserGrouped($userId);
+
+        return [
+            'id'              => $user->id,
+            'name'            => $user->first_name . ' ' . $user->last_name,
+            'email'           => $user->email,
+            'active_alerts'   => $summary['total_active'] ?? 0,
+            'inactive_alerts' => $summary['closed'] ?? 0,
+            'new'             => $summary['new'] ?? 0,
+            'validation'      => $summary['validation'] ?? 0,
+            'supervision'     => $summary['supervision'] ?? 0,
+        ];
+    })->values();
+}
+
 
     /**
      * Retorna usuário com seus alerts

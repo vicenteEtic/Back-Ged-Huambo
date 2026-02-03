@@ -4,6 +4,7 @@ namespace App\Repositories\Alert;
 
 use App\Models\Alert\Alert;
 use App\Repositories\AbstractRepository;
+use App\Repositories\Alert\AlertUser\AlertUserRepository;
 use App\Services\Log\LogService;
 use App\Services\User\UserService;
 use Carbon\Carbon;
@@ -13,15 +14,18 @@ class AlertRepository extends AbstractRepository
 {
     protected UserService $user;
     protected LogService $logService;
+    protected AlertUserRepository $alertUserRepository;
 
     public function __construct(
         Alert $model,
         UserService $user,
-        LogService $logService
+        LogService $logService,
+        AlertUserRepository $alertUserRepository
     ) {
         parent::__construct($model);
         $this->user = $user;
         $this->logService = $logService;
+        $this->alertUserRepository = $alertUserRepository;
     }
 
     /**
@@ -30,7 +34,7 @@ class AlertRepository extends AbstractRepository
     public function getTotalAlertsByMonth(): array
     {
         $months = collect(range(0, 11))
-            ->map(fn ($i) => Carbon::now()->subMonths($i)->startOfMonth())
+            ->map(fn($i) => Carbon::now()->subMonths($i)->startOfMonth())
             ->reverse()
             ->values();
 
@@ -53,6 +57,32 @@ class AlertRepository extends AbstractRepository
     /**
      * Totais gerais de alertas
      */
+    public function getAllUsersAlertSummary()
+    {
+
+        // Busca todos os usuários que têm alertas associados
+        $userIds = $this->alertUserRepository->getUsersWithAlerts();
+
+        return collect($userIds)->map(function ($userId) {
+            $user = \App\Models\User::find($userId);
+
+            // Resumo por status do usuário
+            $summary = $this->alertUserRepository->countAlertsByUserGrouped($userId);
+
+            return [
+                'id'              => $user->id,
+                'name'            => $user->first_name . ' ' . $user->last_name,
+                'email'           => $user->email,
+                //  'active_alerts'   => $summary['total_active'] ?? 0,
+                'inactive_alerts' => $summary['closed'] ?? 0,
+                'new'             => $summary['new'] ?? 0,
+                'validation'      => $summary['validation'] ?? 0,
+                'supervision'     => $summary['supervision'] ?? 0,
+            ];
+        })->values();
+    }
+
+
     public function getTotalAlerts(): array
     {
         return [
@@ -77,20 +107,16 @@ class AlertRepository extends AbstractRepository
 
             'pep' => $this->model->where('is_pep', 1)->count(),
             'sanction' => $this->model->where('is_sanctioned', 1)->count(),
+            'AML' => $this->model->where('AML', 'AML')->count(),
 
             'by_type' => $this->countByCategory(),
-             'by_level' =>$this->countByLevel('level', [
+            'by_level' => $this->countByLevel('level', [
                 "Alto" => 'Alto',
-                 "Médio" => 'Médio',
-                 "Baixo" => 'Baixo',
-               
+                "Médio" => 'Médio',
+                "Baixo" => 'Baixo',
+
             ]),
-             
-             
-         
-
-            
-
+            'users' => $this->getAllUsersAlertSummary(),
             'by_month' => $this->getTotalAlertsByMonth(),
         ];
     }
@@ -106,12 +132,12 @@ class AlertRepository extends AbstractRepository
             ->pluck('total', $field);
 
         return collect($map)->mapWithKeys(
-            fn ($label, $value) => [$label => $counts[$value] ?? 0]
+            fn($label, $value) => [$label => $counts[$value] ?? 0]
         )->toArray();
     }
 
 
-   
+
     private function countByLevel(string $field, array $map): array
     {
         $counts = $this->model
@@ -120,10 +146,10 @@ class AlertRepository extends AbstractRepository
             ->pluck('total', $field);
 
         return collect($map)->mapWithKeys(
-            fn ($label, $value) => [$label => $counts[$value] ?? 0]
+            fn($label, $value) => [$label => $counts[$value] ?? 0]
         )->toArray();
     }
-    
+
     /**
      * Contagem por categoria (KYC / KYT)
      */

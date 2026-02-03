@@ -8,11 +8,17 @@ use App\Services\Log\LogService;
 use App\Services\User\UserService;
 use Illuminate\Http\JsonResponse;
 
+
+
 class AlertUserRepository extends AbstractRepository
 {
 
     public $user;
     public $logService;
+    public const STATUS_CLOSED = 0;
+    public const STATUS_NEW = 1;
+    public const STATUS_VALIDATION = 2;
+    public const STATUS_SUPERVISION = 3;
 
     public function __construct(AlertUser $model, UserService $user, LogService $logService)
     {
@@ -41,6 +47,50 @@ class AlertUserRepository extends AbstractRepository
             })
             ->count();
     }
+
+
+    public function countAlertsByUserAndStatus(int $userId, int $status): int
+    {
+        return $this->model
+            ->where('user_id', $userId)
+            ->whereHas('alert', function ($q) use ($status) {
+                $q->where('is_active', $status);
+            })
+            ->count();
+    }
+
+    public function countNewAlertsByUser($userId)
+    {
+        return $this->countAlertsByUserAndStatus($userId, self::STATUS_NEW);
+    }
+
+    public function countValidationAlertsByUser($userId)
+    {
+        return $this->countAlertsByUserAndStatus($userId, self::STATUS_VALIDATION);
+    }
+
+    public function countSupervisionAlertsByUser($userId)
+    {
+        return $this->countAlertsByUserAndStatus($userId, self::STATUS_SUPERVISION);
+    }
+
+    public function countClosedAlertsByUser($userId)
+    {
+        return $this->countAlertsByUserAndStatus($userId, self::STATUS_CLOSED);
+    }
+
+public function countAlertsByUserGrouped(int $userId): array
+{
+    return [
+        'total_active' => $this->countActiveAlertsByUser($userId),
+        'closed'       => $this->countInactiveAlertsByUser($userId),
+        'new'          => $this->countNewAlertsByUser($userId),
+        'validation'   => $this->countValidationAlertsByUser($userId),
+        'supervision'  => $this->countSupervisionAlertsByUser($userId),
+    ];
+}
+
+
     public function getUsersWithAlerts()
     {
         $user = $this->user->me(); // Pega os dados do usuário
@@ -93,7 +143,7 @@ class AlertUserRepository extends AbstractRepository
             $alertId = $item['alert_id'];
             $userId  = $item['user_id'];
 
-          $user = $this->user->show($userId)->first();
+            $user = $this->user->show($userId)->first();
 
             $this->logService->storeLog(
                 level: 'info',
@@ -106,7 +156,7 @@ class AlertUserRepository extends AbstractRepository
                     'Usuário %s ( foi adicionado ao alerta ',
                     $user->first_name ?? 'N/D',
                     $userId
-                   
+
                 )
             );
 
