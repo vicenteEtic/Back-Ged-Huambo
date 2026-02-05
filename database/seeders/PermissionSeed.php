@@ -51,6 +51,7 @@ class PermissionSeed extends Seeder
             ['name' => "Transações", "description" => 'Permite gerenciar Transações'],
             ['name' => "Riscos De Produtos", "description" => 'Permite gerenciar Riscos de Produtos'],
             ['name' => "capacidades De Identificação", "description" => 'Permite gerenciar capacidades De Identificação'],
+            ['name' => "Histórico Geral", "description" => 'Permite gerenciar Histórico Geral'],
 
         ];
 
