@@ -146,9 +146,10 @@ class EntitiesRepository extends AbstractRepository
 
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
     {
-   $filterParams['filtersV2']['orderBy'] = [
-        'social_denomination' => 'asc'
-    ];
+
+        $orderByParams = [
+            'social_denomination' => 'asc'
+        ];
         $query = $this->buildQuery(
             $paginate,
             $filterParams,
