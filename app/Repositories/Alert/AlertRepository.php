@@ -3,6 +3,7 @@
 namespace App\Repositories\Alert;
 
 use App\Models\Alert\Alert;
+use App\Models\Entities\Entities;
 use App\Repositories\AbstractRepository;
 use App\Repositories\Alert\AlertUser\AlertUserRepository;
 use App\Services\Log\LogService;
@@ -83,11 +84,57 @@ class AlertRepository extends AbstractRepository
     }
 
 
+    
+ public function particularEntity(): array
+    {
+        $alertasPorNivel = DB::table('alert')
+            ->join('entities', 'alert.entity_id', '=', 'entities.id')
+            ->where('entities.entity_type', 2)
+            ->select('alert.level', DB::raw('COUNT(alert.id) as total'))
+            ->groupBy('alert.level')
+            ->get();
+
+        $totalAlertas = DB::table('alert')
+            ->join('entities', 'alert.entity_id', '=', 'entities.id')
+            ->where('entities.entity_type', 2)
+            ->count();
+
+        return [
+            'total' => $totalAlertas,
+            'byLevel' => $alertasPorNivel->toArray(),
+        ];
+    }
+
+     public function coletiveEntity(): array
+    {
+        $alertasPorNivel = DB::table('alert')
+            ->join('entities', 'alert.entity_id', '=', 'entities.id')
+            ->where('entities.entity_type', 1)
+            ->select('alert.level', DB::raw('COUNT(alert.id) as total'))
+            ->groupBy('alert.level')
+            ->get();
+
+        $totalAlertas = DB::table('alert')
+            ->join('entities', 'alert.entity_id', '=', 'entities.id')
+            ->where('entities.entity_type', 1)
+            ->count();
+
+        return [
+            'total' => $totalAlertas,
+            'byLevel' => $alertasPorNivel->toArray(),
+        ];
+    }
+
+
+
+
     public function getTotalAlerts(): array
     {
         return [
             'total' => $this->model->count(),
 
+            'ParticularEntity'=> $this->ParticularEntity(),
+             'coletiveEntity'=> $this->coletiveEntity(),
             'by_status' => $this->countByField('is_active', [
                 1 => 'new',
                 2 => 'validation',
