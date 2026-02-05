@@ -34,14 +34,22 @@ class RiskAssessmentRepository extends AbstractRepository
      * Summary com filtro por data
      */
     private function getRiskLevelSummary(string $groupByField, ?string $joinTable, string $nameField, array $data = []): array
-    { 
+    {
         $results = [
             'coletive' => [],
             'individual' => []
         ];
+        $startDate = !empty($data['startDate'])
+            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')
+            ->setTimezone('UTC')
+            ->startOfDay() // 00:00:00 do dia
+            : null;
 
-        $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay() : null;
-        $endDate   = !empty($data['endDate']) ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay() : null;
+        $endDate = !empty($data['endDate'])
+            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')
+            ->setTimezone('UTC')
+            ->endOfDay() // 23:59:59 do dia
+            : null;
 
         foreach (['coletive' => TypeEntity::COLECTIVA, 'individual' => TypeEntity::SINGULAR] as $key => $type) {
 
@@ -108,8 +116,18 @@ class RiskAssessmentRepository extends AbstractRepository
 
     private function getRiskLevelSummaryWithOutEntityType(string $groupByField, ?string $joinTable, string $nameField, array $data = []): array
     {
-        $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay() : null;
-        $endDate   = !empty($data['endDate']) ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay() : null;
+       $startDate = !empty($data['startDate']) 
+    ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')
+        ->setTimezone('UTC')
+        ->startOfDay() // 00:00:00 do dia
+    : null;
+
+$endDate = !empty($data['endDate']) 
+    ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')
+        ->setTimezone('UTC')
+        ->endOfDay() // 23:59:59 do dia
+    : null;
+
 
         $query = $this->model->join('entities', 'risk_assessment.entity_id', '=', 'entities.id');
 
@@ -238,21 +256,18 @@ class RiskAssessmentRepository extends AbstractRepository
             ->get();
     }
 
-public function getByEntityId($entityId)
-{
-    return $this->model
-        ->where('entity_id', $entityId)
-        ->orderBy('id', 'desc') // garante que o último inserido venha primeiro
-        ->first(); // pega apenas o último elemento
-}
+    public function getByEntityId($entityId)
+    {
+        return $this->model
+            ->where('entity_id', $entityId)
+            ->orderBy('id', 'desc') // garante que o último inserido venha primeiro
+            ->first(); // pega apenas o último elemento
+    }
 
-public function findByIndicatorType(string $indicatorType, int $idIndicator)
-{
-    return $this->model
-        ->where($indicatorType, $idIndicator)
-        ->get();
-}
-
-
-
+    public function findByIndicatorType(string $indicatorType, int $idIndicator)
+    {
+        return $this->model
+            ->where($indicatorType, $idIndicator)
+            ->get();
+    }
 }

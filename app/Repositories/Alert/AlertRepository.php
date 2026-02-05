@@ -84,8 +84,8 @@ class AlertRepository extends AbstractRepository
     }
 
 
-    
- public function particularEntity(): array
+
+    public function particularEntity(): array
     {
         $alertasPorNivel = DB::table('alert')
             ->join('entities', 'alert.entity_id', '=', 'entities.id')
@@ -105,7 +105,7 @@ class AlertRepository extends AbstractRepository
         ];
     }
 
-     public function coletiveEntity(): array
+    public function coletiveEntity(): array
     {
         $alertasPorNivel = DB::table('alert')
             ->join('entities', 'alert.entity_id', '=', 'entities.id')
@@ -133,8 +133,8 @@ class AlertRepository extends AbstractRepository
         return [
             'total' => $this->model->count(),
 
-            'ParticularEntity'=> $this->ParticularEntity(),
-             'coletiveEntity'=> $this->coletiveEntity(),
+            'ParticularEntity' => $this->ParticularEntity(),
+            'coletiveEntity' => $this->coletiveEntity(),
             'by_status' => $this->countByField('is_active', [
                 1 => 'new',
                 2 => 'validation',

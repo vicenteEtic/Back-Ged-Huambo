@@ -26,7 +26,7 @@ class EntitiesRequest extends BaseFormRequest
     {
         $id = $this->route('entity') ? $this->route('entity') : null;
         return [
-            'social_denomination' => ['nullable', 'string'],
+            'social_denomination' => ['nullable', 'string','max:255'],
             'customer_number' => ['nullable', 'string', 'max:255', 'unique:entities,customer_number,' . $id],
             'policy_number' => ['nullable', 'string', 'max:255', 'unique:entities,policy_number,' . $id],
             'entity_type' => ['required', 'integer', Rule::enum(TypeEntity::class)],
