@@ -116,17 +116,17 @@ class RiskAssessmentRepository extends AbstractRepository
 
     private function getRiskLevelSummaryWithOutEntityType(string $groupByField, ?string $joinTable, string $nameField, array $data = []): array
     {
-       $startDate = !empty($data['startDate']) 
-    ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')
-        ->setTimezone('UTC')
-        ->startOfDay() // 00:00:00 do dia
-    : null;
+        $startDate = !empty($data['startDate'])
+            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')
+            ->setTimezone('UTC')
+            ->startOfDay() // 00:00:00 do dia
+            : null;
 
-$endDate = !empty($data['endDate']) 
-    ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')
-        ->setTimezone('UTC')
-        ->endOfDay() // 23:59:59 do dia
-    : null;
+        $endDate = !empty($data['endDate'])
+            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')
+            ->setTimezone('UTC')
+            ->endOfDay() // 23:59:59 do dia
+            : null;
 
 
         $query = $this->model->join('entities', 'risk_assessment.entity_id', '=', 'entities.id');
