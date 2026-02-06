@@ -152,8 +152,8 @@ class AlertRepository extends AbstractRepository
                 0 => 'not_reported',
             ]),
 
-            'pep' => $this->model->where('is_pep', 1)->count(),
-            'sanction' => $this->model->where('is_sanctioned', 1)->count(),
+            'pep' => $this->model->where('list', 'PEP List world')->count(),
+            'sanction' => $this->model->where('list', 'Sanctions List')->count(),
             'AML' => $this->model->where('type','AML')->count(),
 
             'by_type' => $this->countByCategory(),
