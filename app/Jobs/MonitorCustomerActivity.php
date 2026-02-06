@@ -329,7 +329,6 @@ class MonitorCustomerActivity implements ShouldQueue
         }
 
         $churnedPolicies = [];
-
         foreach ($terminatedPolicies as $terminated) {
 
             $replacement = Policies::where('entity_id', $customer->id)
