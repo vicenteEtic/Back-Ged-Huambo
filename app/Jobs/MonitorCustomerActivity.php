@@ -125,7 +125,7 @@ class MonitorCustomerActivity implements ShouldQueue
         }
 
         $description = sprintf(
-            "KYT_HIGH_CAPITAL_INCREASE: Aumento abrupto e potencialmente injustificado do capital seguro. " .
+            "Aumento abrupto e potencialmente injustificado do capital seguro. " .
             "Capital anterior: %s Kz (Apólice %s); Capital atual: %s Kz (Apólice %s). " .
             "Aumento de %.2f%% em %d dias. O incremento do prémio não acompanha proporcionalmente o aumento do capital " .
             "e/ou não há geração de rendimento financeiro identificável. " .
@@ -141,7 +141,7 @@ class MonitorCustomerActivity implements ShouldQueue
 
         $this->createAlertOnce(
             $customer->id,
-            'KYT_HIGH_CAPITAL_INCREASE',
+            'Detetado aumento anormal de capital',
             $description,
             'Alto',
             'checkHighCapitalIncrease',
@@ -181,7 +181,7 @@ class MonitorCustomerActivity implements ShouldQueue
             }
 
             $description = sprintf(
-                "KYT_EARLY_REDEMPTION: Resgate ou cancelamento antecipado de apólice antes de 12 meses. " .
+                " Resgate ou cancelamento antecipado de apólice antes de 12 meses. " .
                 "Apólice %s (%s) rescindida após %d dias (%s a %s). Capital: %s Kz. " .
                 "Foram identificadas perdas financeiras (encargos/ausência de rendimentos), " .
                 "indicando aceitação de penalização para obtenção rápida de liquidez. " .
@@ -197,10 +197,10 @@ class MonitorCustomerActivity implements ShouldQueue
 
             $this->createAlertOnce(
                 $customer->id,
-                'KYT_EARLY_REDEMPTION',
+                ' Resgate antecipado detectado',
                 $description,
                 'Alto',
-                'detectEarlyRedemptionKYT',
+                'Resgate antecipado detectado',
                 20
             );
         }
@@ -239,7 +239,7 @@ class MonitorCustomerActivity implements ShouldQueue
             }
 
             $description = sprintf(
-                "KYT_HIGH_PREMIUM_LOW_RISK: Prémio elevado incompatível com o risco segurado. " .
+                "Prémio elevado incompatível com o risco segurado. " .
                 "Apólice %s (%s) apresenta capital segurado de %s Kz e prémio total de %s Kz, " .
                 "correspondendo a %.2f%% do capital. Produto classificado como baixo risco, " .
                 "sem geração de rendimento financeiro identificável. " .
@@ -254,10 +254,10 @@ class MonitorCustomerActivity implements ShouldQueue
 
             $this->createAlertOnce(
                 $customer->id,
-                'KYT_HIGH_PREMIUM_LOW_RISK',
+                'Detetado prémio elevado com nível de risco baixo',
                 $description,
                 'Alto',
-                'checkHighPremiumLowRisk',
+                'prémio elevado para risco baixo',
                 25
             );
         }
@@ -293,7 +293,7 @@ class MonitorCustomerActivity implements ShouldQueue
         $contracts = $policies->pluck('contract_number')->join(', ');
 
         $description = sprintf(
-            "KYT_MULTIPLE_SHORT_POLICIES: Subscrição sequencial de múltiplas apólices de curta duração. " .
+            "Subscrição sequencial de múltiplas apólices de curta duração. " .
             "Foram identificadas %d apólices com duração entre 3 e 6 meses, subscritas nos últimos 12 meses, " .
             "totalizando capital agregado de %s Kz. Apólices: %s. " .
             "Padrão compatível com fragmentação de contratos para dispersão de valores, " .
@@ -305,10 +305,10 @@ class MonitorCustomerActivity implements ShouldQueue
 
         $this->createAlertOnce(
             $customer->id,
-            'KYT_MULTIPLE_SHORT_POLICIES',
+            'Detetadas múltiplas apólices de curta duração',
             $description,
             'Médio',
-            'checkMultipleShortPolicies',
+            'Múltiplas apólices curtas',
             15
         );
     }
@@ -364,7 +364,7 @@ class MonitorCustomerActivity implements ShouldQueue
         }
 
         $description = sprintf(
-            "KYT_POLICY_CHURNING: Cancelamentos frequentes de apólices seguidos de substituição por novas apólices similares. " .
+            "Cancelamentos frequentes de apólices seguidos de substituição por novas apólices similares. " .
             "Foram identificados %d ciclos de cancelamento e nova subscrição num período inferior a 12 meses. " .
             "Apólices envolvidas: %s. Padrão compatível com churning contratual, permitindo movimento recorrente de fundos, " .
             "conforme tipologias descritas pela ARSEG e red flags do GAFI relativas a ida e volta de valores.",
@@ -374,10 +374,10 @@ class MonitorCustomerActivity implements ShouldQueue
 
         $this->createAlertOnce(
             $customer->id,
-            'KYT_POLICY_CHURNING',
+            'substituição ou cancelamento repetido',
             $description,
             'Médio',
-            'checkPolicyChurning',
+            'Churn de apólice detectado',
             20
         );
     }
@@ -418,7 +418,7 @@ class MonitorCustomerActivity implements ShouldQueue
             }
 
             $description = sprintf(
-                "KYT_RAPID_POLICY_REPLACEMENT: Substituição rápida de apólice detectada. " .
+                "Substituição rápida de apólice detectada. " .
                 "Apólice %s foi cancelada e substituída pela apólice %s após %d dias. " .
                 "Produto: %s. Capital anterior: %s Kz; Capital atual: %s Kz. " .
                 "Padrão compatível com layering acelerado e obfuscação de fluxos, " .
@@ -435,10 +435,10 @@ class MonitorCustomerActivity implements ShouldQueue
 
             $this->createAlertOnce(
                 $customer->id,
-                'KYT_RAPID_POLICY_REPLACEMENT',
+                'Detetada substituição rápida de apólice',
                 $description,
                 'Médio',
-                'checkRapidPolicyReplacement',
+                'Substituição rápida de apólice',
                 15
             );
 

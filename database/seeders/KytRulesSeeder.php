@@ -22,7 +22,7 @@ class KytRulesSeeder extends Seeder
         $data = [
 
             [
-                'code' => 'KYT_HIGH_CAPITAL_INCREASE',
+                'code' => 'Detetado aumento anormal de capital',
                 'name' => 'Aumento Irregular',
                 'severity' => 'Alto',
                 'score' => 30,
@@ -99,7 +99,7 @@ class KytRulesSeeder extends Seeder
             ],
 
             [
-                'code' => 'KYT_RAPID_POLICY_REPLACEMENT',
+                'code' => 'Detetada substituição rápida de apólice',
                 'name' => 'Substituição Rápida de Apólice',
                 'severity' => 'Médio',
                 'score' => 15,

@@ -1,13 +1,12 @@
 <?php
 
-
-
+use App\Http\Controllers\KYT\kytrulesController;
 use App\Http\Controllers\Transation\PoliciesController;
 use App\Http\Controllers\Transation\TransactionController;
 use App\Http\Controllers\Transation\transaionControlController;
 use Illuminate\Support\Facades\Route;
 
-
+Route::resource('roles', kytrulesController::class);
 
     Route::get('/control', [transaionControlController::class, 'index'])
     ->name('control.index');

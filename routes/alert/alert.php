@@ -39,8 +39,8 @@ Route::put('/user', [AlertUserController::class, 'update'])
 
 Route::get('/comment', [CommentAlertController::class, 'index'])
     ->name('comment.index');
-Route::get('/comment/{id}', [CommentAlertController::class, 'show'])
-    ->name('comment.show');
+Route::get('/comment/{id}', [CommentAlertController::class, 'show'])<
+   
 Route::post('/comment', [CommentAlertController::class, 'store'])
     ->name('comment.store');
 
@@ -51,7 +51,7 @@ Route::get('/me/notifications/', [AlertUserController::class, 'countActiveAlerts
 Route::get('/grupoAlertEmails', [GrupoAlertEmailsController::class, 'index'])
     ->name('grupoAlertEmails.index');
 Route::get('/grupoAlertEmails/{id}', [GrupoAlertEmailsController::class, 'show'])
-    ->name('grupoAlertEmails.show');
+;
 Route::post('/grupoAlertEmails', [GrupoAlertEmailsController::class, 'store'])
     ->name('grupoAlertEmails.store');
 
@@ -62,7 +62,7 @@ Route::put('/grupoAlertEmails/{id}', [GrupoAlertEmailsController::class, 'update
 Route::get('/grupoType', [GrupoTypeController::class, 'listTypGrup'])
     ->name('grupoType.listTypGrup');
 Route::get('/grupoType/{id}', [GrupoTypeController::class, 'show'])
-    ->name('grupoType.show');
+    ;
 Route::post('/grupoType', [GrupoTypeController::class, 'store'])
     ->name('grupoType.store');
     Route::put('/grupoType/{id}', [GrupoTypeController::class, 'update']);
@@ -70,13 +70,12 @@ Route::post('/grupoType', [GrupoTypeController::class, 'store'])
 Route::get('/userGrupo', [UserGrupoAlertController::class, 'index'])
     ->name('userGrupo.index');
 Route::get('/userGrupo/{id}', [UserGrupoAlertController::class, 'show'])
-    ->name('userGrupo.show');
+   ;
 Route::post('/userGrupo', [UserGrupoAlertController::class, 'store'])
     ->name('userGrupo.store');
 Route::put('/{id}/status', [AlertController::class, 'status']);
 Route::put('/userGrupo/{id}', [UserGrupoAlertController::class, 'update'])
-    ->name('userGrupo.update');
-
+;
 
 Route::get('/files/{alertID}', [AlertAttachmentController::class, 'files'])
     ->name('alertAttachment.index');

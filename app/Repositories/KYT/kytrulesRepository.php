@@ -10,4 +10,7 @@ class kytrulesRepository extends AbstractRepository
     {
         parent::__construct($model);
     }
+    public function FindRole($role){
+     return   $this->model::where('code',$role)->first();
+    }
 }

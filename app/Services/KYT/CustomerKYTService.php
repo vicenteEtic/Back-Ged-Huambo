@@ -92,7 +92,7 @@ class CustomerKYTService
 
         $this->createAlertOnce(
             $customer->id,
-            'KYT_HIGH_CAPITAL_INCREASE',
+            'Detetado aumento anormal de capital',
             $description,
             'Alto',
             'Aumento Irregular',
@@ -338,7 +338,7 @@ class CustomerKYTService
 
             $this->createAlertOnce(
                 $customer->id,
-                'KYT_RAPID_POLICY_REPLACEMENT',
+                'Detetada substituição rápida de apólice',
                 $description,
                 'Médio',
                 'Substituição Rápida de Apólice',
