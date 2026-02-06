@@ -144,12 +144,12 @@ class CustomerKYTService
                 number_format($policy->capital, 2, ',', '.')
             );
 
-            $this->createAlertOnce(
+           $this->createAlertOnce(
                 $customer->id,
-                'KYT_EARLY_REDEMPTION',
+                ' Resgate antecipado detectado',
                 $description,
                 'Alto',
-                'Resgate Antecipado',
+                'Resgate antecipado detectado',
                 20
             );
         }
@@ -196,12 +196,12 @@ class CustomerKYTService
                 number_format($policy->premium_total, 2, ',', '.')
             );
 
-            $this->createAlertOnce(
+             $this->createAlertOnce(
                 $customer->id,
-                'KYT_HIGH_PREMIUM_LOW_RISK',
+                'Detetado prémio elevado com nível de risco baixo',
                 $description,
                 'Alto',
-                'Prêmio Alto, Risco Baixo',
+                'prémio elevado para risco baixo',
                 25
             );
         }
@@ -242,11 +242,11 @@ class CustomerKYTService
 
         $this->createAlertOnce(
             $customer->id,
-            'KYT_MULTIPLE_SHORT_POLICIES',
+            'substituição ou cancelamento repetido',
             $description,
             'Médio',
-            'Múltiplas Apólices Curtas',
-            15
+            'Churn de apólice detectado',
+            20
         );
     }
 
@@ -295,7 +295,7 @@ class CustomerKYTService
 
         $this->createAlertOnce(
             $customer->id,
-            'KYT_POLICY_CHURNING',
+            'Churn de apólice',
             $description,
             'Médio',
             'Rotatividade de Apólices',
