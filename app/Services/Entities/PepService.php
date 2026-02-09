@@ -47,10 +47,8 @@ class PepService extends AbstractService
     if (empty($entity->social_denomination)) {
         throw new \Exception("Nome da entidade não encontrado no retorno.");
     }
-
-    $pep = $this->repository->storeOrUpdate([
-        'name' => $entity->social_denomination,
-    ]);
+$data=[$entity->social_denomination,];
+    $pep = $this->repository->storeOrUpdate($data,$data);
 
     return $pep;
 }
