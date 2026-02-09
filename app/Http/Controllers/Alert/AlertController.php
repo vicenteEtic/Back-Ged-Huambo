@@ -45,7 +45,7 @@ class AlertController extends AbstractController
             if ($statusOlder == 1) {
                 $status = "Novo";
             } elseif ($statusOlder == 2) {
-                $status = "Em validação";
+                $status = "Em tratamento";
             } elseif ($statusOlder == 3) {
                 $status = "Em Supervisão";
             } elseif ($statusOlder == 0) {

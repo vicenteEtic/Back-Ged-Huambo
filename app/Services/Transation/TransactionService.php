@@ -16,7 +16,7 @@ use App\Models\Entities\Entities;
 class TransactionService extends AbstractService
 {
     private const BATCH_SIZE = 2000;
-    private const TIME_LIMIT_SECONDS = 10;
+    private const TIME_LIMIT_SECONDS = 05;
 
     public function __construct(
         TransactionRepository $repository,
