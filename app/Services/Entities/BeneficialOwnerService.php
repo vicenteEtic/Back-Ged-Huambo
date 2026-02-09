@@ -23,11 +23,7 @@ class BeneficialOwnerService extends AbstractService
             if ($owner['pep']) {
                 $pepData = [
                     "name" => $owner['name'] ?? null,
-                    "pep" => $owner['pep'],
-                    "santion" => $owner['santion'] ?? null,
-                    "percentage" => $owner['percentage'] ?? null,
-                    "is_legal_representative" => $owner['is_legal_representative'] ?? false,
-                    "nationality" => $owner['nationality'] ?? null,
+                 
                 ];
     
                 $this->pepService->storeOrUpdate($pepData, $pepData);
