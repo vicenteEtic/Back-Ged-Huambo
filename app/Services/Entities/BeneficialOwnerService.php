@@ -16,19 +16,22 @@ class BeneficialOwnerService extends AbstractService
     {
         foreach ($data['beneficial_owners'] as $owner) {
             $owner['risk_assessment_id'] = $riskAssessmentId;
-            $this->repository->store($owner);
-          
-            if ($owner['pep']) {
-                $this->pepService->store([
-                    "name" => $owner['name'],
-                    "pep" => $owner['pep'],
-                    "santion" => $owner['santion'],
-                    "percentage" => $owner['percentage'],
-                    "is_legal_representative" => $owner['is_legal_representative'],
-                    "nationality" => $owner['nationality'],
 
-                    
-                ]);
+            $this->storeOrUpdate($owner, $owner);
+
+        
+            if ($owner['pep']) {
+                $pepData = [
+                    "name" => $owner['name'] ?? null,
+                    "pep" => $owner['pep'],
+                    "santion" => $owner['santion'] ?? null,
+                    "percentage" => $owner['percentage'] ?? null,
+                    "is_legal_representative" => $owner['is_legal_representative'] ?? false,
+                    "nationality" => $owner['nationality'] ?? null,
+                ];
+    
+                $this->pepService->storeOrUpdate($pepData, $pepData);
+              
             }
         }
     }

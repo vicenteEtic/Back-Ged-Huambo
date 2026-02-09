@@ -67,6 +67,7 @@ class TransationJob implements ShouldQueue
                         ['customer_number' => $record['customer_number']],
                         [
                             'nif'                 => $record['nif'],
+                            'entity_type'                 => 2, 
                             'policy_number'       => $record['policy_number'] ?? 'UNKNOWN',
                             'social_denomination' => $record['social_denomination'] ?? 'UNKNOWN',
                             'updated_at'          => now(),
