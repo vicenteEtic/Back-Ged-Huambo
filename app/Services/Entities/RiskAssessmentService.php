@@ -124,8 +124,7 @@ class RiskAssessmentService extends AbstractService
 
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
      
-      
-      
+    
         $reassessmentPeriod = $diligence?->reassessmentPeriod;
 
         // Extrai o número do texto (1, 2, etc.)
@@ -134,8 +133,15 @@ class RiskAssessmentService extends AbstractService
         // Cria a data de reavaliação
         $nextReassessmentDate = Carbon::now()->addYears($years);
         
-        // Formata como string
-        $nextReassessmentDateFormatted = $nextReassessmentDate->format('Y-m-d');
+
+        if($diligence->name != "Cliente Inaceitável"){
+            $nextReassessmentDate = Carbon::now()->addYears($years);
+            $nextReassessmentDateFormatted = $nextReassessmentDate->format('Y-m-d');
+        } else {
+           
+            $nextReassessmentDateFormatted = null;
+        }
+     
            $this->updateEntityRisk($riskAssessment, $total, $diligence, $nextReassessmentDateFormatted);
         $riskAssessment->score = $total;
         $riskAssessment->color = $diligence->color;
@@ -161,6 +167,7 @@ class RiskAssessmentService extends AbstractService
                      'category'=> "KYC",
                     'list' => "AML",
                     'is_active' => true,
+                    "description"=>"Avaliação de risco resultou em nível de risco {$diligence->risk} e diligência {$diligence->name}. Reavaliação necessária em {$nextReassessmentDateFormatted}.",
                 ]
             );
 
