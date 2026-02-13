@@ -63,13 +63,13 @@ class RiskAssessmentService extends AbstractService
         private readonly BeneficialOwnerService $beneficialOwnerService,
         private readonly PepService $pepService,
         RiskFormulaRepository $riskFormulaRepository,
-       
+
         private AlertRepository $alertRepository // ← agora injetado corretamente
     ) {
         parent::__construct($repository);
         $this->riskFormulaRepository = $riskFormulaRepository;
         $this->alertRepository = $alertRepository; // ← garantir atribuição
-  
+
     }
 
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
@@ -123,20 +123,20 @@ class RiskAssessmentService extends AbstractService
         $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $data['beneficialOwner']);
 
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
-     
-      
-      
+
+
+
         $reassessmentPeriod = $diligence?->reassessmentPeriod;
 
         // Extrai o número do texto (1, 2, etc.)
         $years = (int) filter_var($reassessmentPeriod, FILTER_SANITIZE_NUMBER_INT);
-        
+
         // Cria a data de reavaliação
         $nextReassessmentDate = Carbon::now()->addYears($years);
-        
+
         // Formata como string
         $nextReassessmentDateFormatted = $nextReassessmentDate->format('Y-m-d');
-           $this->updateEntityRisk($riskAssessment, $total, $diligence, $nextReassessmentDateFormatted);
+        $this->updateEntityRisk($riskAssessment, $total, $diligence, $nextReassessmentDateFormatted);
         $riskAssessment->score = $total;
         $riskAssessment->color = $diligence->color;
         $riskAssessment->risk_level = $diligence->risk;
@@ -147,33 +147,38 @@ class RiskAssessmentService extends AbstractService
         $riskAssessment->save();
 
         if ($diligence->name == "Cliente Inaceitável" || $diligence->name == "Reforçada") {
-            $alert =    $this->alertRepository->store(
+            $alert = $this->alertRepository->storeOrUpdate(
                 [
-                    'name' => $riskAssessment->entity->social_denomination,
-                    'country' => $riskAssessment->nationlity->description,
-                    'birth_date' => "",
-                    'level' =>  "Alto",
-                    'from_id' => "AV#" . $riskAssessment->id,
-                    'origin_id' => "AV#" . $riskAssessment->id,
+                    
                     'entity_id' => $riskAssessment->entity->id,
-                    'score' => $riskAssessment->score,
-                    'type' => "AML",
-                     'category'=> "KYC",
-                    'list' => "AML",
-                    'is_active' => true,
+                    'origin_id' => "AV#" . $riskAssessment->id,
+                    'type'      => 'AML',
+                ],
+                [
+                   
+                    'name'       => $riskAssessment->entity->social_denomination,
+                    'country'    => $riskAssessment->nationlity->description,
+                    'birth_date' => null,
+                    'level'      => 'Alto',
+                    'from_id'    => "AV#" . $riskAssessment->id,
+                    'category'   => 'KYC',
+                    'list'       => 'AML',
+                    'score'      => $riskAssessment->score,
+                    'is_active'  => true,
                 ]
             );
+
 
             $host = config('app.url'); // ou outro host padrão
             SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         }
 
         // so dispara alerta se pep ou santion for true
-        if($data['pep'] == false || $data['santion'] == false){
+        if ($data['pep'] == false || $data['santion'] == false) {
             GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
-            ->onQueue('high');
-        } 
-    
+                ->onQueue('high');
+        }
+
         return $riskAssessment;
     }
 
@@ -261,15 +266,15 @@ class RiskAssessmentService extends AbstractService
 
 
 
-    private function updateEntityRisk($riskAssessment, $total, $diligence,$reassessmentPeriod): void
+    private function updateEntityRisk($riskAssessment, $total, $diligence, $reassessmentPeriod): void
     {
         $entity = $riskAssessment?->entity();
-        
+
         $entity->update([
             'risk_level' => $diligence?->risk,
             'diligence' => $diligence?->name,
             'color' => $diligence?->color,
-           'reassessmentPeriod'=>$reassessmentPeriod,
+            'reassessmentPeriod' => $reassessmentPeriod,
             'last_evaluation' => now()
         ]);
     }
@@ -396,41 +401,41 @@ class RiskAssessmentService extends AbstractService
         $pepCount = 0;
         $sanctionCount = 0;
         $nationalityScoreTotal = 0;
-    
+
         foreach ($data['beneficial_owners'] ?? [] as $owner) {
-    
+
             // PEP
             $pep = is_array($owner) ? ($owner['pep'] ?? false) : ($owner->pep ?? false);
-    
+
             // SANÇÃO
             $santion = is_array($owner) ? ($owner['santion'] ?? false) : ($owner->santion ?? false);
-    
+
             if ($pep) {
                 $pepCount++;
             }
-    
+
             if ($santion) {
                 $sanctionCount++;
             }
-    
+
             // NATIONALITY
             $nationality = is_array($owner) ? ($owner['nationality'] ?? null) : ($owner->nationality ?? null);
-    
+
             if (!empty($nationality)) {
                 $indicator = $this->indicatorTypeRepository->getByDescription($nationality);
                 $nationalityScoreTotal += $indicator?->score ?? 0;
             }
         }
-    
+
         $pepPoints = $pepCount * 3;
         $sanctionPoints = $sanctionCount * 20;
-    
+
         return $pepPoints + $sanctionPoints + $nationalityScoreTotal;
     }
-    
-    
-    
-    
+
+
+
+
 
     public function is_pep(array $data, $id)
     {

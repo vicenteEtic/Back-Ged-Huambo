@@ -31,27 +31,26 @@ class PepService extends AbstractService
 
         return SanctionExternalApi::getAllSanctions($name); // chama direto
     }
-public function createEntityPep($entityID)
-{
-    $entity = $this->entitiesService->show($entityID);
+    public function createEntityPep($entityID)
+    {
+        $entity = $this->entitiesService->show($entityID);
 
-    if (!$entity) {
-        throw new \Exception("Entidade com ID {$entityID} não encontrada.");
+        if (!$entity) {
+            throw new \Exception("Entidade com ID {$entityID} não encontrada.");
+        }
+        if (is_array($entity)) {
+            $entity = (object) $entity;
+        }
+
+        if (empty($entity->social_denomination)) {
+            throw new \Exception("Nome da entidade não encontrado no retorno.");
+        }
+        $data = [
+            'name' => $entity->social_denomination,
+        ];
+
+        $pep = $this->repository->storeOrUpdate($data, $data);
+
+        return $pep;
     }
-    if (is_array($entity)) {
-        $entity = (object) $entity;
-    }
-
-    if (empty($entity->social_denomination)) {
-        throw new \Exception("Nome da entidade não encontrado no retorno.");
-    }
-    $data = [
-        'name' => $entity->social_denomination, 
-    ];
-
-    $pep = $this->repository->storeOrUpdate($data, $data);
-
-    return $pep;
-}
-
 }
