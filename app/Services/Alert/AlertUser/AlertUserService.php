@@ -107,6 +107,11 @@ public function countActiveAlertsForAuthenticatedUser()
     return $this->repository->getActiveAlertsForAuthenticatedUser();
 
 }
-
+  public function updateAlertUser( $data,  $id)
+    {
+  
+ return $this->repository->updateAlertUser($data,$id);
+ 
+    }
 
 }

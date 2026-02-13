@@ -6,6 +6,7 @@ use App\Services\Alert\AlertService;
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\Alert\AlertDocumentRequest;
 use App\Http\Requests\Alert\AlertUpdateStatusRequest;
+use App\Services\Alert\AlertUser\AlertUserService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
@@ -15,9 +16,11 @@ class AlertController extends AbstractController
     protected ?string $logType = 'alert';
     protected ?string $nameEntity = "Alerta";
     protected ?string $fieldName = "name";
-    public function __construct(AlertService $service)
+       private $alertUserService;
+    public function __construct(AlertService $service, AlertUserService $alertUserService)
     {
         $this->service = $service;
+              $this->alertUserService = $alertUserService;
     }
     public function getTotalAlerts()
     {
@@ -55,7 +58,8 @@ class AlertController extends AbstractController
             }
             
             $commentAlert = $this->service->updateStatus($request->validated(), $id);
-
+ $alert=["alert_user"=>   $statusOlder];
+            $this->alertUserService->updateAlertUser( $alert,$id);
 
             $this->logToDatabase(
                 type: 'entity',

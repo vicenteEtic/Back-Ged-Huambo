@@ -169,10 +169,6 @@ public function countAlertsByUserGrouped(int $userId): array
         return $inserted;
     }
 
-
-
-
-
     public function getActiveAlertsForAuthenticatedUser()
     {
         $alerts = $this->model
@@ -186,5 +182,12 @@ public function countAlertsByUserGrouped(int $userId): array
             'alerts' => $alerts,
         ];
         return $data;
+    }
+
+      public function updateAlertUser(array $data, int $id)
+    {
+    $affected = $this->model::where('alert_id', $id)->update($data);
+
+        return $affected;
     }
 }
