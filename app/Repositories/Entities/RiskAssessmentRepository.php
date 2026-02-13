@@ -33,86 +33,86 @@ class RiskAssessmentRepository extends AbstractRepository
     // =====================
     // MÉTODO CENTRAL DE ESTATÍSTICAS (corrigido)
     // =====================
-    private function getRiskLevelSummaryFixed(
-        string $groupByField,
-        ?string $joinTable,
-        string $nameField,
-        array $data = [],
-        bool $filterByEntityType = true
-    ): array
-    {
-        $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'])->startOfDay()
-            : null;
+   private function getRiskLevelSummaryFixed(
+    string $groupByField,
+    ?string $joinTable,
+    string $nameField,
+    array $data = [],
+    bool $filterByEntityType = true
+): array {
+    $startDate = !empty($data['startDate'])
+        ? Carbon::parse($data['startDate'])->startOfDay()
+        : null;
 
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'])->endOfDay()
-            : null;
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'])->endOfDay()
+        : null;
 
-        $entityTypes = $filterByEntityType
-            ? ['coletive' => TypeEntity::COLECTIVA, 'individual' => TypeEntity::SINGULAR]
-            : ['geral' => null];
+    $entityTypes = $filterByEntityType
+        ? [TypeEntity::COLECTIVA, TypeEntity::SINGULAR]
+        : [null];
 
-        $results = [];
+    $results = [];
 
-        foreach ($entityTypes as $key => $type) {
+    foreach ($entityTypes as $type) {
 
-            // SUBQUERY: 1 linha = 1 risk_assessment
-            $subQuery = $this->model
-                ->select(
-                    'risk_assessment.id',
-                    'risk_assessment.risk_level',
-                    DB::raw("$nameField AS name")
-                )
-                ->join('entities', 'entities.id', '=', 'risk_assessment.entity_id');
+        // SUBQUERY: 1 linha = 1 risk_assessment
+        $subQuery = $this->model
+            ->select(
+                'risk_assessment.id',
+                'risk_assessment.risk_level',
+                DB::raw("$nameField AS name")
+            )
+            ->join('entities', 'entities.id', '=', 'risk_assessment.entity_id');
 
-            if ($type !== null) {
-                $subQuery->where('entities.entity_type', $type);
-            }
-
-            // Filtro de datas
-            if ($startDate && $endDate) {
-                $subQuery->whereBetween('risk_assessment.created_at', [$startDate, $endDate]);
-            } elseif ($startDate) {
-                $subQuery->where('risk_assessment.created_at', '>=', $startDate);
-            } elseif ($endDate) {
-                $subQuery->where('risk_assessment.created_at', '<=', $endDate);
-            }
-
-            // JOINs adicionais
-            if ($groupByField === 'product_id') {
-                $subQuery
-                    ->join('product_risk', 'product_risk.risk_assessment_id', '=', 'risk_assessment.id')
-                    ->join('indicator_type', 'indicator_type.id', '=', 'product_risk.product_id');
-            } elseif ($joinTable) {
-                $subQuery
-                    ->join('indicator_type', 'indicator_type.id', '=', "risk_assessment.$groupByField");
-            }
-
-            $subQuery->groupBy('risk_assessment.id', 'risk_assessment.risk_level', 'name');
-
-            // QUERY FINAL: estatística real, desconsiderando risk_level NULL
-            $query = DB::query()
-                ->fromSub($subQuery, 't')
-                ->select(
-                    'name',
-                    DB::raw("SUM(t.risk_level = 'Baixo') AS total_baixo"),
-                    DB::raw("SUM(t.risk_level = 'Médio') AS total_medio"),
-                    DB::raw("SUM(t.risk_level = 'Alto') AS total_alto"),
-                    // total_geral = soma dos níveis, ignorando NULL
-                    DB::raw("(SUM(t.risk_level = 'Baixo') + SUM(t.risk_level = 'Médio') + SUM(t.risk_level = 'Alto')) AS total_geral")
-                )
-                ->whereNotNull('t.risk_level') // ✅ ignora NULL
-                ->groupBy('name')
-                ->orderBy('name');
-
-            $dataResult = $query->get();
-
-            $results[$key] = $this->formatResults($dataResult);
+        if ($type !== null) {
+            $subQuery->where('entities.entity_type', $type);
         }
 
-        return $results;
+        // Filtro de datas
+        if ($startDate && $endDate) {
+            $subQuery->whereBetween('risk_assessment.created_at', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            $subQuery->where('risk_assessment.created_at', '>=', $startDate);
+        } elseif ($endDate) {
+            $subQuery->where('risk_assessment.created_at', '<=', $endDate);
+        }
+
+        // JOINs adicionais
+        if ($groupByField === 'product_id') {
+            $subQuery
+                ->join('product_risk', 'product_risk.risk_assessment_id', '=', 'risk_assessment.id')
+                ->join('indicator_type', 'indicator_type.id', '=', 'product_risk.product_id');
+        } elseif ($joinTable) {
+            $subQuery
+                ->join('indicator_type', 'indicator_type.id', '=', "risk_assessment.$groupByField");
+        }
+
+        $subQuery->groupBy('risk_assessment.id', 'risk_assessment.risk_level', 'name');
+
+        // QUERY FINAL: estatística real, desconsiderando risk_level NULL
+        $query = DB::query()
+            ->fromSub($subQuery, 't')
+            ->whereNotNull('t.risk_level') // ignora NULL
+            ->select(
+                'name',
+                DB::raw("SUM(t.risk_level = 'Baixo') AS total_baixo"),
+                DB::raw("SUM(t.risk_level = 'Médio') AS total_medio"),
+                DB::raw("SUM(t.risk_level = 'Alto') AS total_alto"),
+                DB::raw("(SUM(t.risk_level = 'Baixo') + SUM(t.risk_level = 'Médio') + SUM(t.risk_level = 'Alto')) AS total_geral")
+            )
+            ->groupBy('name')
+            ->orderBy('name');
+
+        $dataResult = $query->get();
+
+        // Junta todos os resultados num único array
+        $results = array_merge($results, $this->formatResults($dataResult));
     }
+
+    return $results;
+}
+
 
     // =====================
     // FORMATAR RESULTADOS
