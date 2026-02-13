@@ -106,12 +106,15 @@ class RiskAssessmentRepository extends AbstractRepository
 
         $dataResult = $query->get();
 
-        // Junta todos os resultados num único array
-        $results = array_merge($results, $this->formatResults($dataResult));
+        // Formata e filtra itens com total_geral = 0
+        $filtered = array_filter($this->formatResults($dataResult), fn($item) => $item['total_geral'] > 0);
+
+        $results = array_merge($results, $filtered);
     }
 
     return $results;
 }
+
 
 
     // =====================
