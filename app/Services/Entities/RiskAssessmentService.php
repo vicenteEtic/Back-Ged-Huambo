@@ -123,9 +123,14 @@ class RiskAssessmentService extends AbstractService
         $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $data['beneficialOwner']);
 
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
+<<<<<<< HEAD
 
 
 
+=======
+     
+    
+>>>>>>> e2c86884c156bda9b0e84bbe366ae3c61d53b6da
         $reassessmentPeriod = $diligence?->reassessmentPeriod;
 
         // Extrai o número do texto (1, 2, etc.)
@@ -133,10 +138,24 @@ class RiskAssessmentService extends AbstractService
 
         // Cria a data de reavaliação
         $nextReassessmentDate = Carbon::now()->addYears($years);
+<<<<<<< HEAD
 
         // Formata como string
         $nextReassessmentDateFormatted = $nextReassessmentDate->format('Y-m-d');
         $this->updateEntityRisk($riskAssessment, $total, $diligence, $nextReassessmentDateFormatted);
+=======
+        
+
+        if($diligence->name != "Cliente Inaceitável"){
+            $nextReassessmentDate = Carbon::now()->addYears($years);
+            $nextReassessmentDateFormatted = $nextReassessmentDate->format('Y-m-d');
+        } else {
+           
+            $nextReassessmentDateFormatted = null;
+        }
+     
+           $this->updateEntityRisk($riskAssessment, $total, $diligence, $nextReassessmentDateFormatted);
+>>>>>>> e2c86884c156bda9b0e84bbe366ae3c61d53b6da
         $riskAssessment->score = $total;
         $riskAssessment->color = $diligence->color;
         $riskAssessment->risk_level = $diligence->risk;
@@ -151,6 +170,7 @@ class RiskAssessmentService extends AbstractService
                 [
                     
                     'entity_id' => $riskAssessment->entity->id,
+<<<<<<< HEAD
                     'origin_id' => "AV#" . $riskAssessment->id,
                     'type'      => 'AML',
                 ],
@@ -165,6 +185,14 @@ class RiskAssessmentService extends AbstractService
                     'list'       => 'AML',
                     'score'      => $riskAssessment->score,
                     'is_active'  => true,
+=======
+                    'score' => $riskAssessment->score,
+                    'type' => "AML",
+                     'category'=> "KYC",
+                    'list' => "AML",
+                    'is_active' => true,
+                    "description"=>"Avaliação de risco resultou em nível de risco {$diligence->risk} e diligência {$diligence->name}. Reavaliação necessária em {$nextReassessmentDateFormatted}.",
+>>>>>>> e2c86884c156bda9b0e84bbe366ae3c61d53b6da
                 ]
             );
 
