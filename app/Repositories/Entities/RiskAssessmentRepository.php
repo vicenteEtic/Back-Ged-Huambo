@@ -53,8 +53,8 @@ class RiskAssessmentRepository extends AbstractRepository
             : [null];
 
         $results = [
-            'colective' => [],
-            'particular' => []
+            'coletive' => [],
+            'individual' => []
         ];
 
         foreach ($entityTypes as $type) {
