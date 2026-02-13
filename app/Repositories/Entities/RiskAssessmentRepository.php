@@ -53,9 +53,8 @@ class RiskAssessmentRepository extends AbstractRepository
             $query = $this->model
                 ->join('entities', 'risk_assessment.entity_id', '=', 'entities.id')
                 ->where('entities.entity_type', $type)
-                ->whereNotNull('risk_assessment.risk_level'); // ✅ Ignora registros sem risk_level
+                ->whereNotNull('risk_assessment.risk_level');
 
-            // Aplicar filtro de data
             if ($startDate && $endDate) {
                 $query->whereBetween('risk_assessment.created_at', [$startDate, $endDate]);
             } elseif ($startDate) {
@@ -71,24 +70,18 @@ class RiskAssessmentRepository extends AbstractRepository
                 $query->join('indicator_type', 'indicator_type.id', '=', "risk_assessment.$groupByField");
             }
 
-         $select = [
-    DB::raw("$nameField AS name"),
-
-    DB::raw("SUM(CASE WHEN risk_assessment.risk_level = 'Baixo' THEN 1 ELSE 0 END) AS total_baixo"),
-    DB::raw("SUM(CASE WHEN risk_assessment.risk_level = 'Médio' THEN 1 ELSE 0 END) AS total_medio"),
-    DB::raw("SUM(CASE WHEN risk_assessment.risk_level = 'Alto' THEN 1 ELSE 0 END) AS total_alto"),
-
-    // ✅ total_geral calculado corretamente (sem alias)
-    DB::raw("
-        SUM(
-            CASE 
-                WHEN risk_assessment.risk_level IN ('Baixo','Médio','Alto') 
-                THEN 1 ELSE 0 
-            END
-        ) AS total_geral
-    ")
-];
-
+            $select = [
+                DB::raw("$nameField AS name"),
+                DB::raw("SUM(CASE WHEN risk_assessment.risk_level = 'Baixo' THEN 1 ELSE 0 END) AS total_baixo"),
+                DB::raw("SUM(CASE WHEN risk_assessment.risk_level = 'Médio' THEN 1 ELSE 0 END) AS total_medio"),
+                DB::raw("SUM(CASE WHEN risk_assessment.risk_level = 'Alto' THEN 1 ELSE 0 END) AS total_alto"),
+                // Total correto como soma das colunas
+                DB::raw("
+                    SUM(CASE WHEN risk_assessment.risk_level = 'Baixo' THEN 1 ELSE 0 END) +
+                    SUM(CASE WHEN risk_assessment.risk_level = 'Médio' THEN 1 ELSE 0 END) +
+                    SUM(CASE WHEN risk_assessment.risk_level = 'Alto' THEN 1 ELSE 0 END) AS total_geral
+                ")
+            ];
 
             $groupBy = match (true) {
                 $groupByField === 'product_id', $joinTable => ['indicator_type.description'],
@@ -117,7 +110,7 @@ class RiskAssessmentRepository extends AbstractRepository
 
         $query = $this->model
             ->join('entities', 'risk_assessment.entity_id', '=', 'entities.id')
-            ->whereNotNull('risk_assessment.risk_level'); // ✅ Ignora registros sem risk_level
+            ->whereNotNull('risk_assessment.risk_level');
 
         if ($startDate && $endDate) {
             $query->whereBetween('risk_assessment.created_at', [$startDate, $endDate]);
@@ -134,15 +127,17 @@ class RiskAssessmentRepository extends AbstractRepository
             $query->join('indicator_type', 'indicator_type.id', '=', "risk_assessment.$groupByField");
         }
 
-        $select = array_merge(
-            [DB::raw("$nameField AS name")],
-            array_map(
-                fn($level, $field) => DB::raw("SUM(CASE WHEN risk_assessment.risk_level = '$level' THEN 1 ELSE 0 END) AS $field"),
-                array_keys(self::RISK_LEVELS),
-                self::RISK_LEVELS
-            ),
-            [DB::raw('COUNT(risk_assessment.risk_level) AS total_geral')] // ✅ Conta apenas registros válidos
-        );
+        $select = [
+            DB::raw("$nameField AS name"),
+            DB::raw("SUM(CASE WHEN risk_assessment.risk_level = 'Baixo' THEN 1 ELSE 0 END) AS total_baixo"),
+            DB::raw("SUM(CASE WHEN risk_assessment.risk_level = 'Médio' THEN 1 ELSE 0 END) AS total_medio"),
+            DB::raw("SUM(CASE WHEN risk_assessment.risk_level = 'Alto' THEN 1 ELSE 0 END) AS total_alto"),
+            DB::raw("
+                SUM(CASE WHEN risk_assessment.risk_level = 'Baixo' THEN 1 ELSE 0 END) +
+                SUM(CASE WHEN risk_assessment.risk_level = 'Médio' THEN 1 ELSE 0 END) +
+                SUM(CASE WHEN risk_assessment.risk_level = 'Alto' THEN 1 ELSE 0 END) AS total_geral
+            ")
+        ];
 
         $groupBy = match (true) {
             $joinTable && $nameField === 'indicator_type.description', $groupByField === 'product_id' => ['indicator_type.description'],
@@ -156,21 +151,25 @@ class RiskAssessmentRepository extends AbstractRepository
     }
 
     /**
-     * Format results
+     * Format results e remove totais zerados
      */
     private function formatResults(Collection $data): array
     {
         if ($data->isEmpty()) {
-            return [self::DEFAULT_RESULT];
+            return [];
         }
 
-        return $data->map(fn($item) => [
-            'name' => $item->name ?? self::DEFAULT_RESULT['name'],
-            'total_baixo' => $item->total_baixo ?? 0,
-            'total_medio' => $item->total_medio ?? 0,
-            'total_alto' => $item->total_alto ?? 0,
-            'total_geral' => $item->total_geral ?? 0
-        ])->toArray();
+        return $data
+            ->map(fn($item) => [
+                'name' => $item->name ?? self::DEFAULT_RESULT['name'],
+                'total_baixo' => (int) ($item->total_baixo ?? 0),
+                'total_medio' => (int) ($item->total_medio ?? 0),
+                'total_alto' => (int) ($item->total_alto ?? 0),
+                'total_geral' => (int) ($item->total_geral ?? 0),
+            ])
+            ->filter(fn($item) => $item['total_geral'] > 0)
+            ->values()
+            ->toArray();
     }
 
     // =====================
