@@ -72,14 +72,17 @@ class RiskAssessmentRepository extends AbstractRepository
             }
 
             $select = array_merge(
-                [DB::raw("$nameField AS name")],
-                array_map(
-                    fn($level, $field) => DB::raw("SUM(CASE WHEN risk_assessment.risk_level = '$level' THEN 1 ELSE 0 END) AS $field"),
-                    array_keys(self::RISK_LEVELS),
-                    self::RISK_LEVELS
-                ),
-                [DB::raw('COUNT(risk_assessment.risk_level) AS total_geral')] // ✅ Conta apenas registros válidos
-            );
+    [DB::raw("$nameField AS name")],
+    array_map(
+        fn($level, $field) => DB::raw("SUM(CASE WHEN risk_assessment.risk_level = '$level' THEN 1 ELSE 0 END) AS $field"),
+        array_keys(self::RISK_LEVELS),
+        self::RISK_LEVELS
+    ),
+    // ✅ total_geral agora é a soma dos totais por nível
+    [DB::raw(
+        implode(' + ', self::RISK_LEVELS) . ' AS total_geral'
+    )]
+);
 
             $groupBy = match (true) {
                 $groupByField === 'product_id', $joinTable => ['indicator_type.description'],
