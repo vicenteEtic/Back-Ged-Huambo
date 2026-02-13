@@ -52,13 +52,9 @@ class RiskAssessmentRepository extends AbstractRepository
             ? [TypeEntity::COLECTIVA, TypeEntity::SINGULAR]
             : [null];
 
-        $results = [
-            'coletive' => [],
-            'individual' => []
-        ];
+        $finalResults = [];
 
         foreach ($entityTypes as $type) {
-
             $subQuery = $this->model
                 ->select(
                     'risk_assessment.id',
@@ -109,22 +105,19 @@ class RiskAssessmentRepository extends AbstractRepository
                 fn($item) => $item['total_geral'] > 0
             );
 
-            if ($type === TypeEntity::COLECTIVA) {
-                $results['colective'] = $filtered;
-            } elseif ($type === TypeEntity::SINGULAR) {
-                $results['particular'] = $filtered;
-            }
+            // Adiciona o tipo de entidade no registro
+            $typeName = $type === TypeEntity::COLECTIVA ? 'colective' : 'individual';
+            $filtered = array_map(fn($item) => array_merge($item, ['entity_type' => $typeName]), $filtered);
+
+            $finalResults = array_merge($finalResults, $filtered);
         }
 
         // Garantir que sempre há pelo menos um registro default
-        if (empty($results['colective'])) {
-            $results['colective'] = [self::DEFAULT_RESULT];
-        }
-        if (empty($results['particular'])) {
-            $results['particular'] = [self::DEFAULT_RESULT];
+        if (empty($finalResults)) {
+            $finalResults = [array_merge(self::DEFAULT_RESULT, ['entity_type' => 'colective'])];
         }
 
-        return $results;
+        return $finalResults;
     }
 
     // =====================
@@ -218,64 +211,5 @@ class RiskAssessmentRepository extends AbstractRepository
             $data,
             false
         );
-    }
-
-    // =====================
-    // OUTROS MÉTODOS EXISTENTES
-    // =====================
-    public function getDistinctYears(): array
-    {
-        return $this->model->select(DB::raw('YEAR(risk_assessment.created_at) as ano'))
-            ->distinct()
-            ->orderBy('ano', 'desc')
-            ->pluck('ano')
-            ->toArray();
-    }
-
-    public function getMonthlyData(int $year): array
-    {
-        return $this->model
-            ->select(
-                DB::raw('MONTH(risk_assessment.created_at) AS month'),
-                DB::raw('MONTHNAME(risk_assessment.created_at) AS monthName'),
-                DB::raw('risk_assessment.diligence AS name'),
-                DB::raw('COUNT(*) AS total'),
-                'diligence.color'
-            )
-            ->join('diligence', 'diligence.name', '=', 'risk_assessment.diligence')
-            ->whereYear('risk_assessment.created_at', $year)
-            ->groupBy('month', 'monthName', 'name', 'diligence.color', 'risk_assessment.diligence')
-            ->orderBy('month')
-            ->get()
-            ->toArray();
-    }
-
-    public function getTotalRiskAssessments(): int
-    {
-        return $this->model->count();
-    }
-
-    public function getLastAssessment(int $limit = 3): ?Collection
-    {
-        return $this->model
-            ->with(['entity', 'user', 'productRisk'])
-            ->orderBy('created_at', 'desc')
-            ->limit($limit)
-            ->get();
-    }
-
-    public function getByEntityId($entityId)
-    {
-        return $this->model
-            ->where('entity_id', $entityId)
-            ->orderBy('id', 'desc')
-            ->first();
-    }
-
-    public function findByIndicatorType(string $indicatorType, int $idIndicator)
-    {
-        return $this->model
-            ->where($indicatorType, $idIndicator)
-            ->get();
     }
 }
