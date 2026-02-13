@@ -39,23 +39,21 @@ class RiskAssessmentRepository extends AbstractRepository
             'coletive' => [],
             'individual' => []
         ];
+
         $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')
-            ->setTimezone('UTC')
-            ->startOfDay() // 00:00:00 do dia
+            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
             : null;
 
         $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')
-            ->setTimezone('UTC')
-            ->endOfDay() // 23:59:59 do dia
+            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
             : null;
 
         foreach (['coletive' => TypeEntity::COLECTIVA, 'individual' => TypeEntity::SINGULAR] as $key => $type) {
 
             $query = $this->model
                 ->join('entities', 'risk_assessment.entity_id', '=', 'entities.id')
-                ->where('entities.entity_type', $type);
+                ->where('entities.entity_type', $type)
+                ->whereNotNull('risk_assessment.risk_level'); // ✅ Ignora registros sem risk_level
 
             // Aplicar filtro de data
             if ($startDate && $endDate) {
@@ -80,7 +78,7 @@ class RiskAssessmentRepository extends AbstractRepository
                     array_keys(self::RISK_LEVELS),
                     self::RISK_LEVELS
                 ),
-                [DB::raw('COUNT(*) AS total_geral')]
+                [DB::raw('COUNT(risk_assessment.risk_level) AS total_geral')] // ✅ Conta apenas registros válidos
             );
 
             $groupBy = match (true) {
@@ -98,40 +96,20 @@ class RiskAssessmentRepository extends AbstractRepository
     /**
      * Summary sem considerar entity_type (ex: product risk geral)
      */
-    private function formatResults(Collection $data): array
-    {
-        if ($data->isEmpty()) {
-            // Retorna a estrutura padrão zerada
-            return [self::DEFAULT_RESULT];
-        }
-
-        return $data->map(fn($item) => [
-            'name' => $item->name ?? self::DEFAULT_RESULT['name'],
-            'total_baixo' => $item->total_baixo ?? 0,
-            'total_medio' => $item->total_medio ?? 0,
-            'total_alto' => $item->total_alto ?? 0,
-            'total_geral' => $item->total_geral ?? 0
-        ])->toArray();
-    }
-
     private function getRiskLevelSummaryWithOutEntityType(string $groupByField, ?string $joinTable, string $nameField, array $data = []): array
     {
         $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')
-            ->setTimezone('UTC')
-            ->startOfDay() // 00:00:00 do dia
+            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
             : null;
 
         $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')
-            ->setTimezone('UTC')
-            ->endOfDay() // 23:59:59 do dia
+            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
             : null;
 
+        $query = $this->model
+            ->join('entities', 'risk_assessment.entity_id', '=', 'entities.id')
+            ->whereNotNull('risk_assessment.risk_level'); // ✅ Ignora registros sem risk_level
 
-        $query = $this->model->join('entities', 'risk_assessment.entity_id', '=', 'entities.id');
-
-        // Filtro de data
         if ($startDate && $endDate) {
             $query->whereBetween('risk_assessment.created_at', [$startDate, $endDate]);
         } elseif ($startDate) {
@@ -154,7 +132,7 @@ class RiskAssessmentRepository extends AbstractRepository
                 array_keys(self::RISK_LEVELS),
                 self::RISK_LEVELS
             ),
-            [DB::raw('COUNT(*) AS total_geral')]
+            [DB::raw('COUNT(risk_assessment.risk_level) AS total_geral')] // ✅ Conta apenas registros válidos
         );
 
         $groupBy = match (true) {
@@ -165,10 +143,26 @@ class RiskAssessmentRepository extends AbstractRepository
 
         $dataResult = $query->select($select)->groupBy($groupBy)->get();
 
-        // Sempre retornar a mesma estrutura, mesmo se vazio
         return $this->formatResults($dataResult);
     }
 
+    /**
+     * Format results
+     */
+    private function formatResults(Collection $data): array
+    {
+        if ($data->isEmpty()) {
+            return [self::DEFAULT_RESULT];
+        }
+
+        return $data->map(fn($item) => [
+            'name' => $item->name ?? self::DEFAULT_RESULT['name'],
+            'total_baixo' => $item->total_baixo ?? 0,
+            'total_medio' => $item->total_medio ?? 0,
+            'total_alto' => $item->total_alto ?? 0,
+            'total_geral' => $item->total_geral ?? 0
+        ])->toArray();
+    }
 
     // =====================
     // MÉTODOS PÚBLICOS TOTAL RISK LEVEL
@@ -260,8 +254,8 @@ class RiskAssessmentRepository extends AbstractRepository
     {
         return $this->model
             ->where('entity_id', $entityId)
-            ->orderBy('id', 'desc') // garante que o último inserido venha primeiro
-            ->first(); // pega apenas o último elemento
+            ->orderBy('id', 'desc')
+            ->first();
     }
 
     public function findByIndicatorType(string $indicatorType, int $idIndicator)
