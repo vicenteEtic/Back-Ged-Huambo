@@ -167,7 +167,6 @@ class AlertRepository extends AbstractRepository
             'by_month' => $this->getTotalAlertsByMonth(),
         ];
     }
-
     /**
      * Contagem genérica por campo
      */
