@@ -91,7 +91,7 @@ class RiskAssessmentRepository extends AbstractRepository
 
             $subQuery->groupBy('risk_assessment.id', 'risk_assessment.risk_level', 'name');
 
-            // QUERY FINAL: estatística real
+            // QUERY FINAL: estatística real, desconsiderando risk_level NULL
             $query = DB::query()
                 ->fromSub($subQuery, 't')
                 ->select(
@@ -99,8 +99,10 @@ class RiskAssessmentRepository extends AbstractRepository
                     DB::raw("SUM(t.risk_level = 'Baixo') AS total_baixo"),
                     DB::raw("SUM(t.risk_level = 'Médio') AS total_medio"),
                     DB::raw("SUM(t.risk_level = 'Alto') AS total_alto"),
-                    DB::raw("COUNT(*) AS total_geral")
+                    // total_geral = soma dos níveis, ignorando NULL
+                    DB::raw("(SUM(t.risk_level = 'Baixo') + SUM(t.risk_level = 'Médio') + SUM(t.risk_level = 'Alto')) AS total_geral")
                 )
+                ->whereNotNull('t.risk_level') // ✅ ignora NULL
                 ->groupBy('name')
                 ->orderBy('name');
 
@@ -123,10 +125,10 @@ class RiskAssessmentRepository extends AbstractRepository
 
         return $data->map(fn($item) => [
             'name' => $item->name ?? self::DEFAULT_RESULT['name'],
-            'total_baixo' => $item->total_baixo ?? 0,
-            'total_medio' => $item->total_medio ?? 0,
-            'total_alto' => $item->total_alto ?? 0,
-            'total_geral' => $item->total_geral ?? 0
+            'total_baixo' => (int) ($item->total_baixo ?? 0),
+            'total_medio' => (int) ($item->total_medio ?? 0),
+            'total_alto' => (int) ($item->total_alto ?? 0),
+            'total_geral' => (int) ($item->total_geral ?? 0)
         ])->toArray();
     }
 
