@@ -58,7 +58,7 @@ class AlertController extends AbstractController
             }
             
             $commentAlert = $this->service->updateStatus($request->validated(), $id);
- $alert=["alert_user"=>   $statusOlder];
+ $alert=["is_read"=>   $statusOlder];
             $this->alertUserService->updateAlertUser( $alert,$id);
 
             $this->logToDatabase(
