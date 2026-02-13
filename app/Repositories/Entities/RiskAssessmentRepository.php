@@ -35,6 +35,7 @@ class RiskAssessmentRepository extends AbstractRepository
     // =====================
     private function getRiskLevelSummaryFixed(
         string $groupByField,
+        ?string $joinTable,
         string $nameField,
         array $data = [],
         bool $filterByEntityType = true
@@ -51,7 +52,10 @@ class RiskAssessmentRepository extends AbstractRepository
             ? [TypeEntity::COLECTIVA, TypeEntity::SINGULAR]
             : [null];
 
-        $finalResults = [];
+        $results = [
+            'colective' => [],
+            'particular' => []
+        ];
 
         foreach ($entityTypes as $type) {
 
@@ -73,22 +77,18 @@ class RiskAssessmentRepository extends AbstractRepository
                 $subQuery->where('risk_assessment.created_at', '<=', $endDate);
             }
 
-            // JOIN para campos relacionados com indicator_type
-            $indicatorFields = ['category', 'profession', 'channel', 'nationality', 'country_residence', 'product_id'];
-
-            if (in_array($groupByField, $indicatorFields)) {
-                if ($groupByField === 'product_id') {
-                    $subQuery
-                        ->join('product_risk', 'product_risk.risk_assessment_id', '=', 'risk_assessment.id')
-                        ->join('indicator_type', 'indicator_type.id', '=', 'product_risk.product_id');
-                } else {
-                    $subQuery->join('indicator_type', 'indicator_type.id', '=', "risk_assessment.$groupByField");
-                }
+            // JOIN para relacionamentos que precisam do description
+            if ($groupByField === 'product_id') {
+                $subQuery
+                    ->join('product_risk', 'product_risk.risk_assessment_id', '=', 'risk_assessment.id')
+                    ->join('indicator_type', 'indicator_type.id', '=', 'product_risk.product_id');
+            } elseif ($joinTable) {
+                $subQuery->join($joinTable, "$joinTable.id", '=', "risk_assessment.$groupByField");
             }
 
             $subQuery->groupBy('risk_assessment.id', 'risk_assessment.risk_level', 'name');
 
-            // Query final agregada
+            // Query final
             $query = DB::query()
                 ->fromSub($subQuery, 't')
                 ->whereNotNull('t.risk_level')
@@ -109,10 +109,22 @@ class RiskAssessmentRepository extends AbstractRepository
                 fn($item) => $item['total_geral'] > 0
             );
 
-            $finalResults = array_merge($finalResults, $filtered);
+            if ($type === TypeEntity::COLECTIVA) {
+                $results['colective'] = $filtered;
+            } elseif ($type === TypeEntity::SINGULAR) {
+                $results['particular'] = $filtered;
+            }
         }
 
-        return !empty($finalResults) ? $finalResults : [self::DEFAULT_RESULT];
+        // Garantir que sempre há pelo menos um registro default
+        if (empty($results['colective'])) {
+            $results['colective'] = [self::DEFAULT_RESULT];
+        }
+        if (empty($results['particular'])) {
+            $results['particular'] = [self::DEFAULT_RESULT];
+        }
+
+        return $results;
     }
 
     // =====================
@@ -134,32 +146,54 @@ class RiskAssessmentRepository extends AbstractRepository
     }
 
     // =====================
-    // MÉTODOS PÚBLICOS AJUSTADOS
+    // MÉTODOS PÚBLICOS
     // =====================
     public function totalRiskLevelByCategory(array $data = []): array
     {
-        return $this->getRiskLevelSummaryFixed('category', 'indicator_type.description', $data);
+        return $this->getRiskLevelSummaryFixed(
+            'category',
+            'indicator_type',
+            'indicator_type.description',
+            $data
+        );
     }
 
     public function totalRiskLevelByProfession(array $data = []): array
     {
-        return $this->getRiskLevelSummaryFixed('profession', 'indicator_type.description', $data);
+        return $this->getRiskLevelSummaryFixed(
+            'profession',
+            'indicator_type',
+            'indicator_type.description',
+            $data
+        );
     }
 
     public function totalRiskLevelByChannel(array $data = []): array
     {
-        return $this->getRiskLevelSummaryFixed('channel', 'indicator_type.description', $data, false);
+        return $this->getRiskLevelSummaryFixed(
+            'channel',
+            'indicator_type',
+            'indicator_type.description',
+            $data,
+            false
+        );
     }
 
     public function totalRiskLevelByNationality(array $data = []): array
     {
-        return $this->getRiskLevelSummaryFixed('nationality', 'indicator_type.description', $data);
+        return $this->getRiskLevelSummaryFixed(
+            'nationality',
+            'indicator_type',
+            'indicator_type.description',
+            $data
+        );
     }
 
     public function totalRiskLevelByPep(array $data = []): array
     {
         return $this->getRiskLevelSummaryFixed(
             'pep',
+            null,
             '(CASE WHEN risk_assessment.pep = 1 THEN "SIM" ELSE "NÃO" END)',
             $data
         );
@@ -167,12 +201,23 @@ class RiskAssessmentRepository extends AbstractRepository
 
     public function totalRiskLevelByCountryResidence(array $data = []): array
     {
-        return $this->getRiskLevelSummaryFixed('country_residence', 'indicator_type.description', $data);
+        return $this->getRiskLevelSummaryFixed(
+            'country_residence',
+            'indicator_type',
+            'indicator_type.description',
+            $data
+        );
     }
 
     public function totalRiskLevelByProductRisk(array $data = []): array
     {
-        return $this->getRiskLevelSummaryFixed('product_id', 'indicator_type.description', $data, false);
+        return $this->getRiskLevelSummaryFixed(
+            'product_id',
+            null,
+            'indicator_type.description',
+            $data,
+            false
+        );
     }
 
     // =====================
