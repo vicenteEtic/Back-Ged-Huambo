@@ -33,7 +33,7 @@ class RiskAssessmentRepository extends AbstractRepository
     // =====================
     // MÉTODO CENTRAL DE ESTATÍSTICAS (corrigido)
     // =====================
-  private function getRiskLevelSummaryFixed(
+ private function getRiskLevelSummaryFixed(
     string $groupByField,
     ?string $joinTable,
     string $nameField,
@@ -48,7 +48,6 @@ class RiskAssessmentRepository extends AbstractRepository
         ? Carbon::parse($data['endDate'])->endOfDay()
         : null;
 
-    // Define os tipos de entidade ou geral
     $entityTypes = $filterByEntityType
         ? [TypeEntity::COLECTIVA, TypeEntity::SINGULAR]
         : [null];
@@ -56,19 +55,16 @@ class RiskAssessmentRepository extends AbstractRepository
     $finalResults = [];
 
     foreach ($entityTypes as $type) {
-
         $subQuery = $this->model
             ->select(
                 'risk_assessment.id',
                 'risk_assessment.risk_level',
                 DB::raw("$nameField AS name")
             )
+            ->when($type !== null, fn($q) => $q->where('entities.entity_type', $type))
             ->join('entities', 'entities.id', '=', 'risk_assessment.entity_id');
 
-        if ($type !== null) {
-            $subQuery->where('entities.entity_type', $type);
-        }
-
+        // Filtro de datas
         if ($startDate && $endDate) {
             $subQuery->whereBetween('risk_assessment.created_at', [$startDate, $endDate]);
         } elseif ($startDate) {
@@ -77,19 +73,19 @@ class RiskAssessmentRepository extends AbstractRepository
             $subQuery->where('risk_assessment.created_at', '<=', $endDate);
         }
 
-        // JOINs adicionais
+        // JOIN só para product_id ou category que dependem de tabela externa
         if ($groupByField === 'product_id') {
             $subQuery
                 ->join('product_risk', 'product_risk.risk_assessment_id', '=', 'risk_assessment.id')
                 ->join('indicator_type', 'indicator_type.id', '=', 'product_risk.product_id');
-        } elseif ($joinTable) {
+        } elseif ($joinTable && !in_array($groupByField, ['profession', 'channel', 'nationality', 'country_residence', 'pep'])) {
             $subQuery
-                ->join('indicator_type', 'indicator_type.id', '=', "risk_assessment.$groupByField");
+                ->join($joinTable, "$joinTable.id", '=', "risk_assessment.$groupByField");
         }
 
         $subQuery->groupBy('risk_assessment.id', 'risk_assessment.risk_level', 'name');
 
-        // QUERY FINAL: somando apenas risk_level não nulos
+        // Query final
         $query = DB::query()
             ->fromSub($subQuery, 't')
             ->whereNotNull('t.risk_level')
@@ -105,17 +101,15 @@ class RiskAssessmentRepository extends AbstractRepository
 
         $dataResult = $query->get();
 
-        // Formata resultados e filtra itens com total_geral = 0
+        // Filtra resultados com total > 0
         $filtered = array_filter(
             $this->formatResults($dataResult),
             fn($item) => $item['total_geral'] > 0
         );
 
-        // Unifica resultados de todos os tipos de entidade em um array único
         $finalResults = array_merge($finalResults, $filtered);
     }
 
-    // Se estiver vazio, retorna resultado padrão
     return !empty($finalResults) ? $finalResults : [self::DEFAULT_RESULT];
 }
 
