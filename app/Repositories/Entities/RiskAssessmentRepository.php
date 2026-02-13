@@ -33,7 +33,7 @@ class RiskAssessmentRepository extends AbstractRepository
     // =====================
     // MÉTODO CENTRAL DE ESTATÍSTICAS (corrigido)
     // =====================
-   private function getRiskLevelSummaryFixed(
+  private function getRiskLevelSummaryFixed(
     string $groupByField,
     ?string $joinTable,
     string $nameField,
@@ -48,15 +48,15 @@ class RiskAssessmentRepository extends AbstractRepository
         ? Carbon::parse($data['endDate'])->endOfDay()
         : null;
 
+    // Define os tipos de entidade ou geral
     $entityTypes = $filterByEntityType
         ? [TypeEntity::COLECTIVA, TypeEntity::SINGULAR]
         : [null];
 
-    $results = [];
+    $finalResults = [];
 
     foreach ($entityTypes as $type) {
 
-        // SUBQUERY: 1 linha = 1 risk_assessment
         $subQuery = $this->model
             ->select(
                 'risk_assessment.id',
@@ -69,7 +69,6 @@ class RiskAssessmentRepository extends AbstractRepository
             $subQuery->where('entities.entity_type', $type);
         }
 
-        // Filtro de datas
         if ($startDate && $endDate) {
             $subQuery->whereBetween('risk_assessment.created_at', [$startDate, $endDate]);
         } elseif ($startDate) {
@@ -90,10 +89,10 @@ class RiskAssessmentRepository extends AbstractRepository
 
         $subQuery->groupBy('risk_assessment.id', 'risk_assessment.risk_level', 'name');
 
-        // QUERY FINAL: estatística real, desconsiderando risk_level NULL
+        // QUERY FINAL: somando apenas risk_level não nulos
         $query = DB::query()
             ->fromSub($subQuery, 't')
-            ->whereNotNull('t.risk_level') // ignora NULL
+            ->whereNotNull('t.risk_level')
             ->select(
                 'name',
                 DB::raw("SUM(t.risk_level = 'Baixo') AS total_baixo"),
@@ -106,13 +105,18 @@ class RiskAssessmentRepository extends AbstractRepository
 
         $dataResult = $query->get();
 
-        // Formata e filtra itens com total_geral = 0
-        $filtered = array_filter($this->formatResults($dataResult), fn($item) => $item['total_geral'] > 0);
+        // Formata resultados e filtra itens com total_geral = 0
+        $filtered = array_filter(
+            $this->formatResults($dataResult),
+            fn($item) => $item['total_geral'] > 0
+        );
 
-        $results = array_merge($results, $filtered);
+        // Unifica resultados de todos os tipos de entidade em um array único
+        $finalResults = array_merge($finalResults, $filtered);
     }
 
-    return $results;
+    // Se estiver vazio, retorna resultado padrão
+    return !empty($finalResults) ? $finalResults : [self::DEFAULT_RESULT];
 }
 
 
