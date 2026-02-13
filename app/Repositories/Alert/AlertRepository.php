@@ -148,8 +148,8 @@ class AlertRepository extends AbstractRepository
             ]),
 
             'by_communication' => $this->countByField('is_reported', [
-                1 => 'reported',
-                0 => 'not_reported',
+                 1 => 'with_communication',
+                0 => 'without_communication',
             ]),
 
             'pep' => $this->model->where('type', 'PEP')->count(),
