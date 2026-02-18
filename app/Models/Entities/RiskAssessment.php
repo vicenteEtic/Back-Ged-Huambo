@@ -112,4 +112,10 @@ class RiskAssessment extends Model
         return $this->belongsTo(RiskFormula::class, 'id_risk_formula', 'id');
 
     }
+
+      public function beneficial()
+    {
+        return $this->hasMany(Beneficial::class, 'risk_assessment_id', 'id');
+    }
+
 }

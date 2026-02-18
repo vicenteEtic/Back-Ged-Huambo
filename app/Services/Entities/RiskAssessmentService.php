@@ -53,7 +53,8 @@ class RiskAssessmentService extends AbstractService
         'beneficialOwners',
         'productRisk',
         'productRisk.product',
-        "riskFormula"
+        "riskFormula",
+        'beneficial'
     ];
     public function __construct(
         RiskAssessmentRepository $repository,
@@ -188,24 +189,10 @@ class RiskAssessmentService extends AbstractService
         return $riskAssessment;
     }
 
-    private function loadRelations($riskAssessment): void
-    {
-        $riskAssessment->load([
-            "riskFormula",
-            'entity',
-            'user',
-            'profession',
-            'indetificationCapacity',
-            'channel',
-            'countryResidence',
-            // 'category',
-            'nationlity',
-            'beneficialOwners',
-            'productRisk',
-            'productRisk.product'
-
-        ]);
-    }
+   private function loadRelations($riskAssessment): void
+{
+    $riskAssessment->load($this->relationships);
+}
     private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $beneficialOwnerScore): float
     {
         // Safe helper: garante retorno do score ou 0
