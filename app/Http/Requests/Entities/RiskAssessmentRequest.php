@@ -49,9 +49,17 @@ class RiskAssessmentRequest extends BaseFormRequest
             'beneficial_owners.*.percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
             'beneficial_owners.*.is_legal_representative' => ['nullable', 'boolean'],
             'beneficial_owners.*.nationality' => ['nullable', 'string', 'max:255'],
-            
+
             'beneficial_owners.*.santion' => ['required', 'boolean'],
             'beneficial_owners.*.pep' => ['required', 'boolean'],
+
+            'beneficial.*.name' => ['nullable'],
+            'beneficial.*.nationality' => ['nullable'],
+            'beneficial.*.is_pep' => ['nullable','boolean'],
+            'beneficial.*.is_sanctioned' => ['nullable','boolean'],
+            'beneficial.*.processesReportedAuthoritie' =>['nullable','boolean'],
+            'beneficial.*.risk_assessment_id' => ['nullable'],
+
         ];
     }
 

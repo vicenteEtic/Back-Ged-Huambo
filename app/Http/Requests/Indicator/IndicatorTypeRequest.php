@@ -24,7 +24,8 @@ class IndicatorTypeRequest extends BaseFormRequest
         return [
             'description' => ['required', 'string', 'max:255'],
             'score' => ['required', 'integer'],
-            'risk' => ['required', 'string', 'max:255']
+            'risk' => ['required', 'string', 'max:255'],
+            'has_beneficial'=> ['nullable', 'boolean'],
         ];
     }
 

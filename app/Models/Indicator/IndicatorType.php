@@ -16,6 +16,7 @@ class IndicatorType extends Model
         'score',
         'risk',
         'indicator_id',
+        'has_beneficial'
     ];
 
     public function indicator()

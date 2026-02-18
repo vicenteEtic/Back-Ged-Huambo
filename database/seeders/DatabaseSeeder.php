@@ -16,26 +16,26 @@ class DatabaseSeeder extends Seeder
     {
 
           $this->call(KytRulesSeeder::class);
-        //   User::factory(2)->create();
+           User::factory(2)->create();
 
-     //    $this->call(DiligenceSeeder::class);
-     //    $this->call(IndicatorSeeder::class);
-    //    $this->call(IdentificationCapacitySeeder::class);
-     //   $this->call(ResidenceSeed::class);
-//$this->call(EstablishmentSeed::class);
-     //    $this->call(LegalFormSeed::class);
-       //  $this->call(CAESeed::class);
-     //   $this->call(PEPSeed::class);
-      //   $this->call(InsuranceTypeSeed::class);
-       //  $this->call(CountriesSeed::class);
-       //  $this->call(CountriesSeed::class);
-       //  $this->call(TypeActivitySeed::class);
-       //   $this->call(ProfissionPSeed::class);
+       $this->call(DiligenceSeeder::class);
+       $this->call(IndicatorSeeder::class);
+      $this->call(IdentificationCapacitySeeder::class);
+       $this->call(ResidenceSeed::class);
+$this->call(EstablishmentSeed::class);
+        $this->call(LegalFormSeed::class);
+        $this->call(CAESeed::class);
+      $this->call(PEPSeed::class);
+        $this->call(InsuranceTypeSeed::class);
+        $this->call(CountriesSeed::class);
+        $this->call(CountriesSeed::class);
+        $this->call(TypeActivitySeed::class);
+         $this->call(ProfissionPSeed::class);
       
-       // $this->call(ProfessionNossaSeguros::class);
-        // $this->call(ProductRiskSeeder::class);
-        //  $this->call(ChannelSeed::class);
-        // $this->call(PermissionSeed::class);
-        // $this->call(RiskFormulaSeed::class);
+       $this->call(ProfessionNossaSeguros::class);
+       $this->call(ProductRiskSeeder::class);
+       $this->call(ChannelSeed::class);
+         $this->call(PermissionSeed::class);
+         $this->call(RiskFormulaSeed::class);
     }
 }

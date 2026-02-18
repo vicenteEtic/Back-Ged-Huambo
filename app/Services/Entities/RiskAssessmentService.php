@@ -62,6 +62,7 @@ class RiskAssessmentService extends AbstractService
         private readonly ProductRiskService $productRiskService,
         private readonly BeneficialOwnerService $beneficialOwnerService,
         private readonly PepService $pepService,
+         private readonly BeneficialService $beneficialService,
         RiskFormulaRepository $riskFormulaRepository,
        
         private AlertRepository $alertRepository // ← agora injetado corretamente
@@ -97,6 +98,9 @@ class RiskAssessmentService extends AbstractService
 
         if (isset($data['beneficial_owners'])) {
             $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id);
+        }
+          if (isset($data['beneficial'])) {
+            $this->beneficialService->createBeneficial($data, $riskAssessment->id);
         }
 
         if (!empty($data['pep']) && $data['pep'] === true) {

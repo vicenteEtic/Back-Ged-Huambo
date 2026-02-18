@@ -16,14 +16,10 @@ class BeneficialOwnerService extends AbstractService
     {
         foreach ($data['beneficial_owners'] as $owner) {
             $owner['risk_assessment_id'] = $riskAssessmentId;
-
             $this->storeOrUpdate($owner, $owner);
-
-        
             if ($owner['pep']) {
                 $pepData = [
                     "name" => $owner['name'] ?? null,
-                 
                 ];
     
                 $this->pepService->storeOrUpdate($pepData, $pepData);

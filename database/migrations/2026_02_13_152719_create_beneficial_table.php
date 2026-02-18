@@ -14,7 +14,20 @@ return new class extends Migration
         Schema::create('beneficial', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+
+             $table->unsignedBigInteger('risk_assessment_id');
             $table->string('nationality')->nullable();
+                $table->boolean('is_pep')->nullable()
+                ->comment('Indica se a entidade é Politically Exposed Person');
+
+            $table->boolean('is_sanctioned')->nullable()
+                ->comment('Indica se a entidade consta em listas de sanções');
+
+
+            $table->boolean('processesReportedAuthoritie')->nullable()
+                ->comment('Indica se a entidade processesReportedAuthoritie');
+
+
             $table->timestamps();
         });
     }
