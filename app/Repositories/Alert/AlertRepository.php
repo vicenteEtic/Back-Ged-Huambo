@@ -170,17 +170,18 @@ class AlertRepository extends AbstractRepository
     /**
      * Contagem genérica por campo
      */
-    private function countByField(string $field, array $map): array
-    {
-        $counts = $this->model
-            ->select($field, DB::raw('COUNT(*) as total'))
-            ->groupBy($field)
-            ->pluck('total', $field);
+  private function countByField(string $field, array $map): array
+{
+    $counts = $this->model
+        ->select($field, DB::raw('COUNT(*) as total'))
+        ->groupBy($field)
+        ->pluck('total', $field);
 
-        return collect($map)->mapWithKeys(
-            fn($label, $value) => [$label => $counts[$value] ?? 0]
-        )->toArray();
-    }
+    return collect($map)->mapWithKeys(
+        fn ($value, $label) => [$label => $counts[$value] ?? 0]
+    )->toArray();
+}
+
 
 
 
