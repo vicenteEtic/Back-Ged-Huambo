@@ -459,4 +459,7 @@ class RiskAssessmentService extends AbstractService
         // Chama o método store existente para criar a nova avaliação
         return $this->store($data);
     }
+
+
+
 }
