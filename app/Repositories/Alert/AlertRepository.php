@@ -178,7 +178,7 @@ class AlertRepository extends AbstractRepository
         ->pluck('total', $field);
 
     return collect($map)->mapWithKeys(
-        fn ($value, $label) => [$label => $counts[$value] ?? 0]
+        fn ($label, $value) => [$label => $counts[$value] ?? 0]
     )->toArray();
 }
 
