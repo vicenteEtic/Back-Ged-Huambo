@@ -100,9 +100,9 @@ class RiskAssessmentService extends AbstractService
         if (isset($data['beneficial_owners'])) {
             $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id);
         }
-          if (isset($data['beneficial'])) {
-            $this->beneficialService->createBeneficial($data, $riskAssessment->id);
-        }
+         // if (isset($data['beneficial'])) {
+           // $this->beneficialService->createBeneficial($data, $riskAssessment->id);
+        //}
 
         if (!empty($data['pep']) && $data['pep'] === true) {
             $this->pepService->createEntityPep($data['entity_id']);
