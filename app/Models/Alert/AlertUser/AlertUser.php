@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AlertUser extends Model
 {
-    use HasFactory , SoftDeletes;
+    use HasFactory, SoftDeletes;
     protected $table = 'alert_user';
     protected $primaryKey = 'id';
     protected $fillable = ['alert_id', 'user_id', 'is_read'];
@@ -31,15 +31,14 @@ class AlertUser extends Model
             ->withPivot('is_read', 'created_at');
     }
     public function alerts()
-{
-    return $this->belongsToMany(\App\Models\Alert\Alert::class, 'alert_user', 'user_id', 'alert_id')
-        ->withTimestamps()
-        ->withPivot('is_read', 'created_at');
-}
+    {
+        return $this->belongsToMany(\App\Models\Alert\Alert::class, 'alert_user', 'user_id', 'alert_id')
+            ->withTimestamps()
+            ->withPivot('is_read', 'created_at');
+    }
 
- public function entity()
+    public function entity()
     {
         return $this->belongsTo(Entities::class, 'entity_id');
     }
-
 }
