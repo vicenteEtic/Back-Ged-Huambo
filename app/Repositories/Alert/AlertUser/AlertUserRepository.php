@@ -30,29 +30,33 @@ class AlertUserRepository extends AbstractRepository
 
     public function countActiveAlertsByUser($userId)
     {
-              return $this->model
-        ->where('user_id', $userId)
-        ->where('is_active', 1)
-        ->count();
+        return $this->model
+            ->where('user_id', $userId)
+            ->whereHas('alert', function ($q) {
+                $q->where('is_active', 1);
+            })
+            ->count();
     }
 
     public function countInactiveAlertsByUser($userId)
     {
-       
-
-              return $this->model
-        ->where('user_id', $userId)
-        ->where('is_active', 0)
-        ->count();
+        return $this->model
+            ->where('user_id', $userId)
+            ->whereHas('alert', function ($q) {
+                $q->where('is_active', 0);
+            })
+            ->count();
     }
 
 
     public function countAlertsByUserAndStatus(int $userId, int $status): int
     {
-         return $this->model
-        ->where('user_id', $userId)
-        ->where('is_active', $status)
-        ->count();
+        return $this->model
+            ->where('user_id', $userId)
+            ->whereHas('alert', function ($q) use ($status) {
+                $q->where('is_active', $status);
+            })
+            ->count();
     }
 
     public function countNewAlertsByUser($userId)
@@ -75,16 +79,16 @@ class AlertUserRepository extends AbstractRepository
         return $this->countAlertsByUserAndStatus($userId, self::STATUS_CLOSED);
     }
 
-    public function countAlertsByUserGrouped(int $userId): array
-    {
-        return [
-            'total_active' => $this->countActiveAlertsByUser($userId),
-            'closed'       => $this->countInactiveAlertsByUser($userId),
-            'new'          => $this->countNewAlertsByUser($userId),
-            'validation'   => $this->countValidationAlertsByUser($userId),
-            'supervision'  => $this->countSupervisionAlertsByUser($userId),
-        ];
-    }
+public function countAlertsByUserGrouped(int $userId): array
+{
+    return [
+        'total_active' => $this->countActiveAlertsByUser($userId),
+        'closed'       => $this->countInactiveAlertsByUser($userId),
+        'new'          => $this->countNewAlertsByUser($userId),
+        'validation'   => $this->countValidationAlertsByUser($userId),
+        'supervision'  => $this->countSupervisionAlertsByUser($userId),
+    ];
+}
 
 
     public function getUsersWithAlerts()
@@ -180,9 +184,9 @@ class AlertUserRepository extends AbstractRepository
         return $data;
     }
 
-    public function updateAlertUser(array $data, int $id)
+      public function updateAlertUser(array $data, int $id)
     {
-        $affected = $this->model::where('alert_id', $id)->update($data);
+    $affected = $this->model::where('alert_id', $id)->update($data);
 
         return $affected;
     }
