@@ -6,6 +6,7 @@ use App\Models\Alert\AlertUser\AlertUser;
 use App\Repositories\AbstractRepository;
 use App\Services\Log\LogService;
 use App\Services\User\UserService;
+use Illuminate\Container\Attributes\Auth;
 use Illuminate\Http\JsonResponse;
 
 
@@ -28,67 +29,29 @@ class AlertUserRepository extends AbstractRepository
         parent::__construct($model);
     }
 
-    public function countActiveAlertsByUser($userId)
+   
+
+    public function countAlertUser(int $userId, int $status): int
     {
-        return $this->model
-            ->where('user_id', $userId)
-            ->whereHas('alert', function ($q) {
-                $q->where('is_active', 1);
-            })
-            ->count();
+         return $this->model
+        ->where('user_id', $userId)
+        ->where('is_read', $status)
+        ->count();
     }
 
-    public function countInactiveAlertsByUser($userId)
+  
+    public function countAlertsByUserGrouped(int $userId): array
     {
-        return $this->model
-            ->where('user_id', $userId)
-            ->whereHas('alert', function ($q) {
-                $q->where('is_active', 0);
-            })
-            ->count();
+
+       
+        return [
+            'total_active' => $this->countAlertUser($userId,self::STATUS_NEW),
+            'closed'       =>  $this->countAlertUser($userId,self::STATUS_CLOSED),
+            'new'          =>  $this->countAlertUser($userId,self::STATUS_NEW),
+            'validation'   =>  $this->countAlertUser($userId,self::STATUS_VALIDATION),
+            'supervision'  =>  $this->countAlertUser($userId,self::STATUS_SUPERVISION),
+        ];
     }
-
-
-    public function countAlertsByUserAndStatus(int $userId, int $status): int
-    {
-        return $this->model
-            ->where('user_id', $userId)
-            ->whereHas('alert', function ($q) use ($status) {
-                $q->where('is_active', $status);
-            })
-            ->count();
-    }
-
-    public function countNewAlertsByUser($userId)
-    {
-        return $this->countAlertsByUserAndStatus($userId, self::STATUS_NEW);
-    }
-
-    public function countValidationAlertsByUser($userId)
-    {
-        return $this->countAlertsByUserAndStatus($userId, self::STATUS_VALIDATION);
-    }
-
-    public function countSupervisionAlertsByUser($userId)
-    {
-        return $this->countAlertsByUserAndStatus($userId, self::STATUS_SUPERVISION);
-    }
-
-    public function countClosedAlertsByUser($userId)
-    {
-        return $this->countAlertsByUserAndStatus($userId, self::STATUS_CLOSED);
-    }
-
-public function countAlertsByUserGrouped(int $userId): array
-{
-    return [
-        'total_active' => $this->countActiveAlertsByUser($userId),
-        'closed'       => $this->countInactiveAlertsByUser($userId),
-        'new'          => $this->countNewAlertsByUser($userId),
-        'validation'   => $this->countValidationAlertsByUser($userId),
-        'supervision'  => $this->countSupervisionAlertsByUser($userId),
-    ];
-}
 
 
     public function getUsersWithAlerts()
@@ -171,22 +134,31 @@ public function countAlertsByUserGrouped(int $userId): array
 
     public function getActiveAlertsForAuthenticatedUser()
     {
-        $alerts = $this->model
-            ->where('user_id', auth()->id())
-            ->whereHas('alert', fn($q) => $q->where('is_active', 1))
-            ->with('alert:id,name,is_active,level')
-            ->get(['id', 'alert_id', 'is_read']);
 
-        $data = [
-            'total'  => $alerts->count(),
-            'alerts' => $alerts,
+        $userId = Auth::id();
+
+    if (!$userId) {
+        return [
+            'total' => 0,
+            'alerts' => []
         ];
-        return $data;
     }
 
-      public function updateAlertUser(array $data, int $id)
+    $alerts = $this->model
+        ->where('user_id', $userId)
+        ->where('is_read', 1)
+        ->with('alert:id,name,level')
+        ->get(['id', 'alert_id', 'is_read']);
+
+    return [
+        'total'  => $alerts->count(),
+        'alerts' => $alerts,
+    ];
+    }
+
+    public function updateAlertUser(array $data, int $id)
     {
-    $affected = $this->model::where('alert_id', $id)->update($data);
+        $affected = $this->model::where('alert_id', $id)->update($data);
 
         return $affected;
     }

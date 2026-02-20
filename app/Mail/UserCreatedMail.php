@@ -24,7 +24,7 @@ class UserCreatedMail extends Mailable
         return $this
             ->from('SV001064@nossaseguros.ao', 'Nossa Seguros')
             ->subject('Seu código de autenticação')
-            ->view('emails.two_factor_code');
+            ->view('emails.user_created');
     }
     
     
