@@ -6,9 +6,9 @@ use App\Models\Alert\AlertUser\AlertUser;
 use App\Repositories\AbstractRepository;
 use App\Services\Log\LogService;
 use App\Services\User\UserService;
-
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
+
+
 
 class AlertUserRepository extends AbstractRepository
 {
@@ -133,28 +133,17 @@ class AlertUserRepository extends AbstractRepository
 
     public function getActiveAlertsForAuthenticatedUser()
     {
+        $alerts = $this->model
+            ->where('user_id', auth()->id())
+            ->whereHas('alert', fn($q) => $q->where('is_read', 1))
+            ->with('alert:id,name,is_read,level')
+            ->get(['id', 'alert_id', 'is_read']);
 
-        $userId = 
-        Auth::user()->id;
-        
-
-    if (!$userId) {
-        return [
-            'total' => 0,
-            'alerts' => []
+        $data = [
+            'total'  => $alerts->count(),
+            'alerts' => $alerts,
         ];
-    }
-
-    $alerts = $this->model
-        ->where('user_id', $userId)
-        ->where('is_read', 1)
-        ->with('alert:id,name,level')
-        ->get(['id', 'alert_id', 'is_read']);
-
-    return [
-        'total'  => $alerts->count(),
-        'alerts' => $alerts,
-    ];
+        return $data;
     }
 
     public function updateAlertUser(array $data, int $id)
