@@ -6,10 +6,9 @@ use App\Models\Alert\AlertUser\AlertUser;
 use App\Repositories\AbstractRepository;
 use App\Services\Log\LogService;
 use App\Services\User\UserService;
-use Illuminate\Container\Attributes\Auth;
+
 use Illuminate\Http\JsonResponse;
-
-
+use Illuminate\Support\Facades\Auth;
 
 class AlertUserRepository extends AbstractRepository
 {
