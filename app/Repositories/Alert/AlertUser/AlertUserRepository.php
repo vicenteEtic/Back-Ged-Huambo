@@ -135,7 +135,9 @@ class AlertUserRepository extends AbstractRepository
     public function getActiveAlertsForAuthenticatedUser()
     {
 
-        $userId = Auth::id();
+        $userId = 
+        Auth::user()->id;
+        
 
     if (!$userId) {
         return [
