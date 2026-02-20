@@ -105,6 +105,52 @@ class AlertRepository extends AbstractRepository
         ];
     }
 
+
+    public function particularEntityTransation(): array
+    {
+        $alertasPorNivel = DB::table('alert')
+            ->join('entities', 'alert.entity_id', '=', 'entities.id')
+            ->where('entities.entity_type', 2)
+            ->where('category', 'KYT')
+            ->select('alert.level', DB::raw('COUNT(alert.id) as total'))
+            ->groupBy('alert.level')
+            ->get();
+
+        $totalAlertas = DB::table('alert')
+            ->join('entities', 'alert.entity_id', '=', 'entities.id')
+            ->where('category', 'KYT')
+            ->where('entities.entity_type', 2)
+            ->count();
+
+        return [
+            'total' => $totalAlertas,
+            'byLevel' => $alertasPorNivel->toArray(),
+        ];
+    }
+
+    public function coletiveEntitytTrsantion(): array
+    {
+        $alertasPorNivel = DB::table('alert')
+            ->join('entities', 'alert.entity_id', '=', 'entities.id')
+            ->where('entities.entity_type', 1)
+            ->where('category', 'KYT')
+            ->select('alert.level', DB::raw('COUNT(alert.id) as total'))
+            ->groupBy('alert.level')
+            ->get();
+
+        $totalAlertas = DB::table('alert')
+            ->join('entities', 'alert.entity_id', '=', 'entities.id')
+            ->where('category', 'KYT')
+            ->where('entities.entity_type', 1)
+            ->count();
+
+        return [
+            'total' => $totalAlertas,
+            'byLevel' => $alertasPorNivel->toArray(),
+        ];
+    }
+
+
     public function coletiveEntity(): array
     {
         $alertasPorNivel = DB::table('alert')
@@ -132,7 +178,21 @@ class AlertRepository extends AbstractRepository
     {
         return [
             'total' => $this->model->count(),
+            'transation' => [
 
+                "particularEntity" => $this->particularEntityTransation(),
+                "coletiveEntit" => $this->coletiveEntitytTrsantion(),
+                'by_type' => $this->countByField('type', [
+                    "Detetada substituição rápida de apólice" => 'new',            // Quick policy replacement detected
+                    "Resgate antecipado detectado" => 'validation',                // Early redemption detected
+                    "Detetado prémio elevado com nível de risco baixo" => 'supervision', // High premium with low risk level detected
+                    "Substituição ou cancelamento repetido" => 'closed',           // Repeated replacement or cancellation
+                    "Churn de apólice" => 'closed',                                // Policy churn
+
+                ]),
+
+
+            ],
             'ParticularEntity' => $this->ParticularEntity(),
             'coletiveEntity' => $this->coletiveEntity(),
             'by_status' => $this->countByField('is_active', [
@@ -148,13 +208,13 @@ class AlertRepository extends AbstractRepository
             ]),
 
             'by_communication' => $this->countByField('is_reported', [
-                 1 => 'with_communication',
+                1 => 'with_communication',
                 0 => 'without_communication',
             ]),
 
             'pep' => $this->model->where('type', 'PEP')->count(),
             'sanction' => $this->model->where('type', 'SANCTIONS')->count(),
-            'AML' => $this->model->where('type','AML')->count(),
+            'AML' => $this->model->where('type', 'AML')->count(),
 
             'by_type' => $this->countByCategory(),
             'by_level' => $this->countByLevel('level', [
@@ -163,6 +223,8 @@ class AlertRepository extends AbstractRepository
                 "Baixo" => 'Baixo',
 
             ]),
+
+
             'users' => $this->getAllUsersAlertSummary(),
             'by_month' => $this->getTotalAlertsByMonth(),
         ];
@@ -170,17 +232,17 @@ class AlertRepository extends AbstractRepository
     /**
      * Contagem genérica por campo
      */
-  private function countByField(string $field, array $map): array
-{
-    $counts = $this->model
-        ->select($field, DB::raw('COUNT(*) as total'))
-        ->groupBy($field)
-        ->pluck('total', $field);
+    private function countByField(string $field, array $map): array
+    {
+        $counts = $this->model
+            ->select($field, DB::raw('COUNT(*) as total'))
+            ->groupBy($field)
+            ->pluck('total', $field);
 
-    return collect($map)->mapWithKeys(
-        fn ($label, $value) => [$label => $counts[$value] ?? 0]
-    )->toArray();
-}
+        return collect($map)->mapWithKeys(
+            fn($label, $value) => [$label => $counts[$value] ?? 0]
+        )->toArray();
+    }
 
 
 

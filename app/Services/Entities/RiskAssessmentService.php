@@ -12,6 +12,7 @@ use App\Services\Indicator\IndicatorTypeService;
 use InvalidArgumentException;
 use App\Jobs\GenerateAlertsJob;
 use App\Jobs\SendGrupoAlertEmailJob;
+use App\Models\Entities\RiskAssessment;
 use App\Repositories\Alert\AlertRepository;
 use App\Services\AbstractService;
 use App\Services\Alert\AlertService;
@@ -89,6 +90,15 @@ class RiskAssessmentService extends AbstractService
         $assessment = $this->repository->show($id, $relationships);
         return new RiskAssessmentResource($assessment);
     }
+
+
+public function findModelWithProducts(int $id): RiskAssessment
+{
+    return RiskAssessment::with([
+        'productRisk',
+        'productRisk.product',
+    ])->findOrFail($id);
+}
 
     public function store(array $data)
     {
