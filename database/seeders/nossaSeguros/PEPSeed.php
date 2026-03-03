@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\nossaSeguros;
 
 use App\Models\Indicator\IndicatorType as IndicatorIndicatorType;
 use App\Models\IndicatorType;
@@ -10,12 +10,12 @@ class PEPSeed extends Seeder
 {
     public function run()
     {
-           /**IndicatorType */
-           $IndicatorType = [
+        /**IndicatorType */
+        $IndicatorType = [
 
-                 /**A entidade é considerada PPE ? */
-                 ['description' => 'Sim PEP', 'risk' => 'Muito Elevado', 'score' => 3, 'indicator_id' => 6],
-                 ['description' => 'Não PEP', 'risk' => 'Baixo', 'score' => 0, 'indicator_id' => 6],
+            /**A entidade é considerada PPE ? */
+            ['description' => 'Sim PEP', 'risk' => 'Muito Elevado', 'score' => 3, 'indicator_id' => 6],
+            ['description' => 'Não PEP', 'risk' => 'Baixo', 'score' => 0, 'indicator_id' => 6],
 
 
         ];
@@ -26,6 +26,5 @@ class PEPSeed extends Seeder
                 IndicatorIndicatorType::create($value);
             }
         }
-
     }
 }

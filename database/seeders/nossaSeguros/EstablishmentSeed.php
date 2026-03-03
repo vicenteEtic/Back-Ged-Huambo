@@ -1,9 +1,9 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\nossaSeguros;
 
 use App\Models\Indicator\IndicatorType as IndicatorIndicatorType;
-use App\Models\IndicatorType;
+
 use Illuminate\Database\Seeder;
 
 class EstablishmentSeed extends Seeder

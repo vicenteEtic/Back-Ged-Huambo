@@ -162,6 +162,12 @@ abstract class AbstractRepository
     {
         return $this->model->updateOrCreate($attributes, $values);
     }
+     public function firstOrCreate(array $attributes, array $values = [])
+    {
+        return $this->model->firstOrCreate($attributes, $values);
+    }
+
+    
 
     /**
      * Display the specified resource.

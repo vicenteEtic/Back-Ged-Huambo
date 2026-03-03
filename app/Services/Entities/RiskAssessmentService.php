@@ -64,15 +64,15 @@ class RiskAssessmentService extends AbstractService
         private readonly ProductRiskService $productRiskService,
         private readonly BeneficialOwnerService $beneficialOwnerService,
         private readonly PepService $pepService,
-         private readonly BeneficialService $beneficialService,
+        private readonly BeneficialService $beneficialService,
         RiskFormulaRepository $riskFormulaRepository,
-       
+
         private AlertRepository $alertRepository // ← agora injetado corretamente
     ) {
         parent::__construct($repository);
         $this->riskFormulaRepository = $riskFormulaRepository;
         $this->alertRepository = $alertRepository; // ← garantir atribuição
-  
+
     }
 
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
@@ -92,13 +92,13 @@ class RiskAssessmentService extends AbstractService
     }
 
 
-public function findModelWithProducts(int $id): RiskAssessment
-{
-    return RiskAssessment::with([
-        'productRisk',
-        'productRisk.product',
-    ])->findOrFail($id);
-}
+    public function findModelWithProducts(int $id): RiskAssessment
+    {
+        return RiskAssessment::with([
+            'productRisk',
+            'productRisk.product',
+        ])->findOrFail($id);
+    }
 
     public function store(array $data)
     {
@@ -110,7 +110,7 @@ public function findModelWithProducts(int $id): RiskAssessment
         if (isset($data['beneficial_owners'])) {
             $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id);
         }
-         if (isset($data['beneficial'])) {
+        if (isset($data['beneficial'])) {
             $this->beneficialService->createBeneficial($data, $riskAssessment->id);
         }
 
@@ -138,26 +138,26 @@ public function findModelWithProducts(int $id): RiskAssessment
         $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $data['beneficialOwner']);
 
         $diligence = $this->diligenceService->getDilligenceAssessment($total);
-     
-    
+
+
         $reassessmentPeriod = $diligence?->reassessmentPeriod;
 
         // Extrai o número do texto (1, 2, etc.)
         $years = (int) filter_var($reassessmentPeriod, FILTER_SANITIZE_NUMBER_INT);
-        
+
         // Cria a data de reavaliação
         $nextReassessmentDate = Carbon::now()->addYears($years);
-        
 
-        if($diligence->name != "Cliente Inaceitável"){
+
+        if ($diligence->name != "Cliente Inaceitável") {
             $nextReassessmentDate = Carbon::now()->addYears($years);
             $nextReassessmentDateFormatted = $nextReassessmentDate->format('Y-m-d');
         } else {
-           
+
             $nextReassessmentDateFormatted = null;
         }
-     
-           $this->updateEntityRisk($riskAssessment, $total, $diligence, $nextReassessmentDateFormatted);
+
+        $this->updateEntityRisk($riskAssessment, $total, $diligence, $nextReassessmentDateFormatted);
         $riskAssessment->score = $total;
         $riskAssessment->color = $diligence->color;
         $riskAssessment->risk_level = $diligence->risk;
@@ -168,7 +168,14 @@ public function findModelWithProducts(int $id): RiskAssessment
         $riskAssessment->save();
 
         if ($diligence->name == "Cliente Inaceitável" || $diligence->name == "Reforçada") {
-            $alert =    $this->alertRepository->store(
+   $datevalidate = [
+    'from_id' => "AV#" . $riskAssessment->id,
+    'type' => "AML",
+    'category' => "KYC",
+];
+           
+            $alert =    $this->alertRepository->firstOrCreate(
+                   $datevalidate,
                 [
                     'name' => $riskAssessment->entity->social_denomination,
                     'country' => $riskAssessment->nationlity->description,
@@ -179,10 +186,10 @@ public function findModelWithProducts(int $id): RiskAssessment
                     'entity_id' => $riskAssessment->entity->id,
                     'score' => $riskAssessment->score,
                     'type' => "AML",
-                     'category'=> "KYC",
+                    'category' => "KYC",
                     'list' => "AML",
                     'is_active' => true,
-                    "description"=>"Avaliação de risco resultou em nível de risco {$diligence->risk} e diligência {$diligence->name}. Reavaliação necessária em {$nextReassessmentDateFormatted}.",
+                    "description" => "Avaliação de risco resultou em nível de risco {$diligence->risk} e diligência {$diligence->name}. Reavaliação necessária em {$nextReassessmentDateFormatted}.",
                 ]
             );
 
@@ -191,18 +198,18 @@ public function findModelWithProducts(int $id): RiskAssessment
         }
 
         // so dispara alerta se pep ou santion for true
-        if($data['pep'] == false || $data['santion'] == false){
+        if ($data['pep'] == false || $data['santion'] == false) {
             GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
-            ->onQueue('high');
-        } 
-    
+                ->onQueue('high');
+        }
+
         return $riskAssessment;
     }
 
-   private function loadRelations($riskAssessment): void
-{
-    $riskAssessment->load($this->relationships);
-}
+    private function loadRelations($riskAssessment): void
+    {
+        $riskAssessment->load($this->relationships);
+    }
     private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $beneficialOwnerScore): float
     {
         // Safe helper: garante retorno do score ou 0
@@ -269,15 +276,15 @@ public function findModelWithProducts(int $id): RiskAssessment
 
 
 
-    private function updateEntityRisk($riskAssessment, $total, $diligence,$reassessmentPeriod): void
+    private function updateEntityRisk($riskAssessment, $total, $diligence, $reassessmentPeriod): void
     {
         $entity = $riskAssessment?->entity();
-        
+
         $entity->update([
             'risk_level' => $diligence?->risk,
             'diligence' => $diligence?->name,
             'color' => $diligence?->color,
-           'reassessmentPeriod'=>$reassessmentPeriod,
+            'reassessmentPeriod' => $reassessmentPeriod,
             'last_evaluation' => now()
         ]);
     }
@@ -404,41 +411,41 @@ public function findModelWithProducts(int $id): RiskAssessment
         $pepCount = 0;
         $sanctionCount = 0;
         $nationalityScoreTotal = 0;
-    
+
         foreach ($data['beneficial_owners'] ?? [] as $owner) {
-    
+
             // PEP
             $pep = is_array($owner) ? ($owner['pep'] ?? false) : ($owner->pep ?? false);
-    
+
             // SANÇÃO
             $santion = is_array($owner) ? ($owner['santion'] ?? false) : ($owner->santion ?? false);
-    
+
             if ($pep) {
                 $pepCount++;
             }
-    
+
             if ($santion) {
                 $sanctionCount++;
             }
-    
+
             // NATIONALITY
             $nationality = is_array($owner) ? ($owner['nationality'] ?? null) : ($owner->nationality ?? null);
-    
+
             if (!empty($nationality)) {
                 $indicator = $this->indicatorTypeRepository->getByDescription($nationality);
                 $nationalityScoreTotal += $indicator?->score ?? 0;
             }
         }
-    
+
         $pepPoints = $pepCount * 3;
         $sanctionPoints = $sanctionCount * 20;
-    
+
         return $pepPoints + $sanctionPoints + $nationalityScoreTotal;
     }
-    
-    
-    
-    
+
+
+
+
 
     public function is_pep(array $data, $id)
     {
@@ -469,7 +476,4 @@ public function findModelWithProducts(int $id): RiskAssessment
         // Chama o método store existente para criar a nova avaliação
         return $this->store($data);
     }
-
-
-
 }

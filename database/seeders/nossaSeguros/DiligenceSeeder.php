@@ -1,7 +1,6 @@
 <?php
 
-namespace Database\Seeders;
-
+namespace Database\Seeders\nossaSeguros;
 use App\Models\Diligence;
 use App\Models\Diligence\Diligence as DiligenceDiligence;
 use Illuminate\Database\Seeder;
