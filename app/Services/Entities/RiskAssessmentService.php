@@ -168,14 +168,15 @@ class RiskAssessmentService extends AbstractService
         $riskAssessment->save();
 
         if ($diligence->name == "Cliente Inaceitável" || $diligence->name == "Reforçada") {
-   $datevalidate = [
-    'from_id' => "AV#" . $riskAssessment->id,
-    'type' => "AML",
-    'category' => "KYC",
-];
-           
+            $datevalidate = [
+                'from_id' => "AV#" . $riskAssessment->id,
+                'type' => "AML",
+                'category' => "KYC",
+                "description" => "Avaliação de risco resultou em nível de risco {$diligence->risk} e diligência {$diligence->name}",
+            ];
+
             $alert =    $this->alertRepository->firstOrCreate(
-                   $datevalidate,
+                $datevalidate,
                 [
                     'name' => $riskAssessment->entity->social_denomination,
                     'country' => $riskAssessment->nationlity->description,
@@ -189,7 +190,7 @@ class RiskAssessmentService extends AbstractService
                     'category' => "KYC",
                     'list' => "AML",
                     'is_active' => true,
-                    "description" => "Avaliação de risco resultou em nível de risco {$diligence->risk} e diligência {$diligence->name}. Reavaliação necessária em {$nextReassessmentDateFormatted}.",
+                    "description" => "Avaliação de risco resultou em nível de risco {$diligence->risk} e diligência {$diligence->name}",
                 ]
             );
 
