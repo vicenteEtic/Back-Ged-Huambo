@@ -203,11 +203,11 @@ class RiskAssessmentService extends AbstractService
 
         // só dispara se nenhum dos campos is_pep ou is_sanctioned estiver definido
         if (!array_key_exists('is_sanctioned', $data) && !array_key_exists('is_pep', $data)) {
-            // só dispara se pep ou sanction for true
-            if (!empty($data['pep']) || !empty($data['santion'])) {
-                GenerateAlertsJob::dispatch($riskAssessment->entity->id, $riskAssessment)
-                    ->onQueue('high');
-            }
+            // só dispara se pep ou sanction for false
+              if ($data['pep'] == false || $data['santion'] == false) {
+        GenerateAlertsJob::dispatch($riskAssessment->entity->id, $riskAssessment)
+            ->onQueue('high');
+    }
         }
 
 
