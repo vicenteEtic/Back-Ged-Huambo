@@ -169,7 +169,9 @@ class RiskAssessmentService extends AbstractService
 
         if ($diligence->name == "Cliente Inaceitável" || $diligence->name == "Reforçada") {
             $datevalidate = [
-                'from_id' => "AV#" . $riskAssessment->id,
+            'name' => $riskAssessment->entity->social_denomination,
+            'country' => $riskAssessment->nationlity->description,
+             'entity_id' => $riskAssessment->entity->id,
                 'type' => "AML",
                 'category' => "KYC",
                 "description" => "Avaliação de risco resultou em nível de risco {$diligence->risk} e diligência {$diligence->name}",
