@@ -279,7 +279,12 @@ class AlertRepository extends AbstractRepository
     {
         $alert = $this->model->findOrFail($id);
         $alert->update($data);
+        $datalert = [
+            "is_read" => $data['is_active']
+        ];
 
+
+        $this->alertUserRepository->updateAlertUser($datalert, $id);
         return $alert;
     }
 }
