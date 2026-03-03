@@ -83,7 +83,7 @@ class SendGrupoAlertEmailJob implements ShouldQueue
                     continue;
                 }
 
-                AlertUser::create([
+                AlertUser::firstOrCreate([
                     'alert_id' => $alert->id,
                     'user_id'  => $user->id,
                 ]);

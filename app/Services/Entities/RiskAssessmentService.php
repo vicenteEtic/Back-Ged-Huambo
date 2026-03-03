@@ -200,11 +200,16 @@ class RiskAssessmentService extends AbstractService
             SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         }
 
-        // so dispara alerta se pep ou santion for true
-        if ($data['pep'] == false || $data['santion'] == false) {
-            GenerateAlertsJob::dispatch($riskAssessment->entity->id,  $riskAssessment)
-                ->onQueue('high');
+
+        // só dispara se nenhum dos campos is_pep ou is_sanctioned estiver definido
+        if (!array_key_exists('is_sanctioned', $data) && !array_key_exists('is_pep', $data)) {
+            // só dispara se pep ou sanction for true
+            if (!empty($data['pep']) || !empty($data['santion'])) {
+                GenerateAlertsJob::dispatch($riskAssessment->entity->id, $riskAssessment)
+                    ->onQueue('high');
+            }
         }
+
 
         return $riskAssessment;
     }
@@ -454,9 +459,7 @@ class RiskAssessmentService extends AbstractService
     {
         $alert = $this->alertRepository->show($id);
 
-
         $lastAssessment = $this->repository->getByEntityId($alert->entity_id);
-
 
         $products = $this->productRiskService->showProduct($lastAssessment->id);
 
@@ -468,10 +471,12 @@ class RiskAssessmentService extends AbstractService
 
         if (array_key_exists('is_pep', $data)) {
             $data['pep'] = (bool) $data['is_pep'];
+            $data['is_pep'] = (bool) $data['is_pep'];
         }
 
         if (array_key_exists('is_sanctioned', $data)) {
             $data['santion'] = (bool) $data['is_sanctioned'];
+            $data['is_sanctioned'] = (bool) $data['is_sanctioned'];
         }
 
         $data['entity_id'] = $alert->entity_id;

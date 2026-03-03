@@ -283,7 +283,6 @@ class AlertRepository extends AbstractRepository
             "is_read" => $data['is_active']
         ];
 
-
         $this->alertUserRepository->updateAlertUser($datalert, $id);
         return $alert;
     }

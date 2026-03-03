@@ -28,7 +28,6 @@ class AlertUserRepository extends AbstractRepository
         parent::__construct($model);
     }
 
-   
 
     public function countAlertUser(int $userId, int $status): int
     {
@@ -41,8 +40,6 @@ class AlertUserRepository extends AbstractRepository
   
     public function countAlertsByUserGrouped(int $userId): array
     {
-
-       
         return [
             'total_active' => $this->countAlertUser($userId,self::STATUS_NEW),
             'closed'       =>  $this->countAlertUser($userId,self::STATUS_CLOSED),
