@@ -23,12 +23,11 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
 
     private int $id_indicator;
     private int $user_id;
-    
+
 
     public function __construct(int $id_indicator)
     {
         $this->id_indicator = $id_indicator;
-    
     }
 
     public function handle(
@@ -69,16 +68,16 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
                 ]);
 
                 foreach ($assessments as $assessment) {
-          $this->processAssessment(
-    $assessment,
-    $indicatorType,
-    $productRiskService,
-    $beneficialOwnerRepository,
-    $riskAssessmentService,
-    $logService,
-    $indicatorTypeRepository,
-    $this->id_indicator
-);
+                    $this->processAssessment(
+                        $assessment,
+                        $indicatorType,
+                        $productRiskService,
+                        $beneficialOwnerRepository,
+                        $riskAssessmentService,
+                        $logService,
+                        $indicatorTypeRepository,
+                        $this->id_indicator
+                    );
                 }
             }
         } catch (\Throwable $e) {
@@ -99,14 +98,14 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
     }
 
     private function processAssessment(
-     RiskAssessment $assessment,
-    string $indicatorType,
-    ProductRiskService $productRiskService,
-    BeneficialOwnerRepository $beneficialOwnerRepository,
-    RiskAssessmentService $riskAssessmentService,
-    LogService $logService,
-    IndicatorTypeRepository $indicatorTypeRepository,
-    int $id_indicator
+        RiskAssessment $assessment,
+        string $indicatorType,
+        ProductRiskService $productRiskService,
+        BeneficialOwnerRepository $beneficialOwnerRepository,
+        RiskAssessmentService $riskAssessmentService,
+        LogService $logService,
+        IndicatorTypeRepository $indicatorTypeRepository,
+        int $id_indicator
     ): void {
 
         Log::info('Processando assessment.', [
@@ -140,34 +139,34 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
 
         unset($data['id'], $data['created_at'], $data['updated_at']);
 
-      
-   // Salva o assessment e pega o model atualizado
-$storedAssessment = $riskAssessmentService->store($data);
 
-// Garante valores mesmo se forem nulos
-$score = $storedAssessment->score ?? 'null';
-$riskLevel = $storedAssessment->risk_level ?? 'null';
-$diligence = $storedAssessment->diligence ?? 'null';
+        // Salva o assessment e pega o model atualizado
+        $storedAssessment = $riskAssessmentService->store($data);
 
-// Mensagem customizada
-$customMessage = "Avaliação automática devido à alteração do indicador '{$indicatorTypeModel->description}', "
-    . "resultando em uma pontuação de {$score}, "
-    . "com nível de risco {$riskLevel} "
-    . "e tipo de diligência {$diligence}.";
+        // Garante valores mesmo se forem nulos
+        $score = $storedAssessment->score ?? 'null';
+        $riskLevel = $storedAssessment->risk_level ?? 'null';
+        $diligence = $storedAssessment->diligence ?? 'null';
 
-// Salva log
-$logService->storeLog(
-    'info',
-    'edit',
-    'system',
-    'risk_assessment',
-    $assessment->entity_id,
-    null,
-    $customMessage
-);
+        // Mensagem customizada
+        $customMessage = "Avaliação automática devido à alteração do indicador '{$indicatorTypeModel->description}', "
+            . "resultando em uma pontuação de {$score}, "
+            . "com nível de risco {$riskLevel} "
+            . "e tipo de diligência {$diligence}.";
 
-Log::info('Store executado com sucesso.', [
-    'assessment_id' => $assessment->id
-]);
+        // Salva log
+        $logService->storeLog(
+            'info',
+            'edit',
+            'system',
+            'risk_assessment',
+            $assessment->entity_id,
+            null,
+            $customMessage
+        );
+
+        Log::info('Store executado com sucesso.', [
+            'assessment_id' => $assessment->id
+        ]);
     }
 }

@@ -169,9 +169,9 @@ class RiskAssessmentService extends AbstractService
 
         if ($diligence->name == "Cliente Inaceitável" || $diligence->name == "Reforçada") {
             $datevalidate = [
-            'name' => $riskAssessment->entity->social_denomination,
-            'country' => $riskAssessment->nationlity->description,
-             'entity_id' => $riskAssessment->entity->id,
+                'name' => $riskAssessment->entity->social_denomination,
+                'country' => $riskAssessment->nationlity->description,
+                'entity_id' => $riskAssessment->entity->id,
                 'type' => "AML",
                 'category' => "KYC",
                 "description" => "Avaliação de risco resultou em nível de risco {$diligence->risk} e diligência {$diligence->name}",
@@ -465,7 +465,15 @@ class RiskAssessmentService extends AbstractService
             : $data['product_risk'] ?? [];
 
         // Inicializa dados mínimos
-        $data['pep'] = true;
+
+        if (array_key_exists('is_pep', $data)) {
+            $data['pep'] = (bool) $data['is_pep'];
+        }
+
+        if (array_key_exists('is_sanctioned', $data)) {
+            $data['santion'] = (bool) $data['is_sanctioned'];
+        }
+
         $data['entity_id'] = $alert->entity_id;
 
         $data['risk_assessment'] = $lastAssessment->risk_assessment;

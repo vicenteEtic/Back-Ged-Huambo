@@ -189,12 +189,14 @@ private function createAlerts(array $data, int $entityId, string $type): void
             default      => 'Baixo',
         };
 
-        $alert = $this->alertRepository->storeOrUpdate(
-            [
+        $dateValidate=[
                 'origin_id' => $item['id'] ?? null,
                 'entity_id' => $entityId,
                 'type'      => $typeData['type'],
-            ],
+            ];
+
+        $alert = $this->alertRepository->firstOrCreate(
+             $dateValidate,
             [
                 'name'        => $item['name'] ?? 'UNKNOWN',
                 'country'     => $item['country'] ?? null,
