@@ -13,18 +13,7 @@ class ProfessionSeeder extends Seeder
         $IndicatorType = [
 
             /**Profissão */
-            ['description' => 'Funcionario Publico', 'risk' => 'Medio', 'score' => 2, 'indicator_id' => 5],
-            ['description' => 'Comerciante em nome individual', 'risk' => 'Baixo', 'score' => 1, 'indicator_id' => 5],
-            ['description' => 'Sociedade por quota', 'risk' => 'Baixo', 'score' => 1, 'indicator_id' => 9],
-            ['description' => 'Sociedade anónima', 'risk' => 'Médio', 'score' => 2, 'indicator_id' => 9],
-            ['description' => 'Cooperativas', 'risk' => 'Médio', 'score' => 2, 'indicator_id' => 9],
-            ['description' => 'Embaixadas e consulados', 'risk' => 'Alto', 'score' => 3, 'indicator_id' => 5],
-            ['description' => 'Entidade sem fim lucrativo', 'risk' => 'Alto', 'score' => 3, 'indicator_id' => 5],
-            ['description' => 'Trust', 'risk' => 'Alto', 'score' => 3, 'indicator_id' => 5],
-            ['description' => 'Outras', 'risk' => 'Médio', 'score' => 2, 'indicator_id' => 5],
-            ['description' => 'Banco de fachada', 'risk' => 'Inaceitável', 'score' => 150, 'indicator_id' => 5],
-            ['description' => 'Cliente anónimo', 'risk' => 'Inaceitável', 'score' => 150, 'indicator_id' => 5],
-            ['description' => 'Cliente fictício', 'risk' => 'Inaceitável', 'score' => 150, 'indicator_id' => 5],
+          
             ['description' => 'ABEGÃO', 'risk' => 'Baixo', 'score' => 1, 'indicator_id' => 5],
             ['description' => 'ABEGÃO (DE CARROS)', 'risk' => 'Baixo', 'score' => 1, 'indicator_id' => 5],
             ['description' => 'ABRIDEIRA DE LOUSAS', 'risk' => 'Baixo', 'score' => 1, 'indicator_id' => 5],
