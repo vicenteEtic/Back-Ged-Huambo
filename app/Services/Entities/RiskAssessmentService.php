@@ -49,7 +49,7 @@ class RiskAssessmentService extends AbstractService
         'indetificationCapacity',
         'channel',
         'countryResidence',
-        //'category',
+        'category',
         'nationlity',
         'beneficialOwners',
         'productRisk',
@@ -204,10 +204,10 @@ class RiskAssessmentService extends AbstractService
         // só dispara se nenhum dos campos is_pep ou is_sanctioned estiver definido
         if (!array_key_exists('is_sanctioned', $data) && !array_key_exists('is_pep', $data)) {
             // só dispara se pep ou sanction for false
-              if ($data['pep'] == false || $data['santion'] == false) {
-        GenerateAlertsJob::dispatch($riskAssessment->entity->id, $riskAssessment)
-            ->onQueue('high');
-    }
+            if ($data['pep'] == false || $data['santion'] == false) {
+                GenerateAlertsJob::dispatch($riskAssessment->entity->id, $riskAssessment)
+                    ->onQueue('high');
+            }
         }
 
 
@@ -233,14 +233,17 @@ class RiskAssessmentService extends AbstractService
             'identification'    => $getScore('indetificationCapacity') ?? 0,
             'profession'        => $getScore('profession') ?? 0,
             'nationality'       => $getScore('nationlity') ?? 0,
+
+            'category' => $getScore('category') ?? 0,
             'countryResidence'  => $getScore('countryResidence') ?? 0,
             'statusResidence'   => ($riskAssessment?->status_residence == StatusResidence::RESIDENTE) ? 1 : 3,
             'formEstablishment' => ($riskAssessment?->form_establishment == FormEstablishment::PRESENCIAL) ? 1 : 3,
             'processesReported' => $riskAssessment?->processesReportedAuthoritie ? 3 : 0,
-            'santion'           => $riskAssessment?->santion ? 20 : 0,
+            'santion'           => $riskAssessment?->santion ? 1000 : 0,
             'pep'               => $riskAssessment?->pep ? 3 : 0,
             'channel'           => $getScore('channel'),
             'totalRiskProduct'  => (float)($totalRiskProduct ?? 0),
+            'form_establishment' => $getScore('form_establishment') ?? 0,
 
         ];
 
@@ -266,10 +269,14 @@ class RiskAssessmentService extends AbstractService
             $total += $baseScores['pep']               * $safeFormula('pep');
             $total += $baseScores['channel']           * $safeFormula('channel');
 
+            $total += $baseScores['channel']           * $safeFormula('channel');
+
             // --- Entidade Coletiva ---
         } else {
+
             $total += $baseScores['identification']    * $safeFormula('identification_capacity');
-            $total += $baseScores['profession']      * $safeFormula('profession');
+            $total += $baseScores['category']    * $safeFormula('category');
+            $total += $baseScores['form_establishment']      * $safeFormula('profession');
             $total += $baseScores['countryResidence']  * $safeFormula('country_residence');
             $total += $baseScores['statusResidence']   * $safeFormula('status_residence');
             $total += $safeBeneficial                 * $safeFormula('beneficialOwner');
