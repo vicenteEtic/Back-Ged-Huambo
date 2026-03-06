@@ -49,7 +49,7 @@ class RiskAssessmentService extends AbstractService
         'indetificationCapacity',
         'channel',
         'countryResidence',
-        'category',
+        //'category',
         'nationlity',
         'beneficialOwners',
         'productRisk',
