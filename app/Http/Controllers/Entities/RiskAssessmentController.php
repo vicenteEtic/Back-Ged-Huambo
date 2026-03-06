@@ -31,8 +31,7 @@ class RiskAssessmentController extends AbstractController
      */
     public function store(RiskAssessmentRequest $request)
     {
-        try {
-
+     
             DB::beginTransaction();
 
             $this->logRequest();
@@ -54,7 +53,8 @@ class RiskAssessmentController extends AbstractController
             );
             DB::commit();
             return response()->json($riskAssessment, Response::HTTP_CREATED);
-        } catch (Exception $e) {
+         try {
+  } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
             $this->logToDatabase(
