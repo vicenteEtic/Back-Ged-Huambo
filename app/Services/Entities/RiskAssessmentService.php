@@ -57,6 +57,15 @@ class RiskAssessmentService extends AbstractService
         "riskFormula",
         'beneficial'
     ];
+
+    private function getRelationships($entityType)
+{
+    $rels = $this->relationships;
+    if ($entityType != 2) { // Coletiva
+        $rels[] = 'category';
+    }
+    return $rels;
+}
     public function __construct(
         RiskAssessmentRepository $repository,
         private readonly IndicatorTypeRepository $indicatorTypeRepository,
@@ -216,6 +225,8 @@ class RiskAssessmentService extends AbstractService
 
     private function loadRelations($riskAssessment): void
     {
+         $entityType = $riskAssessment->entity->entity_type ?? 2;
+    $riskAssessment->load($this->getRelationships($entityType));
         $riskAssessment->load($this->relationships);
     }
     private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $beneficialOwnerScore): float
