@@ -219,79 +219,73 @@ class RiskAssessmentService extends AbstractService
     {
         $riskAssessment->load($this->relationships);
     }
-    private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $beneficialOwnerScore): float
-    {
-        // Safe helper: garante retorno do score ou 0
-        $getScore = function ($relation) use ($riskAssessment) {
-            try {
-                return $riskAssessment?->$relation()?->first()?->score ?? 0;
-            } catch (\Throwable $e) {
-                return 0;
+   private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $beneficialOwnerScore): float
+{
+    // Safe helper para pegar score de relacionamentos belongsTo ou hasMany
+    $getScore = function ($relation) use ($riskAssessment) {
+        try {
+            $relationValue = $riskAssessment?->$relation;
+            if ($relationValue instanceof \Illuminate\Database\Eloquent\Collection) {
+                return $relationValue->first()?->score ?? 0;
             }
-        };
-
-        $baseScores = [
-            'identification'    => $getScore('indetificationCapacity') ?? 0,
-            'profession'        => $getScore('profession') ?? 0,
-            'nationality'       => $getScore('nationlity') ?? 0,
-            'countryResidence'  => $getScore('countryResidence') ?? 0,
-            'statusResidence'   => ($riskAssessment?->status_residence == StatusResidence::RESIDENTE) ? 1 : 3,
-            'formEstablishment' => ($riskAssessment?->form_establishment == FormEstablishment::PRESENCIAL) ? 1 : 3,
-            'processesReported' => $riskAssessment?->processesReportedAuthoritie ? 3 : 0,
-            'santion'           => $riskAssessment?->santion ? 1000 : 0,
-            'pep'               => $riskAssessment?->pep ? 3 : 0,
-            'channel'           => $getScore('channel'),
-            'totalRiskProduct'  => (float)($totalRiskProduct ?? 0),
-            'form_establishment' => $getScore('form_establishment') ?? 0,
-
-        ];
-        // só define category se for entidade coletiva
-        if (($formula->entity_type ?? null) != 2) {
-          //  $baseScores['category'] = $getScore('category') ?? 0;
+            return $relationValue?->score ?? 0;
+        } catch (\Throwable $e) {
+            return 0;
         }
+    };
 
-        // garante que formula nunca dá erro
-        $safeFormula = function ($field) use ($formula) {
-            return (float)($formula->$field ?? 0);
-        };
+    $baseScores = [
+        'identification'   => $getScore('indetificationCapacity'),
+        'profession'       => $getScore('profession'),
+        'nationality'      => $getScore('nationlity'),
+        'countryResidence' => $getScore('countryResidence'),
+        'statusResidence'  => ($riskAssessment?->status_residence == StatusResidence::RESIDENTE) ? 1 : 3,
+        'formEstablishment'=> ($riskAssessment?->form_establishment == FormEstablishment::PRESENCIAL) ? 1 : 3,
+        'processesReported'=> $riskAssessment?->processesReportedAuthoritie ? 3 : 0,
+        'santion'          => $riskAssessment?->santion ? 1000 : 0,
+        'pep'              => $riskAssessment?->pep ? 3 : 0,
+        'channel'          => $getScore('channel'),
+        'category'         => $getScore('category'), // agora seguro
+        'totalRiskProduct' => (float)($totalRiskProduct ?? 0),
+        'form_establishment' => $getScore('form_establishment') ?? 0,
+    ];
 
-        $safeBeneficial = (float)($beneficialOwnerScore ?? 0);
+    $safeFormula = function ($field) use ($formula) {
+        return (float)($formula->$field ?? 0);
+    };
 
-        $total = 0;
+    $safeBeneficial = (float)($beneficialOwnerScore ?? 0);
 
-        // --- Entidade Particular ---
-        if (($formula->entity_type ?? null) == 2) {
-            $total += $baseScores['identification']    * $safeFormula('identification_capacity');
-            $total += $baseScores['profession']        * $safeFormula('profession');
-            $total += $baseScores['nationality']       * $safeFormula('nationality');
-            $total += $baseScores['countryResidence']  * $safeFormula('country_residence');
-            $total += $baseScores['statusResidence']   * $safeFormula('status_residence');
-            $total += $baseScores['processesReported'] * $safeFormula('processesReportedAuthoritie');
-            $total += $baseScores['totalRiskProduct']  * $safeFormula('product_risk');
-            $total += $baseScores['santion']           * $safeFormula('santion');
-            $total += $baseScores['pep']               * $safeFormula('pep');
-            $total += $baseScores['channel']           * $safeFormula('channel');
+    $total = 0;
 
-
-
-            // --- Entidade Coletiva ---
-        } else {
-
-            $total += $baseScores['identification']    * $safeFormula('identification_capacity');
-            $total += $baseScores['category']    * $safeFormula('category');
-            $total += $baseScores['form_establishment']      * $safeFormula('profession');
-            $total += $baseScores['countryResidence']  * $safeFormula('country_residence');
-            $total += $baseScores['statusResidence']   * $safeFormula('status_residence');
-            $total += $safeBeneficial                 * $safeFormula('beneficialOwner');
-            $total += $baseScores['totalRiskProduct']  * $safeFormula('product_risk');
-            $total += $baseScores['processesReported'] * $safeFormula('processesReportedAuthoritie');
-            $total += $baseScores['santion']           * $safeFormula('santion');
-            $total += $baseScores['channel']           * $safeFormula('channel');
-        }
-
-        return $total;
+    // --- Entidade Particular ---
+    if (($formula->entity_type ?? null) == 2) {
+        $total += $baseScores['identification']   * $safeFormula('identification_capacity');
+        $total += $baseScores['profession']       * $safeFormula('profession');
+        $total += $baseScores['nationality']      * $safeFormula('nationality');
+        $total += $baseScores['countryResidence'] * $safeFormula('country_residence');
+        $total += $baseScores['statusResidence']  * $safeFormula('status_residence');
+        $total += $baseScores['processesReported']* $safeFormula('processesReportedAuthoritie');
+        $total += $baseScores['totalRiskProduct'] * $safeFormula('product_risk');
+        $total += $baseScores['santion']          * $safeFormula('santion');
+        $total += $baseScores['pep']              * $safeFormula('pep');
+        $total += $baseScores['channel']          * $safeFormula('channel');
+    } else {
+        // --- Entidade Coletiva ---
+        $total += $baseScores['identification']   * $safeFormula('identification_capacity');
+        $total += $baseScores['category']         * $safeFormula('category'); // seguro agora
+        $total += $baseScores['form_establishment'] * $safeFormula('profession');
+        $total += $baseScores['countryResidence'] * $safeFormula('country_residence');
+        $total += $baseScores['statusResidence']  * $safeFormula('status_residence');
+        $total += $safeBeneficial                 * $safeFormula('beneficialOwner');
+        $total += $baseScores['totalRiskProduct'] * $safeFormula('product_risk');
+        $total += $baseScores['processesReported']* $safeFormula('processesReportedAuthoritie');
+        $total += $baseScores['santion']          * $safeFormula('santion');
+        $total += $baseScores['channel']          * $safeFormula('channel');
     }
 
+    return $total;
+}
 
 
     private function updateEntityRisk($riskAssessment, $total, $diligence, $reassessmentPeriod): void
