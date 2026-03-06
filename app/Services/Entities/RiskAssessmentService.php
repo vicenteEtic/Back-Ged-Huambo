@@ -247,7 +247,7 @@ class RiskAssessmentService extends AbstractService
         ];
         // só define category se for entidade coletiva
         if (($formula->entity_type ?? null) != 2) {
-            $baseScores['category'] = $getScore('category') ?? 0;
+          //  $baseScores['category'] = $getScore('category') ?? 0;
         }
 
         // garante que formula nunca dá erro
