@@ -233,8 +233,6 @@ class RiskAssessmentService extends AbstractService
             'identification'    => $getScore('indetificationCapacity') ?? 0,
             'profession'        => $getScore('profession') ?? 0,
             'nationality'       => $getScore('nationlity') ?? 0,
-
-            'category' => $getScore('category') ?? 0,
             'countryResidence'  => $getScore('countryResidence') ?? 0,
             'statusResidence'   => ($riskAssessment?->status_residence == StatusResidence::RESIDENTE) ? 1 : 3,
             'formEstablishment' => ($riskAssessment?->form_establishment == FormEstablishment::PRESENCIAL) ? 1 : 3,
@@ -246,6 +244,10 @@ class RiskAssessmentService extends AbstractService
             'form_establishment' => $getScore('form_establishment') ?? 0,
 
         ];
+        // só define category se for entidade coletiva
+        if (($formula->entity_type ?? null) != 2) {
+            $baseScores['category'] = $getScore('category') ?? 0;
+        }
 
         // garante que formula nunca dá erro
         $safeFormula = function ($field) use ($formula) {
@@ -269,7 +271,7 @@ class RiskAssessmentService extends AbstractService
             $total += $baseScores['pep']               * $safeFormula('pep');
             $total += $baseScores['channel']           * $safeFormula('channel');
 
-            $total += $baseScores['channel']           * $safeFormula('channel');
+
 
             // --- Entidade Coletiva ---
         } else {
