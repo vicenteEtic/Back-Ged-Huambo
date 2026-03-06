@@ -57,7 +57,7 @@ class RiskAssessmentService extends AbstractService
         "riskFormula",
         'beneficial'
     ];
-    
+
     public function __construct(
         RiskAssessmentRepository $repository,
         private readonly IndicatorTypeRepository $indicatorTypeRepository,
@@ -221,45 +221,32 @@ class RiskAssessmentService extends AbstractService
     }
    private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $beneficialOwnerScore): float
 {
-    // Safe helper para pegar score de relacionamentos belongsTo ou hasMany
-    $getScore = function ($relation) use ($riskAssessment) {
-        try {
-            $relationValue = $riskAssessment?->$relation;
-            if ($relationValue instanceof \Illuminate\Database\Eloquent\Collection) {
-                return $relationValue->first()?->score ?? 0;
-            }
-            return $relationValue?->score ?? 0;
-        } catch (\Throwable $e) {
-            return 0;
-        }
-    };
+    // Garante que as relações estão carregadas
+    $riskAssessment->loadMissing(['indetificationCapacity', 'profession', 'nationlity', 'countryResidence', 'category', 'channel']);
 
     $baseScores = [
-        'identification'   => $getScore('indetificationCapacity'),
-        'profession'       => $getScore('profession'),
-        'nationality'      => $getScore('nationlity'),
-        'countryResidence' => $getScore('countryResidence'),
-        'statusResidence'  => ($riskAssessment?->status_residence == StatusResidence::RESIDENTE) ? 1 : 3,
-        'formEstablishment'=> ($riskAssessment?->form_establishment == FormEstablishment::PRESENCIAL) ? 1 : 3,
-        'processesReported'=> $riskAssessment?->processesReportedAuthoritie ? 3 : 0,
-        'santion'          => $riskAssessment?->santion ? 1000 : 0,
-        'pep'              => $riskAssessment?->pep ? 3 : 0,
-        'channel'          => $getScore('channel'),
-        'category'         => $getScore('category'), // agora seguro
+        'identification'   => $riskAssessment->indetificationCapacity?->score ?? 0,
+        'profession'       => $riskAssessment->profession?->score ?? 0,
+        'nationality'      => $riskAssessment->nationlity?->score ?? 0,
+        'countryResidence' => $riskAssessment->countryResidence?->score ?? 0,
+        'statusResidence'  => ($riskAssessment->status_residence == StatusResidence::RESIDENTE) ? 1 : 3,
+        'formEstablishment'=> ($riskAssessment->form_establishment == FormEstablishment::PRESENCIAL) ? 1 : 3,
+        'processesReported'=> $riskAssessment->processesReportedAuthoritie ? 3 : 0,
+        'santion'          => $riskAssessment->santion ? 1000 : 0,
+        'pep'              => $riskAssessment->pep ? 3 : 0,
+        'channel'          => $riskAssessment->channel?->score ?? 0,
+        'category'         => $riskAssessment->category?->score ?? 0, // <- seguro agora
         'totalRiskProduct' => (float)($totalRiskProduct ?? 0),
-        'form_establishment' => $getScore('form_establishment') ?? 0,
+        'form_establishment' => $riskAssessment->form_establishment?->score ?? 0,
     ];
 
-    $safeFormula = function ($field) use ($formula) {
-        return (float)($formula->$field ?? 0);
-    };
-
+    $safeFormula = fn($field) => (float)($formula->$field ?? 0);
     $safeBeneficial = (float)($beneficialOwnerScore ?? 0);
 
     $total = 0;
 
-    // --- Entidade Particular ---
     if (($formula->entity_type ?? null) == 2) {
+        // Entidade Particular
         $total += $baseScores['identification']   * $safeFormula('identification_capacity');
         $total += $baseScores['profession']       * $safeFormula('profession');
         $total += $baseScores['nationality']      * $safeFormula('nationality');
@@ -271,9 +258,9 @@ class RiskAssessmentService extends AbstractService
         $total += $baseScores['pep']              * $safeFormula('pep');
         $total += $baseScores['channel']          * $safeFormula('channel');
     } else {
-        // --- Entidade Coletiva ---
+        // Entidade Coletiva
         $total += $baseScores['identification']   * $safeFormula('identification_capacity');
-        $total += $baseScores['category']         * $safeFormula('category'); // seguro agora
+        $total += $baseScores['category']         * $safeFormula('category');
         $total += $baseScores['form_establishment'] * $safeFormula('profession');
         $total += $baseScores['countryResidence'] * $safeFormula('country_residence');
         $total += $baseScores['statusResidence']  * $safeFormula('status_residence');
