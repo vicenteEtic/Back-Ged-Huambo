@@ -223,12 +223,11 @@ class RiskAssessmentService extends AbstractService
         return $riskAssessment;
     }
 
-    private function loadRelations($riskAssessment): void
-    {
-         $entityType = $riskAssessment->entity->entity_type ?? 2;
+  private function loadRelations($riskAssessment): void
+{
+    $entityType = $riskAssessment->entity->entity_type ?? 2;
     $riskAssessment->load($this->getRelationships($entityType));
-        $riskAssessment->load($this->relationships);
-    }
+}
     private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $beneficialOwnerScore): float
     {
         // Safe helper: garante retorno do score ou 0
