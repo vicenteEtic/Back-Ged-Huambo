@@ -46,99 +46,82 @@ class EntitiesRepository extends AbstractRepository
 
     public function show(int|string $id, array $relationships = [])
     {
-        $entite = $this->model::find($id);
-        if (!$entite) {
+        $entityModel = $this->model::find($id);
+    
+        if (!$entityModel) {
             return null; // ou lançar exceção se preferir
         }
-
-        $alerts_entitie = Alert::where('entity_id', $id)->count();
-        $valaiation = $this->riskAssessment->model::where('entity_id', $id)->latest('id')->first();
-
-        if ($valaiation) {
-            $valaiation->load([
-                'entity',
-                'user',
-                'indetificationCapacity',
-                'channel',
-                'countryResidence',
-                'category',
-                'nationlity',
-                'profession',
+    
+        // Contagem de alertas
+        $alertsCount = Alert::where('entity_id', $id)->count();
+    
+        // Pega a última avaliação de risco
+        $riskAssessment = $this->riskAssessment->model::where('entity_id', $id)
+            ->latest('id')
+            ->first();
+    
+        // Carrega relações apenas se existir avaliação
+        if ($riskAssessment) {
+            $riskAssessment->load([
+                'entity:id,id,social_denomination,entity_type,customer_number,policy_number,nif,reassessmentPeriod,risk_level,diligence,last_evaluation,created_at,color',
+                'user:id,first_name,last_name,email',
+                'profession:id,description',
+                'indetificationCapacity:id,description',
+                'channel:id,description',
+                'countryResidence:id,description',
+                'category:id,description',
+                'nationlity:id,description',
+                'beneficialOwners:id,name,pep,nationality,percentage,is_legal_representative,santion,risk_assessment_id',
+                'productRisk:id,product_id,score,risk_assessment_id',
+                'productRisk.product:id,description,score,risk',
+                'riskFormula:id,name,identification_capacity,category,profession,product_risk',
+                'beneficial:id,name,nationality,is_pep,is_sanctioned,processesReportedAuthoritie,risk_assessment_id'
             ]);
         }
-
+    
+        // Monta o array final garantindo que todas as relações existam
         $entity = [
-            'id' => $entite->id ?? null,
-            'social_denomination' => $entite->social_denomination ?? null,
-            'entity_type' => $entite->entity_type ?? null,
-            'customer_number' => $entite->customer_number ?? null,
-            'policy_number' => $entite->policy_number ?? null,
-            'nif' => $entite->nif ?? null,
-            'reassessmentPeriod' => $entite->reassessmentPeriod ?? null,
-
-            // Identification capacity
-            'identification_capacity' => $valaiation
-                ? optional($valaiation->indetificationCapacity)->description
-                ?? optional($this->indicatorType->model::find($valaiation->identification_capacity))->description
-                ?? null
+            'id' => $entityModel->id,
+            'social_denomination' => $entityModel->social_denomination,
+            'entity_type' => $entityModel->entity_type,
+            'customer_number' => $entityModel->customer_number,
+            'policy_number' => $entityModel->policy_number,
+            'nif' => $entityModel->nif,
+            'reassessmentPeriod' => $entityModel->reassessmentPeriod,
+    
+            // Relacionamentos
+            'identification_capacity' => $riskAssessment ? optional($riskAssessment->indetificationCapacity)->description : null,
+            'form_establishment' => $riskAssessment
+                ? ($riskAssessment->form_establishment instanceof \App\Enum\FormEstablishment
+                    ? $riskAssessment->form_establishment->value
+                    : ($riskAssessment->form_establishment == 0 ? 'Presencial' : 'Não Presencial'))
                 : null,
-
-            // Form establishment
-            'form_establishment' => $valaiation
-                ? ($valaiation->form_establishment instanceof \App\Enum\FormEstablishment
-                    ? $valaiation->form_establishment->value
-                    : ($valaiation->form_establishment == 0 ? 'Presencial' : 'Não Presencial'))
+            'category' => $riskAssessment ? optional($riskAssessment->category)->description : null,
+            'status_residence' => $riskAssessment
+                ? ($riskAssessment->status_residence instanceof \App\Enum\StatusResidence
+                    ? $riskAssessment->status_residence->value
+                    : ($riskAssessment->status_residence == 0 ? 'Residente' : 'Não Residente'))
                 : null,
-
-            // Category
-            'category' => $valaiation
-                ? optional($valaiation->category)->description
-                ?? optional($this->indicatorType->model::find($valaiation->category))->description
-                ?? null
-                : null,
-
-            // Status residence
-            'status_residence' => $valaiation
-                ? ($valaiation->status_residence instanceof \App\Enum\StatusResidence
-                    ? $valaiation->status_residence->value
-                    : ($valaiation->status_residence == 0 ? 'Residente' : 'Não Residente'))
-                : null,
-
-            // Profession
-            'profession' => $valaiation
-                ? optional($valaiation->profession)->description
-                ?? optional($this->indicatorType->model::find($valaiation->profession))->description
-                ?? null
-                : null,
-
-            // PEP and product risk
-            'pep' => $valaiation ? (bool) $valaiation->pep : false,
-            'product_risk' => $valaiation->product_risk ?? null,
-
-            // Country residence
-            'country_residence' => $valaiation
-                ? optional($valaiation->countryResidence)->description
-                ?? optional($this->indicatorType->model::find($valaiation->country_residence))->description
-                ?? null
-                : null,
-
-            // Nationality
-            'nationality' => $valaiation
-                ? optional($valaiation->nationlity)->description
-                ?? optional($this->indicatorType->model::find($valaiation->nationlity))->description
-                ?? null
-                : null,
-
-            // Outros campos
-            'punctuation' => $valaiation->score ?? null,
-            'risk_level' => $entite->risk_level ?? null,
-            'diligence' => $entite->diligence ?? null,
-            'last_evaluation' => $entite->last_evaluation ?? null,
-            'created_at' => $entite->created_at ?? null,
-            'color' => $entite->color ?? null,
-            'alerts_count' => $alerts_entitie ?? 0,
+            'profession' => $riskAssessment ? optional($riskAssessment->profession)->description : null,
+            'pep' => $riskAssessment ? (bool) $riskAssessment->pep : false,
+            'product_risk' => $riskAssessment?->productRisk ?? null,
+            'country_residence' => $riskAssessment ? optional($riskAssessment->countryResidence)->description : null,
+            'nationality' => $riskAssessment ? optional($riskAssessment->nationlity)->description : null,
+            'punctuation' => $riskAssessment?->score ?? null,
+            'risk_level' => $entityModel->risk_level,
+            'diligence' => $entityModel->diligence,
+            'last_evaluation' => $entityModel->last_evaluation,
+            'created_at' => $entityModel->created_at,
+            'color' => $entityModel->color,
+            'alerts_count' => $alertsCount,
+    
+            // Relações completas para frontend
+            'beneficial_owners' => $riskAssessment?->beneficialOwners ?? [],
+            'products' => $riskAssessment?->productRisk ?? [],
+            'beneficiaries' => $riskAssessment?->beneficial ?? [],
+            'risk_formula' => $riskAssessment?->riskFormula ?? null
         ];
-
+    
         return $entity;
     }
 

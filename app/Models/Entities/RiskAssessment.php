@@ -88,7 +88,9 @@ class RiskAssessment extends Model
 
     public function category()
     {
-        return $this->belongsTo(IndicatorType::class, 'category');
+        return $this->belongsTo(IndicatorType::class, 'category')->withDefault([
+            'score' => 0
+        ]);
     }
 
     public function nationlity()
