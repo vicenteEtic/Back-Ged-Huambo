@@ -37,7 +37,8 @@ class RiskAssessmentController extends AbstractController
     
             $data = $request->validated();
     
-            $data['category'] = $data['category'] ?? null;
+            $data['professionP'] = $data['profession'] ?? null;
+            $data['categoryP'] = $data['category'] ?? null;
     
             $this->logRequest();
     

@@ -178,12 +178,12 @@ class RiskAssessmentRepository extends AbstractRepository
 
     public function totalRiskLevelByCategory(array $data = []): array
     {
-        return $this->getRiskLevelSummary('category', 'indicator_type', 'indicator_type.description', $data);
+        return $this->getRiskLevelSummary('categoryP', 'indicator_type', 'indicator_type.description', $data);
     }
 
     public function totalRiskLevelByProfession(array $data = []): array
     {
-        return $this->getRiskLevelSummary('profession', 'indicator_type', 'indicator_type.description', $data);
+        return $this->getRiskLevelSummary('professionP', 'indicator_type', 'indicator_type.description', $data);
     }
 
     public function totalRiskLevelByChannel(array $data = []): array

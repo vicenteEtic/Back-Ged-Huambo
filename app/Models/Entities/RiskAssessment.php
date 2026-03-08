@@ -21,9 +21,9 @@ class RiskAssessment extends Model
     protected $fillable = [
         'identification_capacity',
         'form_establishment',
-        'category',
+        'categoryP',
         'status_residence',
-        'profession',
+        'professionP',
         'pep',
         'country_residence',
         'nationality',
@@ -68,7 +68,7 @@ class RiskAssessment extends Model
     }
     public function  profession()
     {
-        return $this->belongsTo(IndicatorType::class, 'profession');
+        return $this->belongsTo(IndicatorType::class, 'professionP');
     }
 
     public function indetificationCapacity()
@@ -88,7 +88,7 @@ class RiskAssessment extends Model
 
     public function category()
     {
-        return $this->belongsTo(IndicatorType::class, 'category')->withDefault([
+        return $this->belongsTo(IndicatorType::class, 'categoryP')->withDefault([
             'score' => 0
         ]);
     }

@@ -136,10 +136,10 @@ class ImportDataJob implements ShouldQueue
         $data = [
             'entity_id'              => $entity->id,
             'identification_capacity' => 1, // fixo por enquanto
-            'profession'             => $indicatorService->getByDescription($record['profession'] ?? null),
+            'professionP'             => $indicatorService->getByDescription($record['profession'] ?? null),
             'form_establishment'     => (bool)($record['form_establishment'] ?? false),
             'status_residence'       => (bool)($record['status_residence'] ?? false),
-            'category'               => $indicatorService->getByDescription($record['category'] ?? null),
+            'categoryP'               => $indicatorService->getByDescription($record['category'] ?? null),
             'channel'                => $indicatorService->getByDescription($record['channel'] ?? null),
             'product_risk'           => array_filter(array_map(
                 fn($risk) => $indicatorService->getByDescription($risk),
