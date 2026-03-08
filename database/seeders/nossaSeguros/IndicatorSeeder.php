@@ -1,6 +1,5 @@
 <?php
-
-namespace Database\Seeders;
+namespace Database\Seeders\nossaSeguros;
 
 use App\Models\Indicator\Indicator;
 use App\Models\IndicatorEvaluationMatrix;

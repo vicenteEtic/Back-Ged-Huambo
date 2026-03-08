@@ -9,42 +9,88 @@ class RiskFormulaSeed extends Seeder
 {
     public function run()
     {
-        $defaultValues = [
-            'identification_capacity'     => 0.05,
-            'form_establishment'          => 1,
-            'status_residence'            => 0.1,
-            'profession'                  => 0.2,
-            'pep'                         => 1,
-        
-            'product_risk'                => 0.1,
-            'processesReportedAuthoritie' => 1,
-            'santion'                     => 1,
-        ];
-
         $formulas = [
+
+            // =========================================
+            // Entidades Particulares
+            // =========================================
             [
-                'name'              => 'Entidades Particulares',
-                'category'          => 1,
-                'country_residence' => 0.25,
-                'nationality'       => 0.15,
-                'entity_type'       => 2,
-              'channel'                     => 0.05,
+                'name' => 'Entidades Particulares',
+                'entity_type' => 2,
+
+                // Capacidade de Identificação
+                'identification_capacity' => 0.20,
+
+                // Profissão
+                'profession' => 0.20,
+
+                // Nacionalidade
+                'nationality' => 0.05,
+
+                // País de Residência
+                'country_residence' => 0.20,
+
+                // Estado de Residência
+                'status_residence' => 0.10,
+
+                // Risco de Produtos
+                'product_risk' => 0.10,
+
+                // Processos comunicados
+                'processesReportedAuthoritie' => 1,
+
+                // Sanções
+                'santion' => 1,
+
+                // PEP
+                'pep' => 1,
+
+                // Canal de Distribuição
+                'channel' => 0.15,
             ],
+
+            // =========================================
+            // Entidades Colectivas (Empresas)
+            // =========================================
             [
-                'name'              => 'Entidades Colectiva',
-                'category'          => 0.15,   // CAE
-                'form_establishment'=> 0.05,   // forma jurídica
-                'country_residence' => 0.15,
-                'status_residence'  => 0.1,
-                'beneficialOwner'   => 0.2,
-                'entity_type'       => 1,
-                    'channel'                     => 0.05,
-                // remover nationality (não existe na fórmula)
+                'name' => 'Entidades Colectiva',
+                'entity_type' => 1,
+
+                // Capacidade de Identificação
+                'identification_capacity' => 0.05,
+
+                // Código de Actividade Económica (CAE)
+                'category' => 0.15,
+
+                // Forma Jurídica
+                'form_establishment' => 0.05,
+
+                // País de Residência
+                'country_residence' => 0.20,
+
+                // Estado de Residência
+                'status_residence' => 0.10,
+
+                // Beneficiário Efetivo
+                'beneficialOwner' => 0.20,
+
+                // Risco de Produto
+                'product_risk' => 0.10,
+
+                // Processos comunicados
+                'processesReportedAuthoritie' => 1,
+
+                // Sanções
+                'santion' => 1,
+
+                // Canal de Distribuição
+                'channel' => 0.15,
             ]
+
         ];
 
         foreach ($formulas as $formula) {
-            RiskFormula::create(array_merge($defaultValues, $formula));
+            RiskFormula::create($formula);
         }
     }
 }
