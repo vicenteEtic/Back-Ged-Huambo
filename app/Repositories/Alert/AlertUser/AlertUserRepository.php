@@ -96,7 +96,8 @@ class AlertUserRepository extends AbstractRepository
         // insere na pivot alert_user
         $inserted = $this->model->insert(
             collect($data)->map(function ($item) use ($now) {
-                 $alertData = $this->alert->findByValidate(['id' => $item['alert_id']]); // <-- corrigido
+                $alertRepo = $this->alert ?? app(AlertRepository::class);
+                $alertData = $alertRepo->findByValidate(['id' => $item['alert_id']]);
                 return array_merge($item, [
                     'is_read' => $alertData->is_active,
                     'created_at' => $now,
