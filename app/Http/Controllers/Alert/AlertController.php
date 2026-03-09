@@ -41,7 +41,7 @@ class AlertController extends AbstractController
 
     public function status(AlertUpdateStatusRequest $request, $id)
     {
-        try {
+
             $this->logRequest();
             $statusOlder =$request->validated()['is_active'];
 
@@ -70,7 +70,7 @@ class AlertController extends AbstractController
 
             );
             return response()->json($commentAlert, Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
+            try {    } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
