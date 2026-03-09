@@ -50,7 +50,8 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
             $indicators = [
                 'identification_capacity',
                 'form_establishment',
-                'profession',
+                'professionP',
+                'categoryP',
                 'country_residence',
                 'nationality',
                 'channel',
