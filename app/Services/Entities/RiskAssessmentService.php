@@ -169,22 +169,25 @@ class RiskAssessmentService extends AbstractService
         $riskAssessment->save();
 
         if ($diligence->name == "Cliente Inaceitável" || $diligence->name == "Reforçada") {
+
+            $description = $this->buildRiskDescription($riskAssessment, $diligence);
+
             $datevalidate = [
                 'name' => $riskAssessment->entity->social_denomination,
                 'country' => $riskAssessment->nationlity->description,
                 'entity_id' => $riskAssessment->entity->id,
                 'type' => "AML",
                 'category' => "KYC",
-                "description" => "Avaliação de risco resultou em nível de risco {$diligence->risk} e diligência {$diligence->name}",
+                "description" => $description,
             ];
 
-            $alert =    $this->alertRepository->firstOrCreate(
+            $alert = $this->alertRepository->firstOrCreate(
                 $datevalidate,
                 [
                     'name' => $riskAssessment->entity->social_denomination,
                     'country' => $riskAssessment->nationlity->description,
                     'birth_date' => "",
-                    'level' =>  "Alto",
+                    'level' => "Alto",
                     'from_id' => "AV#" . $riskAssessment->id,
                     'origin_id' => "AV#" . $riskAssessment->id,
                     'entity_id' => $riskAssessment->entity->id,
@@ -193,11 +196,11 @@ class RiskAssessmentService extends AbstractService
                     'category' => "KYC",
                     'list' => "AML",
                     'is_active' => true,
-                    "description" => "Avaliação de risco resultou em nível de risco {$diligence->risk} e diligência {$diligence->name}",
+                    "description" => $description,
                 ]
             );
 
-            $host = config('app.url'); // ou outro host padrão
+            $host = config('app.url');
             SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         }
 
@@ -219,60 +222,60 @@ class RiskAssessmentService extends AbstractService
     {
         $riskAssessment->load($this->relationships);
     }
-   private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $beneficialOwnerScore): float
-{
-    // Garante que as relações estão carregadas
-    $riskAssessment->loadMissing(['indetificationCapacity', 'profession', 'nationlity', 'countryResidence', 'category', 'channel']);
+    private function calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $beneficialOwnerScore): float
+    {
+        // Garante que as relações estão carregadas
+        $riskAssessment->loadMissing(['indetificationCapacity', 'profession', 'nationlity', 'countryResidence', 'category', 'channel']);
 
-    $baseScores = [
-        'identification'   => $riskAssessment->indetificationCapacity?->score ?? 0,
-        'profession'       => $riskAssessment->profession?->score ?? 0,
-        'nationality'      => $riskAssessment->nationlity?->score ?? 0,
-        'countryResidence' => $riskAssessment->countryResidence?->score ?? 0,
-        'statusResidence'  => ($riskAssessment->status_residence == StatusResidence::RESIDENTE) ? 1 : 3,
-        'formEstablishment'=> ($riskAssessment->form_establishment == FormEstablishment::PRESENCIAL) ? 1 : 3,
-        'processesReported'=> $riskAssessment->processesReportedAuthoritie ? 3 : 0,
-        'santion'          => $riskAssessment->santion ? 1000 : 0,
-        'pep'              => $riskAssessment->pep ? 3 : 0,
-        'channel'          => $riskAssessment->channel?->score ?? 0,
-        'category'         => $riskAssessment->category?->score ?? 0, // <- seguro agora
-        'totalRiskProduct' => (float)($totalRiskProduct ?? 0),
-        'form_establishment' => $riskAssessment->form_establishment?->score ?? 0,
-    ];
+        $baseScores = [
+            'identification'   => $riskAssessment->indetificationCapacity?->score ?? 0,
+            'profession'       => $riskAssessment->profession?->score ?? 0,
+            'nationality'      => $riskAssessment->nationlity?->score ?? 0,
+            'countryResidence' => $riskAssessment->countryResidence?->score ?? 0,
+            'statusResidence'  => ($riskAssessment->status_residence == StatusResidence::RESIDENTE) ? 1 : 3,
+            'formEstablishment' => ($riskAssessment->form_establishment == FormEstablishment::PRESENCIAL) ? 1 : 3,
+            'processesReported' => $riskAssessment->processesReportedAuthoritie ? 3 : 0,
+            'santion'          => $riskAssessment->santion ? 1000 : 0,
+            'pep'              => $riskAssessment->pep ? 3 : 0,
+            'channel'          => $riskAssessment->channel?->score ?? 0,
+            'category'         => $riskAssessment->category?->score ?? 0, // <- seguro agora
+            'totalRiskProduct' => (float)($totalRiskProduct ?? 0),
+            'form_establishment' => $riskAssessment->form_establishment?->score ?? 0,
+        ];
 
-    $safeFormula = fn($field) => (float)($formula->$field ?? 0);
-    $safeBeneficial = (float)($beneficialOwnerScore ?? 0);
+        $safeFormula = fn($field) => (float)($formula->$field ?? 0);
+        $safeBeneficial = (float)($beneficialOwnerScore ?? 0);
 
-    $total = 0;
+        $total = 0;
 
-    if (($formula->entity_type ?? null) == 2) {
-        // Entidade Particular
-        $total += $baseScores['identification']   * $safeFormula('identification_capacity');
-        $total += $baseScores['profession']       * $safeFormula('profession');
-        $total += $baseScores['nationality']      * $safeFormula('nationality');
-        $total += $baseScores['countryResidence'] * $safeFormula('country_residence');
-        $total += $baseScores['statusResidence']  * $safeFormula('status_residence');
-        $total += $baseScores['processesReported']* $safeFormula('processesReportedAuthoritie');
-        $total += $baseScores['totalRiskProduct'] * $safeFormula('product_risk');
-        $total += $baseScores['santion']          * $safeFormula('santion');
-        $total += $baseScores['pep']              * $safeFormula('pep');
-        $total += $baseScores['channel']          * $safeFormula('channel');
-    } else {
-        // Entidade Coletiva
-        $total += $baseScores['identification']   * $safeFormula('identification_capacity');
-        $total += $baseScores['category']         * $safeFormula('category');
-        $total += $baseScores['form_establishment'] * $safeFormula('profession');
-        $total += $baseScores['countryResidence'] * $safeFormula('country_residence');
-        $total += $baseScores['statusResidence']  * $safeFormula('status_residence');
-        $total += $safeBeneficial                 * $safeFormula('beneficialOwner');
-        $total += $baseScores['totalRiskProduct'] * $safeFormula('product_risk');
-        $total += $baseScores['processesReported']* $safeFormula('processesReportedAuthoritie');
-        $total += $baseScores['santion']          * $safeFormula('santion');
-        $total += $baseScores['channel']          * $safeFormula('channel');
+        if (($formula->entity_type ?? null) == 2) {
+            // Entidade Particular
+            $total += $baseScores['identification']   * $safeFormula('identification_capacity');
+            $total += $baseScores['profession']       * $safeFormula('profession');
+            $total += $baseScores['nationality']      * $safeFormula('nationality');
+            $total += $baseScores['countryResidence'] * $safeFormula('country_residence');
+            $total += $baseScores['statusResidence']  * $safeFormula('status_residence');
+            $total += $baseScores['processesReported'] * $safeFormula('processesReportedAuthoritie');
+            $total += $baseScores['totalRiskProduct'] * $safeFormula('product_risk');
+            $total += $baseScores['santion']          * $safeFormula('santion');
+            $total += $baseScores['pep']              * $safeFormula('pep');
+            $total += $baseScores['channel']          * $safeFormula('channel');
+        } else {
+            // Entidade Coletiva
+            $total += $baseScores['identification']   * $safeFormula('identification_capacity');
+            $total += $baseScores['category']         * $safeFormula('category');
+            $total += $baseScores['form_establishment'] * $safeFormula('profession');
+            $total += $baseScores['countryResidence'] * $safeFormula('country_residence');
+            $total += $baseScores['statusResidence']  * $safeFormula('status_residence');
+            $total += $safeBeneficial                 * $safeFormula('beneficialOwner');
+            $total += $baseScores['totalRiskProduct'] * $safeFormula('product_risk');
+            $total += $baseScores['processesReported'] * $safeFormula('processesReportedAuthoritie');
+            $total += $baseScores['santion']          * $safeFormula('santion');
+            $total += $baseScores['channel']          * $safeFormula('channel');
+        }
+
+        return $total;
     }
-
-    return $total;
-}
 
 
     private function updateEntityRisk($riskAssessment, $total, $diligence, $reassessmentPeriod): void
@@ -442,7 +445,52 @@ class RiskAssessmentService extends AbstractService
         return $pepPoints + $sanctionPoints + $nationalityScoreTotal;
     }
 
+    private function buildRiskDescription($riskAssessment, $diligence): string
+    {
+        $formula = $riskAssessment->riskFormula;
 
+        $factors = [];
+
+        $factors['País de residência'] =
+            ($riskAssessment->countryResidence?->score ?? 0) *
+            ($formula->country_residence ?? 0);
+
+        $factors['Canal de distribuição'] =
+            ($riskAssessment->channel?->score ?? 0) *
+            ($formula->channel ?? 0);
+
+        $factors['Profissão'] =
+            ($riskAssessment->profession?->score ?? 0) *
+            ($formula->profession ?? 0);
+
+        $factors['Categoria'] =
+            ($riskAssessment->category?->score ?? 0) *
+            ($formula->category ?? 0);
+
+        $factors['Capacidade de identificação'] =
+            ($riskAssessment->indetificationCapacity?->score ?? 0) *
+            ($formula->identification_capacity ?? 0);
+
+        if ($riskAssessment->processesReportedAuthoritie) {
+            $factors['Processos reportados às autoridades'] = 3;
+        }
+
+        if ($riskAssessment->santion) {
+            $factors['Entidade sancionada'] = 1000;
+        }
+
+        if ($riskAssessment->pep) {
+            $factors['Pessoa Politicamente Exposta (PEP)'] = 3;
+        }
+
+        arsort($factors);
+
+        $topFactors = array_slice(array_keys($factors), 0, 3);
+
+        $descriptionFactors = implode(', ', $topFactors);
+
+        return "Avaliação de risco resultou em nível de risco {$diligence->risk} e diligência {$diligence->name}. Principais fatores de risco identificados: {$descriptionFactors}.";
+    }
 
 
 
@@ -472,7 +520,6 @@ class RiskAssessmentService extends AbstractService
 
         if (array_key_exists('is_reported', $data)) {
             $data['processesReportedAuthoritie'] = (bool) $data['is_reported'];
-            
         }
 
         $data['entity_id'] = $alert->entity_id;
