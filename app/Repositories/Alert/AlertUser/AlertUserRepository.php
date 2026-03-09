@@ -26,7 +26,7 @@ class AlertUserRepository extends AbstractRepository
     {
 
         $this->user = $user;
-           $this->alert = $alert;
+        $this->alert = $alert;
         $this->logService = $logService;
         parent::__construct($model);
     }
@@ -34,37 +34,37 @@ class AlertUserRepository extends AbstractRepository
 
     public function countAlertUser(int $userId, int $status): int
     {
-         return $this->model
-        ->where('user_id', $userId)
-        ->where('is_read', $status)
-        ->count();
+        return $this->model
+            ->where('user_id', $userId)
+            ->where('is_read', $status)
+            ->count();
     }
 
-  
+
     public function countAlertsByUserGrouped(int $userId): array
     {
         return [
-            'total_active' => $this->countAlertUser($userId,self::STATUS_NEW),
-            'closed'       =>  $this->countAlertUser($userId,self::STATUS_CLOSED),
-            'new'          =>  $this->countAlertUser($userId,self::STATUS_NEW),
-            'validation'   =>  $this->countAlertUser($userId,self::STATUS_VALIDATION),
-            'supervision'  =>  $this->countAlertUser($userId,self::STATUS_SUPERVISION),
+            'total_active' => $this->countAlertUser($userId, self::STATUS_NEW),
+            'closed'       =>  $this->countAlertUser($userId, self::STATUS_CLOSED),
+            'new'          =>  $this->countAlertUser($userId, self::STATUS_NEW),
+            'validation'   =>  $this->countAlertUser($userId, self::STATUS_VALIDATION),
+            'supervision'  =>  $this->countAlertUser($userId, self::STATUS_SUPERVISION),
         ];
     }
 
-public function getUsersWithAlerts()
-{
-    $user = $this->user->me();
+    public function getUsersWithAlerts()
+    {
+        $user = $this->user->me();
 
-    $hasPermission = collect($user->role->permissions ?? [])
-        ->contains('name', 'compliance-officer-show');
+        $hasPermission = collect($user->role->permissions ?? [])
+            ->contains('name', 'compliance-officer-show');
 
-    if ($hasPermission) {
-        return $this->model->distinct()->pluck('user_id');
+        if ($hasPermission) {
+            return $this->model->distinct()->pluck('user_id');
+        }
+
+        return collect([$user->id]);
     }
-
-    return collect([$user->id]);
-}
 
 
     public function storeMany($data)
@@ -74,7 +74,9 @@ public function getUsersWithAlerts()
         // insere na pivot alert_user
         $inserted = $this->model->insert(
             collect($data)->map(function ($item) use ($now) {
-                $alertData = $this->alert->findByValidate($item['alert_id']);
+                $alertData = $this->alert->findByValidate([
+                    'id' => $item['alert_id']
+                ]);
                 return array_merge($item, [
                     'is_read' =>   $alertData->is_active,
                     'created_at' => $now,
@@ -98,10 +100,10 @@ public function getUsersWithAlerts()
                 idEntity: $userId,
                 alert_id: $alertId,
                 customMessage: sprintf(
-    'Usuário %s foi adicionado ao alerta %s',
-    $user->first_name ?? 'N/D',
-    $alertId
-)
+                    'Usuário %s foi adicionado ao alerta %s',
+                    $user->first_name ?? 'N/D',
+                    $alertId
+                )
             );
 
             $user = \App\Models\User::find($item['user_id']);

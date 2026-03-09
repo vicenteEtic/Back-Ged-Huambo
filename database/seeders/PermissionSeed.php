@@ -31,10 +31,7 @@ class PermissionSeed extends Seeder
                 'operations' => ['show', 'create', 'edit','Export']
             ],
 
-            [
-                'name' => 'Estatística',
-                'operations' => ['show','Export']
-            ],
+          
 
             [
                 'name' => 'Regra',
