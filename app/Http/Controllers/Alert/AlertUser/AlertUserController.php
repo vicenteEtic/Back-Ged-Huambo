@@ -49,7 +49,6 @@ class AlertUserController extends AbstractController
     public function getAllUsersAlertSummary(Request $request)
     {
 
-        try {
             if ($this->logRequest) {
                 $this->logRequest();
                 $this->logToDatabase(
@@ -63,7 +62,8 @@ class AlertUserController extends AbstractController
             $service = $this->service->index($request['paginate'], $filters, $request['orderBy'], $request['relationships']);
 
             return $users = $this->service->getAllUsersAlertSummary();
-        } catch (Exception $e) {
+      
+        try {  } catch (Exception $e) {
             if ($this->logRequest) {
                 $this->logRequest($e);
             }
