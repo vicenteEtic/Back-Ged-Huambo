@@ -58,13 +58,13 @@ class AlertUserRepository extends AbstractRepository
         $user = $this->user->me(); // Pega os dados do usuário
         $userArray = json_decode(json_encode($user), true); // Garante array
 
-        $permissionId = 57; // Permite listar Compliance Officer
+        $permissionName = "compliance-officer-show"; // Permite listar Compliance Officer
         $permissionFound = null;
 
         // Busca a permissão
         if (isset($userArray['role']['permissions'])) {
             foreach ($userArray['role']['permissions'] as $permission) {
-                if ($permission['id'] == $permissionId) {
+                if ($permission['name'] == $permissionName) {
                     $permissionFound = $permission;
                     break;
                 }
