@@ -127,97 +127,95 @@ class GenerateAlertsJob implements ShouldQueue
      * Create or update alerts based on external data.
      */
 
-   private function resolveAlertType(string $source): array
-{
-    return match ($source) {
-        'PEP' => [
-            'type' => 'PEP',
-            'category' => 'PEP',
-            'list' => 'PEP List world',
-            'is_pep' => 1,
-            'is_sanctioned' => 0,
-        ],
-        'SANCTIONS' => [
-            'type' => 'SANCTIONS',
-            'category' => 'SANCTIONS',
-            'list' => 'Sanctions List',
-            'is_pep' => 0,
-            'is_sanctioned' => 1,
-        ],
-        'KYC' => [
-            'type' => 'KYC',
-            'category' => 'KYC',
-            'list' => 'KYC List',
-            'is_pep' => 0,
-            'is_sanctioned' => 0,
-        ],
-        default => throw new \InvalidArgumentException("Tipo de alerta inválido: {$source}"),
-    };
-}
+    private function resolveAlertType(string $source): array
+    {
+        return match ($source) {
+            'PEP' => [
+                'type' => 'PEP',
+                'category' => 'PEP',
+                'list' => 'PEP List world',
+                'is_pep' => 1,
+                'is_sanctioned' => 0,
+            ],
+            'SANCTIONS' => [
+                'type' => 'SANCTIONS',
+                'category' => 'SANCTIONS',
+                'list' => 'Sanctions List',
+                'is_pep' => 0,
+                'is_sanctioned' => 1,
+            ],
+            'KYC' => [
+                'type' => 'KYC',
+                'category' => 'KYC',
+                'list' => 'KYC List',
+                'is_pep' => 0,
+                'is_sanctioned' => 0,
+            ],
+            default => throw new \InvalidArgumentException("Tipo de alerta inválido: {$source}"),
+        };
+    }
 
 
-private function createAlerts(array $data, int $entityId, string $type): void
-{
-    $typeData = match ($type) {
-        'PEP' => [
-            'type' => 'PEP',
-            'list' => 'PEP List world',
-            'is_pep' => 1,
-            'is_sanctioned' => 0
-        ],
-        'SANCTIONS' => [
-            'type' => 'SANCTIONS',
-            'list' => 'Sanctions List',
-            'is_pep' => 0,
-            'is_sanctioned' => 1
-        ],
-        default => [
-            'type' => 'KYC',
-            'list' => 'KYC List',
-            'is_pep' => 0,
-            'is_sanctioned' => 0
-        ],
-    };
-
-    foreach ($data as $item) {
-
-        $score = $item['score'] ?? 0;
-
-        $level = match (true) {
-            $score >= 70 => 'Alto',
-            $score >= 50 => 'Médio',
-            default      => 'Baixo',
+    private function createAlerts(array $data, int $entityId, string $type): void
+    {
+        $typeData = match ($type) {
+            'PEP' => [
+                'type' => 'PEP',
+                'list' => 'PEP List world',
+                'is_pep' => 1,
+                'is_sanctioned' => 0
+            ],
+            'SANCTIONS' => [
+                'type' => 'SANCTIONS',
+                'list' => 'Sanctions List',
+                'is_pep' => 0,
+                'is_sanctioned' => 1
+            ],
+            default => [
+                'type' => 'KYC',
+                'list' => 'KYC List',
+                'is_pep' => 0,
+                'is_sanctioned' => 0
+            ],
         };
 
-        $dateValidate=[
+        foreach ($data as $item) {
+
+            $score = $item['score'] ?? 0;
+
+            $level = match (true) {
+                $score >= 70 => 'Alto',
+                $score >= 50 => 'Médio',
+                default      => 'Baixo',
+            };
+
+            $dateValidate = [
                 'origin_id' => $item['id'] ?? null,
                 'entity_id' => $entityId,
                 'type'      => $typeData['type'],
             ];
 
-        $alert = $this->alertRepository->firstOrCreate(
-             $dateValidate,
-            [
-                'name'        => $item['name'] ?? 'UNKNOWN',
-                'country'     => $item['country'] ?? null,
-                'birth_date'  => $item['birth_date'] ?? null,
-                'level'       => $level,
-                'from_id'     => $entityId,
-                'origin_id'   => $item['id'] ?? null,
-                'entity_id'   => $entityId,
-                'score'       => $score,
-                'type'        => $typeData['type'],
-                'category'    => 'KYC',
-                'list'        => $item['datasets'] ?? $typeData['list'],
-                'is_active'   => true,
-            ]
-        );
+            $alert = $this->alertRepository->firstOrCreate(
+                [
+                    'entity_id'  => $entityId,
+                    'origin_id'  => $item['id'] ?? null,
+                    'type'       => $typeData['type'],
+                    'category'   => 'KYC',
+                ],
+                [
+                    'name'        => $item['name'] ?? 'UNKNOWN',
+                    'country'     => $item['country'] ?? null,
+                    'birth_date'  => $item['birth_date'] ?? null,
+                    'level'       => $level,
+                    'from_id'     => $entityId,
+                    'score'       => $score,
+                    'list'        => $item['datasets'] ?? $typeData['list'],
+                    'is_active'   => true,
+                ]
+            );
 
-        $host = config('app.url');
-        SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
+            $host = config('app.url');
+            SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
+        }
     }
-}
-
-
-
 }

@@ -101,122 +101,118 @@ class RiskAssessmentService extends AbstractService
         ])->findOrFail($id);
     }
 
-    public function store(array $data)
-    {
-        $data['user_id'] = Auth::id() ?? $data['user_id'];
+   public function store(array $data)
+{
+    $data['user_id'] = Auth::id() ?? $data['user_id'];
 
-        $data['beneficialOwner'] = $this->countRiskPoints($data);
-        $riskAssessment = $this->repository->store($data);
+    $data['beneficialOwner'] = $this->countRiskPoints($data);
 
-        if (isset($data['beneficial_owners'])) {
-            $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id);
-        }
-        if (isset($data['beneficial'])) {
-            $this->beneficialService->createBeneficial($data, $riskAssessment->id);
-        }
+    $riskAssessment = $this->repository->store($data);
 
-        if (!empty($data['pep']) && $data['pep'] === true) {
-            $this->pepService->createEntityPep($data['entity_id']);
-        }
+    $this->handleBeneficialOwners($data, $riskAssessment);
+    $this->handlePEP($data);
+    $riskProducts = $this->handleProductRisks($data, $riskAssessment);
 
-        if (!empty($data['pep']) && $data['pep'] === 1) {
-            $this->pepService->createEntityPep($data['entity_id']);
-        }
+    $formula = $this->riskFormulaRepository->findByEntityType($riskAssessment['entity']['entity_type']);
+    $riskAssessment->update(['id_risk_formula' => $formula->id]);
 
-        $riskProducts = $this->indicatorTypeRepository->getByIds($data['product_risk']);
-        $this->productRiskService->storeProductRisks($riskProducts, $riskAssessment->id);
+    $this->loadRelations($riskAssessment);
 
+    $totalRiskProduct = $riskProducts->sum('score');
+    $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $data['beneficialOwner']);
+    $diligence = $this->diligenceService->getDilligenceAssessment($total);
 
-        $entityType = $riskAssessment['entity']['entity_type'];
-        $formula = $this->riskFormulaRepository->findByEntityType($entityType);
-        // Atualizar o campo id_risk_formula
-        $riskAssessment->update([
-            'id_risk_formula' =>   $formula->id
-        ]);
-        $this->loadRelations($riskAssessment);
+    $nextReassessmentDate = $this->getNextReassessmentDate($diligence);
+    $this->updateEntityRisk($riskAssessment, $total, $diligence, $nextReassessmentDate);
 
-        $totalRiskProduct = $riskProducts->sum('score');
-        $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $data['beneficialOwner']);
+    $riskAssessment->score = $total;
+    $riskAssessment->color = $diligence->color;
+    $riskAssessment->risk_level = $diligence->risk;
+    $riskAssessment->diligence = $diligence->name;
+    $riskAssessment->reassessmentPeriod = $nextReassessmentDate;
 
-        $diligence = $this->diligenceService->getDilligenceAssessment($total);
+    $riskAssessment->save();
 
+    $this->handleAlerts($riskAssessment, $diligence);
 
-        $reassessmentPeriod = $diligence?->reassessmentPeriod;
+    $this->dispatchGenerateAlertsJob($data, $riskAssessment);
 
-        // Extrai o número do texto (1, 2, etc.)
-        $years = (int) filter_var($reassessmentPeriod, FILTER_SANITIZE_NUMBER_INT);
+    return $riskAssessment;
+}
 
-        // Cria a data de reavaliação
-        $nextReassessmentDate = Carbon::now()->addYears($years);
-
-
-        if ($diligence->name != "Cliente Inaceitável") {
-            $nextReassessmentDate = Carbon::now()->addYears($years);
-            $nextReassessmentDateFormatted = $nextReassessmentDate->format('Y-m-d');
-        } else {
-
-            $nextReassessmentDateFormatted = null;
-        }
-
-        $this->updateEntityRisk($riskAssessment, $total, $diligence, $nextReassessmentDateFormatted);
-        $riskAssessment->score = $total;
-        $riskAssessment->color = $diligence->color;
-        $riskAssessment->risk_level = $diligence->risk;
-        $riskAssessment->diligence = $diligence->name;
-        $riskAssessment->reassessmentPeriod = $nextReassessmentDateFormatted;
-
-
-        $riskAssessment->save();
-
-        if ($diligence->name == "Cliente Inaceitável" || $diligence->name == "Reforçada") {
-
-            $description = $this->buildRiskDescription($riskAssessment, $diligence);
-
-            $datevalidate = [
-                'name' => $riskAssessment->entity->social_denomination,
-                'country' => $riskAssessment->nationlity->description,
-                'entity_id' => $riskAssessment->entity->id,
-                'type' => "AML",
-                'category' => "KYC",
-                "description" => $description,
-            ];
-
-            $alert = $this->alertRepository->firstOrCreate(
-                $datevalidate,
-                [
-                    'name' => $riskAssessment->entity->social_denomination,
-                    'country' => $riskAssessment->nationlity->description,
-                    'birth_date' => "",
-                    'level' => "Alto",
-                    'from_id' => "AV#" . $riskAssessment->id,
-                    'origin_id' => "AV#" . $riskAssessment->id,
-                    'entity_id' => $riskAssessment->entity->id,
-                    'score' => $riskAssessment->score,
-                    'type' => "AML",
-                    'category' => "KYC",
-                    'list' => "AML",
-                    'is_active' => true,
-                    "description" => $description,
-                ]
-            );
-
-            $host = config('app.url');
-            SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
-        }
-
-
-        // só dispara se nenhum dos campos is_pep ou is_sanctioned estiver definido
-        if (!array_key_exists('is_sanctioned', $data) && !array_key_exists('is_pep', $data)) {
-            // só dispara se pep ou sanction for false
-            if ($data['pep'] == false || $data['santion'] == false) {
-                GenerateAlertsJob::dispatch($riskAssessment->entity->id, $riskAssessment)
-                    ->onQueue('high');
-            }
-        }
-
-
-        return $riskAssessment;
+private function handleBeneficialOwners(array $data, $riskAssessment): void
+{
+    if (isset($data['beneficial_owners'])) {
+        $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id);
     }
+    if (isset($data['beneficial'])) {
+        $this->beneficialService->createBeneficial($data, $riskAssessment->id);
+    }
+}
+
+private function handlePEP(array $data): void
+{
+    if (!empty($data['pep']) && ($data['pep'] === true || $data['pep'] === 1)) {
+        $this->pepService->createEntityPep($data['entity_id']);
+    }
+}
+
+private function handleProductRisks(array $data, $riskAssessment)
+{
+    $riskProducts = $this->indicatorTypeRepository->getByIds($data['product_risk']);
+    $this->productRiskService->storeProductRisks($riskProducts, $riskAssessment->id);
+    return $riskProducts;
+}
+
+private function getNextReassessmentDate($diligence): ?string
+{
+    if ($diligence->name === "Cliente Inaceitável") return null;
+
+    $years = (int) filter_var($diligence?->reassessmentPeriod, FILTER_SANITIZE_NUMBER_INT);
+    return Carbon::now()->addYears($years)->format('Y-m-d');
+}
+
+private function handleAlerts($riskAssessment, $diligence): void
+{
+    if (!in_array($diligence->name, ["Cliente Inaceitável", "Reforçada"])) return;
+
+    $description = $this->buildRiskDescription($riskAssessment, $diligence);
+
+    $dateValidate = [
+        'entity_id' => $riskAssessment->entity->id,
+        'origin_id' => "AV#" . $riskAssessment->id,
+        'type' => "AML",
+        'category' => "KYC",
+    ];
+
+    $alert = $this->alertRepository->firstOrCreate(
+        $dateValidate,
+        [
+            'name' => $riskAssessment->entity->social_denomination,
+            'country' => $riskAssessment->nationlity->description,
+            'birth_date' => "",
+            'level' => "Alto",
+            'from_id' => "AV#" . $riskAssessment->id,
+            'score' => $riskAssessment->score,
+            'list' => "AML",
+            'is_active' => true,
+            "description" => $description,
+        ]
+    );
+
+    $host = config('app.url');
+    SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
+}
+
+private function dispatchGenerateAlertsJob(array $data, $riskAssessment): void
+{
+    if (!array_key_exists('is_sanctioned', $data) && !array_key_exists('is_pep', $data)) {
+        if ($data['pep'] == false || $data['santion'] == false) {
+            GenerateAlertsJob::dispatch($riskAssessment->entity->id, $riskAssessment)
+                ->onQueue('high');
+        }
+    }
+}
 
     private function loadRelations($riskAssessment): void
     {
