@@ -4,6 +4,7 @@ namespace App\Repositories\Alert\AlertUser;
 
 use App\Models\Alert\AlertUser\AlertUser;
 use App\Repositories\AbstractRepository;
+use App\Repositories\Alert\AlertRepository;
 use App\Services\Log\LogService;
 use App\Services\User\UserService;
 use Illuminate\Http\JsonResponse;
@@ -21,11 +22,12 @@ class AlertUserRepository extends AbstractRepository
     public const STATUS_SUPERVISION = 3;
     public $alert;
 
-    public function __construct(AlertUser $model, UserService $user, LogService $logService)
+    public function __construct(AlertUser $model, UserService $user, LogService $logService, AlertRepository $alert )
     {
 
         $this->user = $user;
         $this->logService = $logService;
+         $this->alert = $alert;
         parent::__construct($model);
     }
 
