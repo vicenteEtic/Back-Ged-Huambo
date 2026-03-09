@@ -12,33 +12,28 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class AlertUser extends Model
 {
     use HasFactory, SoftDeletes;
+
     protected $table = 'alert_user';
     protected $primaryKey = 'id';
-    protected $fillable = ['alert_id', 'user_id', 'is_read'];
+    protected $fillable = ['alert_id', 'user_id', 'is_read', 'entity_id'];
+
+    // Relacionamento com o usuário
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    // Relacionamento com o alert
     public function alert()
     {
         return $this->belongsTo(Alert::class, 'alert_id');
     }
 
-    public function users()
-    {
-        return $this->belongsToMany(User::class, 'alert_user', 'alert_id', 'user_id')
-            ->withTimestamps()
-            ->withPivot('is_read', 'created_at');
-    }
-    public function alerts()
-    {
-        return $this->belongsToMany(\App\Models\Alert\Alert::class, 'alert_user', 'user_id', 'alert_id')
-            ->withTimestamps()
-            ->withPivot('is_read', 'created_at');
-    }
-
+    // Relacionamento com a entidade (se existir)
     public function entity()
     {
         return $this->belongsTo(Entities::class, 'entity_id');
     }
+
+    // Removidos os métodos users() e alerts() que causavam conflito
 }
