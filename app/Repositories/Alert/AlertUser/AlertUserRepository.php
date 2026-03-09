@@ -4,7 +4,6 @@ namespace App\Repositories\Alert\AlertUser;
 
 use App\Models\Alert\AlertUser\AlertUser;
 use App\Repositories\AbstractRepository;
-use App\Repositories\Alert\AlertRepository;
 use App\Services\Log\LogService;
 use App\Services\User\UserService;
 use Illuminate\Http\JsonResponse;
@@ -22,11 +21,10 @@ class AlertUserRepository extends AbstractRepository
     public const STATUS_SUPERVISION = 3;
     public $alert;
 
-    public function __construct(AlertUser $model, UserService $user, LogService $logService, AlertRepository $alert)
+    public function __construct(AlertUser $model, UserService $user, LogService $logService)
     {
 
         $this->user = $user;
-        $this->alert = $alert;
         $this->logService = $logService;
         parent::__construct($model);
     }
@@ -34,37 +32,57 @@ class AlertUserRepository extends AbstractRepository
 
     public function countAlertUser(int $userId, int $status): int
     {
-        return $this->model
-            ->where('user_id', $userId)
-            ->where('is_read', $status)
-            ->count();
+         return $this->model
+        ->where('user_id', $userId)
+        ->where('is_read', $status)
+        ->count();
     }
 
-
+  
     public function countAlertsByUserGrouped(int $userId): array
     {
         return [
-            'total_active' => $this->countAlertUser($userId, self::STATUS_NEW),
-            'closed'       =>  $this->countAlertUser($userId, self::STATUS_CLOSED),
-            'new'          =>  $this->countAlertUser($userId, self::STATUS_NEW),
-            'validation'   =>  $this->countAlertUser($userId, self::STATUS_VALIDATION),
-            'supervision'  =>  $this->countAlertUser($userId, self::STATUS_SUPERVISION),
+            'total_active' => $this->countAlertUser($userId,self::STATUS_NEW),
+            'closed'       =>  $this->countAlertUser($userId,self::STATUS_CLOSED),
+            'new'          =>  $this->countAlertUser($userId,self::STATUS_NEW),
+            'validation'   =>  $this->countAlertUser($userId,self::STATUS_VALIDATION),
+            'supervision'  =>  $this->countAlertUser($userId,self::STATUS_SUPERVISION),
         ];
     }
 
-    public function getUsersWithAlerts()
-    {
-        $user = $this->user->me();
+public function getUsersWithAlerts()
+{
+    $user = $this->user->me();
+    $userArray = json_decode(json_encode($user), true);
 
-        $hasPermission = collect($user->role->permissions ?? [])
-            ->contains('name', 'compliance-officer-show');
+    $permissionName = "compliance-officer-show";
+    $permissionFound = null;
 
-        if ($hasPermission) {
-            return $this->model->distinct()->pluck('user_id');
+    if (isset($userArray['role']['permissions'])) {
+
+        foreach ($userArray['role']['permissions'] as $permission) {
+
+            if ($permission['name'] === $permissionName) {
+                $permissionFound = $permission;
+                break;
+            }
+
         }
 
-        return collect([$user->id]);
     }
+
+    if ($permissionFound) {
+        // Se tem permissão, pega todos os user_id distintos
+        $users = $this->model
+            ->distinct()
+            ->pluck('user_id');
+    } else {
+        // Se não tem permissão, pega apenas o user logado
+        $users = collect([$userArray['id']]);
+    }
+
+    return $users;
+}
 
 
     public function storeMany($data)
@@ -74,9 +92,8 @@ class AlertUserRepository extends AbstractRepository
         // insere na pivot alert_user
         $inserted = $this->model->insert(
             collect($data)->map(function ($item) use ($now) {
-             
+                $alertData = $this->alert->findByValidate($item['alert_id']);
                 return array_merge($item, [
-                   // 'is_read' =>   $alertData->is_active,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);
@@ -98,9 +115,10 @@ class AlertUserRepository extends AbstractRepository
                 idEntity: $userId,
                 alert_id: $alertId,
                 customMessage: sprintf(
-                    'Usuário %s foi adicionado ao alerta %s',
+                    'Usuário %s ( foi adicionado ao alerta ',
                     $user->first_name ?? 'N/D',
-                    $alertId
+                    $userId
+
                 )
             );
 
