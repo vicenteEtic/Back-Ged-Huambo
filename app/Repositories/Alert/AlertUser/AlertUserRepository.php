@@ -49,38 +49,39 @@ class AlertUserRepository extends AbstractRepository
         ];
     }
 
+public function getUsersWithAlerts()
+{
+    $user = $this->user->me();
+    $userArray = json_decode(json_encode($user), true);
 
-    public function getUsersWithAlerts()
-    {
-        $user = $this->user->me(); // Pega os dados do usuário
-        $userArray = json_decode(json_encode($user), true); // Garante array
+    $permissionName = "compliance-officer-show";
+    $permissionFound = null;
 
-        $permissionId = 57; // Permite listar Compliance Officer
-        $permissionFound = null;
+    if (isset($userArray['role']['permissions'])) {
 
-        // Busca a permissão
-        if (isset($userArray['role']['permissions'])) {
-            foreach ($userArray['role']['permissions'] as $permission) {
-                if ($permission['id'] == $permissionId) {
-                    $permissionFound = $permission;
-                    break;
-                }
+        foreach ($userArray['role']['permissions'] as $permission) {
+
+            if ($permission['name'] === $permissionName) {
+                $permissionFound = $permission;
+                break;
             }
+
         }
 
-        if ($permissionFound) {
-            // Se tem permissão, pega todos os user_id distintos
-            $users = $this->model
-                ->distinct()
-                ->pluck('user_id');
-        } else {
-            // Se não tem permissão, pega apenas o user logado
-            $users = collect([$userArray['id']]);
-        }
-
-        // Retorna a coleção de IDs
-        return $users;
     }
+
+    if ($permissionFound) {
+        // Se tem permissão, pega todos os user_id distintos
+        $users = $this->model
+            ->distinct()
+            ->pluck('user_id');
+    } else {
+        // Se não tem permissão, pega apenas o user logado
+        $users = collect([$userArray['id']]);
+    }
+
+    return $users;
+}
 
 
     public function storeMany($data)
