@@ -55,35 +55,15 @@ class AlertUserRepository extends AbstractRepository
 public function getUsersWithAlerts()
 {
     $user = $this->user->me();
-    $userArray = json_decode(json_encode($user), true);
 
-    $permissionName = "compliance-officer-show";
-    $permissionFound = null;
+    $hasPermission = collect($user->role->permissions ?? [])
+        ->contains('name', 'compliance-officer-show');
 
-    if (isset($userArray['role']['permissions'])) {
-
-        foreach ($userArray['role']['permissions'] as $permission) {
-
-            if ($permission['name'] === $permissionName) {
-                $permissionFound = $permission;
-                break;
-            }
-
-        }
-
+    if ($hasPermission) {
+        return $this->model->distinct()->pluck('user_id');
     }
 
-    if ($permissionFound) {
-        // Se tem permissão, pega todos os user_id distintos
-        $users = $this->model
-            ->distinct()
-            ->pluck('user_id');
-    } else {
-        // Se não tem permissão, pega apenas o user logado
-        $users = collect([$userArray['id']]);
-    }
-
-    return $users;
+    return collect([$user->id]);
 }
 
 
@@ -118,11 +98,10 @@ public function getUsersWithAlerts()
                 idEntity: $userId,
                 alert_id: $alertId,
                 customMessage: sprintf(
-                    'Usuário %s ( foi adicionado ao alerta ',
-                    $user->first_name ?? 'N/D',
-                    $userId
-
-                )
+    'Usuário %s foi adicionado ao alerta %s',
+    $user->first_name ?? 'N/D',
+    $alertId
+)
             );
 
             $user = \App\Models\User::find($item['user_id']);
