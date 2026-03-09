@@ -31,21 +31,21 @@ class AlertUserRepository extends AbstractRepository
 
     public function countAlertUser(int $userId, int $status): int
     {
-         return $this->model
-        ->where('user_id', $userId)
-        ->where('is_read', $status)
-        ->count();
+        return $this->model
+            ->where('user_id', $userId)
+            ->where('is_read', $status)
+            ->count();
     }
 
-  
+
     public function countAlertsByUserGrouped(int $userId): array
     {
         return [
-            'total_active' => $this->countAlertUser($userId,self::STATUS_NEW),
-            'closed'       =>  $this->countAlertUser($userId,self::STATUS_CLOSED),
-            'new'          =>  $this->countAlertUser($userId,self::STATUS_NEW),
-            'validation'   =>  $this->countAlertUser($userId,self::STATUS_VALIDATION),
-            'supervision'  =>  $this->countAlertUser($userId,self::STATUS_SUPERVISION),
+            'total_active' => $this->countAlertUser($userId, self::STATUS_NEW),
+            'closed'       =>  $this->countAlertUser($userId, self::STATUS_CLOSED),
+            'new'          =>  $this->countAlertUser($userId, self::STATUS_NEW),
+            'validation'   =>  $this->countAlertUser($userId, self::STATUS_VALIDATION),
+            'supervision'  =>  $this->countAlertUser($userId, self::STATUS_SUPERVISION),
         ];
     }
 
@@ -55,7 +55,7 @@ class AlertUserRepository extends AbstractRepository
         $user = $this->user->me(); // Pega os dados do usuário
         $userArray = json_decode(json_encode($user), true); // Garante array
 
-        $permissionId = 42; // Permite listar Compliance Officer
+        $permissionId = 57; // Permite listar Compliance Officer
         $permissionFound = null;
 
         // Busca a permissão

@@ -28,76 +28,76 @@ class PermissionSeed extends Seeder
 
             [
                 'name' => 'Usuário',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
                 'name' => 'Estatística',
-                'operations' => ['show']
+                'operations' => ['show','Export']
             ],
 
             [
                 'name' => 'Regra',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
                 'name' => 'Entidades',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
                 'name' => 'Avaliações',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
               [
                 'name' => 'Importar Avaliações',
-                'operations' => ['show', 'create']
+                'operations' => ['show', 'create','Export']
             ],
 
             [
                 'name' => 'Canais',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
                 'name' => 'Categorias',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
                 'name' => 'Países',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
                 'name' => 'Riscos de Produtos',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
                 'name' => 'Diligências',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
                 'name' => 'Profissões',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
                 'name' => 'CAE',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
                 'name' => 'Perfil',
-                'operations' => ['show', 'edit']
+                'operations' => ['show', 'edit','Export']
             ],
 
             [
                 'name' => 'Receptores de Alertas',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
@@ -107,7 +107,7 @@ class PermissionSeed extends Seeder
 
             [
                 'name' => 'Peps Internos',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
@@ -122,36 +122,36 @@ class PermissionSeed extends Seeder
 
             [
                 'name' => 'Transações',
-                'operations' => ['show', 'create']
+                'operations' => ['show', 'create','Export']
             ],
 
             [
                 'name' => 'Capacidades de Identificação',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
             [
                 'name' => 'Formas Jurídicas',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
                 'name' => 'Histórico Geral',
-                'operations' => ['show']
+                'operations' => ['show','Export']
             ],
 
             [
                 'name' => 'Alertas',
-                'operations' => ['show']
+                'operations' => ['show','Export']
             ],
 
             [
                 'name' => 'Ponderadores',
-                'operations' => ['show', 'edit']
+                'operations' => ['show', 'edit','Export']
             ],
 
             [
                 'name' => 'Regras & Permissões',
-                'operations' => ['show', 'create', 'edit']
+                'operations' => ['show', 'create', 'edit','Export']
             ],
 
             [
@@ -166,7 +166,7 @@ class PermissionSeed extends Seeder
 
             [
                 'name' => 'Estatísticas',
-                'operations' => ['show']
+                'operations' => ['show','Export']
             ],
 
         ];
@@ -176,6 +176,7 @@ class PermissionSeed extends Seeder
             'create' => 'Permite criar',
             'edit' => 'Permite editar',
             'delete' => 'Permite excluir',
+             'Export' => 'Permite Exportar Dados',
         ];
 
         $permissionIds = [];

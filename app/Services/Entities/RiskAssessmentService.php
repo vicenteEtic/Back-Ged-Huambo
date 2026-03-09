@@ -470,6 +470,11 @@ class RiskAssessmentService extends AbstractService
             $data['is_sanctioned'] = (bool) $data['is_sanctioned'];
         }
 
+        if (array_key_exists('is_reported', $data)) {
+            $data['processesReportedAuthoritie'] = (bool) $data['is_reported'];
+            
+        }
+
         $data['entity_id'] = $alert->entity_id;
 
         $data['risk_assessment'] = $lastAssessment->risk_assessment;
