@@ -57,10 +57,7 @@ class PermissionSeed extends Seeder
                 'operations' => ['show', 'create', 'edit','Export']
             ],
 
-            [
-                'name' => 'Categorias',
-                'operations' => ['show', 'create', 'edit','Export']
-            ],
+         
 
             [
                 'name' => 'Países',
@@ -165,7 +162,7 @@ class PermissionSeed extends Seeder
                 'operations' => ['show']
             ],
             [
-                'name' => 'Estatísticas',
+                'name' => 'Estatística',
                 'operations' => ['show','Export']
             ],
 

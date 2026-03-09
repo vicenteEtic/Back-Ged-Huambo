@@ -81,77 +81,89 @@ class GenerateAlertBeneficialJob implements ShouldQueue
             optional($lock)->release();
         }
     }
-    private function generateAlerts(
-        $response,
-        string $type,
-        string $defaultList,
-        Beneficial $beneficial,
-        $riskAssessment,
-        AlertRepository $repo
-    ): void {
+   private function generateAlerts(
+    $response,
+    string $type,
+    string $defaultList,
+    Beneficial $beneficial,
+    $riskAssessment,
+    AlertRepository $repo
+): void {
 
-        // Garante que $response seja array
-        if (!is_array($response)) {
-            Log::warning("Resposta inválida da API para {$beneficial->name}", ['type' => $type, 'response' => $response]);
-            $response = [];
-        }
-
-        // Garante que $items seja sempre array
-        $items = $response['data'] ?? [];
-        if (!is_array($items)) {
-            $items = [];
-        }
-
-        if (empty($items)) {
-            Log::info("Nenhum alerta encontrado para {$beneficial->name} em {$defaultList}");
-            return;
-        }
-
-        foreach ($items as $item) {
-            if (empty($item['id'])) continue;
-
-            $score = (int) ($item['score'] ?? 0);
-            $level = match (true) {
-                $score >= 70 => 'Alto',
-                $score >= 50 => 'Médio',
-                default => 'Baixo',
-            };
-
-            $description = sprintf(
-                'No âmbito da avaliação de risco AML/KYC, foi identificada correspondência do beneficiário %s (%s) '
-                    . 'em listas externas de monitorização (%s).',
-                $beneficial->name,
-                $beneficial->nationality ?? 'Desconhecida',
-                $defaultList
-            );
-
-            $dateValidate = [
-                'origin_id'   => $item['id'],
-                'entity_id'   => $riskAssessment->entity_id,
-                'type'        => $type,
-            ];
-
-            $repo->firstOrCreate($dateValidate, [
-                'origin_id'   => $item['id'],
-                'entity_id'   => $riskAssessment->entity_id,
-                'from_id'     => $beneficial->id,
-                'name'        => $item['name'] ?? 'Desconhecido',
-                'country'     => $item['country'] ?? null,
-                'birth_date'  => $item['birth_date'] ?? null,
-                'score'       => $score,
-                'level'       => $level,
-                'type'        => $type,
-                'category'    => 'KYC',
-                'list'        => $item['datasets'] ?? $defaultList,
-                'is_active'   => true,
-                'description' => $description,
-            ]);
-
-            Log::info("Alerta gerado para {$beneficial->name}", [
-                'type' => $type,
-                'origin_id' => $item['id'],
-                'score' => $score,
-            ]);
-        }
+    // Garante que $response seja array
+    if (!is_array($response)) {
+        Log::warning("Resposta inválida da API para {$beneficial->name}", [
+            'type' => $type,
+            'response' => $response
+        ]);
+        $response = ['data' => []];
     }
+
+    // Garante que $items seja sempre um array
+    $items = $response['data'] ?? [];
+    if (!is_array($items)) {
+        Log::warning("Campo 'data' inválido na resposta da API para {$beneficial->name}", [
+            'type' => $type,
+            'data_field' => $response['data'] ?? null
+        ]);
+        $items = [];
+    }
+
+    if (empty($items)) {
+        Log::info("Nenhum alerta encontrado para {$beneficial->name} na lista {$defaultList}");
+        return;
+    }
+
+    foreach ($items as $item) {
+        // Ignora itens sem ID
+        if (empty($item['id'])) {
+            Log::warning("Item ignorado sem 'id' em {$defaultList}", ['item' => $item]);
+            continue;
+        }
+
+        $score = isset($item['score']) ? (int)$item['score'] : 0;
+        $level = match (true) {
+            $score >= 70 => 'Alto',
+            $score >= 50 => 'Médio',
+            default => 'Baixo',
+        };
+
+        $description = sprintf(
+            'No âmbito da avaliação de risco AML/KYC, foi identificada correspondência do beneficiário %s (%s) '
+            . 'em listas externas de monitorização (%s).',
+            $beneficial->name,
+            $beneficial->nationality ?? 'Desconhecida',
+            $defaultList
+        );
+
+        $dateValidate = [
+            'origin_id' => $item['id'],
+            'entity_id' => $riskAssessment->entity_id,
+            'type'      => $type,
+        ];
+
+        $repo->firstOrCreate($dateValidate, [
+            'origin_id'   => $item['id'],
+            'entity_id'   => $riskAssessment->entity_id,
+            'from_id'     => $beneficial->id,
+            'name'        => $item['name'] ?? 'Desconhecido',
+            'country'     => $item['country'] ?? null,
+            'birth_date'  => $item['birth_date'] ?? null,
+            'score'       => $score,
+            'level'       => $level,
+            'type'        => $type,
+            'category'    => 'KYC',
+            'list'        => $item['datasets'] ?? $defaultList,
+            'is_active'   => true,
+            'description' => $description,
+        ]);
+
+        Log::info("Alerta gerado para {$beneficial->name}", [
+            'type'      => $type,
+            'origin_id' => $item['id'],
+            'score'     => $score,
+            'level'     => $level,
+        ]);
+    }
+}
 }
