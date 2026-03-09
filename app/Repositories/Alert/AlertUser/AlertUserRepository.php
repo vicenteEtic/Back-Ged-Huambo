@@ -4,6 +4,7 @@ namespace App\Repositories\Alert\AlertUser;
 
 use App\Models\Alert\AlertUser\AlertUser;
 use App\Repositories\AbstractRepository;
+use App\Repositories\Alert\AlertRepository;
 use App\Services\Log\LogService;
 use App\Services\User\UserService;
 use Illuminate\Http\JsonResponse;
@@ -19,11 +20,13 @@ class AlertUserRepository extends AbstractRepository
     public const STATUS_NEW = 1;
     public const STATUS_VALIDATION = 2;
     public const STATUS_SUPERVISION = 3;
+    public $alert;
 
-    public function __construct(AlertUser $model, UserService $user, LogService $logService)
+    public function __construct(AlertUser $model, UserService $user, LogService $logService, AlertRepository $alert)
     {
 
         $this->user = $user;
+           $this->alert = $alert;
         $this->logService = $logService;
         parent::__construct($model);
     }
@@ -91,7 +94,9 @@ public function getUsersWithAlerts()
         // insere na pivot alert_user
         $inserted = $this->model->insert(
             collect($data)->map(function ($item) use ($now) {
+                $alertData = $this->alert->findByValidate($item['alert_id']);
                 return array_merge($item, [
+                    'is_read' =>   $alertData->is_active,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);
