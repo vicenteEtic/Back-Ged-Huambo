@@ -20,9 +20,14 @@ class AlertUserRepository extends AbstractRepository
     public const STATUS_NEW = 1;
     public const STATUS_VALIDATION = 2;
     public const STATUS_SUPERVISION = 3;
- 
 
-    public function __construct(AlertUser $model, UserService $user, LogService $logService )
+    protected AlertRepository $alert;
+
+    public function setAlertRepository(AlertRepository $alert)
+    {
+        $this->alert = $alert;
+    }
+    public function __construct(AlertUser $model, UserService $user, LogService $logService)
     {
 
         $this->user = $user;
@@ -33,57 +38,55 @@ class AlertUserRepository extends AbstractRepository
 
     public function countAlertUser(int $userId, int $status): int
     {
-         return $this->model
-        ->where('user_id', $userId)
-        ->where('is_read', $status)
-        ->count();
+        return $this->model
+            ->where('user_id', $userId)
+            ->where('is_read', $status)
+            ->count();
     }
 
-  
+
     public function countAlertsByUserGrouped(int $userId): array
     {
         return [
-            'total_active' => $this->countAlertUser($userId,self::STATUS_NEW),
-            'closed'       =>  $this->countAlertUser($userId,self::STATUS_CLOSED),
-            'new'          =>  $this->countAlertUser($userId,self::STATUS_NEW),
-            'validation'   =>  $this->countAlertUser($userId,self::STATUS_VALIDATION),
-            'supervision'  =>  $this->countAlertUser($userId,self::STATUS_SUPERVISION),
+            'total_active' => $this->countAlertUser($userId, self::STATUS_NEW),
+            'closed'       =>  $this->countAlertUser($userId, self::STATUS_CLOSED),
+            'new'          =>  $this->countAlertUser($userId, self::STATUS_NEW),
+            'validation'   =>  $this->countAlertUser($userId, self::STATUS_VALIDATION),
+            'supervision'  =>  $this->countAlertUser($userId, self::STATUS_SUPERVISION),
         ];
     }
 
-public function getUsersWithAlerts()
-{
-    $user = $this->user->me();
-    $userArray = json_decode(json_encode($user), true);
+    public function getUsersWithAlerts()
+    {
+        $user = $this->user->me();
+        $userArray = json_decode(json_encode($user), true);
 
-    $permissionName = "compliance-officer-show";
-    $permissionFound = null;
+        $permissionName = "compliance-officer-show";
+        $permissionFound = null;
 
-    if (isset($userArray['role']['permissions'])) {
+        if (isset($userArray['role']['permissions'])) {
 
-        foreach ($userArray['role']['permissions'] as $permission) {
+            foreach ($userArray['role']['permissions'] as $permission) {
 
-            if ($permission['name'] === $permissionName) {
-                $permissionFound = $permission;
-                break;
+                if ($permission['name'] === $permissionName) {
+                    $permissionFound = $permission;
+                    break;
+                }
             }
-
         }
 
-    }
+        if ($permissionFound) {
+            // Se tem permissão, pega todos os user_id distintos
+            $users = $this->model
+                ->distinct()
+                ->pluck('user_id');
+        } else {
+            // Se não tem permissão, pega apenas o user logado
+            $users = collect([$userArray['id']]);
+        }
 
-    if ($permissionFound) {
-        // Se tem permissão, pega todos os user_id distintos
-        $users = $this->model
-            ->distinct()
-            ->pluck('user_id');
-    } else {
-        // Se não tem permissão, pega apenas o user logado
-        $users = collect([$userArray['id']]);
+        return $users;
     }
-
-    return $users;
-}
 
 
     public function storeMany($data)
@@ -93,8 +96,10 @@ public function getUsersWithAlerts()
         // insere na pivot alert_user
         $inserted = $this->model->insert(
             collect($data)->map(function ($item) use ($now) {
-                $alertData = $this->alert->findByValidate($item['alert_id']);
+                $alertRepo = $this->alert ?? app(AlertRepository::class);
+                $alertData = $alertRepo->findByValidate($item['alert_id']);
                 return array_merge($item, [
+                    'is_read' => $alertData->is_active,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);
