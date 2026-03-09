@@ -27,7 +27,6 @@ class AlertUserRepository extends AbstractRepository
 
         $this->user = $user;
         $this->logService = $logService;
-         $this->alert = $alert;
         parent::__construct($model);
     }
 
