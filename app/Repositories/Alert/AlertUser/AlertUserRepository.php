@@ -53,27 +53,39 @@ class AlertUserRepository extends AbstractRepository
     }
 
 
-public function getUsersWithAlerts()
-{
-    $user = $this->user->me();
+    public function getUsersWithAlerts()
+    {
+        $user = $this->user->me(); // Pega os dados do usuário
+        $userArray = json_decode(json_encode($user), true); // Garante array
 
-    $permissionName = "compliance-officer-show";
+        $permissionId = 57; // Permite listar Compliance Officer
+        $permissionFound = null;
 
-    $permissions = $user->role->permissions ?? collect();
+        // Busca a permissão
+        if (isset($userArray['role']['permissions'])) {
+            foreach ($userArray['role']['permissions'] as $permission) {
+                if ($permission['id'] == $permissionId) {
+                    $permissionFound = $permission;
+                    break;
+                }
+            }
+        }
 
-    $hasPermission = collect($permissions)
-        ->contains('name', $permissionName);
+        if ($permissionFound) {
+            // Se tem permissão, pega todos os user_id distintos
+            $users = $this->model
+                ->distinct()
+                ->pluck('user_id');
+        } else {
+            // Se não tem permissão, pega apenas o user logado
+            $users = collect([$userArray['id']]);
+        }
 
-    if ($hasPermission) {
-        // Usuário pode ver todos
-        return $this->model
-            ->distinct()
-            ->pluck('user_id');
+        // Retorna a coleção de IDs
+        return $users;
     }
 
-    // Usuário só vê os próprios alertas
-    return collect([$user->id]);
-}
+
     public function storeMany($data)
     {
         $now = now();
