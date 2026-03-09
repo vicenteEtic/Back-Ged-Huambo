@@ -22,7 +22,7 @@ class AlertUserRepository extends AbstractRepository
     public const STATUS_SUPERVISION = 3;
  
 
-    public function __construct(AlertUser $model, UserService $user, LogService $logService, private readonly AlertRepository $alert )
+    public function __construct(AlertUser $model, UserService $user, LogService $logService )
     {
 
         $this->user = $user;
