@@ -140,7 +140,9 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
 
         unset($data['id'], $data['created_at'], $data['updated_at']);
 
-
+// Cria as chaves default
+$data['professionP'] = $assessment->professionP; // usa a relação se existir
+$data['categoryP']   = $assessment->categoryP?->name ?? null;   // idem
         // Salva o assessment e pega o model atualizado
         $storedAssessment = $riskAssessmentService->store($data);
 
