@@ -10,4 +10,12 @@ class BeneficialRepository extends AbstractRepository
     {
         parent::__construct($model);
     }
+
+     public function showBeneficial($data)
+    {
+      return     $this->model->where(
+        'risk_assessment_id',
+        $data
+      )->get();
+    }
 }

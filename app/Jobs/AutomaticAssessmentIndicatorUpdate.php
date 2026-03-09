@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Entities\RiskAssessment;
 use App\Repositories\Entities\BeneficialOwnerRepository;
+use App\Repositories\Entities\BeneficialRepository;
 use App\Repositories\Entities\RiskAssessmentRepository;
 use App\Repositories\Indicator\IndicatorTypeRepository;
 use App\Services\Entities\ProductRiskService;
@@ -36,7 +37,9 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
         ProductRiskService $productRiskService,
         BeneficialOwnerRepository $beneficialOwnerRepository,
         LogService $logService,
-        IndicatorTypeRepository $indicatorTypeRepository
+        IndicatorTypeRepository $indicatorTypeRepository,
+
+           BeneficialRepository $beneficialRepository
 
 
 
@@ -77,7 +80,9 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
                         $riskAssessmentService,
                         $logService,
                         $indicatorTypeRepository,
-                        $this->id_indicator
+                           $beneficialRepository,
+                        $this->id_indicator,
+                     
                     );
                 }
             }
@@ -106,6 +111,8 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
         RiskAssessmentService $riskAssessmentService,
         LogService $logService,
         IndicatorTypeRepository $indicatorTypeRepository,
+    
+      BeneficialRepository $beneficialRepository,
         int $id_indicator
     ): void {
 
@@ -115,7 +122,9 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
         ]);
 
         $products = $productRiskService->showProduct($assessment->id);
-        $beneficialOwners = $beneficialOwnerRepository->showBeneficialOwner($assessment->id);
+        $beneficialOwners = $beneficialOwnerRepository->showBeneficialOwner($assessment->id);~
+          $beneficial = $beneficialRepository->showBeneficial($assessment->id);
+
 
         $indicatorTypeModel = $indicatorTypeRepository->getByDescriptionAll($id_indicator);
 
@@ -129,6 +138,8 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
         $data = [
             'product_risk' => $products ? $products->pluck('product_id')->toArray() : [],
             'beneficial_owners' => $beneficialOwners ? $beneficialOwners->toArray() : [],
+           
+           'beneficial' => $beneficial ? $beneficial->toArray() : [],
             'entity_id' => $assessment->entity_id,
             'risk_assessment' => $assessment,
             'type_assessment' => 3,
@@ -140,10 +151,7 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
 
         unset($data['id'], $data['created_at'], $data['updated_at']);
 
-// Cria as chaves default
-$data['professionP'] = $assessment->professionP; // usa a relação se existir
-$data['categoryP']   = $assessment->categoryP?->name ?? null;   // idem
-        // Salva o assessment e pega o model atualizado
+
         $storedAssessment = $riskAssessmentService->store($data);
 
         // Garante valores mesmo se forem nulos
