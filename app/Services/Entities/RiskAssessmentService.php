@@ -180,29 +180,34 @@ private function handleAlerts($riskAssessment, $diligence): void
 
     $dateValidate = [
         'entity_id' => $riskAssessment->entity->id,
-        'origin_id' => "AV#" . $riskAssessment->id,
         'type' => "AML",
         'category' => "KYC",
+        'description' => $description,
     ];
 
-    $alert = $this->alertRepository->firstOrCreate(
-        $dateValidate,
-        [
-            'name' => $riskAssessment->entity->social_denomination,
-            'country' => $riskAssessment->nationlity->description,
-            'birth_date' => "",
-            'level' => "Alto",
-            'from_id' => "AV#" . $riskAssessment->id,
-            'score' => $riskAssessment->score,
-            'list' => "AML",
-            'is_active' => true,
-            "description" => $description,
-        ]
-    );
+    $alert = $this->alertRepository->findByValidate($dateValidate);
+
+if (!$alert) {
+    $alert = $this->alertRepository->store([
+        'name'        => $riskAssessment->entity->social_denomination,
+        'country'     => $riskAssessment->nationlity->description,
+        'birth_date'  => "",
+        'level'       => "Alto",
+        'from_id'     => "AV#" . $riskAssessment->id,
+        'origin_id'   => "AV#" . $riskAssessment->id,
+        'entity_id'   => $riskAssessment->entity->id,
+        'score'       => $riskAssessment->score,
+        'type'        => "AML",
+        'category'    => "KYC",
+        'list'        => "AML",
+        'is_active'   => true,
+        'description' => $description,
+    ]);
+    
 
     $host = config('app.url');
     SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
-}
+}}
 
 private function dispatchGenerateAlertsJob(array $data, $riskAssessment): void
 {

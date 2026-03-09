@@ -189,30 +189,33 @@ class GenerateAlertsJob implements ShouldQueue
                 default      => 'Baixo',
             };
 
-            $dateValidate = [
-                'origin_id' => $item['id'] ?? null,
+
+
+            $criteria = [
                 'entity_id' => $entityId,
+                'origin_id' => $item['id'] ?? null,
                 'type'      => $typeData['type'],
+                'category'  => 'KYC',
             ];
 
-            $alert = $this->alertRepository->firstOrCreate(
-                [
-                    'entity_id'  => $entityId,
+            $alert = $this->alertRepository->findByValidate($criteria);
+
+            if (!$alert) {
+                $alert = $this->alertRepository->store([
+                    'name'       => $item['name'] ?? 'UNKNOWN',
+                    'country'    => $item['country'] ?? null,
+                    'birth_date' => $item['birth_date'] ?? null,
+                    'level'      => $level,
+                    'from_id'    => $entityId,
                     'origin_id'  => $item['id'] ?? null,
+                    'entity_id'  => $entityId,
+                    'score'      => $score,
                     'type'       => $typeData['type'],
                     'category'   => 'KYC',
-                ],
-                [
-                    'name'        => $item['name'] ?? 'UNKNOWN',
-                    'country'     => $item['country'] ?? null,
-                    'birth_date'  => $item['birth_date'] ?? null,
-                    'level'       => $level,
-                    'from_id'     => $entityId,
-                    'score'       => $score,
-                    'list'        => $item['datasets'] ?? $typeData['list'],
-                    'is_active'   => true,
-                ]
-            );
+                    'list'       => $item['datasets'] ?? $typeData['list'],
+                    'is_active'  => true,
+                ]);
+            }
 
             $host = config('app.url');
             SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');

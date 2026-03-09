@@ -162,12 +162,12 @@ abstract class AbstractRepository
     {
         return $this->model->updateOrCreate($attributes, $values);
     }
-     public function firstOrCreate(array $attributes, array $values = [])
+    public function firstOrCreate(array $attributes, array $values = [])
     {
         return $this->model->firstOrCreate($attributes, $values);
     }
 
-    
+
 
     /**
      * Display the specified resource.
@@ -241,5 +241,12 @@ abstract class AbstractRepository
             ->get();
 
         return $model;
+    }
+
+    public function findByValidate(array $criteria)
+    {
+        return $this->model->query()
+            ->where($criteria)
+            ->first(); // retorna o primeiro registro ou null se não existir
     }
 }
