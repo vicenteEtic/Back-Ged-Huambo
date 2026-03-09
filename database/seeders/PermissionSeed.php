@@ -163,7 +163,10 @@ class PermissionSeed extends Seeder
                 'name' => 'Painel',
                 'operations' => ['show']
             ],
-
+ [
+                'name' => 'Tratar Alerta',
+                'operations' => ['show']
+            ],
             [
                 'name' => 'Estatísticas',
                 'operations' => ['show','Export']
