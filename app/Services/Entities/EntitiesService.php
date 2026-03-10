@@ -78,7 +78,7 @@ class EntitiesService extends AbstractService
 
         foreach ($chunks as $index => $chunk) {
             ImportDataJob::dispatch($chunk, $userId, $batchId)
-                ->onQueue('default')
+            ->onQueue('high')
                 ->delay(Carbon::now()->addSeconds($index * 10)); // garante Carbon
 
         }
