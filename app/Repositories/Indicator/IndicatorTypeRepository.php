@@ -52,7 +52,7 @@ class IndicatorTypeRepository extends AbstractRepository
         $model->update($data);
 
         
-      AutomaticAssessmentIndicatorUpdate::dispatch($id)->onQueue('high');
+      AutomaticAssessmentIndicatorUpdate::dispatch($id)->onQueue('default');
     
         return $model;
     }

@@ -101,44 +101,70 @@ class RiskAssessmentService extends AbstractService
         ])->findOrFail($id);
     }
 
-   public function store(array $data)
-{
-    $data['user_id'] = Auth::id() ?? $data['user_id'];
-
-    $data['beneficialOwner'] = $this->countRiskPoints($data);
-
-    $riskAssessment = $this->repository->store($data);
-
-    $this->handleBeneficialOwners($data, $riskAssessment);
-    $this->handlePEP($data);
-    $riskProducts = $this->handleProductRisks($data, $riskAssessment);
-
-    $formula = $this->riskFormulaRepository->findByEntityType($riskAssessment['entity']['entity_type']);
-    $riskAssessment->update(['id_risk_formula' => $formula->id]);
-
-    $this->loadRelations($riskAssessment);
-
-    $totalRiskProduct = $riskProducts->sum('score');
-    $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $data['beneficialOwner']);
-    $diligence = $this->diligenceService->getDilligenceAssessment($total);
-
-    $nextReassessmentDate = $this->getNextReassessmentDate($diligence);
-    $this->updateEntityRisk($riskAssessment, $total, $diligence, $nextReassessmentDate);
-
-    $riskAssessment->score = $total;
-    $riskAssessment->color = $diligence->color;
-    $riskAssessment->risk_level = $diligence->risk;
-    $riskAssessment->diligence = $diligence->name;
-    $riskAssessment->reassessmentPeriod = $nextReassessmentDate;
-
-    $riskAssessment->save();
-
-    $this->handleAlerts($riskAssessment, $diligence);
-
-    $this->dispatchGenerateAlertsJob($data, $riskAssessment);
-
-    return $riskAssessment;
-}
+    public function store(array $data)
+    {
+       Log::info('RISK STORE: Iniciando store', ['data' => $data]);
+    
+        try {
+            $data['user_id'] = Auth::id() ?? $data['user_id'];
+           Log::info('RISK STORE: User ID definido', ['user_id' => $data['user_id']]);
+    
+            $data['beneficialOwner'] = $this->countRiskPoints($data);
+           Log::info('RISK STORE: BeneficialOwner calculado', ['beneficialOwner' => $data['beneficialOwner']]);
+    
+            $riskAssessment = $this->repository->store($data);
+           Log::info('RISK STORE: RiskAssessment criado', ['riskAssessment_id' => $riskAssessment->id ?? null]);
+    
+            $this->handleBeneficialOwners($data, $riskAssessment);
+           Log::info('RISK STORE: BeneficialOwners processados');
+    
+            $this->handlePEP($data);
+           Log::info('RISK STORE: PEP processado');
+    
+            $riskProducts = $this->handleProductRisks($data, $riskAssessment);
+           Log::info('RISK STORE: ProductRisks processados', ['count' => $riskProducts->count()]);
+    
+            $formula = $this->riskFormulaRepository->findByEntityType($riskAssessment['entity']['entity_type']);
+           Log::info('RISK STORE: Formula encontrada', ['formula_id' => $formula->id]);
+    
+            $riskAssessment->update(['id_risk_formula' => $formula->id]);
+            $this->loadRelations($riskAssessment);
+           Log::info('RISK STORE: Relações carregadas');
+    
+            $totalRiskProduct = $riskProducts->sum('score');
+            $total = $this->calculateTotalScore($riskAssessment, $totalRiskProduct, $formula, $data['beneficialOwner']);
+           Log::info('RISK STORE: Total de risco calculado', ['total' => $total]);
+    
+            $diligence = $this->diligenceService->getDilligenceAssessment($total);
+           Log::info('RISK STORE: Diligence definida', ['diligence' => $diligence]);
+    
+            $nextReassessmentDate = $this->getNextReassessmentDate($diligence);
+            $this->updateEntityRisk($riskAssessment, $total, $diligence, $nextReassessmentDate);
+           Log::info('RISK STORE: EntityRisk atualizado');
+    
+            $riskAssessment->score = $total;
+            $riskAssessment->color = $diligence->color;
+            $riskAssessment->risk_level = $diligence->risk;
+            $riskAssessment->diligence = $diligence->name;
+            $riskAssessment->reassessmentPeriod = $nextReassessmentDate;
+    
+            $riskAssessment->save();
+           Log::info('RISK STORE: RiskAssessment salvo', ['riskAssessment_id' => $riskAssessment->id]);
+    
+            $this->handleAlerts($riskAssessment, $diligence);
+           Log::info('RISK STORE: Alerts processados');
+    
+            return $riskAssessment;
+    
+        } catch (\Throwable $e) {
+           Log::error('RISK STORE: Erro ao processar registro', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'data' => $data
+            ]);
+            throw $e;
+        }
+    }
 
 private function handleBeneficialOwners(array $data, $riskAssessment): void
 {

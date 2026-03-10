@@ -16,10 +16,15 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    // Correção: define número de tentativas e timeout
+    public int $tries = 5;       // tenta 5 vezes
+    public int $timeout = 120;   // 2 minutos por job
 
     private int $id_indicator;
 
@@ -53,8 +58,7 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
 
         foreach ($indicators as $indicatorType) {
             try {
-                // Verifica se a coluna existe na tabela
-                if (!\Schema::hasColumn('risk_assessment', $indicatorType)) {
+                if (!Schema::hasColumn('risk_assessment', $indicatorType)) {
                     Log::warning("Indicador {$indicatorType} não existe na tabela risk_assessment, pulando...");
                     continue;
                 }
@@ -78,17 +82,19 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
                         $riskAssessmentService,
                         $logService,
                         $indicatorTypeRepository,
-                        $beneficialRepository,
-                        $this->id_indicator
+                        $beneficialRepository
                     );
                 }
 
             } catch (\Throwable $e) {
+                // Log do erro e relança para o Laravel controlar retry
                 Log::error("Erro ao processar indicador {$indicatorType}.", [
                     'message' => $e->getMessage(),
                     'line' => $e->getLine(),
-                    'file' => $e->getFile()
+                    'file' => $e->getFile(),
+                    'id_indicator' => $this->id_indicator
                 ]);
+                throw $e;
             }
         }
 
@@ -105,45 +111,46 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
         RiskAssessmentService $riskAssessmentService,
         LogService $logService,
         IndicatorTypeRepository $indicatorTypeRepository,
-        BeneficialRepository $beneficialRepository,
-        int $id_indicator
+        BeneficialRepository $beneficialRepository
     ): void {
-
         Log::info('Processando assessment.', [
             'assessment_id' => $assessment->id,
-            'entity_id' => $assessment->entity_id
+            'entity_id' => $assessment->entity_id,
+            'indicator' => $indicatorType
         ]);
 
-        $products = $productRiskService->showProduct($assessment->id);
-        $beneficialOwners = $beneficialOwnerRepository->showBeneficialOwner($assessment->id);
-        $beneficial = $beneficialRepository->showBeneficial($assessment->id);
-
-        $indicatorTypeModel = $indicatorTypeRepository->getByDescriptionAll($id_indicator);
-
-        if (!$indicatorTypeModel) {
-            Log::warning('IndicatorType não encontrado.', [
-                'id_indicator' => $id_indicator
-            ]);
-            return;
-        }
-
-        $data = [
-            'product_risk' => $products ? $products->pluck('product_id')->toArray() : [],
-            'beneficial_owners' => $beneficialOwners ? $beneficialOwners->toArray() : [],
-            'beneficial' => $beneficial ? $beneficial->toArray() : [],
-            'entity_id' => $assessment->entity_id,
-            'risk_assessment' => $assessment,
-            'type_assessment' => 3,
-        ];
-
-        // Garante que o atributo exista antes de setar
-        $data[$indicatorType] = $assessment->{$indicatorType} ?? null;
-
-        $data = array_merge($assessment->toArray(), $data);
-
-        unset($data['id'], $data['created_at'], $data['updated_at']);
-
         try {
+            $products = $productRiskService->showProduct($assessment->id);
+            $productsArray = $products ? $products->pluck('product_id')->toArray() : [];
+
+            $beneficialOwners = $beneficialOwnerRepository->showBeneficialOwner($assessment->id);
+            $beneficialOwnersArray = $beneficialOwners ? $beneficialOwners->toArray() : [];
+
+            $beneficial = $beneficialRepository->showBeneficial($assessment->id);
+            $beneficialArray = $beneficial ? $beneficial->toArray() : [];
+
+            $indicatorTypeModel = $indicatorTypeRepository->getByDescriptionAll($this->id_indicator);
+
+            if (!$indicatorTypeModel) {
+                Log::warning('IndicatorType não encontrado.', [
+                    'id_indicator' => $this->id_indicator
+                ]);
+                return;
+            }
+
+            $data = [
+                'product_risk' => $productsArray,
+                'beneficial_owners' => $beneficialOwnersArray,
+                'beneficial' => $beneficialArray,
+                'entity_id' => $assessment->entity_id,
+                'risk_assessment' => $assessment,
+                'type_assessment' => 3,
+                $indicatorType => $assessment->{$indicatorType} ?? null
+            ];
+
+            $data = array_merge($assessment->toArray(), $data);
+            unset($data['id'], $data['created_at'], $data['updated_at']);
+
             $storedAssessment = $riskAssessmentService->store($data);
 
             $score = $storedAssessment->score ?? 'null';
@@ -151,9 +158,7 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
             $diligence = $storedAssessment->diligence ?? 'null';
 
             $customMessage = "Avaliação automática devido à alteração do indicador '{$indicatorTypeModel->description}', "
-                . "resultando em uma pontuação de {$score}, "
-                . "com nível de risco {$riskLevel} "
-                . "e tipo de diligência {$diligence}.";
+                . "pontuação {$score}, nível de risco {$riskLevel}, tipo de diligência {$diligence}.";
 
             $logService->storeLog(
                 'info',
@@ -168,13 +173,15 @@ class AutomaticAssessmentIndicatorUpdate implements ShouldQueue
             Log::info('Store executado com sucesso.', [
                 'assessment_id' => $assessment->id
             ]);
+
         } catch (\Throwable $e) {
-            Log::error('Erro ao armazenar assessment.', [
+            Log::error('Erro ao processar/armazenar assessment.', [
                 'message' => $e->getMessage(),
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),
                 'assessment_id' => $assessment->id
             ]);
+            throw $e; // relança para Laravel controlar retry
         }
     }
 }

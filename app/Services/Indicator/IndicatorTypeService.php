@@ -14,6 +14,6 @@ class IndicatorTypeService extends AbstractService
 
     public function getByDescription(?string $description = null)
     {
-        return $this->repository->getByDescription($description);
+      return  $indicator = $this->repository->getByDescription($description);
     }
 }
