@@ -17,10 +17,7 @@ use App\Services\Entities\EntitiesService;
 use App\Services\Entities\RiskAssessmentService;
 use App\Services\Indicator\IndicatorTypeService;
 use App\Models\Entities\RiskAssessmentControl;
-use App\External\PepExternalApi;
-use App\External\SanctionExternalApi;
 use App\Traits\DatabaseLogger;
-use App\Jobs\SendGrupoAlertEmailJob;
 
 class ImportDataJob implements ShouldQueue
 {
@@ -51,6 +48,7 @@ class ImportDataJob implements ShouldQueue
         IndicatorTypeService $indicatorService,
         EntitiesService $entityService
     ) {
+
         $this->riskAssessmentService = $riskAssessmentService;
         $this->alertRepository = $alertRepository;
         $this->indicatorService = $indicatorService;
@@ -64,70 +62,63 @@ class ImportDataJob implements ShouldQueue
         Auth::loginUsingId($this->userID);
 
         foreach ($this->data as $index => $record) {
+
             DB::beginTransaction();
+        
             try {
-                Log::info('Processando registro', ['index' => $index, 'record' => $record]);
-
+        
                 $data = $this->prepareAssessmentData($record);
-
+        
                 if (!$data) {
-                    $this->incrementErrorCount();
                     DB::rollBack();
+                    $this->incrementErrorCount();
                     continue;
                 }
-
+        
                 $riskAssessment = $this->riskAssessmentService->store($data);
-
-                if ($riskAssessment) {
-                    $riskAssessment->risk_assessment_control_id = $this->batchId;
-
-                    // Define status real
-                    $riskAssessment->status = StatusAssessment::SUCESS->value;
-
-                    // Logging detalhado
-                    $userName = auth()->user()?->first_name ?? 'Usuário desconhecido';
-                    $this->logToDatabase(
-                        type: 'entity',
-                        level: 'info',
-                        customMessage: "{$riskAssessment?->entity?->social_denomination} avaliou e obteve pontuação {$riskAssessment->score}, risco {$riskAssessment->risk_level}, diligência {$riskAssessment->diligence}.",
-                        idEntity: $riskAssessment->entity_id
-                    );
-                    $this->logToDatabase(
-                        type: 'user',
-                        level: 'info',
-                        customMessage: "{$userName} realizou avaliação com pontuação {$riskAssessment->score}, risco {$riskAssessment->risk_level}, diligência {$riskAssessment->diligence}.",
-                        idEntity: $riskAssessment->entity_id
-                    );
-
-                    $riskAssessment->save();
-                    DB::commit();
-                    $this->incrementSuccessCount();
-                } else {
+        
+                if (!$riskAssessment) {
                     DB::rollBack();
                     $this->incrementErrorCount();
+                    continue;
                 }
-
-                Log::info('Registro processado', ['index' => $index]);
-
+        
+                $riskAssessment->risk_assessment_control_id = $this->batchId;
+                $riskAssessment->status = $data['status'];
+                $riskAssessment->save();
+        
+                DB::commit();
+        
+                if ($riskAssessment->status === StatusAssessment::SUCESS->value) {
+                    $this->incrementSuccessCount();
+                } else {
+                    $this->incrementErrorCount();
+                }
+        
             } catch (\Throwable $e) {
+        
                 DB::rollBack();
+        
                 Log::error('Erro ao processar registro', [
                     'index' => $index,
-                    'error' => $e->getMessage(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'record' => $record
+                    'error' => $e->getMessage()
                 ]);
+        
                 $this->incrementErrorCount();
             }
         }
 
-        Log::info('ImportDataJob finalizado', ['batchId' => $this->batchId]);
+        Log::info('ImportDataJob finalizado', [
+            'batchId' => $this->batchId
+        ]);
     }
 
     private function prepareAssessmentData(array $record): ?array
     {
-        if (empty($record['social_denomination'])) return null;
+
+        if (empty($record['social_denomination'])) {
+            return null;
+        }
 
         $entity = $this->entityService->storeOrUpdate(
             [
@@ -139,29 +130,39 @@ class ImportDataJob implements ShouldQueue
                 'policy_number' => $record['policy_number'] ?? null,
                 'customer_number' => $record['customer_number'] ?? null,
                 'nif' => $record['nif'] ?? null,
-                'social_denomination' => $record['social_denomination'] ?? null,
+                'social_denomination' => $record['social_denomination'],
                 'entity_type' => $record['entity_type'] ?? null,
                 'pep' => $this->normalizeBoolean($record['pep'] ?? false),
             ]
         );
 
         $productRisks = $record['product_risk'] ?? [];
-        if (!is_array($productRisks)) $productRisks = [$productRisks];
-        $productRiskIds = array_filter(array_map(fn($r) => $this->indicatorService->getByDescription($r) ?: 0, $productRisks));
+
+        if (!is_array($productRisks)) {
+            $productRisks = [$productRisks];
+        }
+
+        $productRiskIds = array_filter(
+            array_map(fn($r) => $this->indicatorService->getByDescription($r) ?: null, $productRisks)
+        );
 
         $beneficialOwners = [];
+
         if (!empty($record['beneficial_owner'])) {
-            $beneficialOwners[] = ['name' => $record['beneficial_owner'], 'pep' => $this->normalizeBoolean($record['pep'] ?? false)];
+            $beneficialOwners[] = [
+                'name' => $record['beneficial_owner'],
+                'pep' => $this->normalizeBoolean($record['pep'] ?? false)
+            ];
         }
 
         $data = [
             'entity_id' => $entity->id,
             'identification_capacity' => 1,
-            'professionP' => $this->indicatorService->getByDescription($record['profession'] ?? '') ,
-            'categoryP' => $this->indicatorService->getByDescription($record['category'] ?? '') ,
-            'channel' => $this->indicatorService->getByDescription($record['channel'] ?? '') ,
+            'professionP' => $this->indicatorService->getByDescription($record['profession'] ?? ''),
+            'categoryP' => $this->indicatorService->getByDescription($record['category'] ?? ''),
+            'channel' => $this->indicatorService->getByDescription($record['channel'] ?? ''),
             'product_risk' => $productRiskIds,
-            'country_residence' => $this->indicatorService->getByDescription($record['country_residence'] ?? '') ,
+            'country_residence' => $this->indicatorService->getByDescription($record['country_residence'] ?? ''),
             'nationality' => $this->indicatorService->getByDescription($record['nationality'] ?? ''),
             'form_establishment' => $this->normalizeBoolean($record['form_establishment'] ?? false),
             'status_residence' => $this->normalizeBoolean($record['status_residence'] ?? false),
@@ -174,16 +175,21 @@ class ImportDataJob implements ShouldQueue
             'updated_at' => now(),
         ];
 
-        // PEP / SANCTIONS
-        try {
-            $pepData = PepExternalApi::getDataPepExternal($entity->social_denomination);
-            if (!empty($pepData)) $this->createAlerts($pepData, $entity->id, 'PEP');
-        } catch (\Exception $e) { Log::error("Erro PEP API: {$e->getMessage()}"); }
+        $requiredFields = [
+            $data['professionP'],
+            $data['categoryP'],
+            $data['channel'],
+            $data['country_residence'],
+            $data['nationality'],
+        ];
 
-        try {
-            $sanctionData = SanctionExternalApi::getDataSanctionExternal($entity->social_denomination);
-            if (!empty($sanctionData)) $this->createAlerts($sanctionData, $entity->id, 'SANCTIONS');
-        } catch (\Exception $e) { Log::error("Erro SANCTION API: {$e->getMessage()}"); }
+        $hasNullField = collect($requiredFields)->contains(fn($field) => is_null($field));
+
+        $hasEmptyProductRisk = empty($data['product_risk']);
+
+        $data['status'] = ($hasNullField || $hasEmptyProductRisk)
+            ? StatusAssessment::ERROR->value
+            : StatusAssessment::SUCESS->value;
 
         return $data;
     }
@@ -196,6 +202,7 @@ class ImportDataJob implements ShouldQueue
     private function incrementSuccessCount()
     {
         $record = RiskAssessmentControl::find($this->batchId);
+
         if ($record) {
             $record->increment('total_sucess');
             $record->increment('total');
@@ -205,37 +212,10 @@ class ImportDataJob implements ShouldQueue
     private function incrementErrorCount()
     {
         $record = RiskAssessmentControl::find($this->batchId);
+
         if ($record) {
             $record->increment('total_error');
             $record->increment('total');
-        }
-    }
-
-    private function createAlerts(array $data, int $entityId, string $type): void
-    {
-        foreach ($data as $item) {
-            $alert = $this->alertRepository->storeOrUpdate(
-                ['origin_id' => $item['id']],
-                [
-                    'name' => $item['name'],
-                    'level' => 'Alto',
-                    'from_id' => $entityId,
-                    'origin_id' => $item['id'],
-                    'entity_id' => $entityId,
-                    'score' => $item['score'] ?? 0,
-                    'type' => match ($type) {
-                        'PEP' => 'PEP List world',
-                        'SANCTIONS' => 'Sanctions List',
-                        default => 'KYC List',
-                    },
-                    'category' => 'KYC',
-                    'list' => $item['datasets'],
-                    'is_active' => true,
-                ]
-            );
-
-            $host = config('app.url');
-            SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
         }
     }
 }
