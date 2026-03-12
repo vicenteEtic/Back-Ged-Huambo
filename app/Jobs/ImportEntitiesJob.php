@@ -39,7 +39,7 @@ class ImportEntitiesJob implements ShouldQueue
         while (($row = fgetcsv($handle, 0, ";")) !== false) { // <-- separador ; 
 
             // Remove espaços e caracteres invisíveis
-            $row = array_map(function($cell){
+            $row = array_map(function ($cell) {
                 $cell = trim($cell);
                 $cell = preg_replace('/[\x00-\x1F\x7F]/u', '', $cell);
                 return $cell;
@@ -52,7 +52,7 @@ class ImportEntitiesJob implements ShouldQueue
 
             // Detecta headers
             if (!$header) {
-                $header = array_map(function($h){
+                $header = array_map(function ($h) {
                     $h = trim($h);
                     $h = preg_replace('/^\x{FEFF}/u', '', $h); // remove BOM no primeiro header
                     return $h;
@@ -91,7 +91,6 @@ class ImportEntitiesJob implements ShouldQueue
                 if ($imported % 100 === 0) {
                     Log::info("ImportEntitiesJob: {$imported} registros importados...");
                 }
-
             } catch (\Throwable $e) {
                 Log::warning("Erro ao importar registro: {$e->getMessage()} — Dados: " . json_encode($data));
             }

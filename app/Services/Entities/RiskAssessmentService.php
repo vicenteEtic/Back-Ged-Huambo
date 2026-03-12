@@ -154,8 +154,13 @@ class RiskAssessmentService extends AbstractService
             $this->handleAlerts($riskAssessment, $diligence);
            Log::info('RISK STORE: Alerts processados');
           // Chama job de geração de alertas
-$this->dispatchGenerateAlertsJob($data, $riskAssessment);
-Log::info('RISK STORE: GenerateAlertsJob disparado');
+          try {
+            $this->dispatchGenerateAlertsJob($data, $riskAssessment);
+            Log::info('RISK STORE: GenerateAlertsJob disparado');
+          } catch (\Throwable $th) {
+            //throw $th;
+          }
+
 
            
             return $riskAssessment;
