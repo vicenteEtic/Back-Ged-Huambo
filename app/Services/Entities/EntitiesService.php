@@ -45,32 +45,28 @@ class EntitiesService extends AbstractService
     }
 
     public function initializeImportBatch(int $userId): int
-    {
-        $timeLimit = Carbon::now()->subSeconds(self::TIME_LIMIT_SECONDS);
-        $existingRecord = $this->riskAssessmentControlService->findOneBy(
-            [
-                [
-                    'updated_at',
-                    '>=',
-                    $timeLimit
-                ]
-            ]
-        );
+{
+    $timeLimit = Carbon::now()->subSeconds(self::TIME_LIMIT_SECONDS);
 
-        if (!$existingRecord) {
-            $dataArray = $this->riskAssessmentControlService->store([
-                'total_sucess' => 0,
-                'error' => 0,
-                'user_id' => $userId,
-                'total_error' => 0,
-                'total' => 0
-            ]);
-            $recordId = $dataArray->id;
-        } else {
-            $recordId = $existingRecord->id;
-        }
-        return $recordId;
+    $existingRecord = $this->riskAssessmentControlService->findOneBy([
+        ['updated_at', '>=', $timeLimit],
+        ['user_id', '=', $userId]
+    ]);
+
+    if (!$existingRecord) {
+
+        $record = $this->riskAssessmentControlService->store([
+            'total_sucess' => 0,
+            'total_error' => 0,
+            'total' => 0,
+            'user_id' => $userId
+        ]);
+
+        return $record->id;
     }
+
+    return $existingRecord->id;
+}
 
     public function dispatchImportJobs(array $data, int $userId, int $batchId): void
     {
