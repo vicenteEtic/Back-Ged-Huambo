@@ -48,65 +48,79 @@ class ImportDataJob implements ShouldQueue
         IndicatorTypeService $indicatorService,
         EntitiesService $entityService
     ) {
-
         $this->riskAssessmentService = $riskAssessmentService;
         $this->alertRepository = $alertRepository;
         $this->indicatorService = $indicatorService;
         $this->entityService = $entityService;
 
-        Log::info('ImportDataJob iniciado', [
+        // Recupera controle do batch
+        $control = RiskAssessmentControl::find($this->batchId);
+
+        if (!$control) {
+            Log::error("Batch {$this->batchId} não encontrado.");
+            return;
+        }
+
+        // Bloqueia reprocessamento
+        if ($control->is_processing) {
+            Log::warning("Batch {$this->batchId} já está em processamento.");
+            return;
+        }
+
+        $control->is_processing = true;
+        $control->save();
+
+        Log::info("ImportDataJob iniciado", [
             'batchId' => $this->batchId,
             'total_records' => count($this->data)
         ]);
 
         Auth::loginUsingId($this->userID);
 
-        foreach ($this->data as $index => $record) {
+        // Processa dados em blocos de 1000 registros para não sobrecarregar memória
+        $chunks = array_chunk($this->data, 1000);
 
-            DB::beginTransaction();
-        
-            try {
-        
-                $data = $this->prepareAssessmentData($record);
-        
-                if (!$data) {
-                    DB::rollBack();
-                    $this->incrementErrorCount();
-                    continue;
+        foreach ($chunks as $chunkIndex => $chunk) {
+            DB::transaction(function() use ($chunk, $control, $chunkIndex) {
+                foreach ($chunk as $index => $record) {
+                    try {
+                        $data = $this->prepareAssessmentData($record);
+
+                        if (!$data) {
+                            $this->incrementErrorCount($control);
+                            continue;
+                        }
+
+                        $riskAssessment = $this->riskAssessmentService->store($data);
+
+                        if (!$riskAssessment) {
+                            $this->incrementErrorCount($control);
+                            continue;
+                        }
+
+                        $riskAssessment->risk_assessment_control_id = $this->batchId;
+                        $riskAssessment->status = $data['status'];
+                        $riskAssessment->save();
+
+                        if ($riskAssessment->status === StatusAssessment::SUCESS->value) {
+                            $this->incrementSuccessCount($control);
+                        } else {
+                            $this->incrementErrorCount($control);
+                        }
+
+                    } catch (\Throwable $e) {
+                        Log::error("Erro no registro do chunk {$chunkIndex}, index {$index}", [
+                            'error' => $e->getMessage()
+                        ]);
+                        $this->incrementErrorCount($control);
+                    }
                 }
-        
-                $riskAssessment = $this->riskAssessmentService->store($data);
-        
-                if (!$riskAssessment) {
-                    DB::rollBack();
-                    $this->incrementErrorCount();
-                    continue;
-                }
-        
-                $riskAssessment->risk_assessment_control_id = $this->batchId;
-                $riskAssessment->status = $data['status'];
-                $riskAssessment->save();
-        
-                DB::commit();
-        
-                if ($riskAssessment->status === StatusAssessment::SUCESS->value) {
-                    $this->incrementSuccessCount();
-                } else {
-                    $this->incrementErrorCount();
-                }
-        
-            } catch (\Throwable $e) {
-        
-                DB::rollBack();
-        
-                Log::error('Erro ao processar registro', [
-                    'index' => $index,
-                    'error' => $e->getMessage()
-                ]);
-        
-                $this->incrementErrorCount();
-            }
+            });
         }
+
+        // Libera batch
+        $control->is_processing = false;
+        $control->save();
 
         Log::info('ImportDataJob finalizado', [
             'batchId' => $this->batchId
@@ -115,10 +129,7 @@ class ImportDataJob implements ShouldQueue
 
     private function prepareAssessmentData(array $record): ?array
     {
-
-        if (empty($record['social_denomination'])) {
-            return null;
-        }
+        if (empty($record['social_denomination'])) return null;
 
         $entity = $this->entityService->storeOrUpdate(
             [
@@ -137,17 +148,13 @@ class ImportDataJob implements ShouldQueue
         );
 
         $productRisks = $record['product_risk'] ?? [];
-
-        if (!is_array($productRisks)) {
-            $productRisks = [$productRisks];
-        }
+        if (!is_array($productRisks)) $productRisks = [$productRisks];
 
         $productRiskIds = array_filter(
             array_map(fn($r) => $this->indicatorService->getByDescription($r) ?: null, $productRisks)
         );
 
         $beneficialOwners = [];
-
         if (!empty($record['beneficial_owner'])) {
             $beneficialOwners[] = [
                 'name' => $record['beneficial_owner'],
@@ -183,11 +190,7 @@ class ImportDataJob implements ShouldQueue
             $data['nationality'],
         ];
 
-        $hasNullField = collect($requiredFields)->contains(fn($field) => is_null($field));
-
-        $hasEmptyProductRisk = empty($data['product_risk']);
-
-        $data['status'] = ($hasNullField || $hasEmptyProductRisk)
+        $data['status'] = (collect($requiredFields)->contains(fn($f) => is_null($f)) || empty($data['product_risk']))
             ? StatusAssessment::ERROR->value
             : StatusAssessment::SUCESS->value;
 
@@ -199,23 +202,15 @@ class ImportDataJob implements ShouldQueue
         return ($value === true || $value === 1 || $value === '1' || $value === 'true') ? 1 : 0;
     }
 
-    private function incrementSuccessCount()
+    private function incrementSuccessCount(RiskAssessmentControl $control)
     {
-        $record = RiskAssessmentControl::find($this->batchId);
-
-        if ($record) {
-            $record->increment('total_sucess');
-            $record->increment('total');
-        }
+        $control->increment('total_sucess');
+        $control->increment('total');
     }
 
-    private function incrementErrorCount()
+    private function incrementErrorCount(RiskAssessmentControl $control)
     {
-        $record = RiskAssessmentControl::find($this->batchId);
-
-        if ($record) {
-            $record->increment('total_error');
-            $record->increment('total');
-        }
+        $control->increment('total_error');
+        $control->increment('total');
     }
 }
