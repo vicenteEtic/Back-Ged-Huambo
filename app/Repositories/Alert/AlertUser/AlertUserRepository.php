@@ -141,15 +141,14 @@ class AlertUserRepository extends AbstractRepository
     {
         $alerts = $this->model
             ->where('user_id', auth()->id())
-            ->whereHas('alert', fn($q) => $q->where('is_read', 1))
-            ->with('alert:id,name,is_read,level')
+            ->where('is_read', 1) // filtro correto
+            ->with('alert:id,name,level')
             ->get(['id', 'alert_id', 'is_read']);
-
-        $data = [
+    
+        return [
             'total'  => $alerts->count(),
             'alerts' => $alerts,
         ];
-        return $data;
     }
 
     public function updateAlertUser(array $data, int $id)
