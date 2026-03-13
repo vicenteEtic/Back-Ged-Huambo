@@ -12,22 +12,31 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('policies', function (Blueprint $table) {
-            $table->integer('entity_id');
-            $table->string('contract_number');
-           $table->string('control_id')->nullable();
-            $table->string('product');
-            $table->string('channel')->nullable();
-            $table->string('agent')->nullable();
-            $table->date('start_date')->nullable();
-            $table->date('end_date')->nullable();
-            $table->date('issue_date')->nullable();
-            $table->date('renewal_date')->nullable();
-            $table->decimal('capital', 20, 2)->nullable();
-            $table->decimal('premium_simple', 20, 2)->nullable();
-            $table->decimal('premium_total', 20, 2)->nullable();
-            $table->decimal('charges', 20, 2)->nullable();
-            $table->decimal('interest', 20, 2)->nullable();
-            $table->string('status')->nullable();
+            $table->id();
+    
+            $table->string('contract_number')->unique();     
+            $table->string('product_code')->nullable();      
+            $table->string('product_desc')->nullable();      
+            $table->string('branch_code')->nullable();       
+            $table->string('branch_desc')->nullable();       
+            $table->string('channel_code')->nullable();      
+            $table->string('channel_desc')->nullable();      
+            $table->string('agent_code')->nullable();        
+            $table->string('agent_desc')->nullable();        
+            $table->string('status')->nullable();            
+            $table->date('start_date')->nullable();          
+            $table->date('end_date')->nullable();            
+            $table->date('next_renewal_date')->nullable();   
+            $table->date('next_expiry_date')->nullable();    
+            $table->string('currency')->nullable();          
+            $table->decimal('capital', 20, 2)->nullable();   
+            $table->decimal('capital_cosign', 20, 2)->nullable(); 
+            $table->decimal('premium_simple', 20, 2)->nullable(); 
+            $table->decimal('premium_total', 20, 2)->nullable();  
+            $table->decimal('charges', 20, 2)->nullable();        
+            $table->decimal('other_charges', 20, 2)->nullable();  
+            $table->decimal('interest', 20, 2)->nullable();       
+         
             $table->timestamps();
         });
     }
