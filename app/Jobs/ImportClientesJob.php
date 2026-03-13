@@ -52,7 +52,7 @@ class ImportClientesJob implements ShouldQueue
                 }
 
                 $tipoCliente = strtoupper($row[$idxTipo] ?? '');
-                $entityType = $tipoCliente === 'COLECTIVA' ? 1 : 2;
+                $entityType = $tipoCliente === 'Empresa' ? 1 : 2;
 
                 $dataImport = [
                     "social_denomination" => $row[$idxName] ?? null,
