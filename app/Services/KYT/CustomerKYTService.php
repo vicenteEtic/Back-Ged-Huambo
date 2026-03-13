@@ -33,7 +33,7 @@ class CustomerKYTService
      */
     private function checkHighCapitalIncrease(Entities $customer): void
     {
-        $policies = Policies::where('entity_id', $customer->id)
+        $policies = Policies::where('contract_number', $customer->customer_number)
             ->whereNotNull('start_date')
             ->orderBy('start_date', 'desc')
             ->take(3)
@@ -91,7 +91,7 @@ class CustomerKYTService
         );
 
         $this->createAlertOnce(
-            $customer->id,
+            $customer->customer_number,
             'Detetado aumento anormal de capital',
             $description,
             'Alto',
@@ -105,7 +105,7 @@ class CustomerKYTService
      */
     private function checkEarlyRedemption(Entities $customer): void
     {
-        $policies = Policies::where('entity_id', $customer->id)
+        $policies = Policies::where('contract_number', $customer->customer_number)
             ->whereIn('status', ['terminated', 'cancelled', 'closed', 'rescinded'])
             ->whereNotNull('start_date')
             ->whereNotNull('end_date')
@@ -145,7 +145,7 @@ class CustomerKYTService
             );
 
            $this->createAlertOnce(
-                $customer->id,
+                $customer->customer_number,
                 ' Resgate antecipado detectado',
                 $description,
                 'Alto',
@@ -160,7 +160,7 @@ class CustomerKYTService
      */
     private function checkHighPremiumLowRisk(Entities $customer): void
     {
-        $policies = Policies::where('entity_id', $customer->id)
+        $policies = Policies::where('contract_number', $customer->customer_number)
             ->where('status', 'active')
             ->get();
 
@@ -197,7 +197,7 @@ class CustomerKYTService
             );
 
              $this->createAlertOnce(
-                $customer->id,
+                $customer->customer_number,
                 'Detetado prémio elevado com nível de risco baixo',
                 $description,
                 'Alto',
@@ -214,7 +214,7 @@ class CustomerKYTService
     {
         $fromDate = now()->subMonths(12);
 
-        $policies = Policies::where('entity_id', $customer->id)
+        $policies = Policies::where('contract_number', $customer->customer_number)
             ->whereNotNull('start_date')
             ->whereNotNull('end_date')
             ->where('start_date', '>=', $fromDate)
@@ -241,7 +241,7 @@ class CustomerKYTService
         );
 
         $this->createAlertOnce(
-            $customer->id,
+            $customer->customer_number,
             'substituição ou cancelamento repetido',
             $description,
             'Médio',
@@ -255,7 +255,7 @@ class CustomerKYTService
      */
     private function checkPolicyChurning(Entities $customer): void
     {
-        $terminated = Policies::where('entity_id', $customer->id)
+        $terminated = Policies::where('contract_number', $customer->customer_number)
             ->whereIn('status', ['terminated', 'cancelled'])
             ->whereNotNull('end_date')
             ->orderBy('end_date')
@@ -265,7 +265,7 @@ class CustomerKYTService
 
         foreach ($terminated as $policy) {
 
-            $replacement = Policies::where('entity_id', $customer->id)
+            $replacement = Policies::where('contract_number', $customer->customer_number)
                 ->whereNotNull('start_date')
                 ->whereBetween(
                     'start_date',
@@ -294,7 +294,7 @@ class CustomerKYTService
         );
 
         $this->createAlertOnce(
-            $customer->id,
+            $customer->customer_number,
             'Churn de apólice',
             $description,
             'Médio',
@@ -308,7 +308,7 @@ class CustomerKYTService
      */
     private function checkRapidPolicyReplacement(Entities $customer): void
     {
-        $policies = Policies::where('entity_id', $customer->id)
+        $policies = Policies::where('contract_number', $customer->customer_number)
             ->whereNotNull('start_date')
             ->orderBy('start_date')
             ->get();
@@ -337,7 +337,7 @@ class CustomerKYTService
             );
 
             $this->createAlertOnce(
-                $customer->id,
+                $customer->customer_number,
                 'Detetada substituição rápida de apólice',
                 $description,
                 'Médio',
@@ -364,7 +364,7 @@ class CustomerKYTService
       $entitie=  Entities::find($entityId);
         $alert = Alert::updateOrCreate(
             [
-                'entity_id' => $entityId,
+                'contract_number' => $entityId,
                 'type' => $type,
             ],
             [
