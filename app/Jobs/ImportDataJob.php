@@ -130,21 +130,68 @@ private function prepareAssessmentData(array $record): array
         ]
     );
 
+
+     $productRisks = $record['product_risk'] ?? [];
+        if (!is_array($productRisks)) {
+            $productRisks = [$productRisks];
+        }
+    
+        $productRiskIds = array_filter(
+            array_map(fn($r) => $this->indicatorService->getByDescription($r) ?: null, $productRisks)
+        );
+    
+        /**
+         * BENEFICIAL OWNERS
+         */
+        $beneficialOwners = [];
+        if (!empty($record['beneficial_owners']) && is_array($record['beneficial_owners'])) {
+    
+            foreach ($record['beneficial_owners'] as $owner) {
+    
+                $beneficialOwners[] = [
+                    'name' => $owner['name'] ?? null,
+                    'pep' => $this->normalizeBoolean($owner['pep'] ?? false),
+                    'santion' => $this->normalizeBoolean($owner['sanction'] ?? false),
+                    'nationality' => $owner['nationality'] ?? null,
+                    'percentage' => $owner['percentage'] ?? 0,
+                    'is_legal_representative' => $this->normalizeBoolean($owner['is_legal_representative'] ?? false),
+                ];
+            }
+        }
+    
+        /**
+         * BENEFICIARIES
+         */
+        $beneficiaries = [];
+        if (!empty($record['beneficiaries']) && is_array($record['beneficiaries'])) {
+    
+            foreach ($record['beneficiaries'] as $beneficiary) {
+    
+                $beneficiaries[] = [
+                    'name' => $beneficiary['name'] ?? null,
+                    'nationality' => $beneficiary['nationality'] ?? null,
+                    'is_pep' => $this->normalizeBoolean($beneficiary['is_pep'] ?? false),
+                    'is_sanctioned' => $this->normalizeBoolean($beneficiary['is_sanctioned'] ?? false),
+                    'processesReportedAuthoritie' => $this->normalizeBoolean($beneficiary['processesReportedAuthoritie'] ?? false),
+                ];
+            }
+        }
+
     $data = [
         'entity_id' => $entity->id,
         'identification_capacity' => $this->indicatorService->getByDescription($record['identification_capacity'] ?? null),
         'professionP' => $this->indicatorService->getByDescription($record['profession'] ?? null),
         'categoryP' => $this->indicatorService->getByDescription($record['category'] ?? null),
         'channel' => $this->indicatorService->getByDescription($record['channel'] ?? null),
-        'product_risk' => $record['product_risk'] ?? [],
+        'product_risk' =>        $productRiskIds,
         'country_residence' => $this->indicatorService->getByDescription($record['country_residence'] ?? null),
         'nationality' => $this->indicatorService->getByDescription($record['nationality'] ?? null),
         'form_establishment' => $this->normalizeBoolean($record['form_establishment'] ?? false),
         'status_residence' => $this->normalizeBoolean($record['status_residence'] ?? false),
         'pep' => $this->normalizeBoolean($record['pep'] ?? false),
         'santion' => $this->normalizeBoolean($record['sanction'] ?? false),
-        'beneficial_owners' => $record['beneficial_owners'] ?? [],
-        'beneficiaries' => $record['beneficiaries'] ?? [],
+        'beneficial_owners' =>   $beneficialOwners,
+        'beneficiaries' =>    $beneficiaries,
         'type_assessment' => 2,
         'user_id' => $this->userID,
         'risk_assessment_control_id' => $this->batchId,
