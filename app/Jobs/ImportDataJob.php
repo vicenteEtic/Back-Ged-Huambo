@@ -117,37 +117,35 @@ class ImportDataJob implements ShouldQueue
         ]);
     }
 
-private function prepareAssessmentData(array $record): array
-{
-    // Cria ou atualiza entidade (mesmo com campos nulos)
-    $entity = Entities::updateOrCreate(
-        ['nif' => $record['nif'] ?? null],
-        [
-            'policy_number' => $record['policy_number'] ?? null,
-            'customer_number' => $record['customer_number'] ?? null,
-            'social_denomination' => $record['social_denomination'] ?? null,
-            'entity_type' => $record['entity_type'] ?? null,
-        ]
-    );
+    private function prepareAssessmentData(array $record): array
+    {
+        // Cria ou atualiza entidade (mesmo com campos nulos)
+        $entity = Entities::firstOrNew(['nif' => $record['nif']]);
+        $entity->fill([
+            'policy_number' => $record['policy_number'] ?? $entity->policy_number,
+            'social_denomination' => $record['social_denomination'] ?? $entity->social_denomination,
+            'entity_type' => $record['entity_type'] ?? $entity->entity_type,
+            'nif' => $record['nif'] ?? $entity->nif,
+        ]);
+        $entity->save();
 
-
-     $productRisks = $record['product_risk'] ?? [];
+        $productRisks = $record['product_risk'] ?? [];
         if (!is_array($productRisks)) {
             $productRisks = [$productRisks];
         }
-    
+
         $productRiskIds = array_filter(
             array_map(fn($r) => $this->indicatorService->getByDescription($r) ?: null, $productRisks)
         );
-    
+
         /**
          * BENEFICIAL OWNERS
          */
         $beneficialOwners = [];
         if (!empty($record['beneficial_owners']) && is_array($record['beneficial_owners'])) {
-    
+
             foreach ($record['beneficial_owners'] as $owner) {
-    
+
                 $beneficialOwners[] = [
                     'name' => $owner['name'] ?? null,
                     'pep' => $this->normalizeBoolean($owner['pep'] ?? false),
@@ -158,15 +156,15 @@ private function prepareAssessmentData(array $record): array
                 ];
             }
         }
-    
+
         /**
          * BENEFICIARIES
          */
         $beneficiaries = [];
         if (!empty($record['beneficiaries']) && is_array($record['beneficiaries'])) {
-    
+
             foreach ($record['beneficiaries'] as $beneficiary) {
-    
+
                 $beneficiaries[] = [
                     'name' => $beneficiary['name'] ?? null,
                     'nationality' => $beneficiary['nationality'] ?? null,
@@ -177,43 +175,43 @@ private function prepareAssessmentData(array $record): array
             }
         }
 
-    $data = [
-        'entity_id' => $entity->id,
-        'identification_capacity' => $this->indicatorService->getByDescription($record['identification_capacity'] ?? null),
-        'professionP' => $this->indicatorService->getByDescription($record['profession'] ?? null),
-        'categoryP' => $this->indicatorService->getByDescription($record['category'] ?? null),
-        'channel' => $this->indicatorService->getByDescription($record['channel'] ?? null),
-        'product_risk' =>        $productRiskIds,
-        'country_residence' => $this->indicatorService->getByDescription($record['country_residence'] ?? null),
-        'nationality' => $this->indicatorService->getByDescription($record['nationality'] ?? null),
-        'form_establishment' => $this->normalizeBoolean($record['form_establishment'] ?? false),
-        'status_residence' => $this->normalizeBoolean($record['status_residence'] ?? false),
-        'pep' => $this->normalizeBoolean($record['pep'] ?? false),
-        'santion' => $this->normalizeBoolean($record['sanction'] ?? false),
-        'beneficial_owners' =>   $beneficialOwners,
-        'beneficiaries' =>    $beneficiaries,
-        'type_assessment' => 2,
-        'user_id' => $this->userID,
-        'risk_assessment_control_id' => $this->batchId,
-    ];
+        $data = [
+            'entity_id' => $entity->id,
+            'identification_capacity' => $this->indicatorService->getByDescription($record['identification_capacity'] ?? null),
+            'professionP' => $this->indicatorService->getByDescription($record['profession'] ?? null),
+            'categoryP' => $this->indicatorService->getByDescription($record['category'] ?? null),
+            'channel' => $this->indicatorService->getByDescription($record['channel'] ?? null),
+            'product_risk' =>        $productRiskIds,
+            'country_residence' => $this->indicatorService->getByDescription($record['country_residence'] ?? null),
+            'nationality' => $this->indicatorService->getByDescription($record['nationality'] ?? null),
+            'form_establishment' => $this->normalizeBoolean($record['form_establishment'] ?? false),
+            'status_residence' => $this->normalizeBoolean($record['status_residence'] ?? false),
+            'pep' => $this->normalizeBoolean($record['pep'] ?? false),
+            'santion' => $this->normalizeBoolean($record['sanction'] ?? false),
+            'beneficial_owners' =>   $beneficialOwners,
+            'beneficiaries' =>    $beneficiaries,
+            'type_assessment' => 2,
+            'user_id' => $this->userID,
+            'risk_assessment_control_id' => $this->batchId,
+        ];
 
-    // Verifica campos obrigatórios
-    $requiredFields = [
-        $data['professionP'],
-        $data['categoryP'],
-        $data['channel'],
-        $data['country_residence'],
-        $data['nationality'],
-        $data['identification_capacity'],
-    ];
+        // Verifica campos obrigatórios
+        $requiredFields = [
+            $data['professionP'],
+            $data['categoryP'],
+            $data['channel'],
+            $data['country_residence'],
+            $data['nationality'],
+            $data['identification_capacity'],
+        ];
 
-    // Se algum campo obrigatório estiver vazio ou sem product_risk, marca erro
-    $data['status'] = (collect($requiredFields)->contains(fn($f) => is_null($f)) || empty($data['product_risk']))
-        ? StatusAssessment::ERROR->value
-        : StatusAssessment::SUCESS->value;
+        // Se algum campo obrigatório estiver vazio ou sem product_risk, marca erro
+        $data['status'] = (collect($requiredFields)->contains(fn($f) => is_null($f)) || empty($data['product_risk']))
+            ? StatusAssessment::ERROR->value
+            : StatusAssessment::SUCESS->value;
 
-    return $data;
-}
+        return $data;
+    }
 
 
 
