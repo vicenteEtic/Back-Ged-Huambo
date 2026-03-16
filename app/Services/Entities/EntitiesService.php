@@ -44,42 +44,47 @@ class EntitiesService extends AbstractService
         return $this->repository->privateEntities_evaluation();
     }
 
-   public function initializeImportBatch(int $userId): int
-{
-    // Procura por um batch ativo que ainda não está processando
-    $existingRecord = $this->riskAssessmentControlService->findOneBy([
-        ['user_id', '=', $userId],
-        ['is_processing', '=', 0]
-    ]);
+    public function initializeImportBatch(int $userId): int
+    {
+        // Procura por um batch ativo que ainda não está processando
+      $existingRecord = $this->riskAssessmentControlService->findOneBy([
+    ['user_id', '=', $userId],
+    ['is_processing', '=', 0],
+    ['created_at', '>=', Carbon::now()->subSeconds(60)] // por exemplo, últimos 60 segundos
+]);
 
-    if ($existingRecord) {
-        return $existingRecord->id;
+        if ($existingRecord) {
+            return $existingRecord->id;
+        }
+
+        // Cria um novo batch
+        $record = $this->riskAssessmentControlService->store([
+            'total_sucess' => 0,
+            'total_error' => 0,
+            'total' => 0,
+            'user_id' => $userId,
+            'is_processing' => 0
+        ]);
+
+        return $record->id;
     }
-
-    // Cria um novo batch
-    $record = $this->riskAssessmentControlService->store([
-        'total_sucess' => 0,
-        'total_error' => 0,
-        'total' => 0,
-        'user_id' => $userId,
-        'is_processing' => 0
-    ]);
-
-    return $record->id;
-}
-public function dispatchImportJobs(array $data, int $userId): void
+   public function dispatchImportJobs(array $data, int $userId): void
 {
-    // Inicializa o batch apenas uma vez
     $batchId = $this->initializeImportBatch($userId);
 
-    // Divide os dados em chunks
     $chunks = array_chunk($data, self::BATCH_SIZE);
 
     foreach ($chunks as $index => $chunk) {
         ImportDataJob::dispatch($chunk, $userId, $batchId)
             ->onQueue('high')
-            ->delay(now()->addSeconds($index * 5)); // pequenos intervalos para evitar sobreposição
+            ->delay(now()->addSeconds($index * 2)); // menor delay para 250k registros
     }
+
+    Log::info("Dispatch concluído", [
+        'user_id' => $userId,
+        'batch_id' => $batchId,
+        'total_jobs' => count($chunks)
+    ]);
 }
     public function getLastEntities(int $limit = 3)
     {
