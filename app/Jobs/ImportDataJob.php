@@ -99,9 +99,11 @@ class ImportDataJob implements ShouldQueue
                         }
 
                         $riskAssessment->risk_assessment_control_id = $this->batchId;
+                        
+
                         $riskAssessment->status = $data['status'];
                         $riskAssessment->save();
-
+                        
                         if ($riskAssessment->status === StatusAssessment::SUCESS->value) {
                             $this->incrementSuccessCount($control);
                         } else {
@@ -130,11 +132,9 @@ class ImportDataJob implements ShouldQueue
     private function prepareAssessmentData(array $record): ?array
     {
         if (empty($record['social_denomination'])) return null;
-
+    
         $entity = $this->entityService->storeOrUpdate(
             [
-                'policy_number' => $record['policy_number'] ?? null,
-                'customer_number' => $record['customer_number'] ?? null,
                 'nif' => $record['nif'] ?? null,
             ],
             [
@@ -143,59 +143,107 @@ class ImportDataJob implements ShouldQueue
                 'nif' => $record['nif'] ?? null,
                 'social_denomination' => $record['social_denomination'],
                 'entity_type' => $record['entity_type'] ?? null,
-                'pep' => $this->normalizeBoolean($record['pep'] ?? false),
+                
             ]
         );
-
+    
         $productRisks = $record['product_risk'] ?? [];
-        if (!is_array($productRisks)) $productRisks = [$productRisks];
-
+        if (!is_array($productRisks)) {
+            $productRisks = [$productRisks];
+        }
+    
         $productRiskIds = array_filter(
             array_map(fn($r) => $this->indicatorService->getByDescription($r) ?: null, $productRisks)
         );
-
+    
+        /**
+         * BENEFICIAL OWNERS
+         */
         $beneficialOwners = [];
-        if (!empty($record['beneficial_owner'])) {
-            $beneficialOwners[] = [
-                'name' => $record['beneficial_owner'],
-                'pep' => $this->normalizeBoolean($record['pep'] ?? false)
-            ];
+        if (!empty($record['beneficial_owners']) && is_array($record['beneficial_owners'])) {
+    
+            foreach ($record['beneficial_owners'] as $owner) {
+    
+                $beneficialOwners[] = [
+                    'name' => $owner['name'] ?? null,
+                    'pep' => $this->normalizeBoolean($owner['pep'] ?? false),
+                    'santion' => $this->normalizeBoolean($owner['sanction'] ?? false),
+                    'nationality' => $owner['nationality'] ?? null,
+                    'percentage' => $owner['percentage'] ?? 0,
+                    'is_legal_representative' => $this->normalizeBoolean($owner['is_legal_representative'] ?? false),
+                ];
+            }
         }
-
+    
+        /**
+         * BENEFICIARIES
+         */
+        $beneficiaries = [];
+        if (!empty($record['beneficiaries']) && is_array($record['beneficiaries'])) {
+    
+            foreach ($record['beneficiaries'] as $beneficiary) {
+    
+                $beneficiaries[] = [
+                    'name' => $beneficiary['name'] ?? null,
+                    'nationality' => $beneficiary['nationality'] ?? null,
+                    'is_pep' => $this->normalizeBoolean($beneficiary['is_pep'] ?? false),
+                    'is_sanctioned' => $this->normalizeBoolean($beneficiary['is_sanctioned'] ?? false),
+                    'processesReportedAuthoritie' => $this->normalizeBoolean($beneficiary['processesReportedAuthoritie'] ?? false),
+                ];
+            }
+        }
+    
         $data = [
             'entity_id' => $entity->id,
-            'identification_capacity' => 1,
+            'identification_capacity' => $this->indicatorService->getByDescription($record['identification_capacity'] ?? ''),
+    
             'professionP' => $this->indicatorService->getByDescription($record['profession'] ?? ''),
             'categoryP' => $this->indicatorService->getByDescription($record['category'] ?? ''),
             'channel' => $this->indicatorService->getByDescription($record['channel'] ?? ''),
+    
             'product_risk' => $productRiskIds,
+    
             'country_residence' => $this->indicatorService->getByDescription($record['country_residence'] ?? ''),
             'nationality' => $this->indicatorService->getByDescription($record['nationality'] ?? ''),
+    
             'form_establishment' => $this->normalizeBoolean($record['form_establishment'] ?? false),
             'status_residence' => $this->normalizeBoolean($record['status_residence'] ?? false),
+    
             'pep' => $this->normalizeBoolean($record['pep'] ?? false),
-            'beneficial_owner' => $beneficialOwners,
-            'type_assessment' => TypeAssessment::IMPORT->value,
+            'santion' => $this->normalizeBoolean($record['sanction'] ?? false),
+            'processesReportedAuthoritie' => $this->normalizeBoolean($record['processesReportedAuthoritie'] ?? false),
+    
+            'beneficial_owners' => $beneficialOwners,
+            'beneficiaries' => $beneficiaries,
+    
+            'type_assessment' => 2,
             'user_id' => $this->userID,
             'risk_assessment_control_id' => $this->batchId,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ];
+    
 
+        ];
+    
         $requiredFields = [
             $data['professionP'],
             $data['categoryP'],
             $data['channel'],
             $data['country_residence'],
             $data['nationality'],
+             $data['identification_capacity'],
+           
         ];
-
-        $data['status'] = (collect($requiredFields)->contains(fn($f) => is_null($f)) || empty($data['product_risk']))
+    
+        $data['status'] = (
+            collect($requiredFields)->contains(fn($f) => is_null($f)) ||
+            empty($data['product_risk'])
+        )
             ? StatusAssessment::ERROR->value
             : StatusAssessment::SUCESS->value;
-
+    
         return $data;
     }
+    
+    
 
     private function normalizeBoolean($value): int
     {
