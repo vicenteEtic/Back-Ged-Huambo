@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Enum\TypeAssessment;
 use App\Enum\StatusAssessment;
+use App\Models\Entities\Entities;
 use Illuminate\Bus\Queueable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Queue\InteractsWithQueue;
@@ -18,6 +19,7 @@ use App\Services\Entities\RiskAssessmentService;
 use App\Services\Indicator\IndicatorTypeService;
 use App\Models\Entities\RiskAssessmentControl;
 use App\Traits\DatabaseLogger;
+use Dom\Entity;
 
 class ImportDataJob implements ShouldQueue
 {
@@ -133,19 +135,19 @@ class ImportDataJob implements ShouldQueue
     {
         if (empty($record['social_denomination'])) return null;
     
-        $entity = $this->entityService->storeOrUpdate(
-            [
-                'nif' => $record['nif'] ?? null,
-            ],
-            [
-                'policy_number' => $record['policy_number'] ?? null,
-                'customer_number' => $record['customer_number'] ?? null,
-                'nif' => $record['nif'] ?? null,
-                'social_denomination' => $record['social_denomination'],
-                'entity_type' => $record['entity_type'] ?? null,
-                
-            ]
-        );
+        $entity = Entities::updateOrCreate(
+    [
+        'nif' => $record['nif'] ?? null,
+    ],
+    [
+        'policy_number' => $record['policy_number'] ?? null,
+        'customer_number' => $record['customer_number'] ?? null,
+        'social_denomination' => $record['social_denomination'],
+        'entity_type' => $record['entity_type'] ?? null,
+    ]
+);
+        
+        
     
         $productRisks = $record['product_risk'] ?? [];
         if (!is_array($productRisks)) {
