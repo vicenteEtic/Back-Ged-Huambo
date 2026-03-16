@@ -21,7 +21,7 @@ use App\Traits\DatabaseLogger;
 
 class ImportDataJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, DatabaseLogger;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, DatabaseLogger ;
 
     protected array $data;
     protected int $userID;

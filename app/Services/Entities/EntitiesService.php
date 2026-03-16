@@ -44,40 +44,46 @@ class EntitiesService extends AbstractService
         return $this->repository->privateEntities_evaluation();
     }
 
-    public function initializeImportBatch(int $userId): int
+ public function initializeImportBatch(int $userId): int
 {
-    $timeLimit = Carbon::now()->subSeconds(self::TIME_LIMIT_SECONDS);
-
+    // Procura batch ativo (não processando)
     $existingRecord = $this->riskAssessmentControlService->findOneBy([
-        ['updated_at', '>=', $timeLimit],
-        ['user_id', '=', $userId]
+        ['user_id', '=', $userId],
+        ['is_processing', '=', 1] // ou 0 se você quiser pegar batch livre
     ]);
 
-    if (!$existingRecord) {
-
-        $record = $this->riskAssessmentControlService->store([
-            'total_sucess' => 0,
-            'total_error' => 0,
-            'total' => 0,
-            'user_id' => $userId
-        ]);
-
-        return $record->id;
+    if ($existingRecord) {
+        // Usa o batch existente
+        return $existingRecord->id;
     }
 
-    return $existingRecord->id;
+    // Se não existe, cria um novo
+    $record = $this->riskAssessmentControlService->store([
+        'total_sucess' => 0,
+        'total_error' => 0,
+        'total' => 0,
+        'user_id' => $userId,
+        'is_processing' => 0
+    ]);
+
+    return $record->id;
 }
 
     public function dispatchImportJobs(array $data, int $userId, int $batchId): void
     {
-        $chunks = array_chunk($data, self::BATCH_SIZE);
+     // 1️⃣ Inicializa batch uma única vez
+    $batchId = $this->initializeImportBatch($userId);
 
-        foreach ($chunks as $index => $chunk) {
-            ImportDataJob::dispatch($chunk, $userId, $batchId)
+    // 2️⃣ Divide dados em chunks
+    $chunks = array_chunk($data, self::BATCH_SIZE);
+
+    // 3️⃣ Dispara jobs para a fila 'high'
+    foreach ($chunks as $index => $chunk) {
+        ImportDataJob::dispatch($chunk, $userId, $batchId)
             ->onQueue('high')
-                ->delay(Carbon::now()->addSeconds($index * 10)); // garante Carbon
+            ->delay(Carbon::now()->addSeconds($index * 10));
+    }
 
-        }
     }
 
     public function getLastEntities(int $limit = 3)
