@@ -8,6 +8,7 @@ use App\Repositories\Entities\EntitiesRepository;
 use App\Services\AbstractService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class EntitiesService extends AbstractService
 {
