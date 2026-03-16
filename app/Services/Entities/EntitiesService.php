@@ -44,20 +44,20 @@ class EntitiesService extends AbstractService
         return $this->repository->privateEntities_evaluation();
     }
 
- public function initializeImportBatch(int $userId): int
+public function initializeImportBatch(int $userId): int
 {
-    // Procura batch ativo (não processando)
+    // Procura batch ativo do usuário que não está sendo processado
     $existingRecord = $this->riskAssessmentControlService->findOneBy([
         ['user_id', '=', $userId],
-        ['is_processing', '=', 1] // ou 0 se você quiser pegar batch livre
+        ['is_processing', '=', 0]
     ]);
 
     if ($existingRecord) {
-        // Usa o batch existente
+        // Retorna batch existente
         return $existingRecord->id;
     }
 
-    // Se não existe, cria um novo
+    // Cria um novo batch
     $record = $this->riskAssessmentControlService->store([
         'total_sucess' => 0,
         'total_error' => 0,
@@ -72,17 +72,15 @@ class EntitiesService extends AbstractService
     public function dispatchImportJobs(array $data, int $userId, int $batchId): void
     {
      // 1️⃣ Inicializa batch uma única vez
-    $batchId = $this->initializeImportBatch($userId);
+ $batchId = $this->initializeImportBatch($userId);
 
-    // 2️⃣ Divide dados em chunks
-    $chunks = array_chunk($data, self::BATCH_SIZE);
+$chunks = array_chunk($data, self::BATCH_SIZE);
 
-    // 3️⃣ Dispara jobs para a fila 'high'
-    foreach ($chunks as $index => $chunk) {
-        ImportDataJob::dispatch($chunk, $userId, $batchId)
-            ->onQueue('high')
-            ->delay(Carbon::now()->addSeconds($index * 10));
-    }
+foreach ($chunks as $index => $chunk) {
+    ImportDataJob::dispatch($chunk, $userId, $batchId)
+        ->onQueue('high')
+        ->delay(Carbon::now()->addSeconds($index * 10));
+}
 
     }
 
