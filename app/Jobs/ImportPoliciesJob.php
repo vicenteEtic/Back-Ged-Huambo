@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Models\Entities\Entities;
-use App\Services\Transation\PoliciesService;
 use App\Services\KYT\CustomerKYTService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,168 +11,176 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-use Illuminate\Bus\Batchable;
 
 class ImportPoliciesJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels,Batchable;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $tries = 3;         // Tentativas em caso de falha
-    public $timeout = 3600;    // 1 hora
-    public $backoff = 60;      // Espera 1 minuto antes de re-tentar
+    public $tries = 3;
+    public $timeout = 3600;
+    public $backoff = 60;
 
-    protected PoliciesService $policiesService;
     protected CustomerKYTService $kytService;
 
-    public function handle(PoliciesService $policiesService, CustomerKYTService $kytService)
+    public function handle(CustomerKYTService $kytService)
     {
-        $this->policiesService = $policiesService;
         $this->kytService = $kytService;
 
-        $path = base_path('apolices_nvida.csv');
+        $path = base_path('apolices_vida.csv');
 
         if (!file_exists($path)) {
             Log::error("Arquivo CSV não encontrado: {$path}");
             return;
         }
 
-        $totalInserted = 0;
-        $customerIds = [];
+        if (($handle = fopen($path, 'r')) === false) {
+            Log::error("Erro ao abrir CSV: {$path}");
+            return;
+        }
 
-        if (($handle = fopen($path, 'r')) !== false) {
-            $header = fgetcsv($handle, 0, ',');
-            $header = array_map('trim', $header);
-
-            while (($row = fgetcsv($handle, 0, ',')) !== false) {
-                if (empty(array_filter($row))) continue;
-
-                $dataImport = [];
-
-                foreach ($header as $idx => $column) {
-                    $value = $row[$idx] ?? null;
-
-                    switch ($column) {
-                        case 'Numero_Cliente':
-                            $dataImport['contract_number'] = $value;
-                            $customerIds[] = $value;
-                            break;
-                        case 'Codigo_Ramo':
-                            $dataImport['branch_code'] = $value;
-                            break;
-                        case 'Descricao_Ramo':
-                            $dataImport['branch_desc'] = $value;
-                            break;
-                        case 'Codigo_Produto':
-                            $dataImport['product_code'] = $value;
-                            break;
-                        case 'Descricao_Produto':
-                            $dataImport['product_desc'] = $value;
-                            break;
-                        case 'Codigo_Canal':
-                            $dataImport['channel_code'] = $value;
-                            break;
-                        case 'Descricao_Canal':
-                            $dataImport['channel_desc'] = $value;
-                            break;
-                        case 'Codigo_Agente':
-                            $dataImport['agent_code'] = $value;
-                            break;
-                        case 'Descricao_Agente':
-                            $dataImport['agent_desc'] = $value;
-                            break;
-                        case 'Estado_Apolice':
-                            $dataImport['status'] = $value;
-                            break;
-                        case 'Data_Inicio':
-                            $dataImport['start_date'] = $this->parseDate($value);
-                            break;
-                        case 'Data_Fim':
-                            $dataImport['end_date'] = $this->parseDate($value);
-                            break;
-                        case 'Data_Proxima_Renovacao':
-                            $dataImport['renewal_date'] = $this->parseDate($value);
-                            break;
-                        case 'Data_Proximo_Vencimento':
-                            $dataImport['issue_date'] = $this->parseDate($value);
-                            break;
-                        case 'Moeda':
-                            $dataImport['moeda'] = $value;
-                            break;
-                        case 'Capital':
-                            $dataImport['capital'] = floatval($value ?? 0);
-                            break;
-                        case 'Capital_Liquido_Cosseguro':
-                            $dataImport['capital_liquido_cosseguro'] = floatval($value ?? 0);
-                            break;
-                        case 'Premio_Simples':
-                            $dataImport['premium_simple'] = floatval($value ?? 0);
-                            break;
-                        case 'Premio_Total':
-                            $dataImport['premium_total'] = floatval($value ?? 0);
-                            break;
-                        case 'Encargos':
-                            $dataImport['charges'] = floatval($value ?? 0);
-                            break;
-                        case 'Outros_Encargos':
-                            $dataImport['outros_encargos'] = floatval($value ?? 0);
-                            break;
-                        case 'Juros':
-                            $dataImport['interest'] = floatval($value ?? 0);
-                            break;
-                    }
-                }
-
-                if (empty($dataImport['contract_number'])) {
-                    Log::warning("Linha ignorada: Numero_Apolice vazio");
-                    continue;
-                }
-
-                try {
-                    $this->policiesService->storeOrUpdate(
-                        ['contract_number' => $dataImport['contract_number']],
-                        $dataImport
-                    );
-
-                    $totalInserted++;
-
-                    // Limpeza de memória a cada 1000 registros
-                    if ($totalInserted % 1000 === 0) {
-                        gc_collect_cycles();
-                    }
-
-                } catch (\Exception $e) {
-                    Log::error("Falha ao inserir apólice {$dataImport['contract_number']}: " . $e->getMessage());
-                }
-            }
-
+        $header = fgetcsv($handle, 0, ',');
+        if (!$header) {
+            Log::error("CSV vazio ou cabeçalho inválido: {$path}");
             fclose($handle);
+            return;
         }
 
-        Log::info("Importação de policies concluída! Total inserido/atualizado: {$totalInserted}");
 
-        // 🔹 Executa KYT apenas para clientes importados
-        $customerIds = array_unique($customerIds);
+        $header = array_map('trim', $header);
+        $currentCustomerId = null;
+        $policiesBuffer = [];
 
-        foreach ($customerIds as $id) {
-            try {
-                $customer = Entities::where('customer_number', $id)->first();
-                if ($customer) {
-                    $this->kytService->runAllChecks($customer);
-                }
-            } catch (\Exception $e) {
-                Log::error("Falha ao executar KYT para cliente {$id}: " . $e->getMessage());
+      while (($row = fgetcsv($handle, 0, ',')) !== false) {
+
+    if (empty(array_filter($row))) {
+        continue;
+    }
+
+    // ignora linha separadora
+    if (isset($row[0]) && str_contains($row[0], '----')) {
+        continue;
+    }
+
+            $dataImport = $this->mapCsvRow($header, $row);
+
+            if (empty($dataImport['customer_number']) || empty($dataImport['contract_number'])) {
+                Log::warning("Linha ignorada: Numero_Apolice ou Numero_Cliente vazio");
+                continue;
+            }
+
+            // Processa buffer quando mudamos de cliente
+            if ($currentCustomerId && $currentCustomerId != $dataImport['customer_number']) {
+                $this->processCustomer($currentCustomerId, $policiesBuffer);
+                $policiesBuffer = []; // limpa buffer
+            }
+
+            $currentCustomerId = $dataImport['customer_number'];
+            $policiesBuffer[] = $dataImport;
+        }
+
+        // Processa último cliente
+        if ($currentCustomerId && !empty($policiesBuffer)) {
+            $this->processCustomer($currentCustomerId, $policiesBuffer);
+        }
+
+        fclose($handle);
+        Log::info("Importação e execução KYT concluída com sucesso.");
+    }
+
+    private function processCustomer(string $customerId, array $policies)
+    {
+        $customer = new Entities();
+        $customer->customer_number = $customerId;
+        $customer->social_denomination = "Cliente #$customerId";
+
+        try {
+            $this->kytService->runAllChecksMemory($customer, $policies);
+        } catch (\Exception $e) {
+            Log::error("Erro KYT para cliente {$customerId}: " . $e->getMessage());
+        }
+    }
+
+    private function mapCsvRow(array $header, array $row): array
+    {
+        $dataImport = [];
+        foreach ($header as $idx => $column) {
+
+            $value = $row[$idx] ?? null;
+
+            switch (strtolower($column)) {
+
+                case 'numero_apolice':
+                    $dataImport['numero_apolice'] = $value;
+                    break;
+
+                case 'numero_cliente':
+                    $dataImport['numero_cliente'] = $value;
+                    break;
+
+                case 'descricao_produto':
+                    $dataImport['descricao_produto'] = $value;
+                    break;
+
+                case 'estado_apolice':
+
+                    $status = strtoupper(trim($value));
+
+                    switch ($status) {
+
+                        case 'NORMAL':
+                            $status = 'active';
+                            break;
+
+                        case 'C/ CARTA':
+                            $status = 'cancelled';
+                            break;
+
+                        case 'ANULADA':
+                            $status = 'terminated';
+                            break;
+
+                        default:
+                            $status = 'unknown';
+                    }
+
+                    $dataImport['estado_apolice'] = $status;
+
+                    break;
+
+                case 'data_inicio':
+                    $dataImport['data_inicio'] = $this->parseDate($value);
+                    break;
+
+                case 'data_fim':
+                    $dataImport['data_fim'] = $this->parseDate($value);
+                    break;
+
+                case 'capital':
+                    $dataImport['capital'] = floatval($value ?? 0);
+                    break;
+
+                case 'premio_total':
+                    $dataImport['premium_total'] = floatval($value ?? 0);
+                    break;
+
+                case 'encargos':
+                    $dataImport['encargos'] = floatval($value ?? 0);
+                    break;
+
+                case 'juros':
+                    $dataImport['interest'] = floatval($value ?? 0);
+                    break;
             }
         }
 
-        Log::info("Execução KYT concluída para todos os clientes importados.");
+        return $dataImport;
     }
 
     private function parseDate($date)
     {
         if (!$date) return null;
-
         try {
-            return Carbon::parse($date)->format('Y-m-d');
+            return Carbon::parse(substr($date, 0, 10))->format('Y-m-d'); // Remove hora e microssegundos
         } catch (\Exception $e) {
             return null;
         }

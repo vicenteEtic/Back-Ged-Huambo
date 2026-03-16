@@ -24,3 +24,4 @@ storage/**/app/public/logos-cache
 .env
 docker-compose.yml
 apolices_vida.csv
+clientes.csv
