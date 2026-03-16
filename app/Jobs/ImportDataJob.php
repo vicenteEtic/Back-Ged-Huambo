@@ -88,21 +88,8 @@ class ImportDataJob implements ShouldQueue
                     try {
                         $data = $this->prepareAssessmentData($record);
 
-                        if (!$data) {
-                            $this->incrementErrorCount($control);
-                            continue;
-                        }
-
                         $riskAssessment = $this->riskAssessmentService->store($data);
-
-                        if (!$riskAssessment) {
-                            $this->incrementErrorCount($control);
-                            continue;
-                        }
-
                         $riskAssessment->risk_assessment_control_id = $this->batchId;
-
-
                         $riskAssessment->status = $data['status'];
                         $riskAssessment->save();
 
