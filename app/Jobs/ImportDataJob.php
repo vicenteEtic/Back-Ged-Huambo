@@ -119,17 +119,33 @@ class ImportDataJob implements ShouldQueue
 
     private function prepareAssessmentData(array $record): array
     {
-        // Cria ou atualiza entidade (mesmo com campos nulos)
+        // Cria ou atualiza entidade de forma segura
+        $nif = $record['nif'] ?? null;
+        $socialDenomination = $record['social_denomination'] ?? null;
+
+        // Ignora registro se não houver NIF nem social_denomination
+        if (!$nif && !$socialDenomination) {
+            Log::warning('Registro ignorado: sem NIF nem social_denomination', ['record' => $record]);
+            return [
+                'status' => StatusAssessment::ERROR->value,
+                'entity_id' => null,
+            ];
+        }
+
+        // Busca ou cria entidade usando NIF + social_denomination como chave
         $entity = Entities::firstOrNew([
-            'nif' => $record['nif'],
-            'social_denomination' => $record['social_denomination']
+            'nif' => $nif,
+            'social_denomination' => $socialDenomination
         ]);
+
+        // Atualiza campos adicionais
         $entity->fill([
             'policy_number' => $record['policy_number'] ?? $entity->policy_number,
-            'social_denomination' => $record['social_denomination'] ?? $entity->social_denomination,
             'entity_type' => $record['entity_type'] ?? $entity->entity_type,
-            'nif' => $record['nif'] ?? $entity->nif,
+            'nif' => $nif ?? $entity->nif,
+            'social_denomination' => $socialDenomination ?? $entity->social_denomination,
         ]);
+
         $entity->save();
 
         $productRisks = $record['product_risk'] ?? [];
