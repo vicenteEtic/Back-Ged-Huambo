@@ -120,7 +120,10 @@ class ImportDataJob implements ShouldQueue
     private function prepareAssessmentData(array $record): array
     {
         // Cria ou atualiza entidade (mesmo com campos nulos)
-        $entity = Entities::firstOrNew(['nif' => $record['nif']]);
+        $entity = Entities::firstOrNew([
+            'nif' => $record['nif'],
+            'social_denomination' => $record['social_denomination']
+        ]);
         $entity->fill([
             'policy_number' => $record['policy_number'] ?? $entity->policy_number,
             'social_denomination' => $record['social_denomination'] ?? $entity->social_denomination,
