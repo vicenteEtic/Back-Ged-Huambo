@@ -44,46 +44,42 @@ class EntitiesService extends AbstractService
         return $this->repository->privateEntities_evaluation();
     }
 
-public function initializeImportBatch(int $userId): int
-{
-    // Procura batch ativo do usuário que não está sendo processado
-    $existingRecord = $this->riskAssessmentControlService->findOneBy([
-        ['user_id', '=', $userId],
-        ['is_processing', '=', 0]
-    ]);
-
-    if ($existingRecord) {
-        // Retorna batch existente
-        return $existingRecord->id;
-    }
-
-    // Cria um novo batch
-    $record = $this->riskAssessmentControlService->store([
-        'total_sucess' => 0,
-        'total_error' => 0,
-        'total' => 0,
-        'user_id' => $userId,
-        'is_processing' => 0
-    ]);
-
-    return $record->id;
-}
-
-    public function dispatchImportJobs(array $data, int $userId, int $batchId): void
+    public function initializeImportBatch(int $userId): int
     {
-     // 1️⃣ Inicializa batch uma única vez
- $batchId = $this->initializeImportBatch($userId);
+        // Procura batch ativo do usuário que não está sendo processado
+        $existingRecord = $this->riskAssessmentControlService->findOneBy([
+            ['user_id', '=', $userId],
+            ['is_processing', '=', 0]
+        ]);
 
-$chunks = array_chunk($data, self::BATCH_SIZE);
+        if ($existingRecord) {
+            // Retorna batch existente
+            return $existingRecord->id;
+        }
 
-foreach ($chunks as $index => $chunk) {
-    ImportDataJob::dispatch($chunk, $userId, $batchId)
-        ->onQueue('high')
-        ->delay(Carbon::now()->addSeconds($index * 10));
-}
+        // Cria um novo batch
+        $record = $this->riskAssessmentControlService->store([
+            'total_sucess' => 0,
+            'total_error' => 0,
+            'total' => 0,
+            'user_id' => $userId,
+            'is_processing' => 0
+        ]);
 
+        return $record->id;
     }
+public function dispatchImportJobs(array $data, int $userId, int $batchId): void
+{
+    // 2️⃣ Divide dados em chunks
+    $chunks = array_chunk($data, self::BATCH_SIZE);
 
+    // 3️⃣ Dispara jobs para a fila 'high'
+    foreach ($chunks as $index => $chunk) {
+        ImportDataJob::dispatch($chunk, $userId, $batchId)
+            ->onQueue('high')
+            ->delay(Carbon::now()->addSeconds($index * 10));
+    }
+}
     public function getLastEntities(int $limit = 3)
     {
         return $this->repository->getLastEntities($limit);
