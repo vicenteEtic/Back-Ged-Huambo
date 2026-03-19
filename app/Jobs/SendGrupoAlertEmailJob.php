@@ -22,9 +22,8 @@ class SendGrupoAlertEmailJob implements ShouldQueue
     protected int $alertID;
     protected string $host;
 
-    // 🚫 Não tentar novamente (erro de negócio ≠ erro técnico)
-    public $tries = 1;
-    public $timeout = 3600;
+    public $tries = 5;      // Tenta até 3 vezes em caso de falha
+    public $timeout = 3600; // 1 hora
 
     public function __construct(int $alertID, string $host)
     {
@@ -34,97 +33,87 @@ class SendGrupoAlertEmailJob implements ShouldQueue
 
     public function handle(): void
     {
-        $alert = Alert::find($this->alertID);
+        try {
+            $alert = Alert::find($this->alertID);
+            if (!$alert) {
+                Log::warning("Alert não encontrado", ['alert_id' => $this->alertID]);
+                return;
+            }
 
-        if (!$alert) {
-            Log::warning("Alert não encontrado", ['alert_id' => $this->alertID]);
-            return;
-        }
+            $type = $this->resolveAlertType($alert);
+            if (!$type) {
+                Log::info("Alert sem tipo elegível para envio", ['alert_id' => $alert->id]);
+                return;
+            }
 
-        // 🔹 Resolver tipo do alerta
-        $type = $this->resolveAlertType($alert);
+            Log::info("Processando Alert ID {$alert->id} | Tipo: {$type}");
 
-        if (!$type) {
-            Log::info('Alert sem tipo elegível para envio de email', [
-                'alert_id' => $alert->id,
-                'type'     => $alert->type,
-                'list'     => $alert->list,
-                'category' => $alert->category,
-            ]);
-            return;
-        }
+            $grupoTypes = GrupoType::where('name', $type)->get();
+            if ($grupoTypes->isEmpty()) {
+                Log::info("Nenhum GrupoType encontrado", ['alert_id' => $alert->id]);
+                return;
+            }
 
-        Log::info("Processando Alert ID {$alert->id} | Tipo: {$type}");
-
-        $grupoTypes = GrupoType::where('name', $type)->get();
-
-        if ($grupoTypes->isEmpty()) {
-            Log::info('Nenhum GrupoType encontrado, job finalizado', [
-                'alert_id' => $alert->id,
-                'type'     => $type,
-            ]);
-            return;
-        }
-
-        foreach ($grupoTypes as $grupo) {
-            $userGrupoAlerts = UserGrupoAlert::where('grup_alert_id', $grupo->grup_alert_id)
-                ->with('user')
-                ->get();
-
-            foreach ($userGrupoAlerts as $uga) {
-                if (!$uga->user) {
+            foreach ($grupoTypes as $grupo) {
+                if (!$grupo->grup_alert_id) {
+                    Log::warning("Grupo sem ID", ['grupo' => $grupo->toArray()]);
                     continue;
                 }
 
-                $user = $uga->user;
+                $userGrupoAlerts = UserGrupoAlert::where('grup_alert_id', $grupo->grup_alert_id)
+                    ->with('user')
+                    ->get();
 
-                // Evitar duplicação
-                if (AlertUser::where('alert_id', $alert->id)->where('user_id', $user->id)->exists()) {
-                    continue;
-                }
+                foreach ($userGrupoAlerts as $uga) {
+                    $user = $uga->user;
+                    if (!$user || !$user->email) continue;
 
-                AlertUser::firstOrCreate([
-                    'alert_id' => $alert->id,
-                    'user_id'  => $user->id,
-                ]);
-
-                try {
-                    Mail::to($user->email)
-                        ->send(new GrupoAlertMail($user, $alert, $this->host));
-
-                    Log::info("Email enviado", [
+                    // Evita duplicados
+                    AlertUser::firstOrCreate([
                         'alert_id' => $alert->id,
                         'user_id'  => $user->id,
-                        'email'    => $user->email,
                     ]);
-                } catch (\Throwable $e) {
-                    Log::error("Erro ao enviar email", [
-                        'alert_id' => $alert->id,
-                        'user_id'  => $user->id,
-                        'error'    => $e->getMessage(),
-                    ]);
+
+                    try {
+                        Mail::to($user->email)
+                            ->send(new GrupoAlertMail($user, $alert, $this->host));
+
+                        Log::info("Email enviado", [
+                            'alert_id' => $alert->id,
+                            'user_id'  => $user->id,
+                            'email'    => $user->email,
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::error("Erro ao enviar email", [
+                            'alert_id' => $alert->id,
+                            'user_id'  => $user->id,
+                            'error'    => $e->getMessage(),
+                        ]);
+                        // Se quiser re-tentar automaticamente, remova o throw
+                        // throw $e;
+                    }
                 }
             }
+        } catch (\Throwable $e) {
+            Log::error("Erro inesperado no job", [
+                'alert_id' => $this->alertID,
+                'error' => $e->getMessage(),
+            ]);
+            // Re-lança para que o Laravel registre a tentativa
+            throw $e;
         }
     }
 
-    /**
-     * Resolve o tipo do alerta sem ifs duplicados
-     */
     private function resolveAlertType(Alert $alert): ?string
     {
         return match (true) {
             $alert->type === 'PEP'              => 'PEP',
             $alert->type === 'SANCTIONS'        => 'Sanctions List',
-
             $alert->list === 'PEP List world'   => 'PEP',
             $alert->list === 'Sanctions List'   => 'Sanctions List',
             $alert->list === 'AML'              => 'Enhanced Due Diligence',
-            $alert->list === 'Avaliação AML Cliente Inaceitável'
-                                                => 'Unacceptable Customer',
-
+            $alert->list === 'Avaliação AML Cliente Inaceitável' => 'Unacceptable Customer',
             $alert->category === 'KYT'          => 'Transaction Monitoring',
-
             default                             => null,
         };
     }
