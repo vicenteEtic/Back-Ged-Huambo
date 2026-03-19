@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 
 class ImportClientesJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels,Batchable;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, Batchable;
 
     public $tries = 3;        // número de tentativas
     public $timeout = 3600;   // 1 hora, aumenta se necessário
@@ -64,7 +64,7 @@ class ImportClientesJob implements ShouldQueue
 
                 try {
                     $this->entityService->storeOrUpdate(
-                        ['customer_number' => $dataImport['customer_number']], 
+                        ['customer_number' => $dataImport['customer_number']],
                         $dataImport
                     );
 
@@ -74,7 +74,6 @@ class ImportClientesJob implements ShouldQueue
                     if ($totalInserted % 1000 === 0) {
                         gc_collect_cycles();
                     }
-
                 } catch (\Exception $e) {
                     Log::error("Falha ao inserir cliente {$dataImport['customer_number']}: " . $e->getMessage());
                 }

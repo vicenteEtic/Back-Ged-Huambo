@@ -10,296 +10,185 @@ use Carbon\Carbon;
 
 class CustomerKYTService
 {
-    /**
-     * Executa todas as regras KYT usando dados em memória
-     *
-     * @param Entities $customer
-     * @param array $policies Array de apólices em memória
-     */
     public function runAllChecksMemory(Entities $customer, array $policies): void
     {
-        // Ordem importa: simples → complexas
-        $this->checkRapidPolicyReplacementMemory($customer, $policies);
-        $this->checkEarlyRedemptionMemory($customer, $policies);
-        $this->checkHighPremiumLowRiskMemory($customer, $policies);
-        $this->checkHighCapitalIncreaseMemory($customer, $policies);
-        $this->checkMultipleShortPoliciesMemory($customer, $policies);
-        $this->checkPolicyChurningMemory($customer, $policies);
+        $policies = $this->normalizePolicies($policies);
+
+        $this->checkHighCapitalIncreaseMemory($customer, $policies);      // +30 pts
+        $this->checkEarlyRedemptionMemory($customer, $policies);          // +20 pts
+        $this->checkHighPremiumLowRiskMemory($customer, $policies);       // +25 pts
+        $this->checkMultipleShortPoliciesMemory($customer, $policies);    // +15 pts
+        $this->checkPolicyChurningMemory($customer, $policies);           // +20 pts
+        $this->checkRapidPolicyReplacementMemory($customer, $policies);   // +15 pts
+    }
+
+    private function normalizePolicies(array $policies): array
+    {
+        return array_map(fn($p) => [
+            'numero_apolice' => $p['numero_apolice'] ?? null,
+            'numero_cliente' => $p['numero_cliente'] ?? null,
+            'descricao_produto' => strtoupper(trim($p['descricao_produto'] ?? '')),
+            'estado_apolice' => $p['estado_apolice'] ?? null,
+            'data_inicio' => $p['data_inicio'] ?? null,
+            'data_fim' => $p['data_fim'] ?? null,
+            'capital' => (float)($p['capital'] ?? 0),
+            'premium_total' => (float)($p['premium_total'] ?? 0),
+            'interest' => (float)($p['interest'] ?? 0),
+        ], $policies);
     }
 
     /* =========================
-       REGRAS KYT EM MEMÓRIA
+       REGRAS KYT
     ========================== */
 
     private function checkHighCapitalIncreaseMemory(Entities $customer, array $policies): void
     {
-        $policies = array_filter($policies, fn($p) => isset($p['data_inicio']));
-        usort($policies, fn($a, $b) => strtotime($b['data_inicio']) - strtotime($a['data_inicio']));
-
+        $policies = array_filter($policies, fn($p) => !empty($p['data_inicio']));
+        usort($policies, fn($a,$b) => strtotime($b['data_inicio']) - strtotime($a['data_inicio']));
         if (count($policies) < 2) return;
 
         $current  = $policies[0];
         $previous = $policies[1];
 
+        if (($previous['capital'] ?? 0) <= 0) return;
+
         $daysBetween = Carbon::parse($current['data_inicio'])
             ->diffInDays(Carbon::parse($previous['data_inicio']));
+        if ($daysBetween > 60) return;
 
-        if ($daysBetween > 60 || ($previous['capital'] ?? 0) <= 0) return;
-
-        $increaseRate = (($current['capital'] ?? 0) - ($previous['capital'] ?? 0)) / max($previous['capital'],1);
-
+        $increaseRate = ($current['capital'] - $previous['capital']) / $previous['capital'];
         if ($increaseRate < 0.40) return;
 
-        $premiumIncreaseRate = 0;
-        if (($previous['premium_total'] ?? 0) > 0) {
-            $premiumIncreaseRate = (($current['premium_total'] ?? 0) - ($previous['premium_total'] ?? 0))
-                / $previous['premium_total'];
-        }
+        $premiumIncreaseRate = ($previous['premium_total'] > 0)
+            ? ($current['premium_total'] - $previous['premium_total']) / $previous['premium_total']
+            : 0;
 
         $disproportionateIncrease = $premiumIncreaseRate < ($increaseRate * 0.6);
-        $noEconomicReturn = (($current['interest'] ?? 0) <= 0);
+        $noEconomicReturn = ($current['interest'] <= 0);
 
-        $highRiskProducts = ['Vida', 'Poupança', 'Unit Linked', 'Capitalização','VIDA INDIVIDUAL'];
-        if (!in_array($current['descricao_produto'] ?? '', $highRiskProducts)) return;
+        $highRiskProducts = ['VIDA','POUPANÇA','UNIT LINKED','CAPITALIZAÇÃO','VIDA INDIVIDUAL','BAI CREDITO PESSOAL DIGITAL'];
+        if (!in_array($current['descricao_produto'], $highRiskProducts)) return;
 
         if (!$disproportionateIncrease && !$noEconomicReturn) return;
 
         $description = sprintf(
-            "Aumento significativo de capital (%0.2f%%) em %d dias. Apólice anterior %s (%s Kz) → Apólice atual %s (%s Kz). O prémio não acompanhou proporcionalmente o capital e/ou não há retorno económico identificado.",
-            $increaseRate * 100,
-            $daysBetween,
-            $previous['numero_apolice'],
-            number_format($previous['capital'] ?? 0, 2, ',', '.'),
+            "Apólice %s (%s) – Capital aumentou %.2f%% em %d dias (%s → %s)",
             $current['numero_apolice'],
-            number_format($current['capital'] ?? 0, 2, ',', '.')
+            $current['descricao_produto'],
+            $increaseRate*100,
+            $daysBetween,
+            number_format($previous['capital'],2,',','.'),
+            number_format($current['capital'],2,',','.')
         );
 
-        $this->createAlertOnce(
-            $customer->customer_number,
-            'Detetado aumento anormal de capital',
-            $description,
-            'Alto',
-            'Aumento Irregular',
-            30
-        );
+        $this->createAlertOnce($customer, 'KYT_HIGH_CAPITAL_INCREASE', $description, 'Alto', 'KYT', 30);
     }
 
     private function checkEarlyRedemptionMemory(Entities $customer, array $policies): void
     {
-        $terminatedStatuses = ['terminated', 'cancelled', 'closed', 'rescinded'];
-        $products = ['Vida', 'Poupança', 'Unit Linked', 'Capitalização'];
+        foreach ($policies as $p) {
+            if (!in_array($p['estado_apolice'], ['terminated','cancelled'])) continue;
+            if (empty($p['data_inicio']) || empty($p['data_fim'])) continue;
 
-        foreach ($policies as $policy) {
-            if (!in_array($policy['estado_apolice'] ?? '', $terminatedStatuses)) continue;
-            if (empty($policy['data_inicio']) || empty($policy['data_fim'])) continue;
-            if (!in_array($policy['descricao_produto'] ?? '', $products)) continue;
+            $days = Carbon::parse($p['data_inicio'])->diffInDays(Carbon::parse($p['data_fim']));
+            if ($days >= 365) continue;
 
-            $daysActive = Carbon::parse($policy['data_inicio'])
-                ->diffInDays(Carbon::parse($policy['data_fim']));
-
-            if ($daysActive >= 365) continue;
-
-            $lossAccepted = (($policy['encargos'] ?? 0) > 0) || (($policy['interest'] ?? 0) <= 0 && $daysActive < 180);
-
-            if (!$lossAccepted) continue;
-
-            $description = sprintf(
-                "Cancelamento/resgate após %d dias da apólice %s (%s). Capital %s Kz com aceitação de perdas financeiras.",
-                $daysActive,
-                $policy['numero_apolice'],
-                $policy['descricao_produto'],
-                number_format($policy['capital'] ?? 0, 2, ',', '.')
-            );
-
-            $this->createAlertOnce(
-                $customer->customer_number,
-                'Resgate antecipado detectado',
-                $description,
-                'Alto',
-                'Resgate antecipado detectado',
-                20
-            );
+            $description = "Apólice {$p['numero_apolice']} ({$p['descricao_produto']}) cancelada em {$days} dias (<12 meses)";
+            $this->createAlertOnce($customer, 'KYT_EARLY_REDEMPTION', $description, 'Alto', 'KYT', 20);
         }
     }
 
     private function checkHighPremiumLowRiskMemory(Entities $customer, array $policies): void
     {
-        $lowRiskProducts = ['Vida Term', 'Vida Simples', 'Funeral', 'Acidentes Pessoais'];
+        foreach ($policies as $p) {
+            if ($p['capital'] <= 0 || $p['premium_total'] <= 0) continue;
 
-        foreach ($policies as $policy) {
-            if (($policy['capital'] ?? 0) <= 0 || ($policy['premium_total'] ?? 0) <= 0) continue;
-            if (!in_array($policy['descricao_produto'] ?? '', $lowRiskProducts)) continue;
-
-            $ratio = ($policy['premium_total'] ?? 0) / max(($policy['capital'] ?? 1),1);
+            $ratio = $p['premium_total'] / max($p['capital'],1);
             if ($ratio < 0.08) continue;
-            if (($policy['interest'] ?? 0) > 0) continue;
 
-            $description = sprintf(
-                "Prémio elevado (%0.2f%% do capital) em produto de baixo risco. Apólice %s (%s). Capital %s Kz, prémio %s Kz.",
-                $ratio * 100,
-                $policy['numero_apolice'],
-                $policy['descricao_produto'],
-                number_format($policy['capital'] ?? 0, 2, ',', '.'),
-                number_format($policy['premium_total'] ?? 0, 2, ',', '.')
-            );
-
-            $this->createAlertOnce(
-                $customer->customer_number,
-                'Detetado prémio elevado com nível de risco baixo',
-                $description,
-                'Alto',
-                'Prémio elevado para risco baixo',
-                25
-            );
+            $description = "Apólice {$p['numero_apolice']} ({$p['descricao_produto']}) – Prémio elevado (ratio: {$ratio})";
+            $this->createAlertOnce($customer, 'KYT_HIGH_PREMIUM_LOW_RISK', $description, 'Alto', 'KYT', 25);
         }
     }
 
     private function checkMultipleShortPoliciesMemory(Entities $customer, array $policies): void
     {
-        $fromDate = now()->subMonths(12);
-
-        $filtered = array_filter($policies, function ($policy) use ($fromDate) {
-            if (empty($policy['data_inicio']) || empty($policy['data_fim'])) return false;
-            $start = Carbon::parse($policy['data_inicio']);
-            $end = Carbon::parse($policy['data_fim']);
-            $days = $start->diffInDays($end);
-            return $start >= $fromDate && $days >= 90 && $days <= 180;
-        });
-
-        if (count($filtered) < 2) return;
-
-        $totalCapital = array_sum(array_column($filtered, 'capital'));
-        if ($totalCapital < 150000) return;
-
-        $description = sprintf(
-            "%d apólices de curta duração (3–6 meses) nos últimos 12 meses. Capital agregado %s Kz.",
-            count($filtered),
-            number_format($totalCapital, 2, ',', '.')
+        $short = array_filter($policies, fn($p) => !empty($p['data_inicio']) && !empty($p['data_fim'])
+            && ($days = Carbon::parse($p['data_inicio'])->diffInDays(Carbon::parse($p['data_fim']))) >= 90
+            && $days <= 180
         );
+        if (count($short) < 2) return;
 
-        $this->createAlertOnce(
-            $customer->customer_number,
-            'Substituição ou cancelamento repetido',
-            $description,
-            'Médio',
-            'Churn de apólice detectado',
-            20
-        );
+        $apolices = implode(', ', array_map(fn($p) => $p['numero_apolice'].' ('.$p['descricao_produto'].')', $short));
+        $description = count($short) . " apólices de curta duração: {$apolices}";
+        $this->createAlertOnce($customer, 'KYT_MULTIPLE_SHORT_POLICIES', $description, 'Médio', 'KYT', 15);
     }
 
     private function checkPolicyChurningMemory(Entities $customer, array $policies): void
     {
-        $terminated = array_filter($policies, fn($p) => in_array($p['estado_apolice'] ?? '', ['terminated','cancelled']) && !empty($p['data_fim']));
-        usort($terminated, fn($a,$b) => strtotime($a['data_fim']) - strtotime($b['data_fim']));
+        $terminated = array_filter($policies, fn($p) => in_array($p['estado_apolice'], ['terminated','cancelled']));
+        if (count($terminated) < 2) return;
 
-        $cycles = [];
-
-        foreach ($terminated as $policy) {
-            $replacement = null;
-            foreach ($policies as $p) {
-                if (empty($p['data_inicio'])) continue;
-                $start = Carbon::parse($p['data_inicio']);
-                $endPrev = Carbon::parse($policy['data_fim']);
-                if ($start->between($endPrev, $endPrev->copy()->addDays(60)) &&
-                    ($p['descricao_produto'] ?? '') === ($policy['descricao_produto'] ?? '') &&
-                    abs(($p['capital'] ?? 0) - ($policy['capital'] ?? 0)) / max(($policy['capital'] ?? 1),1) <= 0.3
-                ) {
-                    $replacement = $p;
-                    break;
-                }
-            }
-
-            if ($replacement) {
-                $cycles[] = $policy['numero_apolice'];
-            }
-        }
-
-        if (count($cycles) < 2) return;
-
-        $description = sprintf(
-            "%d ciclos de cancelamento e nova subscrição em curto espaço de tempo. Apólices envolvidas: %s.",
-            count($cycles),
-            implode(', ', $cycles)
-        );
-
-        $this->createAlertOnce(
-            $customer->customer_number,
-            'Churn de apólice',
-            $description,
-            'Médio',
-            'Rotatividade de Apólices',
-            20
-        );
+        $apolices = implode(', ', array_map(fn($p) => $p['numero_apolice'].' ('.$p['descricao_produto'].')', $terminated));
+        $description = count($terminated) . " cancelamentos detectados: {$apolices}";
+        $this->createAlertOnce($customer, 'KYT_POLICY_CHURNING', $description, 'Médio', 'KYT', 20);
     }
 
     private function checkRapidPolicyReplacementMemory(Entities $customer, array $policies): void
     {
-        $policies = array_filter($policies, fn($p) => !empty($p['data_inicio']));
         usort($policies, fn($a,$b) => strtotime($a['data_inicio']) - strtotime($b['data_inicio']));
 
         for ($i = 1; $i < count($policies); $i++) {
             $prev = $policies[$i-1];
             $curr = $policies[$i];
-
-            if (($prev['estado_apolice'] ?? '') !== 'terminated' || empty($prev['data_fim'])) continue;
+            if (($prev['estado_apolice'] ?? '') !== 'terminated') continue;
 
             $gap = Carbon::parse($curr['data_inicio'])->diffInDays(Carbon::parse($prev['data_fim']));
+            if ($gap > 7) continue;
 
-            if ($gap > 7 || ($prev['descricao_produto'] ?? '') !== ($curr['descricao_produto'] ?? '')) continue;
-
-            $description = sprintf(
-                "Apólice %s substituída por %s em %d dias.",
-                $prev['numero_apolice'],
-                $curr['numero_apolice'],
-                $gap
-            );
-
-            $this->createAlertOnce(
-                $customer->customer_number,
-                'Detetada substituição rápida de apólice',
-                $description,
-                'Médio',
-                'Substituição Rápida de Apólice',
-                15
-            );
-
+            $description = "{$prev['numero_apolice']} ({$prev['descricao_produto']}) → {$curr['numero_apolice']} ({$curr['descricao_produto']}) substituição rápida <7 dias";
+            $this->createAlertOnce($customer, 'KYT_RAPID_POLICY_REPLACEMENT', $description, 'Médio', 'KYT', 15);
             break;
         }
     }
 
     /* =========================
-       ALERTA ÚNICO
+       ALERTAS
     ========================== */
 
     private function createAlertOnce(
-        int $entityId,
+        Entities $customer,
         string $type,
         string $description,
         string $severity,
         string $list,
         int $score
     ): void {
-        $entitie = Entities::find($entityId);
+
         $alert = Alert::updateOrCreate(
             [
-                'contract_number' => $entityId,
+                'entity_id' => $customer->id,
                 'type' => $type,
+                'description' => trim($description),
             ],
             [
                 'category' => 'KYT',
                 'description' => trim($description),
                 'level' => $severity,
                 'list' => $list,
-                'name' => $entitie ? $entitie->social_denomination : 'Desconhecido',
+                'name' => $customer->social_denomination,
                 'score' => $score,
             ]
         );
 
-        if ($alert->wasRecentlyCreated) {
-            SendGrupoAlertEmailJob::dispatch($alert->id, config('app.url'))
-                ->onQueue('high');
-
-            Log::warning("🚨 NOVO ALERTA KYT | {$type} | Cliente {$entityId}");
+        try {
+            if ($alert->wasRecentlyCreated) {
+                $host = config('app.url');
+                SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
+                Log::warning("🚨 ALERTA {$type} | Cliente {$customer->customer_number}");
+            }
+        } catch (\Throwable $th) {
+            Log::error("Erro ao enviar alerta {$type}: " . $th->getMessage());
         }
     }
 }
