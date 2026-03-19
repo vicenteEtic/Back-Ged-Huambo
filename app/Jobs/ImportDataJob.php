@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Enum\TypeAssessment;
 use App\Enum\StatusAssessment;
+use App\Models\Entities\Entities;
 use Illuminate\Bus\Queueable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Queue\InteractsWithQueue;
@@ -18,6 +19,7 @@ use App\Services\Entities\RiskAssessmentService;
 use App\Services\Indicator\IndicatorTypeService;
 use App\Models\Entities\RiskAssessmentControl;
 use App\Traits\DatabaseLogger;
+use Dom\Entity;
 
 class ImportDataJob implements ShouldQueue
 {
@@ -81,35 +83,21 @@ class ImportDataJob implements ShouldQueue
         $chunks = array_chunk($this->data, 1000);
 
         foreach ($chunks as $chunkIndex => $chunk) {
-            DB::transaction(function() use ($chunk, $control, $chunkIndex) {
+            DB::transaction(function () use ($chunk, $control, $chunkIndex) {
                 foreach ($chunk as $index => $record) {
                     try {
                         $data = $this->prepareAssessmentData($record);
 
-                        if (!$data) {
-                            $this->incrementErrorCount($control);
-                            continue;
-                        }
-
                         $riskAssessment = $this->riskAssessmentService->store($data);
-
-                        if (!$riskAssessment) {
-                            $this->incrementErrorCount($control);
-                            continue;
-                        }
-
                         $riskAssessment->risk_assessment_control_id = $this->batchId;
-                        
-
                         $riskAssessment->status = $data['status'];
                         $riskAssessment->save();
-                        
+
                         if ($riskAssessment->status === StatusAssessment::SUCESS->value) {
                             $this->incrementSuccessCount($control);
                         } else {
                             $this->incrementErrorCount($control);
                         }
-
                     } catch (\Throwable $e) {
                         Log::error("Erro no registro do chunk {$chunkIndex}, index {$index}", [
                             'error' => $e->getMessage()
@@ -129,41 +117,54 @@ class ImportDataJob implements ShouldQueue
         ]);
     }
 
-    private function prepareAssessmentData(array $record): ?array
+    private function prepareAssessmentData(array $record): array
     {
-        if (empty($record['social_denomination'])) return null;
-    
-        $entity = $this->entityService->storeOrUpdate(
-            [
-                'nif' => $record['nif'] ?? null,
-            ],
-            [
-                'policy_number' => $record['policy_number'] ?? null,
-                'customer_number' => $record['customer_number'] ?? null,
-                'nif' => $record['nif'] ?? null,
-                'social_denomination' => $record['social_denomination'],
-                'entity_type' => $record['entity_type'] ?? null,
-                
-            ]
-        );
-    
+        // Cria ou atualiza entidade de forma segura
+        $nif = $record['nif'] ?? null;
+        $socialDenomination = $record['social_denomination'] ?? null;
+
+        // Ignora registro se não houver NIF nem social_denomination
+        if (!$nif && !$socialDenomination) {
+            Log::warning('Registro ignorado: sem NIF nem social_denomination', ['record' => $record]);
+            return [
+                'status' => StatusAssessment::ERROR->value,
+                'entity_id' => null,
+            ];
+        }
+
+        // Busca ou cria entidade usando NIF + social_denomination como chave
+        $entity = Entities::firstOrNew([
+            'nif' => $nif,
+            'social_denomination' => $socialDenomination
+        ]);
+
+        // Atualiza campos adicionais
+        $entity->fill([
+            'policy_number' => $record['policy_number'] ?? $entity->policy_number,
+            'entity_type' => $record['entity_type'] ?? $entity->entity_type,
+            'nif' => $nif ?? $entity->nif,
+            'social_denomination' => $socialDenomination ?? $entity->social_denomination,
+        ]);
+
+        $entity->save();
+
         $productRisks = $record['product_risk'] ?? [];
         if (!is_array($productRisks)) {
             $productRisks = [$productRisks];
         }
-    
+
         $productRiskIds = array_filter(
             array_map(fn($r) => $this->indicatorService->getByDescription($r) ?: null, $productRisks)
         );
-    
+
         /**
          * BENEFICIAL OWNERS
          */
         $beneficialOwners = [];
         if (!empty($record['beneficial_owners']) && is_array($record['beneficial_owners'])) {
-    
+
             foreach ($record['beneficial_owners'] as $owner) {
-    
+
                 $beneficialOwners[] = [
                     'name' => $owner['name'] ?? null,
                     'pep' => $this->normalizeBoolean($owner['pep'] ?? false),
@@ -174,15 +175,15 @@ class ImportDataJob implements ShouldQueue
                 ];
             }
         }
-    
+
         /**
          * BENEFICIARIES
          */
         $beneficiaries = [];
         if (!empty($record['beneficiaries']) && is_array($record['beneficiaries'])) {
-    
+
             foreach ($record['beneficiaries'] as $beneficiary) {
-    
+
                 $beneficiaries[] = [
                     'name' => $beneficiary['name'] ?? null,
                     'nationality' => $beneficiary['nationality'] ?? null,
@@ -192,58 +193,46 @@ class ImportDataJob implements ShouldQueue
                 ];
             }
         }
-    
+
         $data = [
             'entity_id' => $entity->id,
-            'identification_capacity' => $this->indicatorService->getByDescription($record['identification_capacity'] ?? ''),
-    
-            'professionP' => $this->indicatorService->getByDescription($record['profession'] ?? ''),
-            'categoryP' => $this->indicatorService->getByDescription($record['category'] ?? ''),
-            'channel' => $this->indicatorService->getByDescription($record['channel'] ?? ''),
-    
-            'product_risk' => $productRiskIds,
-    
-            'country_residence' => $this->indicatorService->getByDescription($record['country_residence'] ?? ''),
-            'nationality' => $this->indicatorService->getByDescription($record['nationality'] ?? ''),
-    
+            'identification_capacity' => $this->indicatorService->getByDescription($record['identification_capacity'] ?? null),
+            'professionP' => $this->indicatorService->getByDescription($record['profession'] ?? null),
+            'categoryP' => $this->indicatorService->getByDescription($record['category'] ?? null),
+            'channel' => $this->indicatorService->getByDescription($record['channel'] ?? null),
+            'product_risk' =>        $productRiskIds,
+            'country_residence' => $this->indicatorService->getByDescription($record['country_residence'] ?? null),
+            'nationality' => $this->indicatorService->getByDescription($record['nationality'] ?? null),
             'form_establishment' => $this->normalizeBoolean($record['form_establishment'] ?? false),
             'status_residence' => $this->normalizeBoolean($record['status_residence'] ?? false),
-    
             'pep' => $this->normalizeBoolean($record['pep'] ?? false),
             'santion' => $this->normalizeBoolean($record['sanction'] ?? false),
-            'processesReportedAuthoritie' => $this->normalizeBoolean($record['processesReportedAuthoritie'] ?? false),
-    
-            'beneficial_owners' => $beneficialOwners,
-            'beneficiaries' => $beneficiaries,
-    
+            'beneficial_owners' =>   $beneficialOwners,
+            'beneficiaries' =>    $beneficiaries,
             'type_assessment' => 2,
             'user_id' => $this->userID,
             'risk_assessment_control_id' => $this->batchId,
-    
-
         ];
-    
+
+        // Verifica campos obrigatórios
         $requiredFields = [
             $data['professionP'],
             $data['categoryP'],
             $data['channel'],
             $data['country_residence'],
             $data['nationality'],
-             $data['identification_capacity'],
-           
+            $data['identification_capacity'],
         ];
-    
-        $data['status'] = (
-            collect($requiredFields)->contains(fn($f) => is_null($f)) ||
-            empty($data['product_risk'])
-        )
+
+        // Se algum campo obrigatório estiver vazio ou sem product_risk, marca erro
+        $data['status'] = (collect($requiredFields)->contains(fn($f) => is_null($f)) || empty($data['product_risk']))
             ? StatusAssessment::ERROR->value
             : StatusAssessment::SUCESS->value;
-    
+
         return $data;
     }
-    
-    
+
+
 
     private function normalizeBoolean($value): int
     {

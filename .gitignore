@@ -23,3 +23,5 @@ storage/**/app/public/logos-cache
 /coverage
 .env
 docker-compose.yml
+apolices_vida.csv
+clientes.csv

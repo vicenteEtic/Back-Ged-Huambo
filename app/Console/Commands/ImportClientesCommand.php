@@ -26,7 +26,7 @@ class ImportClientesCommand extends Command
      */
     public function handle()
     {
-        $filePath = base_path('clientes.json');
+        $filePath = base_path('clientes.csv');
 
         if (!file_exists($filePath)) {
             $this->error("Arquivo clientes.json não encontrado na raiz do projeto!");

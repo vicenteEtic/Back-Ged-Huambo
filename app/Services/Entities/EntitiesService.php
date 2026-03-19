@@ -8,6 +8,7 @@ use App\Repositories\Entities\EntitiesRepository;
 use App\Services\AbstractService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class EntitiesService extends AbstractService
 {
@@ -45,41 +46,47 @@ class EntitiesService extends AbstractService
     }
 
     public function initializeImportBatch(int $userId): int
-{
-    $timeLimit = Carbon::now()->subSeconds(self::TIME_LIMIT_SECONDS);
+    {
+        // Procura por um batch ativo que ainda não está processando
+      $existingRecord = $this->riskAssessmentControlService->findOneBy([
+    ['user_id', '=', $userId],
+    ['is_processing', '=', 0],
+    ['created_at', '>=', Carbon::now()->subSeconds(60)] // por exemplo, últimos 60 segundos
+]);
 
-    $existingRecord = $this->riskAssessmentControlService->findOneBy([
-        ['updated_at', '>=', $timeLimit],
-        ['user_id', '=', $userId]
-    ]);
+        if ($existingRecord) {
+            return $existingRecord->id;
+        }
 
-    if (!$existingRecord) {
-
+        // Cria um novo batch
         $record = $this->riskAssessmentControlService->store([
             'total_sucess' => 0,
             'total_error' => 0,
             'total' => 0,
-            'user_id' => $userId
+            'user_id' => $userId,
+            'is_processing' => 0
         ]);
 
         return $record->id;
     }
+   public function dispatchImportJobs(array $data, int $userId): void
+{
+    $batchId = $this->initializeImportBatch($userId);
 
-    return $existingRecord->id;
-}
+    $chunks = array_chunk($data, self::BATCH_SIZE);
 
-    public function dispatchImportJobs(array $data, int $userId, int $batchId): void
-    {
-        $chunks = array_chunk($data, self::BATCH_SIZE);
-
-        foreach ($chunks as $index => $chunk) {
-            ImportDataJob::dispatch($chunk, $userId, $batchId)
+    foreach ($chunks as $index => $chunk) {
+        ImportDataJob::dispatch($chunk, $userId, $batchId)
             ->onQueue('high')
-                ->delay(Carbon::now()->addSeconds($index * 10)); // garante Carbon
-
-        }
+            ->delay(now()->addSeconds($index * 2)); // menor delay para 250k registros
     }
 
+    Log::info("Dispatch concluído", [
+        'user_id' => $userId,
+        'batch_id' => $batchId,
+        'total_jobs' => count($chunks)
+    ]);
+}
     public function getLastEntities(int $limit = 3)
     {
         return $this->repository->getLastEntities($limit);
