@@ -58,7 +58,14 @@ class ImportClientesJob implements ShouldQueue
                     'social_denomination' => $data['NOME_DENOMINACAO_SOCIAL'],
                     'nif' => $data['NIF'] ?? null,
                     'entity_type' => $entityType,
-                   
+                    'date_of_birth_or_constitution' => $data['DATA_NASCIMENTO_CONSTITUICAO'] ?? null,
+                    'profession_or_activity' => $data['PROFISSAO_ACTIVIDADE_ECONOMICA'] ?? null,
+                    'cae' => $data['CAE'] ?? null,
+                    'sector_activity' => $data['SECTOR_ACTIVIDADE'] ?? null,
+                    'declared_income' => $data['RENDIMENTO_DECLARADO'] ?? null,
+                    'estimated_assets' => $data['PATRIOMONIO_ESTIMADO'] ?? null,
+                    'residence_country' => $data['PAIS_RESIDENCIA'] ?? null,
+                    'nationality' => $data['NACIONALIDADE'] ?? null,
                 ];
 
                 try {
