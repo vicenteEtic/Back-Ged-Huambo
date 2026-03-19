@@ -73,12 +73,13 @@ class ImportPoliciesJob implements ShouldQueue
 
     private function dispatchCustomerJob(string $customerNumber, array $policies)
     {
-        $customer = Entities::firstOrCreate(
-            ['customer_number' => $customerNumber],
-            ['social_denomination' => "Cliente #{$customerNumber}"]
-        );
 
-        ProcessCustomerPoliciesJob::dispatch($customer, $policies)->onQueue('high');
+
+
+        $customer = Entities::where('customer_number', $customerNumber)->first();
+        if ($customer) {
+            ProcessCustomerPoliciesJob::dispatch($customer, $policies)->onQueue('high');
+        }
     }
 
     private function mapCsvRow(array $header, array $row): array

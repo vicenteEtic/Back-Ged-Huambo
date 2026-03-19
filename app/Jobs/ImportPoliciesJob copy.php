@@ -11,10 +11,11 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\File;
 use Carbon\Carbon;
 use Illuminate\Bus\Batchable;
 
-class ImportPoliciesJob implements ShouldQueue
+class ImportPoliciesRootJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, Batchable;
 
@@ -30,141 +31,114 @@ class ImportPoliciesJob implements ShouldQueue
         $this->policiesService = $policiesService;
         $this->kytService = $kytService;
 
-        $path = base_path('apolices_nvida.csv');
+        $basePath = base_path(); // raiz do projeto
 
-        if (!file_exists($path)) {
-            Log::error("Arquivo CSV não encontrado: {$path}");
+        // Pega todos os arquivos que começam com "apolices_" na raiz
+        $csvFiles = File::glob($basePath . '/apolices_*.csv');
+
+        if (empty($csvFiles)) {
+            Log::warning("Nenhum arquivo CSV encontrado na raiz com padrão apolices_*");
             return;
         }
 
         $totalInserted = 0;
-        $customerIds = [];
+        $customersPolicies = [];
 
-        if (($handle = fopen($path, 'r')) !== false) {
-            $header = fgetcsv($handle, 0, ',');
-            if (!$header) {
-                Log::error("CSV vazio ou cabeçalho inválido: {$path}");
-                return;
-            }
-            $header = array_map('trim', $header);
+        foreach ($csvFiles as $path) {
+            Log::info("Processando arquivo: {$path}");
 
-            while (($row = fgetcsv($handle, 0, ',')) !== false) {
-                if (empty(array_filter($row))) continue;
-
-                $dataImport = [];
-
-                foreach ($header as $idx => $column) {
-                    $value = $row[$idx] ?? null;
-
-                    switch (strtolower($column)) {
-                        case 'numero_apolice':
-                            $dataImport['contract_number'] = $value;
-                            break;
-                        case 'numero_cliente':
-                            $dataImport['customer_number'] = $value;
-                            $customerIds[] = $value;
-                            break;
-                        case 'codigo_ramo':
-                            $dataImport['branch_code'] = $value;
-                            break;
-                        case 'descricao_ramo':
-                            $dataImport['branch_desc'] = $value;
-                            break;
-                        case 'codigo_produto':
-                            $dataImport['product_code'] = $value;
-                            break;
-                        case 'descricao_produto':
-                            $dataImport['product_desc'] = $value;
-                            break;
-                        case 'codigo_canal':
-                            $dataImport['channel_code'] = $value;
-                            break;
-                        case 'descricao_canal':
-                            $dataImport['channel_desc'] = $value;
-                            break;
-                        case 'codigo_agente':
-                            $dataImport['agent_code'] = $value;
-                            break;
-                        case 'descricao_agente':
-                            $dataImport['agent_desc'] = $value;
-                            break;
-                        case 'estado_apolice':
-                            $dataImport['status'] = $value;
-                            break;
-                        case 'data_inicio':
-                            $dataImport['start_date'] = $this->parseDate($value);
-                            break;
-                        case 'data_fim':
-                            $dataImport['end_date'] = $this->parseDate($value);
-                            break;
-                        case 'data_proxima_renovacao':
-                            $dataImport['renewal_date'] = $this->parseDate($value);
-                            break;
-                        case 'data_proximo_vencimento':
-                            $dataImport['issue_date'] = $this->parseDate($value);
-                            break;
-                        case 'moeda':
-                            $dataImport['moeda'] = $value;
-                            break;
-                        case 'capital':
-                            $dataImport['capital'] = is_numeric($value) ? floatval($value) : 0;
-                            break;
-                        case 'capital_liquido_cosseguro':
-                            $dataImport['capital_liquido_cosseguro'] = is_numeric($value) ? floatval($value) : 0;
-                            break;
-                        case 'premio_simples':
-                            $dataImport['premium_simple'] = is_numeric($value) ? floatval($value) : 0;
-                            break;
-                        case 'premio_total':
-                            $dataImport['premium_total'] = is_numeric($value) ? floatval($value) : 0;
-                            break;
-                        case 'encargos':
-                            $dataImport['charges'] = is_numeric($value) ? floatval($value) : 0;
-                            break;
-                        case 'outros_encargos':
-                            $dataImport['outros_encargos'] = is_numeric($value) ? floatval($value) : 0;
-                            break;
-                        case 'juros':
-                            $dataImport['interest'] = is_numeric($value) ? floatval($value) : 0;
-                            break;
-                    }
-                }
-
-                if (empty($dataImport['contract_number']) || empty($dataImport['customer_number'])) {
-                    Log::warning("Linha ignorada: Numero_Apolice ou Numero_Cliente vazio");
+            if (($handle = fopen($path, 'r')) !== false) {
+                $header = fgetcsv($handle, 0, ',');
+                if (!$header) {
+                    Log::error("CSV vazio ou cabeçalho inválido: {$path}");
+                    fclose($handle);
                     continue;
                 }
+                $header = array_map('trim', $header);
 
-                try {
-                    $this->policiesService->storeOrUpdate(
-                        ['contract_number' => $dataImport['contract_number']],
-                        $dataImport
-                    );
-                    $totalInserted++;
+                while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                    if (empty(array_filter($row))) continue;
 
-                    if ($totalInserted % 1000 === 0) {
-                        gc_collect_cycles();
+                    $dataImport = [];
+                    foreach ($header as $idx => $column) {
+                        $value = $row[$idx] ?? null;
+                        $columnLower = strtolower($column);
+
+                        switch ($columnLower) {
+                            case 'numero_apolice':
+                                $dataImport['contract_number'] = $value;
+                                break;
+                            case 'numero_cliente':
+                                $dataImport['customer_number'] = $value;
+                                break;
+                            case 'descricao_produto':
+                                $dataImport['product_desc'] = strtoupper(trim($value));
+                                break;
+                            case 'estado_apolice':
+                                $dataImport['status'] = $value;
+                                break;
+                            case 'data_inicio':
+                                $dataImport['start_date'] = $this->parseDate($value);
+                                break;
+                            case 'data_fim':
+                                $dataImport['end_date'] = $this->parseDate($value);
+                                break;
+                            case 'capital':
+                                $dataImport['capital'] = is_numeric($value) ? floatval($value) : 0;
+                                break;
+                            case 'premio_total':
+                                $dataImport['premium_total'] = is_numeric($value) ? floatval($value) : 0;
+                                break;
+                            case 'juros':
+                                $dataImport['interest'] = is_numeric($value) ? floatval($value) : 0;
+                                break;
+                        }
                     }
 
-                } catch (\Exception $e) {
-                    Log::error("Falha ao inserir apólice {$dataImport['contract_number']}: " . $e->getMessage());
-                }
-            }
+                    if (empty($dataImport['contract_number']) || empty($dataImport['customer_number'])) {
+                        Log::warning("Linha ignorada no arquivo {$path}: Numero_Apolice ou Numero_Cliente vazio");
+                        continue;
+                    }
 
-            fclose($handle);
+                    try {
+                        $this->policiesService->storeOrUpdate(
+                            ['contract_number' => $dataImport['contract_number']],
+                            $dataImport
+                        );
+                        $totalInserted++;
+
+                        $customerId = $dataImport['customer_number'];
+                        $customersPolicies[$customerId][] = [
+                            'numero_apolice' => $dataImport['contract_number'],
+                            'descricao_produto' => $dataImport['product_desc'] ?? '',
+                            'estado_apolice' => $dataImport['status'] ?? null,
+                            'data_inicio' => $dataImport['start_date'] ?? null,
+                            'data_fim' => $dataImport['end_date'] ?? null,
+                            'capital' => $dataImport['capital'] ?? 0,
+                            'premium_total' => $dataImport['premium_total'] ?? 0,
+                            'interest' => $dataImport['interest'] ?? 0,
+                        ];
+
+                        if ($totalInserted % 1000 === 0) gc_collect_cycles();
+
+                    } catch (\Exception $e) {
+                        Log::error("Falha ao inserir apólice {$dataImport['contract_number']}: " . $e->getMessage());
+                    }
+                }
+
+                fclose($handle);
+            }
         }
 
-        Log::info("Importação de policies concluída! Total inserido/atualizado: {$totalInserted}");
+        Log::info("Importação de todas as policies concluída! Total inserido/atualizado: {$totalInserted}");
 
-        $customerIds = array_unique($customerIds);
-        foreach ($customerIds as $id) {
+        // Executa KYT
+        foreach ($customersPolicies as $customerId => $policies) {
             try {
-                $customer = Entities::where('customer_number', $id)->first();
-                if ($customer) {
-                    $this->kytService->runAllChecks($customer);
-                }
+                $customer = Entities::where('customer_number', $customerId)->first();
+                if ($customer) $this->kytService->runAllChecksMemory($customer, $policies);
             } catch (\Exception $e) {
-                Log::error("Falha ao executar KYT para cliente {$id}: " . $e->getMessage());
+                Log::error("Falha ao executar KYT para cliente {$customerId}: " . $e->getMessage());
             }
         }
 
