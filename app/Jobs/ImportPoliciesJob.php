@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Entities\Entities;
+use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 class ImportPoliciesJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels,Batchable;
 
     public $timeout = 3600; // 1 hora
     public $tries = 5;
