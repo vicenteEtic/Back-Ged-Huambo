@@ -183,11 +183,13 @@ class AlertRepository extends AbstractRepository
                 "particularEntity" => $this->particularEntityTransation(),
                 "coletiveEntit" => $this->coletiveEntitytTrsantion(),
                 'by_type' => $this->countByField('type', [
-                    "Detetada substituição rápida de apólice" => 'QuickPolicyReplacementDetected', // Quick policy replacement detected
-                    "Resgate antecipado detectado" => 'EarlyRedemptionDetected',                  // Early redemption detected
-                    "Detetado prémio elevado com nível de risco baixo" => 'HighPremiumLowRisk',   // High premium with low risk level detected
-                    "Substituição ou cancelamento repetido" => 'RepeatedReplacementOrCancellation', // Repeated replacement or cancellation
-                    "Churn de apólice" => 'PolicyChurn',                             // Policy churn
+                    "Substituição rápida de apólice" => 'QuickPolicyReplacementDetected',
+                    "Resgate antecipado de apólice" => 'EarlyRedemptionDetected',
+                    "Prémio elevado com risco baixo" => 'HighPremiumLowRisk',
+                    "Substituição ou cancelamento repetido" => 'RepeatedReplacementOrCancellation',
+                    "Churn de apólices (trocas frequentes)" => 'PolicyChurn',
+                    "Aumento elevado de capital na apólice" => 'checkHighCapitalIncrease',
+
 
                 ]),
 
