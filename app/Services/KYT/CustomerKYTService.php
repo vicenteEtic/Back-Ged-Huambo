@@ -22,6 +22,7 @@ class CustomerKYTService
             'policies_count' => count($policies)
         ]);
 
+        // Regras KYT
         $this->checkHighCapitalIncrease($customer, $policies);
         $this->checkEarlyRedemption($customer, $policies);
         $this->checkHighPremium($customer, $policies);
@@ -36,25 +37,33 @@ class CustomerKYTService
 
     private function normalizePolicies(array $policies): array
     {
-        return array_map(function ($p) {
-            return [
+        $normalized = array_map(function ($p) {
+            $data_inicio = $this->parseDate($p['data_inicio'] ?? $p['Data_Inicio'] ?? null);
+            $data_fim    = $this->parseDate($p['data_fim'] ?? $p['Data_Fim'] ?? null);
+
+            $policy = [
                 'numero_apolice' => $p['numero_apolice'] ?? $p['Numero_Apolice'] ?? null,
                 'numero_cliente' => $p['numero_cliente'] ?? $p['Numero_Cliente'] ?? null,
                 'descricao_produto' => strtoupper(trim($p['descricao_produto'] ?? $p['Descricao_Produto'] ?? '')),
                 'estado_apolice' => $this->normalizeStatus($p['estado_apolice'] ?? $p['Estado_Apolice'] ?? null),
-                'data_inicio' => $this->parseDate($p['data_inicio'] ?? $p['Data_Inicio'] ?? null),
-                'data_fim' => $this->parseDate($p['data_fim'] ?? $p['Data_Fim'] ?? null),
+                'data_inicio' => $data_inicio,
+                'data_fim' => $data_fim,
                 'capital' => (float)($p['capital'] ?? $p['Capital'] ?? 0),
                 'premium_total' => (float)($p['premium_total'] ?? $p['Premio_Total'] ?? 0),
                 'interest' => (float)($p['interest'] ?? $p['Juros'] ?? 0),
             ];
+
+            Log::info("🔹 Normalized Policy", $policy);
+
+            return $policy;
         }, $policies);
+
+        return $normalized;
     }
 
     private function normalizeStatus(?string $status): string
     {
         $status = strtoupper(trim($status ?? ''));
-
         return match ($status) {
             'NORMAL', 'ATIVA' => 'active',
             'C/ CARTA', 'CANCELADA' => 'cancelled',
@@ -84,26 +93,42 @@ class CustomerKYTService
     }
 
     /* =========================
-       REGRAS KYT
+       REGRAS KYT COM LOGS
     ========================== */
 
-    // Aumento elevado de capital (loop completo)
+    // Aumento elevado de capital
     private function checkHighCapitalIncrease(Entities $customer, array $policies): void
     {
         $valid = array_filter($policies, fn($p) => !empty($p['data_inicio']));
         usort($valid, fn($a, $b) => strtotime($b['data_inicio']) - strtotime($a['data_inicio']));
 
+        Log::info("🔹 Checking HighCapitalIncrease", ['policies_count' => count($valid)]);
+
         for ($i = 1; $i < count($valid); $i++) {
             $current  = $valid[$i-1];
             $previous = $valid[$i];
 
-            if ($previous['capital'] <= 0) continue;
+            Log::info("🔹 Comparing policies", [
+                'prev' => $previous['numero_apolice'],
+                'curr' => $current['numero_apolice']
+            ]);
+
+            if ($previous['capital'] <= 0) {
+                Log::info("⏸ Skipping, previous capital <= 0");
+                continue;
+            }
 
             $days = $this->safeDays($previous['data_inicio'], $current['data_inicio']);
-            if ($days === null || $days > 60) continue;
+            if ($days === null || $days > 60) {
+                Log::info("⏸ Skipping, invalid or >60 days", ['days' => $days]);
+                continue;
+            }
 
             $increaseRate = ($current['capital'] - $previous['capital']) / $previous['capital'];
-            if ($increaseRate < 0.40) continue;
+            if ($increaseRate < 0.40) {
+                Log::info("⏸ Skipping, increaseRate < 40%", ['increaseRate' => $increaseRate]);
+                continue;
+            }
 
             $premiumRate = ($previous['premium_total'] > 0)
                 ? ($current['premium_total'] - $previous['premium_total']) / $previous['premium_total']
@@ -124,6 +149,7 @@ class CustomerKYTService
                 $current['interest']
             );
 
+            Log::info("✅ HighCapitalIncrease Alert Ready", ['descricao' => $description]);
             $this->createAlert($customer, 'Aumento elevado de capital na apólice', $description, 'Alto', 30);
         }
     }
@@ -132,9 +158,17 @@ class CustomerKYTService
     private function checkEarlyRedemption(Entities $customer, array $policies): void
     {
         foreach ($policies as $p) {
+            Log::info("🔹 Checking EarlyRedemption", ['apolice' => $p['numero_apolice']]);
+
             $days = $this->safeDays($p['data_inicio'], $p['data_fim']);
-            if ($days === null || $days >= 365) continue;
-            if (!in_array($p['estado_apolice'], ['cancelled','terminated'])) continue;
+            if ($days === null || $days >= 365) {
+                Log::info("⏸ Skipping, days null or >=365", ['days' => $days]);
+                continue;
+            }
+            if (!in_array($p['estado_apolice'], ['cancelled','terminated'])) {
+                Log::info("⏸ Skipping, estado_apolice not cancelled/terminated", ['estado' => $p['estado_apolice']]);
+                continue;
+            }
 
             $description = sprintf(
                 "Cliente: %s | Apólice: %s | Produto: %s | Cancelada após %d dias (Início: %s, Fim: %s)",
@@ -146,6 +180,7 @@ class CustomerKYTService
                 $p['data_fim']
             );
 
+            Log::info("✅ EarlyRedemption Alert Ready", ['descricao' => $description]);
             $this->createAlert($customer, 'Resgate antecipado de apólice', $description, 'Alto', 20);
         }
     }
@@ -154,10 +189,23 @@ class CustomerKYTService
     private function checkHighPremium(Entities $customer, array $policies): void
     {
         foreach ($policies as $p) {
-            if ($p['capital'] <= 0 || $p['premium_total'] <= 0) continue;
+            Log::info("🔹 Checking HighPremium", [
+                'cliente' => $p['numero_cliente'],
+                'apolice' => $p['numero_apolice'],
+                'capital' => $p['capital'],
+                'premium_total' => $p['premium_total']
+            ]);
+
+            if ($p['capital'] <= 0 || $p['premium_total'] <= 0) {
+                Log::info("⏸ Skipping, capital or premium_total <=0");
+                continue;
+            }
 
             $ratio = $p['premium_total'] / $p['capital'];
-            if ($ratio < 0.08) continue;
+            if ($ratio < 0.08) {
+                Log::info("⏸ Skipping, ratio < 8%", ['ratio' => $ratio]);
+                continue;
+            }
 
             $description = sprintf(
                 "Cliente: %s | Apólice: %s | Produto: %s | Prêmio: %.2f | Capital: %.2f | Ratio: %.2f%%",
@@ -169,6 +217,7 @@ class CustomerKYTService
                 $ratio * 100
             );
 
+            Log::info("✅ HighPremium Alert Ready", ['descricao' => $description]);
             $this->createAlert($customer, 'Prêmio elevado com risco baixo', $description, 'Alto', 25);
         }
     }
@@ -181,6 +230,8 @@ class CustomerKYTService
             return $days !== null && $days >= 90 && $days <= 180;
         });
 
+        Log::info("🔹 Checking MultipleShortPolicies", ['count' => count($short)]);
+
         if (count($short) < 2) return;
 
         $description = sprintf(
@@ -189,6 +240,7 @@ class CustomerKYTService
             count($short)
         );
 
+        Log::info("✅ MultipleShortPolicies Alert Ready", ['descricao' => $description]);
         $this->createAlert($customer, 'Múltiplas apólices de curta duração', $description, 'Médio', 15);
     }
 
@@ -199,6 +251,8 @@ class CustomerKYTService
             in_array($p['estado_apolice'], ['cancelled','terminated'])
         );
 
+        Log::info("🔹 Checking PolicyChurning", ['count' => count($terminated)]);
+
         if (count($terminated) < 2) return;
 
         $description = sprintf(
@@ -207,6 +261,7 @@ class CustomerKYTService
             count($terminated)
         );
 
+        Log::info("✅ PolicyChurning Alert Ready", ['descricao' => $description]);
         $this->createAlert($customer, 'Churn de apólices (trocas frequentes)', $description, 'Médio', 20);
     }
 
@@ -214,6 +269,8 @@ class CustomerKYTService
     private function checkRapidReplacement(Entities $customer, array $policies): void
     {
         usort($policies, fn($a,$b) => strtotime($a['data_inicio']) - strtotime($b['data_inicio']));
+
+        Log::info("🔹 Checking RapidReplacement");
 
         for ($i = 1; $i < count($policies); $i++) {
             $prev = $policies[$i-1];
@@ -231,6 +288,7 @@ class CustomerKYTService
                 $gap
             );
 
+            Log::info("✅ RapidReplacement Alert Ready", ['descricao' => $description]);
             $this->createAlert($customer, 'Substituição rápida de apólice', $description, 'Médio', 15);
             break;
         }
@@ -263,10 +321,14 @@ class CustomerKYTService
 
         if ($alert->wasRecentlyCreated || $alert->wasChanged()) {
             SendGrupoAlertEmailJob::dispatch($alert->id, config('app.url'))->onQueue('high');
-
             Log::warning("🚨 ALERTA {$type}", [
                 'cliente' => $customer->customer_number,
                 'descricao' => $description
+            ]);
+        } else {
+            Log::info("⏸ Alert not created, already exists", [
+                'cliente' => $customer->customer_number,
+                'type' => $type
             ]);
         }
     }
