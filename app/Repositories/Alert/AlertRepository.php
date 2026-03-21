@@ -188,7 +188,15 @@ class AlertRepository extends AbstractRepository
                     "Prémio elevado com risco baixo" => 'HighPremiumLowRisk',
                     "Substituição ou cancelamento repetido" => 'RepeatedReplacementOrCancellation',
                     "Churn de apólices (trocas frequentes)" => 'PolicyChurn',
-                    "Aumento elevado de capital na apólice" => 'checkHighCapitalIncrease',
+                    "Aumento elevado de capital na apólice" => 'HighCapitalIncrease',
+                
+                    // NOVOS CENÁRIOS KYT
+                
+                    "Pagamentos por terceiros sem relação clara" => 'ThirdPartyPayments',
+                    "Alterações frequentes de beneficiários" => 'FrequentBeneficiaryChanges',
+                    "Ligação a jurisdições de alto risco" => 'HighRiskGeography',
+                    "Sobrepagamento seguido de reembolso a terceiros" => 'OverpaymentRefund',
+                
 
 
                 ]),
