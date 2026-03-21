@@ -21,7 +21,7 @@ class ImportPoliciesJob implements ShouldQueue
     public function handle()
     {
         // Lista de CSVs (pode usar base_path e nomes fixos ou glob)
-        $files = glob(base_path('apolices_*.csv')); // pega todos os arquivos que começam com "apolices_"
+        $files = glob(base_path('Apolices_*.csv')); // pega todos os arquivos que começam com "apolices_"
 
         if (empty($files)) {
             Log::error("Nenhum CSV encontrado em base_path");
