@@ -44,9 +44,9 @@ class CustomerKYTService
                 'estado_apolice' => $this->normalizeStatus($p['estado_apolice'] ?? $p['Estado_Apolice'] ?? null),
                 'data_inicio' => $this->parseDate($p['data_inicio'] ?? $p['Data_Inicio'] ?? null),
                 'data_fim' => $this->parseDate($p['data_fim'] ?? $p['Data_Fim'] ?? null),
-                'capital' => (float)($p['capital'] ?? $p['Capital'] ?? 0),
-                'premium_total' => (float)($p['premium_total'] ?? $p['Premio_Total'] ?? 0),
-                'interest' => (float)($p['interest'] ?? $p['Juros'] ?? 0),
+                'capital' => is_numeric($p['capital'] ?? $p['Capital'] ?? null) ? (float)($p['capital'] ?? $p['Capital'] ?? 0) : 0.0,
+                'premium_total' => is_numeric($p['premium_total'] ?? $p['Premio_Total'] ?? null) ? (float)($p['premium_total'] ?? $p['Premio_Total'] ?? 0) : 0.0,
+                'interest' => is_numeric($p['interest'] ?? $p['Juros'] ?? null) ? (float)($p['interest'] ?? $p['Juros'] ?? 0) : 0.0,
             ];
 
             Log::info("🔹 Normalized Policy", $normalized);
@@ -72,10 +72,11 @@ class CustomerKYTService
         if (!$date || trim($date) === '00:00.0') return null;
 
         try {
-            $dt = preg_replace('/\.\d+$/', '', $date); // remove milissegundos
+            // remove milissegundos
+            $dt = preg_replace('/\.\d+$/', '', $date);
             return Carbon::parse($dt)->format('Y-m-d H:i:s');
         } catch (\Exception $e) {
-            Log::error("Erro ao parsear data", ['date' => $date, 'error' => $e->getMessage()]);
+            Log::warning("Data inválida ignorada", ['date' => $date, 'error' => $e->getMessage()]);
             return null;
         }
     }
@@ -94,7 +95,6 @@ class CustomerKYTService
        REGRAS KYT
     ========================== */
 
-    // Aumento elevado de capital
     private function checkHighCapitalIncrease(Entities $customer, array $policies): void
     {
         $valid = array_filter($policies, fn($p) => !empty($p['data_inicio']));
@@ -137,7 +137,6 @@ class CustomerKYTService
         }
     }
 
-    // Resgate antecipado
     private function checkEarlyRedemption(Entities $customer, array $policies): void
     {
         foreach ($policies as $p) {
@@ -159,7 +158,6 @@ class CustomerKYTService
         }
     }
 
-    // Prêmio elevado com risco baixo
     private function checkHighPremium(Entities $customer, array $policies): void
     {
         foreach ($policies as $p) {
@@ -182,7 +180,6 @@ class CustomerKYTService
         }
     }
 
-    // Múltiplas apólices curtas
     private function checkMultipleShortPolicies(Entities $customer, array $policies): void
     {
         $short = array_filter($policies, function($p) {
@@ -201,7 +198,6 @@ class CustomerKYTService
         $this->createAlert($customer, 'Múltiplas apólices de curta duração', $description, 'Médio', 15);
     }
 
-    // Churn de apólices
     private function checkPolicyChurning(Entities $customer, array $policies): void
     {
         $terminated = array_filter($policies, fn($p) =>
@@ -219,7 +215,6 @@ class CustomerKYTService
         $this->createAlert($customer, 'Churn de apólices (trocas frequentes)', $description, 'Médio', 20);
     }
 
-    // Substituição rápida
     private function checkRapidReplacement(Entities $customer, array $policies): void
     {
         usort($policies, fn($a,$b) => strtotime($a['data_inicio'] ?? '1970-01-01') - strtotime($b['data_inicio'] ?? '1970-01-01'));
