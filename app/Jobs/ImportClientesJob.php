@@ -2,10 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\Entities\Entities;
-use App\Services\Entities\EntitiesService;
-use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -16,73 +14,58 @@ class ImportClientesJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, Batchable;
 
-    public $tries = 3;        // número de tentativas
-    public $timeout = 3600;   // 1 hora, aumenta se necessário
-    public $backoff = 60;     // espera 1 minuto antes de re-tentar
+    public $tries = 3;
+    public $timeout = 3600;
 
-    protected EntitiesService $entityService;
+    protected string $csvPath;
+    protected int $chunkSize;
 
-    public function handle(EntitiesService $entityService)
+    public function __construct(string $csvPath = null, int $chunkSize = 5000)
     {
-        $this->entityService = $entityService;
-        $path = base_path('clientes.csv');
+        $this->csvPath = $csvPath ?? base_path('clientes.csv');
+        $this->chunkSize = $chunkSize;
+    }
 
-        if (!file_exists($path)) {
-            Log::error("Arquivo CSV não encontrado: {$path}");
+    public function handle()
+    {
+        if (!file_exists($this->csvPath)) {
+            Log::error("Arquivo CSV não encontrado: {$this->csvPath}");
             return;
         }
 
-        $totalInserted = 0;
+        Log::info("Iniciando leitura do CSV: {$this->csvPath}");
 
-        if (($handle = fopen($path, 'r')) !== false) {
-            $header = fgetcsv($handle, 0, ',');
-            $header = array_map('trim', $header);
-
-            $idxCustomerNumber = array_search('NUMERO_CLIENTE', $header);
-            $idxName = array_search('NOME_DENOMINACAO_SOCIAL', $header);
-            $idxTipo = array_search('TIPO_CLIENTE', $header);
-            $idxNif = array_search('NIF', $header);
-
-            while (($row = fgetcsv($handle, 0, ',')) !== false) {
-                if (empty(array_filter($row))) continue;
-
-                if (!isset($row[$idxCustomerNumber], $row[$idxName])) {
-                    Log::warning("Linha ignorada por falta de campos obrigatórios: " . implode(',', $row));
-                    continue;
-                }
-
-
-                $tipoCliente = strtoupper(trim($row[$idxTipo] ?? '')); // CORRIGIDO
-                $entityType = $tipoCliente === 'EMPRESA' ? 1 : 2;
-
-                $dataImport = [
-                    "social_denomination" => $row[$idxName] ?? null,
-                    "customer_number" => (string)($row[$idxCustomerNumber] ?? null),
-                    "policy_number" => null,
-                    "entity_type" => $entityType,
-                    "nif" => $row[$idxNif] ?? null,
-                ];
-
-                try {
-                    $this->entityService->storeOrUpdate(
-                        ['customer_number' => $dataImport['customer_number']],
-                        $dataImport
-                    );
-
-                    $totalInserted++;
-
-                    // Limpeza periódica de memória para evitar estouro
-                    if ($totalInserted % 1000 === 0) {
-                        gc_collect_cycles();
-                    }
-                } catch (\Exception $e) {
-                    Log::error("Falha ao inserir cliente {$dataImport['customer_number']}: " . $e->getMessage());
-                }
-            }
-
-            fclose($handle);
+        $handle = fopen($this->csvPath, 'r');
+        if ($handle === false) {
+            Log::error("Não foi possível abrir o arquivo CSV.");
+            return;
         }
 
-        Log::info("Importação de clientes concluída! Total inserido/atualizado: {$totalInserted}");
+        $header = fgetcsv($handle, 0, ',');
+        $header = array_map('trim', $header);
+
+        $rows = [];
+        $totalDispatched = 0;
+
+        while (($row = fgetcsv($handle, 0, ',')) !== false) {
+            if (empty(array_filter($row))) continue;
+            $rows[] = $row;
+
+            if (count($rows) >= $this->chunkSize) {
+                ImportClientesChunkJob::dispatch($rows, $header);
+                $totalDispatched++;
+                $rows = [];
+            }
+        }
+
+        // último chunk
+        if (!empty($rows)) {
+            ImportClientesChunkJob::dispatch($rows, $header);
+            $totalDispatched++;
+        }
+
+        fclose($handle);
+
+        Log::info("Importação CSV dividida em {$totalDispatched} chunks e enviada para processamento.");
     }
 }
