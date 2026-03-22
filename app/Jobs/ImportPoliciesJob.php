@@ -5,67 +5,64 @@ namespace App\Jobs;
 use App\Models\Entities\Entities;
 use App\Jobs\ProcessCustomerPoliciesJob;
 use Illuminate\Bus\Queueable;
-use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ImportPoliciesJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, Batchable;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $timeout = 10800; // 3 horas
     public $tries = 5;
 
-    private int $chunkSize = 1000; // linhas por chunk
-    private array $allCustomersData = []; // armazena todas as apólices
+    private int $chunkSize = 1000;
 
     public function handle()
     {
-        try {
-            $files = glob(base_path('Apolices_*.csv'));
+        $files = glob(base_path('Apolices_*.csv'));
 
-            if (empty($files)) {
-                Log::error("Nenhum CSV encontrado em base_path");
-                return;
+        if (empty($files)) {
+            Log::error("Nenhum CSV encontrado em base_path");
+            return;
+        }
+
+        foreach ($files as $path) {
+            if (!file_exists($path)) continue;
+
+            if (($handle = fopen($path, 'r')) === false) {
+                Log::error("Erro ao abrir CSV: {$path}");
+                continue;
             }
 
-            foreach ($files as $path) {
-                if (!file_exists($path)) continue;
+            Log::info("📄 Processando CSV: {$path}");
+            $header = fgetcsv($handle, 0, ',');
+            $header = array_map(fn($h) => strtoupper(trim($h)), $header);
 
-                if (($handle = fopen($path, 'r')) === false) {
-                    Log::error("Erro ao abrir CSV: {$path}");
-                    continue;
+            $customersData = []; // acumulador global por cliente
+            $rows = [];
+
+            while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                if (empty(array_filter($row)) || str_contains($row[0], '---')) continue;
+
+                $rows[] = $row;
+
+                if (count($rows) >= $this->chunkSize) {
+                    $this->processRows($rows, $header, $customersData);
+                    $rows = [];
                 }
-
-                Log::info("📄 Processando CSV: {$path}");
-                $header = fgetcsv($handle, 0, ',');
-                $header = array_map(fn($h) => strtoupper(trim($h)), $header);
-
-                $rows = [];
-                while (($row = fgetcsv($handle, 0, ',')) !== false) {
-                    if (empty(array_filter($row)) || str_contains($row[0], '---')) continue;
-
-                    $rows[] = $row;
-
-                    if (count($rows) >= $this->chunkSize) {
-                        $this->processChunk($rows, $header);
-                        $rows = [];
-                    }
-                }
-
-                if (!empty($rows)) {
-                    $this->processChunk($rows, $header);
-                }
-
-                fclose($handle);
             }
 
-            // Dispara o job de KYT para cada cliente com todas as apólices acumuladas
-            foreach ($this->allCustomersData as $customerNumber => $policies) {
+            if (!empty($rows)) {
+                $this->processRows($rows, $header, $customersData);
+            }
+
+            fclose($handle);
+
+            // Dispara jobs por cliente
+            foreach ($customersData as $customerNumber => $policies) {
                 $customer = Entities::where('customer_number', $customerNumber)->first();
 
                 if (!$customer) {
@@ -77,45 +74,41 @@ class ImportPoliciesJob implements ShouldQueue
                 Log::info("📬 Job KYT disparado para cliente {$customerNumber} com " . count($policies) . " apólices.");
             }
 
-            Log::info("✅ Todos os arquivos CSV processados e jobs KYT disparados");
-
-        } catch (\Throwable $e) {
-            Log::error("Erro no ImportPoliciesJob: {$e->getMessage()}", ['trace' => $e->getTraceAsString()]);
+            Log::info("✅ CSV {$path} processado com sucesso");
         }
     }
 
-    private function processChunk(array $rows, array $header): void
+    private function processRows(array $rows, array $header, array &$customersData): void
     {
-        $idxNumeroCliente = array_search('NUMERO_CLIENTE', $header);
-        $idxNumeroApolice = array_search('NUMERO_APOLICE', $header);
-        $idxDescricaoProduto = array_search('DESCRICAO_PRODUTO', $header);
-        $idxEstado = array_search('ESTADO_APOLICE', $header);
-        $idxDataInicio = array_search('DATA_INICIO', $header);
-        $idxDataFim = array_search('DATA_FIM', $header);
+        $idxCliente = array_search('NUMERO_CLIENTE', $header);
+        $idxApolice = array_search('NUMERO_APOLICE', $header);
+        $idxProduto = array_search('DESCRICAO_PRODUTO', $header);
+        $idxEstado  = array_search('ESTADO_APOLICE', $header);
+        $idxInicio  = array_search('DATA_INICIO', $header);
+        $idxFim     = array_search('DATA_FIM', $header);
         $idxCapital = array_search('CAPITAL', $header);
-        $idxPremioTotal = array_search('PREMIO_TOTAL', $header);
-        $idxJuros = array_search('JUROS', $header);
+        $idxPremio  = array_search('PREMIO_TOTAL', $header);
+        $idxJuros   = array_search('JUROS', $header);
 
         foreach ($rows as $row) {
-            $customerNumber = $row[$idxNumeroCliente] ?? null;
-            $numeroApolice  = $row[$idxNumeroApolice] ?? null;
+            $customerNumber = $row[$idxCliente] ?? null;
+            $numeroApolice  = $row[$idxApolice] ?? null;
 
             if (!$customerNumber || !$numeroApolice) continue;
 
             $data = [
-                'numero_cliente' => $customerNumber,
-                'numero_apolice' => $numeroApolice,
-                'descricao_produto' => strtoupper(trim($row[$idxDescricaoProduto] ?? '')),
-                'estado_apolice' => $this->mapStatus($row[$idxEstado] ?? ''),
-                'data_inicio' => $this->parseDate($row[$idxDataInicio] ?? null),
-                'data_fim' => $this->parseDate($row[$idxDataFim] ?? null),
-                'capital' => $this->toFloat($row[$idxCapital] ?? 0),
-                'premium_total' => $this->toFloat($row[$idxPremioTotal] ?? 0),
-                'interest' => $this->toFloat($row[$idxJuros] ?? 0),
+                'numero_cliente'    => $customerNumber,
+                'numero_apolice'    => $numeroApolice,
+                'descricao_produto' => strtoupper(trim($row[$idxProduto] ?? '')),
+                'estado_apolice'    => $this->mapStatus($row[$idxEstado] ?? ''),
+                'data_inicio'       => $this->parseDate($row[$idxInicio] ?? null),
+                'data_fim'          => $this->parseDate($row[$idxFim] ?? null),
+                'capital'           => $this->toFloat($row[$idxCapital] ?? 0),
+                'premium_total'     => $this->toFloat($row[$idxPremio] ?? 0),
+                'interest'          => $this->toFloat($row[$idxJuros] ?? 0),
             ];
 
-            // concatena novas apólices se cliente já tiver registros anteriores
-            $this->allCustomersData[$customerNumber][] = $data;
+            $customersData[$customerNumber][] = $data;
         }
     }
 
@@ -125,7 +118,7 @@ class ImportPoliciesJob implements ShouldQueue
         return match ($status) {
             'NORMAL', 'ATIVA' => 'active',
             'C/ CARTA', 'CANCELADA' => 'cancelled',
-            'ANULADA', 'TERMINADA', 'INACTIVOS', 'Anulada', 'Terminada' => 'terminated',
+            'ANULADA', 'TERMINADA', 'INACTIVOS', 'ANULADA', 'TERMINADA' => 'terminated',
             default => 'unknown',
         };
     }
@@ -133,8 +126,7 @@ class ImportPoliciesJob implements ShouldQueue
     private function parseDate(?string $date): ?string
     {
         if (!$date) return null;
-        $date = substr(trim($date), 0, 19);
-        return $date ?: null;
+        return substr(trim($date), 0, 19) ?: null;
     }
 
     private function toFloat($value): float
