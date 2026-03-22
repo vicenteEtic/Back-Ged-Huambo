@@ -20,6 +20,9 @@ class ImportPoliciesJob implements ShouldQueue
 
     private int $chunkSize = 1000; // número de linhas por batch
 
+    // Armazena todas as apólices por cliente
+    private array $allCustomersData = [];
+
     public function handle()
     {
         try {
@@ -37,7 +40,6 @@ class ImportPoliciesJob implements ShouldQueue
 
             Log::info("📄 Iniciando processamento CSV: {$filePath}");
 
-            // Lê o cabeçalho
             $header = fgetcsv($handle, 0, ',');
             $header = array_map(fn($h) => strtoupper(trim($h)), $header);
 
@@ -45,28 +47,38 @@ class ImportPoliciesJob implements ShouldQueue
 
             while (($row = fgetcsv($handle, 0, ',')) !== false) {
 
-                // Ignora linhas vazias
                 if (empty(array_filter($row))) continue;
-
-                // Ignora linhas de traços ou cabeçalho duplicado
                 if (!is_numeric($row[0]) || !is_numeric($row[1])) continue;
 
                 $rows[] = $row;
 
                 if (count($rows) >= $this->chunkSize) {
-                    $this->dispatchChunk($rows, $header);
+                    $this->accumulateRows($rows, $header);
                     $rows = [];
                 }
             }
 
-            // Último chunk
             if (!empty($rows)) {
-                $this->dispatchChunk($rows, $header);
+                $this->accumulateRows($rows, $header);
             }
 
             fclose($handle);
 
-            Log::info("✅ CSV processado e jobs disparados com sucesso.");
+            // Agora dispara **apenas um job por cliente**, com todas as apólices acumuladas
+            foreach ($this->allCustomersData as $customerNumber => $policies) {
+                $customer = Entities::where('customer_number', $customerNumber)->first();
+                if (!$customer) {
+                    Log::warning("Cliente não encontrado: {$customerNumber}");
+                    continue;
+                }
+
+                ProcessCustomerPoliciesJob::dispatch($customer->id, $policies)
+                    ->onQueue('policies');
+
+                Log::info("📬 Job final disparado para cliente {$customerNumber} com " . count($policies) . " apólices.");
+            }
+
+            Log::info("✅ CSV processado com sucesso, todos os jobs disparados.");
 
         } catch (\Throwable $e) {
             Log::error("Erro ao processar CSV: " . $e->getMessage());
@@ -75,13 +87,10 @@ class ImportPoliciesJob implements ShouldQueue
     }
 
     /**
-     * Divide as linhas em clientes e dispara jobs menores
+     * Acumula apólices de cada chunk no array global
      */
-    private function dispatchChunk(array $rows, array $header): void
+    private function accumulateRows(array $rows, array $header): void
     {
-        $customersData = [];
-
-        // Índices das colunas
         $idxCliente  = array_search('NUMERO_CLIENTE', $header);
         $idxApolice  = array_search('NUMERO_APOLICE', $header);
         $idxProduto  = array_search('DESCRICAO_PRODUTO', $header);
@@ -110,22 +119,8 @@ class ImportPoliciesJob implements ShouldQueue
                 'interest'          => $this->toFloat($row[$idxJuros] ?? 0),
             ];
 
-            $customersData[$customerNumber][] = $data;
-        }
-
-        // Dispara um job por cliente
-        foreach ($customersData as $customerNumber => $policies) {
-            $customer = Entities::where('customer_number', $customerNumber)->first();
-
-            if (!$customer) {
-                Log::warning("Cliente não encontrado: {$customerNumber}");
-                continue;
-            }
-
-            ProcessCustomerPoliciesJob::dispatch($customer->id, $policies)
-                ->onQueue('policies'); // fila específica opcional
-
-            Log::info("📬 Job disparado para cliente {$customerNumber} com " . count($policies) . " apólices.");
+            // Acumula todas as apólices do cliente
+            $this->allCustomersData[$customerNumber][] = $data;
         }
     }
 
