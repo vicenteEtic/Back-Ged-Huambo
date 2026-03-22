@@ -28,6 +28,8 @@ class ImportPoliciesJob implements ShouldQueue
             return;
         }
 
+        $allCustomersData = []; // acumula todas as apólices por cliente
+
         foreach ($files as $path) {
             if (!file_exists($path)) continue;
             if (($handle = fopen($path, 'r')) === false) {
@@ -46,35 +48,21 @@ class ImportPoliciesJob implements ShouldQueue
                 $rows[] = $row;
 
                 if (count($rows) >= $this->chunkSize) {
-                    $this->dispatchChunk($rows, $header);
+                    $this->dispatchChunk($rows, $header, $allCustomersData);
                     $rows = [];
                 }
             }
 
             // Processa o último chunk restante
             if (!empty($rows)) {
-                $this->dispatchChunk($rows, $header);
+                $this->dispatchChunk($rows, $header, $allCustomersData);
             }
 
             fclose($handle);
         }
 
-        Log::info("✅ Todos os arquivos CSV processados e jobs de chunks disparados");
-    }
-
-    private function dispatchChunk(array $rows, array $header)
-    {
-        $customersData = [];
-
-        foreach ($rows as $row) {
-            $data = $this->mapCsvRow($header, $row);
-            if (empty($data['numero_cliente']) || empty($data['numero_apolice'])) continue;
-
-            $customerId = $data['numero_cliente'];
-            $customersData[$customerId][] = $data;
-        }
-
-        foreach ($customersData as $customerNumber => $policies) {
+        // Dispara **um único job por cliente** com todas as apólices
+        foreach ($allCustomersData as $customerNumber => $policies) {
             $customer = Entities::where('customer_number', $customerNumber)->first();
             if (!$customer) {
                 Log::warning("Cliente não encontrado: {$customerNumber}");
@@ -82,10 +70,29 @@ class ImportPoliciesJob implements ShouldQueue
             }
 
             ProcessCustomerPoliciesJob::dispatch($customer->id, $policies);
-            Log::info("📬 Job disparado para cliente {$customerNumber} com " . count($policies) . " apólices neste chunk");
+            Log::info("📬 Job único disparado para cliente {$customerNumber} com " . count($policies) . " apólices");
+        }
+
+        Log::info("✅ Todos os arquivos CSV processados e jobs de clientes disparados");
+    }
+
+    /**
+     * Acumula apólices de cada chunk por cliente no array global
+     */
+    private function dispatchChunk(array $rows, array $header, array &$allCustomersData)
+    {
+        foreach ($rows as $row) {
+            $data = $this->mapCsvRow($header, $row);
+            if (empty($data['numero_cliente']) || empty($data['numero_apolice'])) continue;
+
+            $customerId = $data['numero_cliente'];
+            $allCustomersData[$customerId][] = $data;
         }
     }
 
+    /**
+     * Mapeia colunas CSV para array padronizado
+     */
     private function mapCsvRow(array $header, array $row): array
     {
         $data = [];
@@ -110,6 +117,9 @@ class ImportPoliciesJob implements ShouldQueue
         return $data;
     }
 
+    /**
+     * Normaliza o status da apólice
+     */
     private function mapStatus($value): string
     {
         $status = strtoupper(trim($value ?? ''));
@@ -121,12 +131,18 @@ class ImportPoliciesJob implements ShouldQueue
         };
     }
 
+    /**
+     * Padroniza datas para YYYY-MM-DD HH:MM:SS
+     */
     private function parseDate(?string $date): ?string
     {
         if (!$date) return null;
         return substr(trim($date), 0, 19); // YYYY-MM-DD HH:MM:SS
     }
 
+    /**
+     * Converte string para float
+     */
     private function toFloat($value): float
     {
         if (is_string($value)) $value = str_replace(',', '.', trim($value));
