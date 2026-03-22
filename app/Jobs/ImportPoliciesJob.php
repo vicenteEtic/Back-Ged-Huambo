@@ -17,7 +17,7 @@ class ImportPoliciesJob implements ShouldQueue
 
     public $timeout = 10800; // 3h
     public $tries = 3;
-    private int $chunkSize = 1000;
+    private int $chunkSize = 100;
 
     public function handle()
     {
