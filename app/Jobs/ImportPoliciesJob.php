@@ -18,77 +18,79 @@ class ImportPoliciesJob implements ShouldQueue
     public $timeout = 10800; // 3 horas
     public $tries = 5;
 
-    private int $chunkSize = 1000;
+    private int $chunkSize = 1000; // número de linhas por batch
 
     public function handle()
     {
-        $files = glob(base_path('Apolices_Vida.csv'));
+        try {
+            $filePath = base_path('Apolices_Vida.csv');
 
-        if (empty($files)) {
-            Log::error("Nenhum CSV encontrado em base_path");
-            return;
-        }
-
-        foreach ($files as $path) {
-            if (!file_exists($path)) continue;
-
-            if (($handle = fopen($path, 'r')) === false) {
-                Log::error("Erro ao abrir CSV: {$path}");
-                continue;
+            if (!file_exists($filePath)) {
+                Log::error("Nenhum CSV encontrado em: {$filePath}");
+                return;
             }
 
-            Log::info("📄 Processando CSV: {$path}");
+            if (($handle = fopen($filePath, 'r')) === false) {
+                Log::error("Erro ao abrir CSV: {$filePath}");
+                return;
+            }
+
+            Log::info("📄 Iniciando processamento CSV: {$filePath}");
+
+            // Lê o cabeçalho
             $header = fgetcsv($handle, 0, ',');
             $header = array_map(fn($h) => strtoupper(trim($h)), $header);
 
-            $customersData = []; // acumulador global por cliente
             $rows = [];
 
             while (($row = fgetcsv($handle, 0, ',')) !== false) {
-                if (empty(array_filter($row)) || str_contains($row[0], '---')) continue;
+
+                // Ignora linhas vazias
+                if (empty(array_filter($row))) continue;
+
+                // Ignora linhas de traços ou cabeçalho duplicado
+                if (!is_numeric($row[0]) || !is_numeric($row[1])) continue;
 
                 $rows[] = $row;
 
                 if (count($rows) >= $this->chunkSize) {
-                    $this->processRows($rows, $header, $customersData);
+                    $this->dispatchChunk($rows, $header);
                     $rows = [];
                 }
             }
 
+            // Último chunk
             if (!empty($rows)) {
-                $this->processRows($rows, $header, $customersData);
+                $this->dispatchChunk($rows, $header);
             }
 
             fclose($handle);
 
-            // Dispara jobs por cliente
-            foreach ($customersData as $customerNumber => $policies) {
-                $customer = Entities::where('customer_number', $customerNumber)->first();
+            Log::info("✅ CSV processado e jobs disparados com sucesso.");
 
-                if (!$customer) {
-                    Log::warning("Cliente não encontrado: {$customerNumber}");
-                    continue;
-                }
-
-                ProcessCustomerPoliciesJob::dispatch($customer->id, $policies);
-                Log::info("📬 Job KYT disparado para cliente {$customerNumber} com " . count($policies) . " apólices.");
-            }
-
-            Log::info("✅ CSV {$path} processado com sucesso");
+        } catch (\Throwable $e) {
+            Log::error("Erro ao processar CSV: " . $e->getMessage());
+            $this->fail($e);
         }
     }
 
-    private function processRows(array $rows, array $header, array &$customersData): void
+    /**
+     * Divide as linhas em clientes e dispara jobs menores
+     */
+    private function dispatchChunk(array $rows, array $header): void
     {
-        $idxCliente = array_search('NUMERO_CLIENTE', $header);
-        $idxApolice = array_search('NUMERO_APOLICE', $header);
-        $idxProduto = array_search('DESCRICAO_PRODUTO', $header);
-        $idxEstado  = array_search('ESTADO_APOLICE', $header);
-        $idxInicio  = array_search('DATA_INICIO', $header);
-        $idxFim     = array_search('DATA_FIM', $header);
-        $idxCapital = array_search('CAPITAL', $header);
-        $idxPremio  = array_search('PREMIO_TOTAL', $header);
-        $idxJuros   = array_search('JUROS', $header);
+        $customersData = [];
+
+        // Índices das colunas
+        $idxCliente  = array_search('NUMERO_CLIENTE', $header);
+        $idxApolice  = array_search('NUMERO_APOLICE', $header);
+        $idxProduto  = array_search('DESCRICAO_PRODUTO', $header);
+        $idxEstado   = array_search('ESTADO_APOLICE', $header);
+        $idxInicio   = array_search('DATA_INICIO', $header);
+        $idxFim      = array_search('DATA_FIM', $header);
+        $idxCapital  = array_search('CAPITAL', $header);
+        $idxPremio   = array_search('PREMIO_TOTAL', $header);
+        $idxJuros    = array_search('JUROS', $header);
 
         foreach ($rows as $row) {
             $customerNumber = $row[$idxCliente] ?? null;
@@ -110,6 +112,21 @@ class ImportPoliciesJob implements ShouldQueue
 
             $customersData[$customerNumber][] = $data;
         }
+
+        // Dispara um job por cliente
+        foreach ($customersData as $customerNumber => $policies) {
+            $customer = Entities::where('customer_number', $customerNumber)->first();
+
+            if (!$customer) {
+                Log::warning("Cliente não encontrado: {$customerNumber}");
+                continue;
+            }
+
+            ProcessCustomerPoliciesJob::dispatch($customer->id, $policies)
+                ->onQueue('policies'); // fila específica opcional
+
+            Log::info("📬 Job disparado para cliente {$customerNumber} com " . count($policies) . " apólices.");
+        }
     }
 
     private function mapStatus(?string $value): string
@@ -118,7 +135,7 @@ class ImportPoliciesJob implements ShouldQueue
         return match ($status) {
             'NORMAL', 'ATIVA' => 'active',
             'C/ CARTA', 'CANCELADA' => 'cancelled',
-            'ANULADA', 'TERMINADA', 'INACTIVOS', 'ANULADA', 'TERMINADA' => 'terminated',
+            'ANULADA', 'TERMINADA', 'INACTIVOS' => 'terminated',
             default => 'unknown',
         };
     }
