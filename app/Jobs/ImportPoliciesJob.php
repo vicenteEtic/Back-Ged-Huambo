@@ -3,133 +3,118 @@
 namespace App\Jobs;
 
 use App\Models\Entities\Entities;
-use App\Jobs\ProcessCustomerPoliciesJob;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ImportPoliciesJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 10800; // 3 horas
-    public $tries = 5;
-
-    private int $chunkSize = 1000; // número de linhas por batch
-
-    // Armazena todas as apólices por cliente
-    private array $allCustomersData = [];
+    public $timeout = 10800; // 3h
+    public $tries = 3;
+    private int $chunkSize = 1000;
 
     public function handle()
     {
         try {
             $filePath = base_path('Apolices_Vida.csv');
-
             if (!file_exists($filePath)) {
-                Log::error("Nenhum CSV encontrado em: {$filePath}");
+                Log::error("CSV não encontrado: {$filePath}");
                 return;
             }
 
-            if (($handle = fopen($filePath, 'r')) === false) {
-                Log::error("Erro ao abrir CSV: {$filePath}");
+            $handle = fopen($filePath, 'r');
+            if (!$handle) {
+                Log::error("Erro ao abrir CSV");
                 return;
             }
 
-            Log::info("📄 Iniciando processamento CSV: {$filePath}");
+            Log::info("📄 Importando CSV para staging...");
 
-            $header = fgetcsv($handle, 0, ',');
-            $header = array_map(fn($h) => strtoupper(trim($h)), $header);
+            // Encontrar header válido
+            $header = null;
+            while (($line = fgetcsv($handle, 0, ',')) !== false) {
+                $line = array_map('trim', $line);
+                if (empty(array_filter($line))) continue;
+                if (str_contains(implode(',', $line), '---')) continue;
+                $header = array_map(fn($h) => strtoupper($h), $line);
+                break;
+            }
+
+            if (!$header) {
+                Log::error("Header CSV inválido");
+                fclose($handle);
+                return;
+            }
 
             $rows = [];
+            $inserted = 0;
 
             while (($row = fgetcsv($handle, 0, ',')) !== false) {
-
+                $row = array_map('trim', $row);
                 if (empty(array_filter($row))) continue;
-                if (!is_numeric($row[0]) || !is_numeric($row[1])) continue;
+                if (str_contains(implode(',', $row), '---')) continue;
+                if (count($row) !== count($header)) {
+                    Log::warning("Linha ignorada: número de colunas diferente do header");
+                    continue;
+                }
 
-                $rows[] = $row;
+                $mappedRow = $this->mapRow($row, $header);
+                if (!$mappedRow['numero_cliente'] || !$mappedRow['numero_apolice']) continue;
+
+                $rows[] = $mappedRow;
 
                 if (count($rows) >= $this->chunkSize) {
-                    $this->accumulateRows($rows, $header);
+                    DB::table('policies_staging')->insert($rows);
+                    $inserted += count($rows);
                     $rows = [];
+                    Log::info("📦 Inseridos {$inserted} registros...");
+                    gc_collect_cycles();
                 }
             }
 
             if (!empty($rows)) {
-                $this->accumulateRows($rows, $header);
+                DB::table('policies_staging')->insert($rows);
+                $inserted += count($rows);
             }
 
             fclose($handle);
-
-            // Agora dispara **apenas um job por cliente**, com todas as apólices acumuladas
-            foreach ($this->allCustomersData as $customerNumber => $policies) {
-                $customer = Entities::where('customer_number', $customerNumber)->first();
-                if (!$customer) {
-                    Log::warning("Cliente não encontrado: {$customerNumber}");
-                    continue;
-                }
-
-                ProcessCustomerPoliciesJob::dispatch($customer->id, $policies)
-                    ->onQueue('policies');
-
-                Log::info("📬 Job final disparado para cliente {$customerNumber} com " . count($policies) . " apólices.");
-            }
-
-            Log::info("✅ CSV processado com sucesso, todos os jobs disparados.");
+            Log::info("✅ Importação finalizada: {$inserted} registros inseridos");
 
         } catch (\Throwable $e) {
-            Log::error("Erro ao processar CSV: " . $e->getMessage());
+            Log::error("❌ Erro na importação: " . $e->getMessage());
             $this->fail($e);
         }
     }
 
-    /**
-     * Acumula apólices de cada chunk no array global
-     */
-    private function accumulateRows(array $rows, array $header): void
+    private function mapRow(array $row, array $header): array
     {
-        $idxCliente  = array_search('NUMERO_CLIENTE', $header);
-        $idxApolice  = array_search('NUMERO_APOLICE', $header);
-        $idxProduto  = array_search('DESCRICAO_PRODUTO', $header);
-        $idxEstado   = array_search('ESTADO_APOLICE', $header);
-        $idxInicio   = array_search('DATA_INICIO', $header);
-        $idxFim      = array_search('DATA_FIM', $header);
-        $idxCapital  = array_search('CAPITAL', $header);
-        $idxPremio   = array_search('PREMIO_TOTAL', $header);
-        $idxJuros    = array_search('JUROS', $header);
-
-        foreach ($rows as $row) {
-            $customerNumber = $row[$idxCliente] ?? null;
-            $numeroApolice  = $row[$idxApolice] ?? null;
-
-            if (!$customerNumber || !$numeroApolice) continue;
-
-            $data = [
-                'numero_cliente'    => $customerNumber,
-                'numero_apolice'    => $numeroApolice,
-                'descricao_produto' => strtoupper(trim($row[$idxProduto] ?? '')),
-                'estado_apolice'    => $this->mapStatus($row[$idxEstado] ?? ''),
-                'data_inicio'       => $this->parseDate($row[$idxInicio] ?? null),
-                'data_fim'          => $this->parseDate($row[$idxFim] ?? null),
-                'capital'           => $this->toFloat($row[$idxCapital] ?? 0),
-                'premium_total'     => $this->toFloat($row[$idxPremio] ?? 0),
-                'interest'          => $this->toFloat($row[$idxJuros] ?? 0),
-            ];
-
-            // Acumula todas as apólices do cliente
-            $this->allCustomersData[$customerNumber][] = $data;
-        }
+        $map = [
+            'numero_cliente'    => $row[array_search('NUMERO_CLIENTE', $header)] ?? null,
+            'numero_apolice'    => $row[array_search('NUMERO_APOLICE', $header)] ?? null,
+            'descricao_produto' => $row[array_search('DESCRICAO_PRODUTO', $header)] ?? null,
+            'estado_apolice'    => $this->mapStatus($row[array_search('ESTADO_APOLICE', $header)] ?? null),
+            'data_inicio'       => $this->parseDate($row[array_search('DATA_INICIO', $header)] ?? null),
+            'data_fim'          => $this->parseDate($row[array_search('DATA_FIM', $header)] ?? null),
+            'capital'           => $this->toFloat($row[array_search('CAPITAL', $header)] ?? 0),
+            'premium_total'     => $this->toFloat($row[array_search('PREMIO_TOTAL', $header)] ?? 0),
+            'interest'          => $this->toFloat($row[array_search('JUROS', $header)] ?? 0),
+            'created_at'        => now(),
+            'updated_at'        => now(),
+        ];
+        return $map;
     }
 
     private function mapStatus(?string $value): string
     {
-        $status = strtoupper(trim($value ?? ''));
-        return match ($status) {
+        return match (strtoupper(trim($value ?? ''))) {
             'NORMAL', 'ATIVA' => 'active',
-            'C/ CARTA', 'CANCELADA' => 'cancelled',
+            'CANCELADA', 'C/ CARTA' => 'cancelled',
             'ANULADA', 'TERMINADA', 'INACTIVOS' => 'terminated',
             default => 'unknown',
         };
@@ -138,7 +123,15 @@ class ImportPoliciesJob implements ShouldQueue
     private function parseDate(?string $date): ?string
     {
         if (!$date) return null;
-        return substr(trim($date), 0, 19) ?: null;
+        $invalid = ['NULL', '', 'NORMAL', 'ANULADA', 'TERMINADA', 'INACTIVOS'];
+        if (in_array(strtoupper(trim($date)), $invalid)) return null;
+
+        try {
+            $date = preg_replace('/\.\d+$/', '', $date);
+            return \Carbon\Carbon::parse($date)->format('Y-m-d H:i:s');
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     private function toFloat($value): float
