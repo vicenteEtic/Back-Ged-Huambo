@@ -10,7 +10,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ImportPoliciesJob implements ShouldQueue
@@ -20,7 +19,8 @@ class ImportPoliciesJob implements ShouldQueue
     public $timeout = 7200; // 2 horas
     public $tries = 3;
 
-    private int $chunkSize = 1000; // menor que 10.000 para evitar placeholders
+    private int $chunkSize = 1000; // número de linhas por chunk
+    private array $allCustomersData = []; // armazena todas as apólices agrupadas por cliente
 
     public function handle()
     {
@@ -30,25 +30,6 @@ class ImportPoliciesJob implements ShouldQueue
             Log::error("Nenhum CSV encontrado em base_path");
             return;
         }
-
-        // Cria tabela persistente para cache, se não existir
-        DB::statement('
-            CREATE TABLE IF NOT EXISTS customer_policies_cache (
-                customer_number VARCHAR(255) NOT NULL,
-                numero_apolice VARCHAR(255) NOT NULL,
-                descricao_produto VARCHAR(255),
-                estado_apolice VARCHAR(50),
-                data_inicio DATETIME,
-                data_fim DATETIME,
-                capital DOUBLE,
-                premium_total DOUBLE,
-                interest DOUBLE,
-                PRIMARY KEY (customer_number, numero_apolice)
-            )
-        ');
-
-        // Limpa cache antes de processar
-        DB::table('customer_policies_cache')->truncate();
 
         foreach ($files as $path) {
             if (!file_exists($path)) continue;
@@ -63,7 +44,9 @@ class ImportPoliciesJob implements ShouldQueue
 
             $rows = [];
             while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                // ignora linhas vazias ou separadores
                 if (empty(array_filter($row)) || str_contains($row[0], '---')) continue;
+
                 $rows[] = $row;
 
                 if (count($rows) >= $this->chunkSize) {
@@ -72,6 +55,7 @@ class ImportPoliciesJob implements ShouldQueue
                 }
             }
 
+            // processa último chunk do arquivo
             if (!empty($rows)) {
                 $this->processChunk($rows, $header);
             }
@@ -79,36 +63,25 @@ class ImportPoliciesJob implements ShouldQueue
             fclose($handle);
         }
 
-        // Agrupa por cliente usando SQL e dispara jobs
-        $customers = DB::table('customer_policies_cache')
-            ->select('customer_number', DB::raw('JSON_ARRAYAGG(JSON_OBJECT(
-                "numero_apolice", numero_apolice,
-                "descricao_produto", descricao_produto,
-                "estado_apolice", estado_apolice,
-                "data_inicio", data_inicio,
-                "data_fim", data_fim,
-                "capital", capital,
-                "premium_total", premium_total,
-                "interest", interest
-            )) as policies'))
-            ->groupBy('customer_number')
-            ->get();
+        // dispara um job por cliente com todas as apólices acumuladas
+        foreach ($this->allCustomersData as $customerNumber => $policies) {
+            $customer = Entities::where('customer_number', $customerNumber)->first();
 
-        foreach ($customers as $c) {
-            $customer = Entities::where('customer_number', $c->customer_number)->first();
             if (!$customer) {
-                Log::warning("Cliente não encontrado: {$c->customer_number}");
+                Log::warning("Cliente não encontrado: {$customerNumber}");
                 continue;
             }
 
-            $policies = json_decode($c->policies, true);
             ProcessCustomerPoliciesJob::dispatch($customer->id, $policies);
-            Log::info("📬 Job KYT disparado para cliente {$c->customer_number} com " . count($policies) . " apólices.");
+            Log::info("📬 Job KYT disparado para cliente {$customerNumber} com " . count($policies) . " apólices.");
         }
 
         Log::info("✅ Todos os arquivos CSV processados e jobs KYT disparados");
     }
 
+    /**
+     * Processa chunk de linhas e acumula apólices por cliente
+     */
     private function processChunk(array $rows, array $header): void
     {
         $idxNumeroCliente = array_search('NUMERO_CLIENTE', $header);
@@ -121,15 +94,14 @@ class ImportPoliciesJob implements ShouldQueue
         $idxPremioTotal = array_search('PREMIO_TOTAL', $header);
         $idxJuros = array_search('JUROS', $header);
 
-        $insertData = [];
-
         foreach ($rows as $row) {
             $customerNumber = $row[$idxNumeroCliente] ?? null;
             $numeroApolice  = $row[$idxNumeroApolice] ?? null;
+
             if (!$customerNumber || !$numeroApolice) continue;
 
-            $insertData[] = [
-                'customer_number' => $customerNumber,
+            $data = [
+                'numero_cliente' => $customerNumber,
                 'numero_apolice' => $numeroApolice,
                 'descricao_produto' => strtoupper(trim($row[$idxDescricaoProduto] ?? '')),
                 'estado_apolice' => $this->mapStatus($row[$idxEstado] ?? ''),
@@ -139,11 +111,13 @@ class ImportPoliciesJob implements ShouldQueue
                 'premium_total' => $this->toFloat($row[$idxPremioTotal] ?? 0),
                 'interest' => $this->toFloat($row[$idxJuros] ?? 0),
             ];
-        }
 
-        // Divide insert em pedaços menores para evitar placeholders
-        foreach (array_chunk($insertData, 500) as $chunk) {
-            DB::table('customer_policies_cache')->insertOrIgnore($chunk);
+            // concatena novas apólices se cliente já tiver registros anteriores
+            if (isset($this->allCustomersData[$customerNumber])) {
+                $this->allCustomersData[$customerNumber][] = $data;
+            } else {
+                $this->allCustomersData[$customerNumber] = [$data];
+            }
         }
     }
 
@@ -153,7 +127,7 @@ class ImportPoliciesJob implements ShouldQueue
         return match ($status) {
             'NORMAL', 'ATIVA' => 'active',
             'C/ CARTA', 'CANCELADA' => 'cancelled',
-            'ANULADA', 'TERMINADA', 'INACTIVOS','Anulada','Terminada' => 'terminated',
+            'ANULADA', 'TERMINADA', 'INACTIVOS', 'Anulada', 'Terminada' => 'terminated',
             default => 'unknown',
         };
     }
