@@ -111,7 +111,6 @@ class ImportPoliciesJob implements ShouldQueue
                 'premium_total' => $this->toFloat($row[$idxPremioTotal] ?? 0),
                 'interest' => $this->toFloat($row[$idxJuros] ?? 0),
             ];
-
             // concatena novas apólices se cliente já tiver registros anteriores
             if (isset($this->allCustomersData[$customerNumber])) {
                 $this->allCustomersData[$customerNumber][] = $data;
