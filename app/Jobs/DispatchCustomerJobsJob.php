@@ -37,14 +37,14 @@ class DispatchCustomerJobsJob implements ShouldQueue
 
         foreach ($customers as $customer) {
             $policies = json_decode($customer->policies, true);
-            $entity = Entities::where('numero_cliente', $customer->numero_cliente)->first();
+            $entity = Entities::where('customer_number', $customer->customer_number)->first();
             if (!$entity) {
-                Log::warning("Cliente não encontrado: {$customer->numero_cliente}");
+                Log::warning("Cliente não encontrado: {$customer->customer_number}");
                 continue;
             }
 
             ProcessCustomerPoliciesJob::dispatch($entity->id, $policies);
-            Log::info("📬 Job disparado para cliente {$customer->numero_cliente} com " . count($policies) . " apólices.");
+            Log::info("📬 Job disparado para cliente {$customer->customer_number} com " . count($policies) . " apólices.");
         }
 
         Log::info("✅ Todos os jobs disparados");
