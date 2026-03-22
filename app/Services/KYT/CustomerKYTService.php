@@ -10,6 +10,10 @@ use Carbon\Carbon;
 
 class CustomerKYTService
 {
+
+    public $timeout = 100; // 15 minutos (aumentado)
+    public $tries = 5;     // Tenta 3 vezes antes de desistir
+    public $backoff = 10;  // Espera 10 segundos entre tentativas
     public function runAllChecksMemory(Entities $customer, array $policies): void
     {
         $policies = $this->normalizePolicies($policies);
