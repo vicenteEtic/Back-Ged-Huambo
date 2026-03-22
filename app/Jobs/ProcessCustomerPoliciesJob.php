@@ -15,23 +15,37 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 600; // 10 minutos por cliente
-
     private Entities $customer;
     private array $policies;
 
+    /**
+     * Cria uma instância do job
+     *
+     * @param Entities $customer
+     * @param array $policies
+     */
     public function __construct(Entities $customer, array $policies)
     {
         $this->customer = $customer;
         $this->policies = $policies;
     }
 
-    public function handle(CustomerKYTService $kytService)
+    /**
+     * Executa o job
+     *
+     * @param CustomerKYTService $kyt
+     * @return void
+     */
+    public function handle(CustomerKYTService $kyt): void
     {
         try {
-            $kytService->runAllChecksMemory($this->customer, $this->policies);
+            Log::info("▶️ Processando cliente {$this->customer->customer_number} com " . count($this->policies) . " apólices");
+
+            // Executa todos os checks de KYT
+            $kyt->runAllChecksMemory($this->customer, $this->policies);
+
         } catch (\Exception $e) {
-            Log::error("Erro KYT cliente {$this->customer->customer_number}: " . $e->getMessage());
+            Log::error("❌ Erro KYT {$this->customer->customer_number}: " . $e->getMessage());
         }
     }
 }
