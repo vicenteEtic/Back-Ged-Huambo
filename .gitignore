@@ -25,3 +25,4 @@ storage/**/app/public/logos-cache
 docker-compose.yml
 apolices_vida.csv
 clientes.csv
+Apolices_nvida.csv

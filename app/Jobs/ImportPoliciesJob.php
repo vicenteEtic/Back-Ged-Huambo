@@ -15,8 +15,9 @@ class ImportPoliciesJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 3600; // 1 hora
-    public $tries = 5;
+    public $timeout = 7200; // 2 horas
+    public $tries = 3;      // reduzir para não refazer jobs gigantes
+    private int $chunkSize = 10000; // número de linhas por chunk
 
     public function handle()
     {
@@ -27,37 +28,52 @@ class ImportPoliciesJob implements ShouldQueue
             return;
         }
 
-        $customersData = [];
-
         foreach ($files as $path) {
             if (!file_exists($path)) continue;
-
             if (($handle = fopen($path, 'r')) === false) {
                 Log::error("Erro ao abrir CSV: {$path}");
                 continue;
             }
 
             Log::info("📄 Processando CSV: {$path}");
-
             $header = fgetcsv($handle, 0, ',');
             $header = array_map(fn($h) => strtolower(trim($h)), $header);
 
+            $rows = [];
             while (($row = fgetcsv($handle, 0, ',')) !== false) {
                 if (empty(array_filter($row)) || str_contains($row[0], '---')) continue;
 
-                $data = $this->mapCsvRow($header, $row);
-                if (empty($data['numero_cliente']) || empty($data['numero_apolice'])) continue;
+                $rows[] = $row;
 
-                $customerId = $data['numero_cliente'];
+                if (count($rows) >= $this->chunkSize) {
+                    $this->dispatchChunk($rows, $header);
+                    $rows = [];
+                }
+            }
 
-                // Agrupa todas as apólices por cliente
-                $customersData[$customerId][] = $data;
+            // Processa o último chunk restante
+            if (!empty($rows)) {
+                $this->dispatchChunk($rows, $header);
             }
 
             fclose($handle);
         }
 
-        // Dispara job por cliente com todo histórico
+        Log::info("✅ Todos os arquivos CSV processados e jobs de chunks disparados");
+    }
+
+    private function dispatchChunk(array $rows, array $header)
+    {
+        $customersData = [];
+
+        foreach ($rows as $row) {
+            $data = $this->mapCsvRow($header, $row);
+            if (empty($data['numero_cliente']) || empty($data['numero_apolice'])) continue;
+
+            $customerId = $data['numero_cliente'];
+            $customersData[$customerId][] = $data;
+        }
+
         foreach ($customersData as $customerNumber => $policies) {
             $customer = Entities::where('customer_number', $customerNumber)->first();
             if (!$customer) {
@@ -66,10 +82,8 @@ class ImportPoliciesJob implements ShouldQueue
             }
 
             ProcessCustomerPoliciesJob::dispatch($customer->id, $policies);
-            Log::info("📬 Job disparado para cliente {$customerNumber} com " . count($policies) . " apólices");
+            Log::info("📬 Job disparado para cliente {$customerNumber} com " . count($policies) . " apólices neste chunk");
         }
-
-        Log::info("✅ Todos os clientes processados e jobs disparados");
     }
 
     private function mapCsvRow(array $header, array $row): array
