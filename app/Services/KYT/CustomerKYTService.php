@@ -10,9 +10,6 @@ use Carbon\Carbon;
 
 class CustomerKYTService
 {
-    /**
-     * Executa todas as verificações KYT em memória para um cliente.
-     */
     public function runAllChecksMemory(Entities $customer, array $policies): void
     {
         $policies = $this->normalizePolicies($policies);
@@ -62,18 +59,23 @@ class CustomerKYTService
         return match ($status) {
             'NORMAL', 'ATIVA' => 'active',
             'C/ CARTA', 'CANCELADA' => 'cancelled',
-            'ANULADA', 'TERMINADA' => 'terminated',
+            'ANULADA', 'TERMINADA', 'INACTIVOS' => 'terminated',
             default => 'unknown'
         };
     }
 
     private function parseDate(?string $date): ?string
     {
-        if (!$date || trim($date) === '00:00.0') return null;
+        if (!$date) return null;
+
+        $invalid = ['00:00.0', 'ANULADA', 'TERMINADA', 'INACTIVOS'];
+        if (in_array(strtoupper(trim($date)), $invalid)) {
+            Log::warning("Data inválida ignorada", ['date' => $date]);
+            return null;
+        }
 
         try {
-            // remove milissegundos
-            $dt = preg_replace('/\.\d+$/', '', $date);
+            $dt = preg_replace('/\.\d+$/', '', $date); // remove milissegundos
             return Carbon::parse($dt)->format('Y-m-d H:i:s');
         } catch (\Exception $e) {
             Log::warning("Data inválida ignorada", ['date' => $date, 'error' => $e->getMessage()]);
