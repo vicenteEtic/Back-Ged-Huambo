@@ -3,31 +3,33 @@
 namespace App\Jobs;
 
 use App\Models\Entities\Entities;
+use App\Jobs\ProcessCustomerPoliciesJob;
 use Illuminate\Bus\Queueable;
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use App\Jobs\ProcessCustomerPoliciesJob;
 
 class ImportPoliciesJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, Batchable;
 
-    public $timeout = 7200;
+    public $timeout = 7200; // 2 horas
     public $tries = 3;
-    private int $chunkSize = 10000;
+
+    private int $chunkSize = 10000; // número de linhas por chunk
+    private array $allCustomersData = []; // Armazena todas as apólices agrupadas por cliente
 
     public function handle()
     {
         $files = glob(base_path('Apolices_*.csv'));
+
         if (empty($files)) {
             Log::error("Nenhum CSV encontrado em base_path");
             return;
         }
-
-        $allCustomersData = []; // acumulador global por cliente
 
         foreach ($files as $path) {
             if (!file_exists($path)) continue;
@@ -38,28 +40,30 @@ class ImportPoliciesJob implements ShouldQueue
 
             Log::info("📄 Processando CSV: {$path}");
             $header = fgetcsv($handle, 0, ',');
-            $header = array_map(fn($h) => strtolower(trim($h)), $header);
+            $header = array_map(fn($h) => strtoupper(trim($h)), $header);
 
             $rows = [];
             while (($row = fgetcsv($handle, 0, ',')) !== false) {
                 if (empty(array_filter($row)) || str_contains($row[0], '---')) continue;
+
                 $rows[] = $row;
 
                 if (count($rows) >= $this->chunkSize) {
-                    $this->accumulateChunk($rows, $header, $allCustomersData);
+                    $this->processChunk($rows, $header);
                     $rows = [];
                 }
             }
 
+            // Processa último chunk
             if (!empty($rows)) {
-                $this->accumulateChunk($rows, $header, $allCustomersData);
+                $this->processChunk($rows, $header);
             }
 
             fclose($handle);
         }
 
-        // Agora, para cada cliente, dispara 1 job com todas as apólices
-        foreach ($allCustomersData as $customerNumber => $policies) {
+        // Agora dispara um único job por cliente com **todas as apólices**
+        foreach ($this->allCustomersData as $customerNumber => $policies) {
             $customer = Entities::where('customer_number', $customerNumber)->first();
             if (!$customer) {
                 Log::warning("Cliente não encontrado: {$customerNumber}");
@@ -67,50 +71,50 @@ class ImportPoliciesJob implements ShouldQueue
             }
 
             ProcessCustomerPoliciesJob::dispatch($customer->id, $policies);
-            Log::info("📬 Job final disparado para cliente {$customerNumber} com " . count($policies) . " apólices");
+            Log::info("📬 Job KYT disparado para cliente {$customerNumber} com " . count($policies) . " apólices.");
         }
 
-        Log::info("✅ Todos os arquivos CSV processados e jobs finais disparados");
+        Log::info("✅ Todos os arquivos CSV processados e jobs KYT disparados");
     }
 
     /**
-     * Acumula todas as apólices de cada cliente em $allCustomersData
+     * Processa chunk de linhas, agrupando por cliente
      */
-    private function accumulateChunk(array $rows, array $header, array &$allCustomersData)
+    private function processChunk(array $rows, array $header): void
     {
+        $idxNumeroCliente = array_search('NUMERO_CLIENTE', $header);
+        $idxNumeroApolice = array_search('NUMERO_APOLICE', $header);
+        $idxDescricaoProduto = array_search('DESCRICAO_PRODUTO', $header);
+        $idxEstado = array_search('ESTADO_APOLICE', $header);
+        $idxDataInicio = array_search('DATA_INICIO', $header);
+        $idxDataFim = array_search('DATA_FIM', $header);
+        $idxCapital = array_search('CAPITAL', $header);
+        $idxPremioTotal = array_search('PREMIO_TOTAL', $header);
+        $idxJuros = array_search('JUROS', $header);
+
         foreach ($rows as $row) {
-            $data = $this->mapCsvRow($header, $row);
-            if (empty($data['numero_cliente']) || empty($data['numero_apolice'])) continue;
+            $customerNumber = $row[$idxNumeroCliente] ?? null;
+            $numeroApolice  = $row[$idxNumeroApolice] ?? null;
 
-            $customerId = $data['numero_cliente'];
-            $allCustomersData[$customerId][] = $data;
+            if (!$customerNumber || !$numeroApolice) continue;
+
+            $data = [
+                'numero_cliente' => $customerNumber,
+                'numero_apolice' => $numeroApolice,
+                'descricao_produto' => strtoupper(trim($row[$idxDescricaoProduto] ?? '')),
+                'estado_apolice' => $this->mapStatus($row[$idxEstado] ?? ''),
+                'data_inicio' => $this->parseDate($row[$idxDataInicio] ?? null),
+                'data_fim' => $this->parseDate($row[$idxDataFim] ?? null),
+                'capital' => $this->toFloat($row[$idxCapital] ?? 0),
+                'premium_total' => $this->toFloat($row[$idxPremioTotal] ?? 0),
+                'interest' => $this->toFloat($row[$idxJuros] ?? 0),
+            ];
+
+            $this->allCustomersData[$customerNumber][] = $data;
         }
     }
 
-    private function mapCsvRow(array $header, array $row): array
-    {
-        $data = [];
-        foreach ($header as $i => $column) {
-            $value = $row[$i] ?? null;
-            if ($value === 'NULL') $value = null;
-
-            $column = strtolower($column);
-            switch ($column) {
-                case 'numero_apolice': $data['numero_apolice'] = $value; break;
-                case 'numero_cliente': $data['numero_cliente'] = $value; break;
-                case 'descricao_produto': $data['descricao_produto'] = strtoupper(trim($value)); break;
-                case 'estado_apolice': $data['estado_apolice'] = $this->mapStatus($value); break;
-                case 'data_inicio': $data['data_inicio'] = $this->parseDate($value); break;
-                case 'data_fim': $data['data_fim'] = $this->parseDate($value); break;
-                case 'capital': $data['capital'] = $this->toFloat($value); break;
-                case 'premio_total': $data['premium_total'] = $this->toFloat($value); break;
-                case 'juros': $data['interest'] = $this->toFloat($value); break;
-            }
-        }
-        return $data;
-    }
-
-    private function mapStatus($value): string
+    private function mapStatus(?string $value): string
     {
         $status = strtoupper(trim($value ?? ''));
         return match ($status) {
@@ -124,7 +128,8 @@ class ImportPoliciesJob implements ShouldQueue
     private function parseDate(?string $date): ?string
     {
         if (!$date) return null;
-        return substr(trim($date), 0, 19);
+        $date = substr(trim($date), 0, 19);
+        return $date ?: null;
     }
 
     private function toFloat($value): float
