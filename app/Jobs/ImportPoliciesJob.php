@@ -3,101 +3,182 @@
 namespace App\Jobs;
 
 use App\Models\Entities\Entities;
+use App\Services\KYT\CustomerKYTService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+
+class ProcessCustomerPoliciesJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public $timeout = 600; // 10 minutos por cliente
+
+    private Entities $customer;
+    private array $policies;
+
+    public function __construct(Entities $customer, array $policies)
+    {
+        $this->customer = $customer;
+        $this->policies = $policies;
+    }
+
+    public function handle(CustomerKYTService $kytService)
+    {
+        try {
+            $kytService->runAllChecksMemory($this->customer, $this->policies);
+        } catch (\Exception $e) {
+            Log::error("Erro KYT cliente {$this->customer->customer_number}: " . $e->getMessage());
+        }
+    }
+root@aml-nossa-seguros:/opt/keepcomply-nossa-seguros/app/Jobs# 
+root@aml-nossa-seguros:/opt/keepcomply-nossa-seguros/app/Jobs# cat ImportPoliciesJob.php
+<?php
+
+namespace App\Jobs;
+
+use App\Models\Entities\Entities;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
-use App\Jobs\ProcessCustomerPoliciesJob;
 
 class ImportPoliciesJob implements ShouldQueue
 {
-    use Dispatchable, Queueable, SerializesModels, Batchable;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels,Batchable;
 
-    public function handle(): void
+    public $timeout = 3600; // 1 hora
+    public $tries = 5;
+
+    public function handle()
     {
-        $files = glob(base_path('Apolices_*.csv'));
+        // Lista de CSVs (pode usar base_path e nomes fixos ou glob)
+        $files = glob(base_path('apolices_*.csv')); // pega todos os arquivos que começam com "apolices_"
+
+        if (empty($files)) {
+            Log::error("Nenhum CSV encontrado em base_path");
+            return;
+        }
 
         foreach ($files as $path) {
-
-            Log::info("📄 Processando CSV: {$path}");
-
-            if (($handle = fopen($path, 'r')) === false) {
-                Log::error("Não foi possível abrir: {$path}");
+            if (!file_exists($path)) {
+                Log::error("CSV não encontrado: {$path}");
                 continue;
             }
 
-            $header = fgetcsv($handle);
-            $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', $header[0]); // remove BOM
+            if (($handle = fopen($path, 'r')) === false) {
+                Log::error("Erro ao abrir CSV: {$path}");
+                continue;
+            }
+
+            Log::info("📄 Processando CSV: {$path}");
+
+            $header = fgetcsv($handle, 0, ',');
             $header = array_map(fn($h) => strtolower(trim($h)), $header);
 
-            $customers = [];
+            $currentCustomerNumber = null;
+            $policiesBuffer = [];
 
-            while (($row = fgetcsv($handle)) !== false) {
-                if (empty(array_filter($row))) continue;
-                if (str_contains($row[0], '---')) continue;
+            while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                if (empty(array_filter($row)) || str_contains($row[0], '---')) continue;
 
-                $data = $this->mapRow($header, $row);
-                if (empty($data['numero_cliente'])) continue;
+                $data = $this->mapCsvRow($header, $row);
+                if (empty($data['numero_cliente']) || empty($data['numero_apolice'])) continue;
 
-                $customers[$data['numero_cliente']][] = $data;
+                if ($currentCustomerNumber && $currentCustomerNumber !== $data['numero_cliente']) {
+                    $this->dispatchCustomerJob($currentCustomerNumber, $policiesBuffer);
+                    $policiesBuffer = [];
+                }
+
+                $currentCustomerNumber = $data['numero_cliente'];
+                $policiesBuffer[] = $data;
+            }
+
+            if ($currentCustomerNumber && !empty($policiesBuffer)) {
+                $this->dispatchCustomerJob($currentCustomerNumber, $policiesBuffer);
             }
 
             fclose($handle);
+        }
 
-            // 🔹 Cria batch com jobs de cada cliente
-            $jobs = [];
-            foreach ($customers as $customerNumber => $policies) {
-                $customer = Entities::where('customer_number', $customerNumber)->first();
-                if (!$customer) {
-                    Log::warning("Cliente não encontrado: {$customerNumber}");
-                    continue;
-                }
+        Log::info("✅ Todos os CSVs processados e jobs individuais disparados");
+    }
 
-                $jobs[] = new ProcessCustomerPoliciesJob($customer, $policies);
-            }
+    private function dispatchCustomerJob(string $customerNumber, array $policies)
+    {
 
-            if (!empty($jobs)) {
-                Bus::batch($jobs)
-                    ->name("Importação de clientes do arquivo " . basename($path))
-                    ->onQueue('high')
-                    ->dispatch();
-            }
+
+
+        $customer = Entities::where('customer_number', $customerNumber)->first();
+        if ($customer) {
+            ProcessCustomerPoliciesJob::dispatch($customer, $policies)->onQueue('high');
         }
     }
 
-    private function mapRow(array $header, array $row): array
+    private function mapCsvRow(array $header, array $row): array
     {
         $data = [];
+
         foreach ($header as $i => $column) {
-            $value = trim($row[$i] ?? null);
-            if ($value === 'NULL' || $value === '') $value = null;
+            $value = $row[$i] ?? null;
+            if ($value === 'NULL') $value = null;
 
             switch ($column) {
-                case 'numero_apolice':   $data['numero_apolice'] = $value; break;
-                case 'numero_cliente':   $data['numero_cliente'] = $value; break;
-                case 'descricao_produto': $data['descricao_produto'] = strtoupper($value); break;
-                case 'estado_apolice':  $data['estado_apolice'] = strtoupper($value); break;
-                case 'data_inicio':     $data['data_inicio'] = $this->cleanDate($value); break;
-                case 'data_fim':        $data['data_fim'] = $this->cleanDate($value); break;
-                case 'capital':         $data['capital'] = $this->toFloat($value); break;
-                case 'premio_total':    $data['premium_total'] = $this->toFloat($value); break;
-                case 'juros':           $data['interest'] = $this->toFloat($value); break;
+                case 'numero_apolice':
+                    $data['numero_apolice'] = $value;
+                    break;
+                case 'numero_cliente':
+                    $data['numero_cliente'] = $value;
+                    break;
+                case 'descricao_produto':
+                    $data['descricao_produto'] = strtoupper(trim($value));
+                    break;
+                case 'estado_apolice':
+                    $data['estado_apolice'] = $this->mapStatus($value);
+                    break;
+                case 'data_inicio':
+                    $data['data_inicio'] = $this->parseDate($value);
+                    break;
+                case 'data_fim':
+                    $data['data_fim'] = $this->parseDate($value);
+                    break;
+                case 'capital':
+                    $data['capital'] = (float)$value;
+                    break;
+                case 'premio_total':
+                    $data['premium_total'] = (float)$value;
+                    break;
+                case 'encargos':
+                    $data['encargos'] = (float)$value;
+                    break;
+                case 'juros':
+                    $data['interest'] = (float)$value;
+                    break;
             }
         }
+
         return $data;
     }
 
-    private function toFloat($value): float
+    private function mapStatus($value): string
     {
-        return is_numeric($value) ? (float)$value : 0;
+        $status = strtoupper(trim($value));
+        return match ($status) {
+            'NORMAL' => 'active',
+            'C/ CARTA' => 'cancelled',
+            'ANULADA' => 'terminated',
+            default => 'unknown'
+        };
     }
-
-    private function cleanDate(?string $value): ?string
+    private function parseDate($date)
     {
-        if (!$value) return null;
-        return substr($value, 0, 19); // remove milissegundos
+        return $date ? substr($date, 0, 10) : null;
     }
+}
 }
