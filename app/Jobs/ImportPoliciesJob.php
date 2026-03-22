@@ -3,18 +3,20 @@
 namespace App\Jobs;
 
 use App\Models\Entities\Entities;
-use App\Jobs\ProcessCustomerPoliciesJob;
+use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
+use App\Jobs\ProcessCustomerPoliciesJob;
 
 class ImportPoliciesJob implements ShouldQueue
 {
-    use Dispatchable, Queueable, SerializesModels;
+    use Dispatchable, Queueable, SerializesModels, Batchable;
 
-    public function handle()
+    public function handle(): void
     {
         $files = glob(base_path('Apolices_*.csv'));
 
@@ -38,7 +40,6 @@ class ImportPoliciesJob implements ShouldQueue
                 if (str_contains($row[0], '---')) continue;
 
                 $data = $this->mapRow($header, $row);
-
                 if (empty($data['numero_cliente'])) continue;
 
                 $customers[$data['numero_cliente']][] = $data;
@@ -46,7 +47,8 @@ class ImportPoliciesJob implements ShouldQueue
 
             fclose($handle);
 
-            // 🔥 Dispatch por cliente
+            // 🔹 Cria batch com jobs de cada cliente
+            $jobs = [];
             foreach ($customers as $customerNumber => $policies) {
                 $customer = Entities::where('customer_number', $customerNumber)->first();
                 if (!$customer) {
@@ -54,8 +56,14 @@ class ImportPoliciesJob implements ShouldQueue
                     continue;
                 }
 
-                ProcessCustomerPoliciesJob::dispatch($customer, $policies)
-                    ->onQueue('high');
+                $jobs[] = new ProcessCustomerPoliciesJob($customer, $policies);
+            }
+
+            if (!empty($jobs)) {
+                Bus::batch($jobs)
+                    ->name("Importação de clientes do arquivo " . basename($path))
+                    ->onQueue('high')
+                    ->dispatch();
             }
         }
     }
@@ -63,7 +71,6 @@ class ImportPoliciesJob implements ShouldQueue
     private function mapRow(array $header, array $row): array
     {
         $data = [];
-
         foreach ($header as $i => $column) {
             $value = trim($row[$i] ?? null);
             if ($value === 'NULL' || $value === '') $value = null;
@@ -80,7 +87,6 @@ class ImportPoliciesJob implements ShouldQueue
                 case 'juros':           $data['interest'] = $this->toFloat($value); break;
             }
         }
-
         return $data;
     }
 
