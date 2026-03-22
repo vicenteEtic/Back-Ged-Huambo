@@ -56,7 +56,8 @@ class DispatchCustomerJobsJob implements ShouldQueue
                     })->toArray();
 
                     // Dispara o job de processamento KYT
-                    ProcessCustomerPoliciesJob::dispatch($entity->id, $policiesArray);
+                    ProcessCustomerPoliciesJob::dispatch($entity->id, $policies)
+                    ->onQueue('high');
 
                     Log::info("📬 Job disparado para cliente {$numero_cliente} com " . count($policiesArray) . " apólices.");
                 }
