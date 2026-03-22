@@ -17,15 +17,14 @@ class DispatchCustomerJobsJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $timeout = 10800; // 3h
-    public $tries = 3;       // Tenta 3 vezes antes de falhar
+    public $tries = 10;
 
     public function handle()
     {
         Log::info("🚀 Iniciando dispatch de jobs por cliente...");
 
-        // Processa a tabela em chunks para evitar estouro de memória
+        // Processa em chunks de 500 registros para não estourar memória
         DB::table('policies_staging')
-            ->select('*')
             ->orderBy('numero_cliente')
             ->chunk(500, function ($rows) {
 
@@ -34,7 +33,7 @@ class DispatchCustomerJobsJob implements ShouldQueue
 
                 foreach ($grouped as $numero_cliente => $policies) {
 
-                    // Busca o cliente correto na tabela entities
+                    // Busca o cliente na tabela entities usando customer_number
                     $entity = Entities::where('customer_number', $numero_cliente)->first();
 
                     if (!$entity) {
@@ -42,7 +41,7 @@ class DispatchCustomerJobsJob implements ShouldQueue
                         continue;
                     }
 
-                    // Converte o chunk para array simples antes de enviar para o job
+                    // Prepara array de apólices
                     $policiesArray = $policies->map(function ($row) {
                         return [
                             'numero_apolice'    => $row->numero_apolice,
@@ -56,11 +55,15 @@ class DispatchCustomerJobsJob implements ShouldQueue
                         ];
                     })->toArray();
 
-                    // Dispara o job de processamento das apólices
+                    // Dispara o job de processamento KYT
                     ProcessCustomerPoliciesJob::dispatch($entity->id, $policiesArray);
 
                     Log::info("📬 Job disparado para cliente {$numero_cliente} com " . count($policiesArray) . " apólices.");
                 }
+
+                // Força limpeza de memória
+                unset($rows, $grouped, $policiesArray);
+                gc_collect_cycles();
             });
 
         Log::info("✅ Todos os jobs disparados com sucesso.");
