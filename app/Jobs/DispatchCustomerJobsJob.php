@@ -16,24 +16,25 @@ class DispatchCustomerJobsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 10800; // 3h
+    public $timeout = 10800;
     public $tries = 10;
 
     public function handle()
     {
         Log::info("🚀 Iniciando dispatch de jobs por cliente...");
 
-        // Processa em chunks de 500 registros para não estourar memória
+        // Buscar clientes únicos
         DB::table('policies_staging')
+            ->select('numero_cliente')
+            ->distinct()
             ->orderBy('numero_cliente')
-            ->chunk(500, function ($rows) {
+            ->chunk(500, function ($clientes) {
 
-                // Agrupa as apólices por cliente
-                $grouped = $rows->groupBy('numero_cliente');
+                foreach ($clientes as $clienteRow) {
 
-                foreach ($grouped as $numero_cliente => $policies) {
+                    $numero_cliente = $clienteRow->numero_cliente;
 
-                    // Busca o cliente na tabela entities usando customer_number
+                    // Buscar entidade
                     $entity = Entities::where('customer_number', $numero_cliente)->first();
 
                     if (!$entity) {
@@ -41,7 +42,16 @@ class DispatchCustomerJobsJob implements ShouldQueue
                         continue;
                     }
 
-                    // Prepara array de apólices
+                    // 🔥 Buscar TODAS as apólices do cliente
+                    $policies = DB::table('policies_staging')
+                        ->where('numero_cliente', $numero_cliente)
+                        ->get();
+
+                    if ($policies->isEmpty()) {
+                        continue;
+                    }
+
+                    // Mapear
                     $policiesArray = $policies->map(function ($row) {
                         return [
                             'numero_apolice'    => $row->numero_apolice,
@@ -55,15 +65,13 @@ class DispatchCustomerJobsJob implements ShouldQueue
                         ];
                     })->toArray();
 
-                    // Dispara o job de processamento KYT
+                    // 🚀 1 JOB POR CLIENTE (CORRETO)
                     ProcessCustomerPoliciesJob::dispatch($entity->id, $policiesArray)
-                    ->onQueue('high');
+                        ->onQueue('high');
 
                     Log::info("📬 Job disparado para cliente {$numero_cliente} com " . count($policiesArray) . " apólices.");
                 }
 
-                // Força limpeza de memória
-                unset($rows, $grouped, $policiesArray);
                 gc_collect_cycles();
             });
 
