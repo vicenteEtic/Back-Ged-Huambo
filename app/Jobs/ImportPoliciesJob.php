@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Entities\Entities;
+use App\Jobs\ProcessCustomerPoliciesJob;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -17,74 +18,72 @@ class ImportPoliciesJob implements ShouldQueue
 
     public $timeout = 10800; // 3h
     public $tries = 3;
-    private int $chunkSize = 100;
+    private int $chunkSize = 100; // tamanho de inserção no banco
+    private int $jobChunkSize = 500; // tamanho de apólices por job de processamento
 
     public function handle()
     {
         try {
-            $filePath = base_path('Apolices_NVida.csv');
-            if (!file_exists($filePath)) {
-                Log::error("CSV não encontrado: {$filePath}");
+            // Busca todos os arquivos Apolices_*.csv
+            $files = glob(base_path('Apolices_*.csv'));
+            if (!$files) {
+                Log::warning("Nenhum arquivo Apolices_*.csv encontrado");
                 return;
             }
 
-            $handle = fopen($filePath, 'r');
-            if (!$handle) {
-                Log::error("Erro ao abrir CSV");
-                return;
-            }
+            foreach ($files as $filePath) {
+                if (!file_exists($filePath)) continue;
 
-            Log::info("📄 Importando CSV para staging...");
-
-            // Encontrar header válido
-            $header = null;
-            while (($line = fgetcsv($handle, 0, ',')) !== false) {
-                $line = array_map('trim', $line);
-                if (empty(array_filter($line))) continue;
-                if (str_contains(implode(',', $line), '---')) continue;
-                $header = array_map(fn($h) => strtoupper($h), $line);
-                break;
-            }
-
-            if (!$header) {
-                Log::error("Header CSV inválido");
-                fclose($handle);
-                return;
-            }
-
-            $rows = [];
-            $inserted = 0;
-
-            while (($row = fgetcsv($handle, 0, ',')) !== false) {
-                $row = array_map('trim', $row);
-                if (empty(array_filter($row))) continue;
-                if (str_contains(implode(',', $row), '---')) continue;
-                if (count($row) !== count($header)) {
-                    Log::warning("Linha ignorada: número de colunas diferente do header");
+                Log::info("📄 Iniciando importação do arquivo: {$filePath}");
+                $handle = fopen($filePath, 'r');
+                if (!$handle) {
+                    Log::error("Erro ao abrir CSV: {$filePath}");
                     continue;
                 }
 
-                $mappedRow = $this->mapRow($row, $header);
-                if (!$mappedRow['numero_cliente'] || !$mappedRow['numero_apolice']) continue;
+                $header = null;
+                $rows = [];
+                $inserted = 0;
 
-                $rows[] = $mappedRow;
+                while (($line = fgetcsv($handle, 0, ',')) !== false) {
+                    $line = array_map('trim', $line);
+                    if (empty(array_filter($line))) continue;
+                    if (str_contains(implode(',', $line), '---')) continue;
 
-                if (count($rows) >= $this->chunkSize) {
+                    // Define header
+                    if (!$header) {
+                        $header = array_map(fn($h) => strtoupper($h), $line);
+                        continue;
+                    }
+
+                    $row = $this->mapRow($line, $header);
+                    if (!$row['numero_cliente'] || !$row['numero_apolice']) continue;
+
+                    $rows[] = $row;
+
+                    // Inserção em batch no staging
+                    if (count($rows) >= $this->chunkSize) {
+                        DB::table('policies_staging')->insert($rows);
+                        $inserted += count($rows);
+                        Log::info("📦 Inseridos {$inserted} registros do arquivo {$filePath}");
+                        $rows = [];
+                        gc_collect_cycles();
+                    }
+                }
+
+                // Último batch
+                if (!empty($rows)) {
                     DB::table('policies_staging')->insert($rows);
                     $inserted += count($rows);
                     $rows = [];
-                    Log::info("📦 Inseridos {$inserted} registros...");
-                    gc_collect_cycles();
                 }
-            }
 
-            if (!empty($rows)) {
-                DB::table('policies_staging')->insert($rows);
-                $inserted += count($rows);
-            }
+                fclose($handle);
+                Log::info("✅ Finalizado arquivo: {$filePath}, total inserido: {$inserted}");
 
-            fclose($handle);
-            Log::info("✅ Importação finalizada: {$inserted} registros inseridos");
+                // Dispara jobs por cliente após inserir o arquivo
+                $this->dispatchJobsByCustomer();
+            }
 
         } catch (\Throwable $e) {
             Log::error("❌ Erro na importação: " . $e->getMessage());
@@ -92,9 +91,59 @@ class ImportPoliciesJob implements ShouldQueue
         }
     }
 
+    private function dispatchJobsByCustomer()
+    {
+        Log::info("🚀 Disparando jobs por cliente...");
+
+        DB::table('policies_staging')
+            ->orderBy('numero_cliente')
+            ->chunk(500, function ($rows) {
+
+                // Agrupa por cliente
+                $grouped = $rows->groupBy('numero_cliente');
+
+                foreach ($grouped as $numero_cliente => $policies) {
+
+                    // Busca entidade
+                    $entity = Entities::where('customer_number', $numero_cliente)->first();
+                    if (!$entity) {
+                        Log::warning("Cliente não encontrado: {$numero_cliente}");
+                        continue;
+                    }
+
+                    // Converte Collection para array simples
+                    $policiesArray = $policies->map(function ($row) {
+                        return [
+                            'numero_apolice'    => $row->numero_apolice,
+                            'descricao_produto' => $row->descricao_produto,
+                            'estado_apolice'    => $row->estado_apolice,
+                            'data_inicio'       => $row->data_inicio,
+                            'data_fim'          => $row->data_fim,
+                            'capital'           => $row->capital,
+                            'premium_total'     => $row->premium_total,
+                            'interest'          => $row->interest,
+                        ];
+                    })->toArray();
+
+                    // Quebra em chunks menores por job, evita sobrecarregar memória
+                    foreach (array_chunk($policiesArray, $this->jobChunkSize) as $chunk) {
+                        ProcessCustomerPoliciesJob::dispatch($entity->id, $chunk)
+                            ->onQueue('high');
+                    }
+
+                    Log::info("📬 Jobs disparados para cliente {$numero_cliente} com " . count($policiesArray) . " apólices.");
+                }
+
+                unset($rows, $grouped, $policiesArray);
+                gc_collect_cycles();
+            });
+
+        Log::info("✅ Todos os jobs disparados com sucesso.");
+    }
+
     private function mapRow(array $row, array $header): array
     {
-        $map = [
+        return [
             'numero_cliente'    => $row[array_search('NUMERO_CLIENTE', $header)] ?? null,
             'numero_apolice'    => $row[array_search('NUMERO_APOLICE', $header)] ?? null,
             'descricao_produto' => $row[array_search('DESCRICAO_PRODUTO', $header)] ?? null,
@@ -107,7 +156,6 @@ class ImportPoliciesJob implements ShouldQueue
             'created_at'        => now(),
             'updated_at'        => now(),
         ];
-        return $map;
     }
 
     private function mapStatus(?string $value): string
