@@ -2,8 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Models\Entities\Entities;
-use App\Jobs\ProcessCustomerPoliciesJob;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -11,6 +9,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class ImportPoliciesJob implements ShouldQueue
 {
@@ -18,14 +17,13 @@ class ImportPoliciesJob implements ShouldQueue
 
     public $timeout = 10800; // 3h
     public $tries = 3;
-    private int $chunkSize = 100; // tamanho de inserção no banco
-    private int $jobChunkSize = 500; // tamanho de apólices por job de processamento
+    private int $chunkSize = 100; // Inserção por batch
 
     public function handle()
     {
         try {
-            // Busca todos os arquivos Apolices_*.csv
             $files = glob(base_path('Apolices_*.csv'));
+
             if (!$files) {
                 Log::warning("Nenhum arquivo Apolices_*.csv encontrado");
                 return;
@@ -35,6 +33,7 @@ class ImportPoliciesJob implements ShouldQueue
                 if (!file_exists($filePath)) continue;
 
                 Log::info("📄 Iniciando importação do arquivo: {$filePath}");
+
                 $handle = fopen($filePath, 'r');
                 if (!$handle) {
                     Log::error("Erro ao abrir CSV: {$filePath}");
@@ -44,28 +43,45 @@ class ImportPoliciesJob implements ShouldQueue
                 $header = null;
                 $rows = [];
                 $inserted = 0;
+                $skippedEmpty = 0;
+                $skippedNoCliente = 0;
+                $skippedNoApolice = 0;
 
                 while (($line = fgetcsv($handle, 0, ',')) !== false) {
                     $line = array_map('trim', $line);
-                    if (empty(array_filter($line))) continue;
+
+                    // Linha totalmente vazia
+                    if (empty(array_filter($line))) {
+                        $skippedEmpty++;
+                        continue;
+                    }
+
+                    // Ignorar linhas com "---"
                     if (str_contains(implode(',', $line), '---')) continue;
 
-                    // Define header
+                    // Cabeçalho
                     if (!$header) {
-                        $header = array_map(fn($h) => strtoupper($h), $line);
+                        $header = array_map(fn($h) => strtoupper(trim($h)), $line);
                         continue;
                     }
 
                     $row = $this->mapRow($line, $header);
-                    if (!$row['numero_cliente'] || !$row['numero_apolice']) continue;
+
+                    // Checagens de integridade
+                    if (!$row['numero_cliente']) {
+                        $skippedNoCliente++;
+                        continue;
+                    }
+                    if (!$row['numero_apolice']) {
+                        $skippedNoApolice++;
+                        continue;
+                    }
 
                     $rows[] = $row;
 
-                    // Inserção em batch no staging
                     if (count($rows) >= $this->chunkSize) {
                         DB::table('policies_staging')->insert($rows);
                         $inserted += count($rows);
-                        Log::info("📦 Inseridos {$inserted} registros do arquivo {$filePath}");
                         $rows = [];
                         gc_collect_cycles();
                     }
@@ -79,66 +95,18 @@ class ImportPoliciesJob implements ShouldQueue
                 }
 
                 fclose($handle);
-                Log::info("✅ Finalizado arquivo: {$filePath}, total inserido: {$inserted}");
 
-                // Dispara jobs por cliente após inserir o arquivo
-                $this->dispatchJobsByCustomer();
+                Log::info("✅ Arquivo finalizado: {$filePath}");
+                Log::info("   Total inserido: {$inserted}");
+                Log::info("   Pulados (vazios): {$skippedEmpty}");
+                Log::info("   Pulados (sem numero_cliente): {$skippedNoCliente}");
+                Log::info("   Pulados (sem numero_apolice): {$skippedNoApolice}");
             }
 
         } catch (\Throwable $e) {
             Log::error("❌ Erro na importação: " . $e->getMessage());
             $this->fail($e);
         }
-    }
-
-    private function dispatchJobsByCustomer()
-    {
-        Log::info("🚀 Disparando jobs por cliente...");
-
-        DB::table('policies_staging')
-            ->orderBy('numero_cliente')
-            ->chunk(500, function ($rows) {
-
-                // Agrupa por cliente
-                $grouped = $rows->groupBy('numero_cliente');
-
-                foreach ($grouped as $numero_cliente => $policies) {
-
-                    // Busca entidade
-                    $entity = Entities::where('customer_number', $numero_cliente)->first();
-                    if (!$entity) {
-                        Log::warning("Cliente não encontrado: {$numero_cliente}");
-                        continue;
-                    }
-
-                    // Converte Collection para array simples
-                    $policiesArray = $policies->map(function ($row) {
-                        return [
-                            'numero_apolice'    => $row->numero_apolice,
-                            'descricao_produto' => $row->descricao_produto,
-                            'estado_apolice'    => $row->estado_apolice,
-                            'data_inicio'       => $row->data_inicio,
-                            'data_fim'          => $row->data_fim,
-                            'capital'           => $row->capital,
-                            'premium_total'     => $row->premium_total,
-                            'interest'          => $row->interest,
-                        ];
-                    })->toArray();
-
-                    // Quebra em chunks menores por job, evita sobrecarregar memória
-                    foreach (array_chunk($policiesArray, $this->jobChunkSize) as $chunk) {
-                        ProcessCustomerPoliciesJob::dispatch($entity->id, $chunk)
-                            ->onQueue('high');
-                    }
-
-                    Log::info("📬 Jobs disparados para cliente {$numero_cliente} com " . count($policiesArray) . " apólices.");
-                }
-
-                unset($rows, $grouped, $policiesArray);
-                gc_collect_cycles();
-            });
-
-        Log::info("✅ Todos os jobs disparados com sucesso.");
     }
 
     private function mapRow(array $row, array $header): array
@@ -176,7 +144,7 @@ class ImportPoliciesJob implements ShouldQueue
 
         try {
             $date = preg_replace('/\.\d+$/', '', $date);
-            return \Carbon\Carbon::parse($date)->format('Y-m-d H:i:s');
+            return Carbon::parse($date)->format('Y-m-d H:i:s');
         } catch (\Exception $e) {
             return null;
         }
