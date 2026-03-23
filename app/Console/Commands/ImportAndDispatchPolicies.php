@@ -17,7 +17,7 @@ class ImportAndDispatchPolicies extends Command
         $this->info('🚀 Iniciando importação de apólices...');
 
         // 1️⃣ Dispara job de importação do CSV
-        ImportPoliciesJob::dispatch()->delay(now());
+       // ImportPoliciesJob::dispatch()->delay(now());
    
 
         $this->info('📄 Job de importação disparado. Aguarde a conclusão...');
