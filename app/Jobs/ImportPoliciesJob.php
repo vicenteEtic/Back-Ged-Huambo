@@ -22,7 +22,7 @@ class ImportPoliciesJob implements ShouldQueue
     public function handle()
     {
         try {
-            $filePath = base_path('Apolices_Vida.csv');
+            $filePath = base_path('Apolices_NVida.csv');
             if (!file_exists($filePath)) {
                 Log::error("CSV não encontrado: {$filePath}");
                 return;
