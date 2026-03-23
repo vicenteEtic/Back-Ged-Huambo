@@ -22,7 +22,16 @@ class ImportPoliciesJob implements ShouldQueue
     public function handle()
     {
         try {
-            $files = glob(base_path('Apolices_*.csv'));
+            $files = collect(scandir(base_path()))
+            ->filter(function ($file) {
+                $fileLower = strtolower($file);
+        
+                return str_starts_with($fileLower, 'apolices_')
+                    && str_ends_with($fileLower, '.csv');
+            })
+            ->map(fn($file) => base_path($file))
+            ->values()
+            ->toArray();
 
             if (!$files) {
                 Log::warning("Nenhum arquivo Apolices_*.csv encontrado");
@@ -80,7 +89,7 @@ class ImportPoliciesJob implements ShouldQueue
                     $rows[] = $row;
 
                     if (count($rows) >= $this->chunkSize) {
-                        DB::table('policies_staging')->insert($rows);
+                        DB::table('policies_staging')->upsert($rows,$rows);
                         $inserted += count($rows);
                         $rows = [];
                         gc_collect_cycles();
@@ -89,7 +98,7 @@ class ImportPoliciesJob implements ShouldQueue
 
                 // Último batch
                 if (!empty($rows)) {
-                    DB::table('policies_staging')->insert($rows);
+                    DB::table('policies_staging')->upsert($rows,$rows);
                     $inserted += count($rows);
                     $rows = [];
                 }
