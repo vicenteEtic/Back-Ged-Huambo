@@ -179,7 +179,7 @@ class AlertRepository extends AbstractRepository
         return [
             'total' => $this->model->count(),
             'transation' => [
-
+                
                 "particularEntity" => $this->particularEntityTransation(),
                 "coletiveEntit" => $this->coletiveEntitytTrsantion(),
                 'by_type' => $this->countByField('type', [

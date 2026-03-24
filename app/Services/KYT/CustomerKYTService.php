@@ -14,8 +14,12 @@ class CustomerKYTService
     public $tries = 5;
     public $backoff = 10;
 
+    /**
+     * Executa todas as regras KYT para um cliente
+     */
     public function runAllChecksMemory(Entities $customer, array $policies): void
     {
+        // Normaliza e remove duplicadas
         $policies = $this->normalizePolicies($policies);
         $policies = $this->uniquePolicies($policies);
 
@@ -27,13 +31,27 @@ class CustomerKYTService
         if (empty($policies)) return;
 
         $alerts = [];
-        $alerts = array_merge($alerts, $this->checkHighCapitalIncrease($customer, $policies));
-        $alerts = array_merge($alerts, $this->checkEarlyRedemption($customer, $policies));
-        $alerts = array_merge($alerts, $this->checkHighPremium($customer, $policies));
-        $alerts = array_merge($alerts, $this->checkMultipleShortPolicies($customer, $policies));
-        $alerts = array_merge($alerts, $this->checkPolicyChurning($customer, $policies));
-        $alerts = array_merge($alerts, $this->checkRapidReplacement($customer, $policies));
 
+        // Filtra apólices relevantes para cada regra
+        $highCapital   = array_filter($policies, fn($p) => $p['capital'] > 1_000_000 && $p['data_inicio']);
+        $terminated    = array_filter($policies, fn($p) => in_array($p['estado_apolice'], ['terminated','cancelled']));
+        $shortPolicies = array_filter($policies, function($p) {
+            $days = $this->safeDays($p['data_inicio'], $this->getEffectiveEndDate($p));
+            return $days !== null && $days >= 90 && $days <= 180 && $p['capital'] >= 1_000_000;
+        });
+
+        // Avaliação das regras
+        $alerts = array_merge(
+            $alerts,
+            $this->checkHighCapitalIncrease($customer, $highCapital),
+            $this->checkEarlyRedemption($customer, $terminated),
+            $this->checkHighPremium($customer, $policies),
+            $this->checkMultipleShortPolicies($customer, $shortPolicies),
+            $this->checkPolicyChurning($customer, $terminated),
+            $this->checkRapidReplacement($customer, $terminated)
+        );
+
+        // Criação de alertas
         foreach ($alerts as $alertData) {
             $this->createAlert(
                 $customer,
@@ -53,19 +71,17 @@ class CustomerKYTService
 
     private function normalizePolicies(array $policies): array
     {
-        return array_map(function ($p) {
-            return [
-                'numero_apolice'    => $p['numero_apolice'] ?? null,
-                'numero_cliente'    => $p['numero_cliente'] ?? null,
-                'descricao_produto' => strtoupper(trim($p['descricao_produto'] ?? '')),
-                'estado_apolice'    => $this->normalizeStatus($p['estado_apolice'] ?? null),
-                'data_inicio'       => $this->parseDate($p['data_inicio'] ?? null),
-                'data_fim'          => $this->parseDate($p['data_fim'] ?? null),
-                'capital'           => $this->toFloat($p['capital'] ?? 0),
-                'premium_total'     => $this->toFloat($p['premium_total'] ?? 0),
-                'interest'          => $this->toFloat($p['interest'] ?? 0),
-            ];
-        }, $policies);
+        return array_map(fn($p) => [
+            'numero_apolice'    => $p['numero_apolice'] ?? null,
+            'numero_cliente'    => $p['numero_cliente'] ?? null,
+            'descricao_produto' => strtoupper(trim($p['descricao_produto'] ?? '')),
+            'estado_apolice'    => $this->normalizeStatus($p['estado_apolice'] ?? null),
+            'data_inicio'       => $this->parseDate($p['data_inicio'] ?? null),
+            'data_fim'          => $this->parseDate($p['data_fim'] ?? null),
+            'capital'           => $this->toFloat($p['capital'] ?? 0),
+            'premium_total'     => $this->toFloat($p['premium_total'] ?? 0),
+            'interest'          => $this->toFloat($p['interest'] ?? 0),
+        ], $policies);
     }
 
     private function uniquePolicies(array $policies): array
@@ -138,12 +154,13 @@ class CustomerKYTService
     private function checkHighCapitalIncrease(Entities $customer, array $policies): array
     {
         $alerts = [];
-        $valid = array_filter($policies, fn($p) => $p['data_inicio'] && $p['capital'] > 1000000);
-        usort($valid, fn($a, $b) => strtotime($b['data_inicio']) - strtotime($a['data_inicio']));
+        if (count($policies) < 2) return [];
 
-        for ($i = 1; $i < count($valid); $i++) {
-            $current  = $valid[$i - 1];
-            $previous = $valid[$i];
+        usort($policies, fn($a, $b) => strtotime($b['data_inicio']) - strtotime($a['data_inicio']));
+
+        for ($i = 1; $i < count($policies); $i++) {
+            $current  = $policies[$i - 1];
+            $previous = $policies[$i];
             $days = $this->safeDays($previous['data_inicio'], $current['data_inicio']);
             if ($days === null || $days > 60) continue;
 
@@ -151,7 +168,7 @@ class CustomerKYTService
             if ($increaseRate < 0.40) continue;
 
             $alerts[] = [
-                'type' => 'Aumento elevado de capital',
+                'type' => 'Aumento elevado de capital na apólice',
                 'description' => sprintf(
                     "Cliente: %s\nApólices: %s → %s\nCapital: %.2f → %.2f\nPrêmio: %.2f → %.2f\nAumento: %.0f%% em %d dias",
                     $customer->customer_number,
@@ -178,12 +195,12 @@ class CustomerKYTService
         foreach ($policies as $p) {
             $end = $this->getEffectiveEndDate($p);
             $days = $this->safeDays($p['data_inicio'], $end);
-            if ($days !== null && $days < 365 && in_array($p['estado_apolice'], ['cancelled', 'terminated'])) {
+            if ($days !== null && $days < 365) {
                 $alerts[] = [
-                    'type' => 'Resgate antecipado',
+                    'type' => 'Resgate antecipado de apólice',
                     'description' => sprintf(
                         "Cliente: %s\nApólice: %s\nData início: %s | Data fim: %s\nDias ativos: %d | Capital: %.2f | Prêmio: %.2f",
-                        $p['numero_cliente'],
+                        $customer->customer_number,
                         $p['numero_apolice'],
                         $p['data_inicio'] ?? 'N/A',
                         $end ?? 'N/A',
@@ -201,20 +218,19 @@ class CustomerKYTService
 
     private function checkHighPremium(Entities $customer, array $policies): array
     {
-        $alerts = [];
         $totalCapital = array_sum(array_column($policies, 'capital'));
         $totalPremium = array_sum(array_column($policies, 'premium_total'));
+
         if ($totalCapital <= 0 || $totalPremium <= 0) return [];
 
         $ratio = $totalPremium / $totalCapital;
+
         if ($ratio >= 0.08) {
             $last10 = $this->limitApolices($policies);
-            $details = array_map(function ($p) {
-                return sprintf("%s | Capital: %.2f | Prêmio: %.2f", $p['numero_apolice'], $p['capital'], $p['premium_total']);
-            }, $last10);
+            $details = array_map(fn($p) => sprintf("%s | Capital: %.2f | Prêmio: %.2f", $p['numero_apolice'], $p['capital'], $p['premium_total']), $last10);
 
-            $alerts[] = [
-                'type' => 'Prêmio elevado',
+            return [[
+                'type' => 'Prémio elevado com risco baixo',
                 'description' => sprintf(
                     "Cliente: %s\nÚltimas 10 apólices:\n%s\nTotal de apólices: %d | Ratio: %.2f%%",
                     $customer->customer_number,
@@ -224,40 +240,27 @@ class CustomerKYTService
                 ),
                 'severity' => 'Alto',
                 'score' => 25
-            ];
+            ]];
         }
 
-        return $alerts;
+        return [];
     }
 
     private function checkMultipleShortPolicies(Entities $customer, array $policies): array
     {
-        $short = array_filter($policies, function ($p) {
-            $end = $this->getEffectiveEndDate($p);
-            $days = $this->safeDays($p['data_inicio'], $end);
-            return $days !== null && $days >= 90 && $days <= 180 && $p['capital'] >= 1000000;
-        });
+        if (count($policies) < 3) return [];
 
-        if (count($short) < 3) return [];
-
-        $last10 = $this->limitApolices($short);
-        $details = array_map(function ($p) {
-            return sprintf("%s | Início: %s | Fim: %s | Capital: %.2f | Prêmio: %.2f",
-                $p['numero_apolice'],
-                $p['data_inicio'] ?? 'N/A',
-                $this->getEffectiveEndDate($p) ?? 'N/A',
-                $p['capital'],
-                $p['premium_total']
-            );
-        }, $last10);
+        $last10 = $this->limitApolices($policies);
+        $details = array_map(fn($p) => sprintf("%s | Início: %s | Fim: %s | Capital: %.2f | Prêmio: %.2f",
+            $p['numero_apolice'], $p['data_inicio'] ?? 'N/A', $this->getEffectiveEndDate($p) ?? 'N/A', $p['capital'], $p['premium_total']), $last10);
 
         return [[
-            'type' => 'Apólices curtas suspeitas',
+            'type' => 'Substituição ou cancelamento repetido',
             'description' => sprintf(
                 "Cliente: %s\nÚltimas 10 apólices curtas detectadas:\n%s\nTotal de curtas: %d",
                 $customer->customer_number,
                 implode("\n", $details),
-                count($short)
+                count($policies)
             ),
             'severity' => 'Médio',
             'score' => 20
@@ -266,25 +269,18 @@ class CustomerKYTService
 
     private function checkPolicyChurning(Entities $customer, array $policies): array
     {
-        $terminated = array_filter($policies, fn($p) => in_array($p['estado_apolice'], ['cancelled', 'terminated']));
-        if (count($terminated) < 3) return [];
+        if (count($policies) < 3) return [];
 
-        $last10 = $this->limitApolices($terminated);
-        $details = array_map(function ($p) {
-            return sprintf("%s | Capital: %.2f | Prêmio: %.2f",
-                $p['numero_apolice'],
-                $p['capital'],
-                $p['premium_total']
-            );
-        }, $last10);
+        $last10 = $this->limitApolices($policies);
+        $details = array_map(fn($p) => sprintf("%s | Capital: %.2f | Prêmio: %.2f", $p['numero_apolice'], $p['capital'], $p['premium_total']), $last10);
 
         return [[
-            'type' => 'Churn de apólices',
+            'type' => 'Churn de apólices (trocas frequentes)',
             'description' => sprintf(
                 "Cliente: %s\nÚltimas 10 apólices canceladas/terminadas:\n%s\nTotal: %d",
                 $customer->customer_number,
                 implode("\n", $details),
-                count($terminated)
+                count($policies)
             ),
             'severity' => 'Médio',
             'score' => 20
@@ -293,25 +289,22 @@ class CustomerKYTService
 
     private function checkRapidReplacement(Entities $customer, array $policies): array
     {
+        if (count($policies) < 2) return [];
+
         usort($policies, fn($a, $b) => strtotime($a['data_inicio']) - strtotime($b['data_inicio']));
+
         for ($i = 1; $i < count($policies); $i++) {
             $prev = $policies[$i - 1];
             $curr = $policies[$i];
-            if (!in_array($prev['estado_apolice'], ['terminated', 'cancelled'])) continue;
-
             $gap = $this->safeDays($this->getEffectiveEndDate($prev), $curr['data_inicio']);
             if ($gap !== null && $gap <= 7) {
                 return [[
-                    'type' => 'Substituição rápida',
+                    'type' => 'Substituição rápida de apólice',
                     'description' => sprintf(
                         "Cliente: %s\nApólice anterior: %s | Capital: %.2f | Prêmio: %.2f\nNova apólice: %s | Capital: %.2f | Prêmio: %.2f\nGap: %d dias",
                         $customer->customer_number,
-                        $prev['numero_apolice'],
-                        $prev['capital'],
-                        $prev['premium_total'],
-                        $curr['numero_apolice'],
-                        $curr['capital'],
-                        $curr['premium_total'],
+                        $prev['numero_apolice'], $prev['capital'], $prev['premium_total'],
+                        $curr['numero_apolice'], $curr['capital'], $curr['premium_total'],
                         $gap
                     ),
                     'severity' => 'Médio',
@@ -319,6 +312,7 @@ class CustomerKYTService
                 ]];
             }
         }
+
         return [];
     }
 
@@ -326,15 +320,8 @@ class CustomerKYTService
        ALERTAS
     ========================== */
 
-    private function createAlert(
-        Entities $customer,
-        string $type,
-        string $description,
-        string $severity,
-        int $score
-    ): void {
-        $hash = md5($type . $description);
-
+    private function createAlert(Entities $customer, string $type, string $description, string $severity, int $score): void
+    {
         $alert = Alert::updateOrCreate(
             [
                 'entity_id' => $customer->id,
