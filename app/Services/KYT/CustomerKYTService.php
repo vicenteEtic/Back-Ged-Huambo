@@ -127,8 +127,8 @@ class CustomerKYTService
                 if ($increaseRate < 0.40) continue;
     
                 $description = sprintf(
-                    "Cliente: %s | Ramo: %s | Apólices: %s → %s | Capital: %.2f → %.2f | Prêmios: %.2f → %.2f | Aumento: %.0f%% em %d dias",
-                    $current['numero_cliente'],
+                    "Produto: %s | Apólices: %s → %s | Capital: %.2f → %.2f | Prêmios: %.2f → %.2f | Aumento: %.0f%% em %d dias",
+                    
                     $ramo,
                     $previous['numero_apolice'],
                     $current['numero_apolice'],
@@ -140,7 +140,7 @@ class CustomerKYTService
                     $days
                 );
     
-                $this->createAlert($customer, "Aumento elevado de capital ({$ramo})", $description, 'Alto', 30);
+                $this->createAlert($customer, "Aumento elevado de capital na apólice", $description, 'Alto', 30);
             }
         }
     }
