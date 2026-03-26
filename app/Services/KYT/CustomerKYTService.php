@@ -164,16 +164,28 @@ class CustomerKYTService
     {
         foreach ($policies as $p) {
             $days = $this->safeDays($p['data_inicio'], $p['data_fim']);
+            
+            // Apólice resgatada ou cancelada antes de 12 meses (365 dias)
             if ($days !== null && $days < 365 && in_array($p['estado_apolice'], ['cancelled', 'terminated'])) {
+    
+                // Mensagem detalhada
                 $description = sprintf(
-                    "Cliente: %s | Apólice: %s | Cancelada após %d dias | Capital: %.2f | Prêmio: %.2f",
+                    "Cliente: %s | Apólice: %s | Cancelada/Resgatada após %d dias | Capital: %s | Prêmio: %s",
                     $p['numero_cliente'],
                     $p['numero_apolice'],
                     $days,
-                    $p['capital'],
-                    $p['premium_total']
+                    number_format($p['capital'], 2, '.', ''),
+                    number_format($p['premium_total'], 2, '.', '')
                 );
-                $this->createAlert($customer, 'Resgate antecipado', $description, 'Alto', 20);
+    
+                // Cria alerta KYT
+                $this->createAlert(
+                    $customer,
+                    'Resgate antecipado de apólice',
+                    $description,
+                    'Alto',
+                    20 // +20 pontos
+                );
             }
         }
     }
