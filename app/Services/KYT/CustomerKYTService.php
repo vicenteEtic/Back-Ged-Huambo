@@ -25,12 +25,16 @@ class CustomerKYTService
 
         if (empty($policies)) return;
 
-        //$this->checkHighCapitalIncrease($customer, $policies);
-      // $this->checkEarlyRedemption($customer, $policies);
-      //  $this->checkHighPremium($customer, $policies);
+        $this->checkHighCapitalIncrease($customer, $policies);
+       $this->checkEarlyRedemption($customer, $policies);
+        $this->checkHighPremium($customer, $policies);
 
     $this->checkMultipleShortPolicies($customer, $policies);
         
+
+
+
+
         //$this->checkPolicyChurning($customer, $policies);
         //$this->checkRapidReplacement($customer, $policies);
 
@@ -360,7 +364,7 @@ class CustomerKYTService
             );
             $this->createAlert(
                 $customer,
-                'Padrão suspeito de apólices curtas',
+                'Substituição ou cancelamento repetido',
                 $description,
                 'Médio',
                 20
