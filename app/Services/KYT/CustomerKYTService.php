@@ -103,44 +103,60 @@ class CustomerKYTService
 
     private function checkHighCapitalIncrease(Entities $customer, array $policies): void
     {
-        // 🔹 Agrupa apólices por ramo
-        $policiesByRamo = [];
+        // 🔹 Agrupa apólices por produto
+        $policiesByProduct = [];
         foreach ($policies as $p) {
-            $ramo = $p['descricao_produto'] ?? 'OUTROS';
-            $policiesByRamo[$ramo][] = $p;
+            $produto = $p['descricao_produto'] ?? 'OUTROS';
+            $policiesByProduct[$produto][] = $p;
         }
     
-        foreach ($policiesByRamo as $ramo => $group) {
+        foreach ($policiesByProduct as $produto => $group) {
             // filtra apólices válidas (com data de início e capital alto)
             $valid = array_filter($group, fn($p) => $p['data_inicio'] && $p['capital'] > 1000000);
-            usort($valid, fn($a, $b) => strtotime($b['data_inicio']) - strtotime($a['data_inicio']));
+            if (count($valid) < 2) continue;
+    
+            // 🔹 Ordena por data de início
+            usort($valid, fn($a, $b) => strtotime($a['data_inicio']) - strtotime($b['data_inicio']));
+    
+            // 🔹 Soma cumulativa de capital e prêmio
+            $first = $valid[0];
+            $totalCapitalStart = $first['capital'];
+            $totalPremiumStart = $first['premium_total'];
+            $apolicesStart = [$first['numero_apolice']];
     
             for ($i = 1; $i < count($valid); $i++) {
-                $current  = $valid[$i - 1];
-                $previous = $valid[$i];
+                $current = $valid[$i];
     
-                $days = $this->safeDays($previous['data_inicio'], $current['data_inicio']);
+                $apolicesStart[] = $current['numero_apolice'];
+                $totalCapitalEnd = $current['capital'];
+                $totalPremiumEnd = $current['premium_total'];
+    
+                $days = $this->safeDays($first['data_inicio'], $current['data_inicio']);
                 if ($days === null || $days == 0 || $days > 60) continue;
-                if ($previous['premium_total'] <= 0 && $current['premium_total'] <= 0) continue;
+                if ($totalPremiumStart <= 0 && $totalPremiumEnd <= 0) continue;
     
-                $increaseRate = ($current['capital'] - $previous['capital']) / $previous['capital'];
+                $increaseRate = ($totalCapitalEnd - $totalCapitalStart) / $totalCapitalStart;
                 if ($increaseRate < 0.40) continue;
     
                 $description = sprintf(
-                    "Produto: %s | Apólices: %s → %s | Capital: %.2f → %.2f | Prêmios: %.2f → %.2f | Aumento: %.0f%% em %d dias",
-                    
-                    $ramo,
-                    $previous['numero_apolice'],
-                    $current['numero_apolice'],
-                    $previous['capital'],
-                    $current['capital'],
-                    $previous['premium_total'],
-                    $current['premium_total'],
+                    "Produto: %s | Apólices: %s | Capital: %.2f → %.2f | Prêmios: %.2f → %.2f | Aumento: %.0f%% em %d dias",
+                    $produto,
+                    implode(' → ', $apolicesStart),
+                    $totalCapitalStart,
+                    $totalCapitalEnd,
+                    $totalPremiumStart,
+                    $totalPremiumEnd,
                     $increaseRate * 100,
                     $days
                 );
     
                 $this->createAlert($customer, "Aumento elevado de capital na apólice", $description, 'Alto', 30);
+    
+                // atualiza cumulativo
+                $totalCapitalStart = $totalCapitalEnd;
+                $totalPremiumStart = $totalPremiumEnd;
+                $apolicesStart = [$current['numero_apolice']];
+                $first = $current;
             }
         }
     }
