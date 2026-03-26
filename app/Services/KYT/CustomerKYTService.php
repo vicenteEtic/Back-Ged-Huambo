@@ -26,9 +26,10 @@ class CustomerKYTService
         if (empty($policies)) return;
 
         //$this->checkHighCapitalIncrease($customer, $policies);
-       $this->checkEarlyRedemption($customer, $policies);
-        $this->checkHighPremium($customer, $policies);
-        //$this->checkMultipleShortPolicies($customer, $policies);
+      // $this->checkEarlyRedemption($customer, $policies);
+      //  $this->checkHighPremium($customer, $policies);
+
+    $this->checkMultipleShortPolicies($customer, $policies);
         
         //$this->checkPolicyChurning($customer, $policies);
         //$this->checkRapidReplacement($customer, $policies);
@@ -315,8 +316,17 @@ class CustomerKYTService
     }
 
     private function checkMultipleShortPolicies(Entities $customer, array $policies): void
-    {
-        $short = array_filter($policies, function ($p) {
+{
+    // 🔹 Agrupa por produto
+    $policiesByProduct = [];
+    foreach ($policies as $p) {
+        $produto = $p['descricao_produto'] ?? 'OUTROS';
+        $policiesByProduct[$produto][] = $p;
+    }
+
+    foreach ($policiesByProduct as $produto => $group) {
+        // 🔹 Filtra apólices curtas válidas
+        $short = array_filter($group, function ($p) {
             $days = $this->safeDays($p['data_inicio'], $p['data_fim']);
             if ($days === null || $days < 90 || $days > 180) return false;
             if ($p['capital'] < 1000000) return false;
@@ -324,9 +334,15 @@ class CustomerKYTService
             return Carbon::parse($p['data_fim'])->gte(now()->subYears(2));
         });
 
-        if (count($short) < 3) return;
+        if (count($short) < 3) continue;
 
+        // 🔹 Ordena cronologicamente
         usort($short, fn($a, $b) => strtotime($a['data_inicio']) - strtotime($b['data_inicio']));
+
+        // 🔹 Mantém apenas as últimas 20 para exibição
+        $shortToShow = array_slice($short, -20, 20, true);
+
+        // 🔹 Detecta clusters de apólices com intervalo <= 30 dias
         $cluster = 0;
         for ($i = 1; $i < count($short); $i++) {
             $gap = $this->safeDays($short[$i - 1]['data_fim'], $short[$i]['data_inicio']);
@@ -334,16 +350,24 @@ class CustomerKYTService
         }
 
         if ($cluster >= 2) {
-            $apolices = implode(', ', array_column($short, 'numero_apolice'));
+            $apolices = implode(', ', array_column($shortToShow, 'numero_apolice'));
             $description = sprintf(
-                "Cliente: %s | Apólices curtas detectadas: %s | Quantidade: %d",
+                "Produto: %s | Cliente: %s | Apólices curtas detectadas (últimas 20): %s | Quantidade total: %d",
+                $produto,
                 $customer->customer_number,
                 $apolices,
                 count($short)
             );
-            $this->createAlert($customer, 'Padrão suspeito de apólices curtas', $description, 'Médio', 20);
+            $this->createAlert(
+                $customer,
+                'Padrão suspeito de apólices curtas',
+                $description,
+                'Médio',
+                20
+            );
         }
     }
+}
 
     private function checkPolicyChurning(Entities $customer, array $policies): void
     {
