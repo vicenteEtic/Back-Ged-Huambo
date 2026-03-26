@@ -27,7 +27,7 @@ class CustomerKYTService
 
         //$this->checkHighCapitalIncrease($customer, $policies);
        $this->checkEarlyRedemption($customer, $policies);
-        //$this->checkHighPremium($customer, $policies);
+        $this->checkHighPremium($customer, $policies);
         //$this->checkMultipleShortPolicies($customer, $policies);
         
         //$this->checkPolicyChurning($customer, $policies);
@@ -103,58 +103,61 @@ class CustomerKYTService
 
     private function checkHighCapitalIncrease(Entities $customer, array $policies): void
     {
-        // 🔹 Agrupa apólices por produto
+        // 🔹 Agrupa por produto
         $policiesByProduct = [];
+    
         foreach ($policies as $p) {
             $produto = $p['descricao_produto'] ?? 'OUTROS';
             $policiesByProduct[$produto][] = $p;
         }
     
         foreach ($policiesByProduct as $produto => $group) {
-            // filtra apólices válidas (com data de início e capital alto)
+    
+            // 🔹 filtra válidas
             $valid = array_filter($group, fn($p) => $p['data_inicio'] && $p['capital'] > 1000000);
             if (count($valid) < 2) continue;
     
-            // 🔹 Ordena por data de início
+            // 🔹 ordena por data
             usort($valid, fn($a, $b) => strtotime($a['data_inicio']) - strtotime($b['data_inicio']));
     
-            // 🔹 Soma cumulativa de capital e prêmio
             $first = $valid[0];
-            $totalCapitalStart = $first['capital'];
-            $totalPremiumStart = $first['premium_total'];
-            $apolicesStart = [$first['numero_apolice']];
     
             for ($i = 1; $i < count($valid); $i++) {
                 $current = $valid[$i];
     
-                $apolicesStart[] = $current['numero_apolice'];
-                $totalCapitalEnd = $current['capital'];
-                $totalPremiumEnd = $current['premium_total'];
-    
                 $days = $this->safeDays($first['data_inicio'], $current['data_inicio']);
                 if ($days === null || $days == 0 || $days > 60) continue;
-                if ($totalPremiumStart <= 0 && $totalPremiumEnd <= 0) continue;
     
-                $increaseRate = ($totalCapitalEnd - $totalCapitalStart) / $totalCapitalStart;
+                if ($first['premium_total'] <= 0 && $current['premium_total'] <= 0) continue;
+    
+                $increaseRate = ($current['capital'] - $first['capital']) / $first['capital'];
                 if ($increaseRate < 0.40) continue;
     
+                // 🔥 APENAS AS APÓLICES ANALISADAS
+                $apolices = [
+                    $first['numero_apolice'],
+                    $current['numero_apolice']
+                ];
+    
                 $description = sprintf(
-                    "Produto: %s | Apólices: %s | Capital: %s → %s |  Aumento: %.0f%% em %d dias",
+                    "Produto: %s | Apólices analisadas: %s | Capital: %s → %s | Aumento: %.0f%% em %d dias",
                     $produto,
-                    implode(' → ', $apolicesStart),
-                    number_format($totalCapitalStart, 2, '.', ''),  // <-- 2 casas decimais
-                    number_format($totalCapitalEnd, 2, '.', ''),    // <-- 2 casas decimais
-                   
+                    implode(' → ', $apolices),
+                    number_format($first['capital'], 2, '.', ''),
+                    number_format($current['capital'], 2, '.', ''),
                     $increaseRate * 100,
                     $days
                 );
     
-                $this->createAlert($customer, "Aumento elevado de capital na apólice", $description, 'Alto', 30);
+                $this->createAlert(
+                    $customer,
+                    "Aumento elevado de capital na apólice",
+                    $description,
+                    'Alto',
+                    30
+                );
     
-                // atualiza cumulativo
-                $totalCapitalStart = $totalCapitalEnd;
-                $totalPremiumStart = $totalPremiumEnd;
-                $apolicesStart = [$current['numero_apolice']];
+                // 🔁 atualiza baseline (comportamento evolutivo)
                 $first = $current;
             }
         }
@@ -192,22 +195,53 @@ class CustomerKYTService
 
     private function checkHighPremium(Entities $customer, array $policies): void
     {
-        $totalCapital = array_sum(array_column($policies, 'capital'));
-        $totalPremium = array_sum(array_column($policies, 'premium_total'));
-        if ($totalCapital <= 0 || $totalPremium <= 0) return;
-
-        $ratio = $totalPremium / $totalCapital;
-        if ($ratio >= 0.08) {
-            $apolices = implode(', ', array_column($policies, 'numero_apolice'));
-            $description = sprintf(
-                "Cliente: %s | Apólices: %s | Capital total: %.2f | Prêmio total: %.2f | Ratio: %.2f%%",
-                $customer->customer_number,
-                $apolices,
-                $totalCapital,
-                $totalPremium,
-                $ratio * 100
-            );
-            $this->createAlert($customer, 'Prêmio elevado', $description, 'Alto', 25);
+        // 🔹 Agrupa por produto
+        $grouped = [];
+    
+        foreach ($policies as $p) {
+            $produto = $p['descricao_produto'] ?? 'OUTROS';
+            $grouped[$produto][] = $p;
+        }
+    
+        foreach ($grouped as $produto => $group) {
+    
+            // 🔹 filtra apenas apólices válidas para análise
+            $valid = array_filter($group, function ($p) {
+                return $p['capital'] > 0 && $p['premium_total'] > 0;
+            });
+    
+            if (count($valid) < 1) continue;
+    
+            // 🔹 cálculo apenas com válidas
+            $totalCapital = array_sum(array_column($valid, 'capital'));
+            $totalPremium = array_sum(array_column($valid, 'premium_total'));
+    
+            if ($totalCapital <= 0 || $totalPremium <= 0) continue;
+    
+            $ratio = $totalPremium / $totalCapital;
+    
+            if ($ratio >= 0.08) {
+    
+                // 🔥 agora só pega as analisadas
+                $apolices = array_column($valid, 'numero_apolice');
+    
+                $description = sprintf(
+                    "Produto: %s | Apólices analisadas: %s | Capital total: %s | Prêmio total: %s | Ratio: %.2f%%",
+                    $produto,
+                    implode(', ', $apolices),
+                    number_format($totalCapital, 2, '.', ''),
+                    number_format($totalPremium, 2, '.', ''),
+                    $ratio * 100
+                );
+    
+                $this->createAlert(
+                    $customer,
+                    "Prêmio elevado por produto",
+                    $description,
+                    'Alto',
+                    25
+                );
+            }
         }
     }
 
