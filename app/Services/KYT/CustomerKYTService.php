@@ -96,6 +96,10 @@ class CustomerKYTService
             return null;
         }
     }
+    private function formatMoney($value): string
+{
+    return number_format((float)$value, 2, '.', ' ');
+}
 
     /* =========================
        REGRAS KYT COM NÚMEROS DAS APÓLICES
@@ -114,11 +118,16 @@ class CustomerKYTService
         foreach ($policiesByProduct as $produto => $group) {
     
             // 🔹 filtra válidas
-            $valid = array_filter($group, fn($p) => $p['data_inicio'] && $p['capital'] > 1000000);
+            $valid = array_filter($group, fn($p) =>
+                $p['data_inicio'] && $p['capital'] > 1000000
+            );
+    
             if (count($valid) < 2) continue;
     
             // 🔹 ordena por data
-            usort($valid, fn($a, $b) => strtotime($a['data_inicio']) - strtotime($b['data_inicio']));
+            usort($valid, fn($a, $b) =>
+                strtotime($a['data_inicio']) - strtotime($b['data_inicio'])
+            );
     
             $first = $valid[0];
     
@@ -143,8 +152,8 @@ class CustomerKYTService
                     "Produto: %s | Apólices analisadas: %s | Capital: %s → %s | Aumento: %.0f%% em %d dias",
                     $produto,
                     implode(' → ', $apolices),
-                    number_format($first['capital'], 2, '.', ''),
-                    number_format($current['capital'], 2, '.', ''),
+                    $this->formatMoney($first['capital']),
+                    $this->formatMoney($current['capital']),
                     $increaseRate * 100,
                     $days
                 );
@@ -157,7 +166,7 @@ class CustomerKYTService
                     30
                 );
     
-                // 🔁 atualiza baseline (comportamento evolutivo)
+                // 🔁 baseline evolutivo (CORRETO)
                 $first = $current;
             }
         }
@@ -177,8 +186,10 @@ class CustomerKYTService
                     $p['numero_cliente'],
                     $p['numero_apolice'],
                     $days,
-                    number_format($p['capital'], 2, '.', ''),
-                    number_format($p['premium_total'], 2, '.', '')
+                    $this->formatMoney($p['capital']),
+                    $this->formatMoney($p['premium_total']),
+                    
+                    
                 );
     
                 // Cria alerta KYT
@@ -226,17 +237,19 @@ class CustomerKYTService
                 $apolices = array_column($valid, 'numero_apolice');
     
                 $description = sprintf(
-                    "Produto: %s | Apólices analisadas: %s | Capital total: %s | Prêmio total: %s | Ratio: %.2f%%",
+                    "Produto: %s | Últimas 20 apólices: %s | Capital total: %s | Prêmio total: %s | Ratio: %.2f%%",
                     $produto,
                     implode(', ', $apolices),
-                    number_format($totalCapital, 2, '.', ''),
-                    number_format($totalPremium, 2, '.', ''),
+                    $this->formatMoney($totalCapital),
+
+                    $this->formatMoney($totalPremium),
+                    
                     $ratio * 100
                 );
     
                 $this->createAlert(
                     $customer,
-                    "Prêmio elevado por produto",
+                    "Prémio elevado com risco baixo",
                     $description,
                     'Alto',
                     25
