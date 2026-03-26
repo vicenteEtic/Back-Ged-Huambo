@@ -15,109 +15,92 @@ class ImportPoliciesJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 10800; // 3h
+    public $timeout = 10800;
     public $tries = 3;
-    private int $chunkSize = 100; // Inserção por batch
+    private int $chunkSize = 100;
 
     public function handle()
     {
         try {
             $files = collect(scandir(base_path()))
-            ->filter(function ($file) {
-                $fileLower = strtolower($file);
-        
-                return str_starts_with($fileLower, 'apolices_')
-                    && str_ends_with($fileLower, '.csv');
-            })
-            ->map(fn($file) => base_path($file))
-            ->values()
-            ->toArray();
+                ->filter(fn($file) =>
+                    str_starts_with(strtolower($file), 'apolices_') &&
+                    str_ends_with(strtolower($file), '.csv')
+                )
+                ->map(fn($file) => base_path($file))
+                ->values()
+                ->toArray();
 
             if (!$files) {
-                Log::warning("Nenhum arquivo Apolices_*.csv encontrado");
+                Log::warning("Nenhum CSV encontrado");
                 return;
             }
 
             foreach ($files as $filePath) {
+                Log::info("📄 Importando: {$filePath}");
                 if (!file_exists($filePath)) continue;
 
-                Log::info("📄 Iniciando importação do arquivo: {$filePath}");
-
                 $handle = fopen($filePath, 'r');
-                if (!$handle) {
-                    Log::error("Erro ao abrir CSV: {$filePath}");
-                    continue;
-                }
+                if (!$handle) continue;
 
                 $header = null;
                 $rows = [];
-                $inserted = 0;
-                $skippedEmpty = 0;
-                $skippedNoCliente = 0;
-                $skippedNoApolice = 0;
 
                 while (($line = fgetcsv($handle, 0, ',')) !== false) {
-                    $line = array_map('trim', $line);
+                    // 🔹 Limpeza forte de encoding
+                    $line = array_map(fn($v) => $this->cleanString($v), $line);
 
-                    // Linha totalmente vazia
-                    if (empty(array_filter($line))) {
-                        $skippedEmpty++;
-                        continue;
-                    }
-
-                    // Ignorar linhas com "---"
+                    if (empty(array_filter($line))) continue;
                     if (str_contains(implode(',', $line), '---')) continue;
 
-                    // Cabeçalho
                     if (!$header) {
                         $header = array_map(fn($h) => strtoupper(trim($h)), $line);
                         continue;
                     }
 
                     $row = $this->mapRow($line, $header);
+                    if (!$row['numero_cliente'] || !$row['numero_apolice']) continue;
 
-                    // Checagens de integridade
-                    if (!$row['numero_cliente']) {
-                        $skippedNoCliente++;
-                        continue;
-                    }
-                    if (!$row['numero_apolice']) {
-                        $skippedNoApolice++;
-                        continue;
-                    }
+                    // mapeia o ramo e garante UTF-8
+                    $row['ramo'] = $this->mapRamo($row['descricao_produto']);
 
                     $rows[] = $row;
 
                     if (count($rows) >= $this->chunkSize) {
-                        DB::table('policies_staging')->upsert($rows,$rows);
-                        $inserted += count($rows);
+                        DB::table('policies_staging')->upsert($rows, ['numero_apolice']);
                         $rows = [];
-                        gc_collect_cycles();
                     }
                 }
 
-                // Último batch
                 if (!empty($rows)) {
-                    DB::table('policies_staging')->upsert($rows,$rows);
-                    $inserted += count($rows);
-                    $rows = [];
+                    DB::table('policies_staging')->upsert($rows, ['numero_apolice']);
                 }
 
                 fclose($handle);
-
-                Log::info("✅ Arquivo finalizado: {$filePath}");
-                Log::info("   Total inserido: {$inserted}");
-                Log::info("   Pulados (vazios): {$skippedEmpty}");
-                Log::info("   Pulados (sem numero_cliente): {$skippedNoCliente}");
-                Log::info("   Pulados (sem numero_apolice): {$skippedNoApolice}");
+                Log::info("✅ Finalizado: {$filePath}");
             }
 
         } catch (\Throwable $e) {
-            Log::error("❌ Erro na importação: " . $e->getMessage());
+            Log::error("❌ Erro: " . $e->getMessage());
             $this->fail($e);
         }
     }
 
+    // ================= LIMPEZA FORTE =================
+    private function cleanString(?string $value): string
+    {
+        if (!$value) return '';
+
+        $value = trim($value);
+        $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8, ISO-8859-1, WINDOWS-1252');
+        $value = iconv('UTF-8', 'UTF-8//IGNORE', $value);
+        $value = preg_replace('/[^\PC\s]/u', '', $value);
+        $value = str_replace(['�'], '', $value);
+
+        return $value;
+    }
+
+    // ================= MAP ROW =================
     private function mapRow(array $row, array $header): array
     {
         return [
@@ -135,6 +118,7 @@ class ImportPoliciesJob implements ShouldQueue
         ];
     }
 
+    // ================= STATUS =================
     private function mapStatus(?string $value): string
     {
         return match (strtoupper(trim($value ?? ''))) {
@@ -145,23 +129,99 @@ class ImportPoliciesJob implements ShouldQueue
         };
     }
 
+    // ================= DATE =================
     private function parseDate(?string $date): ?string
     {
         if (!$date) return null;
-        $invalid = ['NULL', '', 'NORMAL', 'ANULADA', 'TERMINADA', 'INACTIVOS'];
-        if (in_array(strtoupper(trim($date)), $invalid)) return null;
 
         try {
-            $date = preg_replace('/\.\d+$/', '', $date);
-            return Carbon::parse($date)->format('Y-m-d H:i:s');
-        } catch (\Exception $e) {
+            return Carbon::parse(preg_replace('/\.\d+$/', '', $date))->format('Y-m-d H:i:s');
+        } catch (\Exception) {
             return null;
         }
     }
 
+    // ================= FLOAT =================
     private function toFloat($value): float
     {
-        if (is_string($value)) $value = str_replace(',', '.', trim($value));
+        if (is_string($value)) {
+            $value = str_replace(',', '.', trim($value));
+        }
         return is_numeric($value) ? (float)$value : 0.0;
+    }
+
+    // ================= RAMO =================
+    private function mapRamo(?string $descricaoProduto): string
+    {
+        if (!$descricaoProduto) return 'OUTROS';
+
+        $descricao = $this->normalize($descricaoProduto);
+        $descricao = $this->cleanString($descricao);
+
+        // busca no banco se já existe
+        $ramo = DB::table('produto_para_ramo')
+            ->where('descricao_produto', $descricao)
+            ->value('ramo');
+
+        if ($ramo) return $ramo;
+
+        $ramo = $this->mapRamoFallback($descricao);
+
+        // salva ou atualiza, evitando duplicados
+        DB::table('produto_para_ramo')->updateOrInsert(
+            ['descricao_produto' => $descricao],
+            [
+                'ramo' => $ramo,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]
+        );
+
+        return $ramo;
+    }
+
+    private function normalize(string $text): string
+    {
+        $text = strtoupper($this->removeAccents($text));
+
+        // correções comuns
+        $text = str_replace(['PRÉMIO', 'PRCIMIO'], 'PREMIO', $text);
+        $text = str_replace(['PROTECCAO', 'PROTEC CAO'], 'PROTECCAO', $text);
+
+        return trim($text);
+    }
+
+    private function mapRamoFallback(string $descricao): string
+    {
+        return match (true) {
+
+            str_contains($descricao, 'VIDA'),
+            str_contains($descricao, 'PREMIO'),
+            str_contains($descricao, 'VARIAVEL'),
+            str_contains($descricao, 'FIXO') => 'VIDA',
+
+            str_contains($descricao, 'SAUDE') => 'SAÚDE',
+
+            str_contains($descricao, 'ESCOLAR') => 'ESCOLAR',
+
+            str_contains($descricao, 'VIAGEM') => 'VIAGEM',
+
+            str_contains($descricao, 'PROFISSIONAL') => 'EXTRA PROFISSIONAL',
+
+            str_contains($descricao, 'ASSALTO'),
+            str_contains($descricao, 'ROUBO'),
+            str_contains($descricao, 'INCENDIO') => 'EXTRA PATRIMONIAL',
+
+            default => 'OUTROS',
+        };
+    }
+
+    private function removeAccents(string $string): string
+    {
+        return strtr(
+            $string,
+            'ÁÀÂÃÄáàâãäÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÕÖóòôõöÚÙÛÜúùûüÇç',
+            'AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuCc'
+        );
     }
 }

@@ -9,6 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('policies_staging', function (Blueprint $table) {
+              // define charset e collation para toda a tabela
+              $table->charset = 'utf8mb4';
+              $table->collation = 'utf8mb4_unicode_ci';
             $table->id();
 
             // 🔑 Dados principais
@@ -22,6 +25,8 @@ return new class extends Migration
             // 📅 Datas
             $table->string('data_inicio', 50)->nullable();
             $table->string('data_fim', 50)->nullable();
+            $table->string('ramo')->nullable();
+            
 
             // 💰 Valores
             $table->decimal('capital', 18, 2)->default(0);
