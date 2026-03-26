@@ -124,7 +124,15 @@ class CustomerKYTService
     
             if (count($valid) < 2) continue;
     
-            // 🔹 ordena por data
+            // 🔹 ordena por data (mais recentes primeiro)
+            usort($valid, fn($a, $b) =>
+                strtotime($b['data_inicio']) - strtotime($a['data_inicio'])
+            );
+    
+            // 🔥 pega apenas as últimas 20 para análise
+            $valid = array_slice($valid, 0, 20);
+    
+            // 🔹 reordena cronologicamente para análise correta
             usort($valid, fn($a, $b) =>
                 strtotime($a['data_inicio']) - strtotime($b['data_inicio'])
             );
@@ -142,16 +150,22 @@ class CustomerKYTService
                 $increaseRate = ($current['capital'] - $first['capital']) / $first['capital'];
                 if ($increaseRate < 0.40) continue;
     
-                // 🔥 APENAS AS APÓLICES ANALISADAS
+                // 🔥 apenas apólices analisadas
                 $apolices = [
                     $first['numero_apolice'],
                     $current['numero_apolice']
                 ];
     
+                // 🔹 período analisado
+                $startDate = $first['data_inicio'];
+                $endDate   = $current['data_inicio'];
+    
                 $description = sprintf(
-                    "Produto: %s | Apólices analisadas: %s | Capital: %s → %s | Aumento: %.0f%% em %d dias",
+                    "Produto: %s | Apólices analisadas: %s | Período: %s → %s | Capital: %s → %s | Aumento: %.0f%% em %d dias",
                     $produto,
                     implode(' → ', $apolices),
+                    $startDate,
+                    $endDate,
                     $this->formatMoney($first['capital']),
                     $this->formatMoney($current['capital']),
                     $increaseRate * 100,
@@ -166,7 +180,7 @@ class CustomerKYTService
                     30
                 );
     
-                // 🔁 baseline evolutivo (CORRETO)
+                // 🔁 baseline evolutivo
                 $first = $current;
             }
         }
@@ -174,33 +188,63 @@ class CustomerKYTService
 
     private function checkEarlyRedemption(Entities $customer, array $policies): void
     {
+        // 🔹 Agrupa por produto
+        $grouped = [];
+    
         foreach ($policies as $p) {
-            $days = $this->safeDays($p['data_inicio'], $p['data_fim']);
-            
-            // Apólice resgatada ou cancelada antes de 12 meses (365 dias)
-            if ($days !== null && $days < 365 && in_array($p['estado_apolice'], ['cancelled', 'terminated'])) {
+            $produto = $p['descricao_produto'] ?? 'OUTROS';
+            $grouped[$produto][] = $p;
+        }
     
-                // Mensagem detalhada
-                $description = sprintf(
-                    "Cliente: %s | Apólice: %s | Cancelada/Resgatada após %d dias | Capital: %s | Prêmio: %s",
-                    $p['numero_cliente'],
-                    $p['numero_apolice'],
-                    $days,
-                    $this->formatMoney($p['capital']),
-                    $this->formatMoney($p['premium_total']),
-                    
-                    
-                );
+        foreach ($grouped as $produto => $group) {
     
-                // Cria alerta KYT
-                $this->createAlert(
-                    $customer,
-                    'Resgate antecipado de apólice',
-                    $description,
-                    'Alto',
-                    20 // +20 pontos
-                );
-            }
+            // 🔹 filtra apenas apólices com cancelamento/resgate < 12 meses
+            $valid = array_filter($group, function ($p) {
+                $days = $this->safeDays($p['data_inicio'], $p['data_fim']);
+    
+                return $days !== null
+                    && $days < 365
+                    && in_array($p['estado_apolice'], ['cancelled', 'terminated']);
+            });
+    
+            if (count($valid) < 1) continue;
+    
+            // 🔹 ordena por data mais recente
+            usort($valid, fn($a, $b) =>
+                strtotime($b['data_inicio'] ?? '1970') - strtotime($a['data_inicio'] ?? '1970')
+            );
+    
+            // 🔥 últimas 20 analisadas
+            $latest = array_slice($valid, 0, 20);
+    
+            // 🔹 extrai apólices analisadas
+            $apolices = array_column($latest, 'numero_apolice');
+    
+            // 🔹 período analisado
+            $firstDate = $latest[0]['data_inicio'] ?? null;
+            $lastDate  = end($latest)['data_fim'] ?? null;
+    
+            // 🔹 métricas adicionais (nível AML)
+            $totalCapital = array_sum(array_column($latest, 'capital'));
+            $totalPremium = array_sum(array_column($latest, 'premium_total'));
+    
+            $description = sprintf(
+                "Produto: %s | Apólices analisadas: %s | Período: %s → %s | Total Capital: %s | Total Prêmio: %s | Resgates antes de data prevista",
+                $produto,
+                implode(', ', $apolices),
+                $firstDate,
+                $lastDate,
+                $this->formatMoney($totalCapital),
+                $this->formatMoney($totalPremium)
+            );
+    
+            $this->createAlert(
+                $customer,
+                'Resgate antecipado de apólice',
+                $description,
+                'Alto',
+                20
+            );
         }
     }
 
@@ -216,14 +260,22 @@ class CustomerKYTService
     
         foreach ($grouped as $produto => $group) {
     
-            // 🔹 filtra apenas apólices válidas para análise
+            // 🔹 filtra válidas
             $valid = array_filter($group, function ($p) {
                 return $p['capital'] > 0 && $p['premium_total'] > 0;
             });
     
             if (count($valid) < 1) continue;
     
-            // 🔹 cálculo apenas com válidas
+            // 🔹 ordena por data (mais recentes primeiro)
+            usort($valid, fn($a, $b) =>
+                strtotime($b['data_inicio'] ?? '1970') - strtotime($a['data_inicio'] ?? '1970')
+            );
+    
+            // 🔥 últimas 20 analisadas
+            $latest = array_slice($valid, 0, 20);
+    
+            // 🔹 cálculo com TODAS (regra KYT correta)
             $totalCapital = array_sum(array_column($valid, 'capital'));
             $totalPremium = array_sum(array_column($valid, 'premium_total'));
     
@@ -233,17 +285,21 @@ class CustomerKYTService
     
             if ($ratio >= 0.08) {
     
-                // 🔥 agora só pega as analisadas
-                $apolices = array_column($valid, 'numero_apolice');
+                // 🔹 apenas apólices analisadas (últimas 20)
+                $apolices = array_column($latest, 'numero_apolice');
+    
+                // 🔹 período analisado (melhora auditoria)
+                $firstDate = $latest[0]['data_inicio'] ?? null;
+                $lastDate  = end($latest)['data_inicio'] ?? null;
     
                 $description = sprintf(
-                    "Produto: %s | Últimas 20 apólices: %s | Capital total: %s | Prêmio total: %s | Ratio: %.2f%%",
+                    "Produto: %s | Últimas 20 apólices: %s | Período: %s → %s | Capital total: %s | Prêmio total: %s | Ratio: %.2f%%",
                     $produto,
                     implode(', ', $apolices),
+                    $firstDate,
+                    $lastDate,
                     $this->formatMoney($totalCapital),
-
                     $this->formatMoney($totalPremium),
-                    
                     $ratio * 100
                 );
     
