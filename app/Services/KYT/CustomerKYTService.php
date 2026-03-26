@@ -139,13 +139,12 @@ class CustomerKYTService
                 if ($increaseRate < 0.40) continue;
     
                 $description = sprintf(
-                    "Produto: %s | Apólices: %s | Capital: %.2f → %.2f | Prêmios: %.2f → %.2f | Aumento: %.0f%% em %d dias",
+                    "Produto: %s | Apólices: %s | Capital: %s → %s |  Aumento: %.0f%% em %d dias",
                     $produto,
                     implode(' → ', $apolicesStart),
-                    $totalCapitalStart,
-                    $totalCapitalEnd,
-                    $totalPremiumStart,
-                    $totalPremiumEnd,
+                    number_format($totalCapitalStart, 2, '.', ''),  // <-- 2 casas decimais
+                    number_format($totalCapitalEnd, 2, '.', ''),    // <-- 2 casas decimais
+                   
                     $increaseRate * 100,
                     $days
                 );
