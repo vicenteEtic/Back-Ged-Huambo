@@ -167,8 +167,14 @@ class EntitiesRepository extends AbstractRepository
    
     public function profileSegmentation(): array
     {
-        $riskLevels = ['Baixo', 'Médio', 'Alto', 'Inaceitável'];
-        $riscos = [];
+        $riskLevels = [
+            'Baixo' => 'low',
+            'Médio' => 'medium',
+            'Alto' => 'high',
+            'Inaceitável' => 'unacceptable'
+        ];
+    
+        $result = [];
     
         // Pré-carregar contadores para evitar múltiplas consultas
         $riskLevelCounts = $this->countByRiskLevel();
@@ -176,17 +182,19 @@ class EntitiesRepository extends AbstractRepository
         $collectiveEntitiesCounts = $this->countByRiskEntity(1);
         $alertCounts = $this->countAlertsByLevel();
     
-        foreach ($riskLevels as $level) {
-            $riscos[strtolower($level)] = [
-                "number_of_profiles" => $riskLevelCounts[$level] ?? 0,
-                "description" => $level . " Risco",
-                "single_entities" => $singleEntitiesCounts[$level] ?? 0,
-                "collective_entities" => $collectiveEntitiesCounts[$level] ?? 0,
-                "alerts" => $alertCounts[$level] ?? 0, // adicionando contagem de alertas
+        foreach ($riskLevels as $levelLabel => $levelName) {
+            $result[] = [
+                'risk_level' => [
+                    'name' => $levelName,
+                    'number_of_profiles' => $riskLevelCounts[$levelLabel] ?? 0,
+                    'single_entities' => $singleEntitiesCounts[$levelLabel] ?? 0,
+                    'collective_entities' => $collectiveEntitiesCounts[$levelLabel] ?? 0,
+                    'total_alerts_generated' => $alertCounts[$levelLabel] ?? 0,
+                ]
             ];
         }
     
-        return $riscos;
+        return $result;
     }
     
     public function countByRiskLevel(): array
