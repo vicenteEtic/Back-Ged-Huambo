@@ -95,4 +95,9 @@ class EntitiesService extends AbstractService
     {
         return $this->model->findOrFail($id);
     }
+
+    public function profileSegmentation(): array
+    {
+        return $this->repository->profileSegmentation();
+    }
 }

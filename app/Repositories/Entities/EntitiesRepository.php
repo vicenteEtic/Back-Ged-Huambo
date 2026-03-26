@@ -162,4 +162,70 @@ class EntitiesRepository extends AbstractRepository
             $query->where('entity_type', 1);
         })->count();
     }
+
+
+   
+    public function profileSegmentation(): array
+    {
+        $riskLevels = ['Baixo', 'Médio', 'Alto', 'Inaceitável'];
+        $riscos = [];
+    
+        // Pré-carregar contadores para evitar múltiplas consultas
+        $riskLevelCounts = $this->countByRiskLevel();
+        $singleEntitiesCounts = $this->countByRiskEntity(2);
+        $collectiveEntitiesCounts = $this->countByRiskEntity(1);
+        $alertCounts = $this->countAlertsByLevel();
+    
+        foreach ($riskLevels as $level) {
+            $riscos[strtolower($level)] = [
+                "number_of_profiles" => $riskLevelCounts[$level] ?? 0,
+                "description" => $level . " Risco",
+                "single_entities" => $singleEntitiesCounts[$level] ?? 0,
+                "collective_entities" => $collectiveEntitiesCounts[$level] ?? 0,
+                "alerts" => $alertCounts[$level] ?? 0, // adicionando contagem de alertas
+            ];
+        }
+    
+        return $riscos;
+    }
+    
+    public function countByRiskLevel(): array
+    {
+        $riskLevels = ['Baixo', 'Médio', 'Alto', 'Inaceitável'];
+        $result = [];
+    
+        foreach ($riskLevels as $level) {
+            $result[$level] = $this->model->where('risk_level', $level)->count();
+        }
+    
+        return $result;
+    }
+    
+    public function countByRiskEntity(int $entityType): array
+    {
+        $riskLevels = ['Baixo', 'Médio', 'Alto', 'Inaceitável'];
+        $result = [];
+    
+        foreach ($riskLevels as $level) {
+            $result[$level] = $this->model
+                ->where('risk_level', $level)
+                ->where('entity_type', $entityType)
+                ->count();
+        }
+    
+        return $result;
+    }
+    
+    // Novo método para contar alertas por nível
+    public function countAlertsByLevel(): array
+    {
+        $riskLevels = ['Baixo', 'Médio', 'Alto', 'Inaceitável'];
+        $result = [];
+    
+        foreach ($riskLevels as $level) {
+            $result[$level] = Alert::where('level', $level)->count();
+        }
+    
+        return $result;
+    }
 }

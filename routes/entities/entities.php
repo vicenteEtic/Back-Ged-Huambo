@@ -3,6 +3,9 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Entities\EntitiesController;
 
+Route::get('getProfileSegmentation', [EntitiesController::class, 'getProfileSegmentation'])
+    ->name('entities.profileSegmentation')
+    ->middleware('can:entidades-show');
 Route::get('', [EntitiesController::class, 'index'])
     ->name('entities.index')
     ->middleware('can:entidades-show');
