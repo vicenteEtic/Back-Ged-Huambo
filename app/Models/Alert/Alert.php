@@ -3,6 +3,7 @@
 namespace App\Models\Alert;
 
 use App\Models\Entities\Entities;
+use App\Models\User\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -28,6 +29,7 @@ class Alert extends Model
         'is_sanctioned',
         'is_reported',
         'category',
+        'assigned_to'
 
      
     ];
@@ -37,4 +39,16 @@ class Alert extends Model
     {
         return $this->belongsTo(Entities::class, 'entity_id');
     }
+
+    public function assigned()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function users()
+{
+    return $this->belongsToMany(User::class, 'alert_user')
+                ->withPivot('is_read')
+                ->withTimestamps();
+}
 }

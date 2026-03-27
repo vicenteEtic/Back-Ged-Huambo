@@ -9,6 +9,7 @@ use App\Repositories\Alert\AlertUser\AlertUserRepository;
 use App\Services\Log\LogService;
 use App\Services\User\UserService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class AlertRepository extends AbstractRepository
@@ -287,6 +288,9 @@ class AlertRepository extends AbstractRepository
      */
     public function updateStatus(array $data, int $id): Alert
     {
+        $data['assigned_to']=
+        Auth::user()->id;
+        
         $alert = $this->model->findOrFail($id);
         $alert->update($data);
         $datalert = [
