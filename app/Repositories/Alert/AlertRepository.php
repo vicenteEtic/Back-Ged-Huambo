@@ -33,6 +33,8 @@ class AlertRepository extends AbstractRepository
     /**
      * Totais de alertas por mês (últimos 12 meses)
      */
+
+   
     public function getTotalAlertsByMonth(): array
     {
         $months = collect(range(0, 11))
