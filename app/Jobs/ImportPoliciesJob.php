@@ -22,70 +22,83 @@ class ImportPoliciesJob implements ShouldQueue
     public function handle()
     {
         try {
-            $filePath = base_path('Apolices_Vida.csv');
-            if (!file_exists($filePath)) {
-                Log::error("CSV não encontrado: {$filePath}");
+            // 🔹 Buscar todos os CSVs que começam com 'apolices_' e terminam com '.csv'
+            $files = collect(scandir(base_path()))
+                ->filter(fn($file) =>
+                    str_starts_with(strtolower($file), 'apolices_') &&
+                    str_ends_with(strtolower($file), '.csv')
+                )
+                ->map(fn($file) => base_path($file))
+                ->values()
+                ->toArray();
+    
+            if (empty($files)) {
+                Log::warning("Nenhum CSV encontrado no diretório base");
                 return;
             }
-
-            $handle = fopen($filePath, 'r');
-            if (!$handle) {
-                Log::error("Erro ao abrir CSV");
-                return;
-            }
-
-            Log::info("📄 Importando CSV para staging...");
-
-            // Encontrar header válido
-            $header = null;
-            while (($line = fgetcsv($handle, 0, ',')) !== false) {
-                $line = array_map('trim', $line);
-                if (empty(array_filter($line))) continue;
-                if (str_contains(implode(',', $line), '---')) continue;
-                $header = array_map(fn($h) => strtoupper($h), $line);
-                break;
-            }
-
-            if (!$header) {
-                Log::error("Header CSV inválido");
-                fclose($handle);
-                return;
-            }
-
-            $rows = [];
-            $inserted = 0;
-
-            while (($row = fgetcsv($handle, 0, ',')) !== false) {
-                $row = array_map('trim', $row);
-                if (empty(array_filter($row))) continue;
-                if (str_contains(implode(',', $row), '---')) continue;
-                if (count($row) !== count($header)) {
-                    Log::warning("Linha ignorada: número de colunas diferente do header");
+    
+            foreach ($files as $filePath) {
+                if (!file_exists($filePath)) continue;
+    
+                $handle = fopen($filePath, 'r');
+                if (!$handle) {
+                    Log::error("Erro ao abrir CSV: {$filePath}");
                     continue;
                 }
-
-                $mappedRow = $this->mapRow($row, $header);
-                if (!$mappedRow['numero_cliente'] || !$mappedRow['numero_apolice']) continue;
-
-                $rows[] = $mappedRow;
-
-                if (count($rows) >= $this->chunkSize) {
+    
+                Log::info("📄 Importando CSV: {$filePath}");
+    
+                // Encontrar header válido
+                $header = null;
+                while (($line = fgetcsv($handle, 0, ',')) !== false) {
+                    $line = array_map('trim', $line);
+                    if (empty(array_filter($line))) continue;
+                    if (str_contains(implode(',', $line), '---')) continue;
+                    $header = array_map(fn($h) => strtoupper($h), $line);
+                    break;
+                }
+    
+                if (!$header) {
+                    Log::error("Header CSV inválido: {$filePath}");
+                    fclose($handle);
+                    continue;
+                }
+    
+                $rows = [];
+                $inserted = 0;
+    
+                while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                    $row = array_map('trim', $row);
+                    if (empty(array_filter($row))) continue;
+                    if (str_contains(implode(',', $row), '---')) continue;
+                    if (count($row) !== count($header)) {
+                        Log::warning("Linha ignorada (colunas diferentes do header) no arquivo {$filePath}");
+                        continue;
+                    }
+    
+                    $mappedRow = $this->mapRow($row, $header);
+                    if (!$mappedRow['numero_cliente'] || !$mappedRow['numero_apolice']) continue;
+    
+                    $rows[] = $mappedRow;
+    
+                    if (count($rows) >= $this->chunkSize) {
+                        DB::table('policies_staging')->insert($rows);
+                        $inserted += count($rows);
+                        $rows = [];
+                        Log::info("📦 Inseridos {$inserted} registros do CSV {$filePath}");
+                        gc_collect_cycles();
+                    }
+                }
+    
+                if (!empty($rows)) {
                     DB::table('policies_staging')->insert($rows);
                     $inserted += count($rows);
-                    $rows = [];
-                    Log::info("📦 Inseridos {$inserted} registros...");
-                    gc_collect_cycles();
                 }
+    
+                fclose($handle);
+                Log::info("✅ CSV importado: {$filePath} | Total registros inseridos: {$inserted}");
             }
-
-            if (!empty($rows)) {
-                DB::table('policies_staging')->insert($rows);
-                $inserted += count($rows);
-            }
-
-            fclose($handle);
-            Log::info("✅ Importação finalizada: {$inserted} registros inseridos");
-
+    
         } catch (\Throwable $e) {
             Log::error("❌ Erro na importação: " . $e->getMessage());
             $this->fail($e);
