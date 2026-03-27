@@ -25,17 +25,14 @@ class CustomerKYTService
 
         if (empty($policies)) return;
 
-        $this->checkHighCapitalIncrease($customer, $policies);
-       $this->checkEarlyRedemption($customer, $policies);
-        $this->checkHighPremium($customer, $policies);
+     //   $this->checkHighCapitalIncrease($customer, $policies);
+     //  $this->checkEarlyRedemption($customer, $policies);
+     //   $this->checkHighPremium($customer, $policies);
 
-    $this->checkMultipleShortPolicies($customer, $policies);
+   // $this->checkMultipleShortPolicies($customer, $policies);
         
 
-
-
-
-        //$this->checkPolicyChurning($customer, $policies);
+        $this->checkPolicyChurning($customer, $policies);
         //$this->checkRapidReplacement($customer, $policies);
 
         Log::info("✅ KYT FINISHED", ['customer' => $customer->customer_number]);
@@ -390,25 +387,62 @@ class CustomerKYTService
 
     private function checkRapidReplacement(Entities $customer, array $policies): void
     {
-        usort($policies, fn($a, $b) => strtotime($a['data_inicio'] ?? '1970') - strtotime($b['data_inicio'] ?? '1970'));
+        // 🔹 ordenar por data
+        usort($policies, fn($a, $b) =>
+            strtotime($a['data_inicio'] ?? '1970') - strtotime($b['data_inicio'] ?? '1970')
+        );
+    
+        $replacements = [];
+    
         for ($i = 1; $i < count($policies); $i++) {
             $prev = $policies[$i - 1];
             $curr = $policies[$i];
-            if ($prev['estado_apolice'] !== 'terminated') continue;
-
+    
+            if (($prev['estado_apolice'] ?? null) !== 'terminated') continue;
+    
             $gap = $this->safeDays($prev['data_fim'], $curr['data_inicio']);
+    
             if ($gap !== null && $gap <= 7) {
-                $description = sprintf(
-                    "Cliente: %s | Substituição rápida | Apólice anterior: %s | Nova apólice: %s | Gap: %d dias",
-                    $customer->customer_number,
-                    $prev['numero_apolice'],
-                    $curr['numero_apolice'],
-                    $gap
-                );
-                $this->createAlert($customer, 'Substituição rápida', $description, 'Médio', 15);
-                break;
+                $replacements[] = [
+                    'old' => $prev,
+                    'new' => $curr,
+                    'gap' => $gap
+                ];
             }
         }
+    
+        // 🔹 precisa de pelo menos 3 eventos (churning)
+        if (count($replacements) < 3) return;
+    
+        // 🔹 filtrar últimos 12 meses
+        $recent = array_filter($replacements, function ($r) {
+            return Carbon::parse($r['new']['data_inicio'])
+                ->gte(now()->subYear());
+        });
+    
+        if (count($recent) < 3) return;
+    
+        // 🔹 limitar a 20 para exibição
+        $recent = array_slice($recent, -20);
+    
+        $apolices = array_map(function ($r) {
+            return $r['old']['numero_apolice'] . ' → ' . $r['new']['numero_apolice'];
+        }, $recent);
+    
+        $description = sprintf(
+            "Cliente: %s | Substituições rápidas detectadas: %s | Ocorrências (12 meses): %d",
+            $customer->customer_number,
+            implode(', ', $apolices),
+            count($recent)
+        );
+    
+        $this->createAlert(
+            $customer,
+            'Padrão de cancelamentos frequentes (churning)',
+            $description,
+            'Alto',
+            20
+        );
     }
 
     /* =========================
