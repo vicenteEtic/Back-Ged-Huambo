@@ -13,6 +13,7 @@ use App\Repositories\Alert\AlertRepository;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use App\Repositories\Entities\EntitiesRepository;
+use PhpParser\Node\Stmt\TryCatch;
 
 class GenerateAlertsJob implements ShouldQueue
 {
@@ -217,8 +218,13 @@ class GenerateAlertsJob implements ShouldQueue
                 ]);
             }
 
-            $host = config('app.url');
-            SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
+            try {
+                $host = config('app.url');
+                SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
+            } catch (\Throwable $th) {
+                //throw $th;
+            }
+           
         }
     }
 }
