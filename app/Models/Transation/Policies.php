@@ -10,7 +10,7 @@ class Policies extends Model
 {
     use HasFactory;
 
-    protected $table = 'policies';
+    protected $table = 'policies_staging';
 
     protected $primaryKey = 'id';
 
