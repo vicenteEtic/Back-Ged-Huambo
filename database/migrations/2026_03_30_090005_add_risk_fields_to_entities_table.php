@@ -12,14 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('alert', function (Blueprint $table) {
-            $table->unsignedBigInteger('risk_assessment_id')->nullable()->after('id');
-            $table->boolean('alert_priority')->default(false)->after('risk_assessment_id');
-
-            // (Opcional) FK
-            $table->foreign('risk_assessment_id')
-                ->references('id')
-                ->on('risk_assessments')
-                ->nullOnDelete();
+            if (!Schema::hasColumn('alert', 'risk_assessment_id')) {
+                $table->unsignedBigInteger('risk_assessment_id')->nullable()->after('id');
+            }
+        
+            if (!Schema::hasColumn('alert', 'alert_priority')) {
+                $table->boolean('alert_priority')->default(false)->after('risk_assessment_id');
+            }
         });
     }
 
