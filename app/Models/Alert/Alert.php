@@ -53,7 +53,9 @@ class Alert extends Model
 
     public function riskAssessment()
     {
-        return $this->belongsTo(RiskAssessment::class, 'risk_assessment_id');
+
+        return $this->hasOne(RiskAssessment::class, 'risk_assessment_id')
+        ->latest('created_at'); // pega a mais recente
     }
     
     public function users()

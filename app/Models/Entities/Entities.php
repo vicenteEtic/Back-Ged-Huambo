@@ -42,4 +42,6 @@ class Entities extends Model
     return $this->hasMany(\App\Models\Alert\Alert::class, 'entity_id', 'id');
 }
 
+
+
 }
