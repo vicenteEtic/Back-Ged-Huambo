@@ -56,7 +56,6 @@ class Alert extends Model
         return $this->belongsTo(RiskAssessment::class, 'risk_assessment_id');
     }
     
-
     public function users()
     {
         return $this->belongsToMany(User::class, 'alert_user')
