@@ -19,49 +19,49 @@ class CustomerKYTService
     public function RiskAssessmentEntity(Entities $customer): array
     {
         $cacheKey = "risk_assessment_entity_{$customer->id}";
-    
+
         // 🔍 1. Verifica primeiro no cache
         if (Cache::has($cacheKey)) {
             return Cache::get($cacheKey);
         }
-    
+
         // 🔥 2. Só consulta a BD se não existir
         $risk = RiskAssessment::where('entity_id', $customer->id)
             ->latest()
             ->first();
-    
+
         // ❌ Sem avaliação
         if (!$risk) {
             Log::warning("⚠️ Avaliação de risco ausente para cliente {$customer->customer_number}");
-    
+
             $data = [
                 'risk_id' => null,
                 'alert_priority' => false,
                 'valid' => false
             ];
-    
+
             Cache::put($cacheKey, $data, now()->addHours(20));
-    
+
             return $data;
         }
-    
+
         $isHighRisk = in_array($risk->diligence, ["Cliente Inaceitável", "Reforçada"]);
-    
+
         if ($isHighRisk) {
             Log::warning(
                 "⚠️ Cliente {$customer->customer_number} com avaliação de risco {$risk->diligence} (ID: {$risk->id})"
             );
         }
-    
+
         $data = [
             'risk_id' => $risk->id,
             'alert_priority' => $isHighRisk,
             'valid' => !$isHighRisk
         ];
-    
+
         // 💾 3. Guarda no cache
         Cache::put($cacheKey, $data, now()->addHours(20));
-    
+
         return $data;
     }
 
@@ -76,9 +76,9 @@ class CustomerKYTService
 
         if (empty($policies)) return;
 
-        //$this->checkHighCapitalIncrease($customer, $policies);
-        //$this->checkEarlyRedemption($customer, $policies);
-        //$this->checkHighPremium($customer, $policies);
+        $this->checkHighCapitalIncrease($customer, $policies);
+        $this->checkEarlyRedemption($customer, $policies);
+        $this->checkHighPremium($customer, $policies);
         $this->checkMultipleShortPolicies($customer, $policies);
 
         $this->checkPolicyChurning($customer, $policies);
@@ -640,7 +640,7 @@ class CustomerKYTService
        ALERTAS
     ========================== */
 
-  
+
     private function createAlert(
         Entities $customer,
         string $type,
