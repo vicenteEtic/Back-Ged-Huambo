@@ -50,7 +50,6 @@ class Alert extends Model
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }
-
   
     public function lastRiskAssessment()
     {
