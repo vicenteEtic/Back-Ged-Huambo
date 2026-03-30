@@ -3,6 +3,7 @@
 namespace App\Models\Alert;
 
 use App\Models\Entities\Entities;
+use App\Models\Entities\RiskAssessment;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -49,6 +50,12 @@ class Alert extends Model
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }
+
+    public function riskAssessment()
+    {
+        return $this->belongsTo(RiskAssessment::class, 'risk_assessment_id');
+    }
+    
 
     public function users()
     {
