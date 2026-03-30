@@ -12,8 +12,9 @@ class Alert extends Model
     use HasFactory;
     protected $table = 'alert';
     protected $primaryKey = 'id';
+
     protected $fillable = [
-     'description',
+        'description',
         'name',
         'level',
         'origin_id',
@@ -29,9 +30,11 @@ class Alert extends Model
         'is_sanctioned',
         'is_reported',
         'category',
-        'assigned_to'
+        'assigned_to',
+        'risk_assessment_id',
+        'alert_priority'
 
-     
+
     ];
 
 
@@ -46,9 +49,9 @@ class Alert extends Model
     }
 
     public function users()
-{
-    return $this->belongsToMany(User::class, 'alert_user')
-                ->withPivot('is_read')
-                ->withTimestamps();
-}
+    {
+        return $this->belongsToMany(User::class, 'alert_user')
+            ->withPivot('is_read')
+            ->withTimestamps();
+    }
 }
