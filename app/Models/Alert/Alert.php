@@ -12,7 +12,9 @@ class Alert extends Model
     use HasFactory;
     protected $table = 'alert';
     protected $primaryKey = 'id';
-
+    protected $casts = [
+        'alert_priority' => 'boolean',
+    ];
     protected $fillable = [
         'description',
         'name',
