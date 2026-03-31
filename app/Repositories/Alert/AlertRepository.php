@@ -294,6 +294,11 @@ class AlertRepository extends AbstractRepository
         Auth::user()->id;
         
         $alert = $this->model->findOrFail($id);
+        if($data['is_active']==0){
+            $data = [
+                "alert_priority" => 0
+ ];
+        }
         $alert->update($data);
         $datalert = [
             "is_read" => $data['is_active']

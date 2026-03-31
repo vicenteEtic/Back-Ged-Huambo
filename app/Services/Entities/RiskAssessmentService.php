@@ -572,6 +572,7 @@ class RiskAssessmentService extends AbstractService
         }
 
         $data['entity_id'] = $alert->entity_id;
+       
 
         $data['risk_assessment'] = $lastAssessment->risk_assessment;
         if ($lastAssessment) {
