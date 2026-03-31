@@ -292,7 +292,9 @@ class AlertRepository extends AbstractRepository
     {
         $data['assigned_to']=
         Auth::user()->id;
-        
+        if($data['is_active'] == 0){
+            $data['alert_priority'] = 0;
+        }
         $alert = $this->model->findOrFail($id);
         $alert->update($data);
         $datalert = [
