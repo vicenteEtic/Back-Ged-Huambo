@@ -26,7 +26,7 @@ class AlertRepository extends AbstractRepository
     ) {
         parent::__construct($model);
         $this->user = $user;
-        $this->logService = $logService;  
+        $this->logService = $logService;
         $this->alertUserRepository = $alertUserRepository;
     }
 
@@ -293,12 +293,14 @@ class AlertRepository extends AbstractRepository
         $data['assigned_to']=
         Auth::user()->id;
         
-        $alert = $this->model->findOrFail($id);
+
         if($data['is_active']==0){
             $data = [
                 "alert_priority" => 0
  ];
         }
+
+        $alert = $this->model->findOrFail($id);
         $alert->update($data);
         $datalert = [
             "is_read" => $data['is_active']
