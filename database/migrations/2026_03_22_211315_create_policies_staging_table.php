@@ -25,6 +25,7 @@ return new class extends Migration
             // 📅 Datas
             $table->string('data_inicio', 50)->nullable();
             $table->string('data_fim', 50)->nullable();
+            $table->string('data_proxima_renovacao', 50)->nullable();
             $table->string('ramo')->nullable();
             
 

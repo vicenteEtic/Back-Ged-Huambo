@@ -138,16 +138,17 @@ class ImportDataJob implements ShouldQueue
             'social_denomination' => $socialDenomination
         ]);
 
-        // Atualiza campos adicionais
+        // Atualiza todos os campos do record, sobrescrevendo os existentes
         $entity->fill([
-            'policy_number' => $record['policy_number'] ?? $entity->policy_number,
-            'entity_type' => $record['entity_type'] ?? $entity->entity_type,
-            'nif' => $record['nif'] ?? $entity->nif,
-            'social_denomination' => $socialDenomination ?? $entity->social_denomination,
-            'customer_number' => $record['customer_number'] ?? $entity->customer_number,
+            'policy_number' => $record['policy_number'] ?? null,
+            'entity_type' => $record['entity_type'] ?? null,
+            'nif' => $record['nif'] ?? $nif,
+            'social_denomination' => $record['social_denomination'] ?? $socialDenomination,
+            'customer_number' => $record['customer_number'] ?? null,
         ]);
 
         $entity->save();
+
 
         $productRisks = $record['product_risk'] ?? [];
         if (!is_array($productRisks)) {
@@ -194,10 +195,10 @@ class ImportDataJob implements ShouldQueue
                 ];
             }
         }
-       
 
-       
-       
+
+
+
         $data = [
             'entity_id' => $entity->id,
             'identification_capacity' => $this->indicatorService->getByDescription($record['identification_capacity'] ?? null),
