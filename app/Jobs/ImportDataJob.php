@@ -142,8 +142,9 @@ class ImportDataJob implements ShouldQueue
         $entity->fill([
             'policy_number' => $record['policy_number'] ?? $entity->policy_number,
             'entity_type' => $record['entity_type'] ?? $entity->entity_type,
-            'nif' => $nif ?? $entity->nif,
+            'nif' => $record['nif'] ?? $entity->nif,
             'social_denomination' => $socialDenomination ?? $entity->social_denomination,
+            'customer_number' => $record['customer_number'] ?? $entity->customer_number,
         ]);
 
         $entity->save();
