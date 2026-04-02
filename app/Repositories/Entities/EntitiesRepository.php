@@ -37,7 +37,7 @@ class EntitiesRepository extends AbstractRepository
         ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
         : null;
 
-    $query = $this->model;
+        $query = $this->model->newQuery(); 
 
     if ($startDate && $endDate) {
         $query->whereBetween('created_at', [$startDate, $endDate]);
