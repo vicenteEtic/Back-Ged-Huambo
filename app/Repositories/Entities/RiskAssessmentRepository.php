@@ -247,14 +247,14 @@ class RiskAssessmentRepository extends AbstractRepository
     public function getTotalRiskAssessments(array $data = []): int
     {
         $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
+            ? Carbon::parse($data['startDate'])->startOfDay()
             : null;
     
         $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
+            ? Carbon::parse($data['endDate'])->endOfDay()
             : null;
     
-        $query = $this->model;
+        $query = $this->model->newQuery(); // 🔥 evita herdar lixo
     
         if ($startDate && $endDate) {
             $query->whereBetween('created_at', [$startDate, $endDate]);
