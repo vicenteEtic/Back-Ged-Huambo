@@ -186,11 +186,18 @@ class RiskAssessmentController extends AbstractController
         }
     }
 
-    public function getHeatMap(int $year = null,RiskAssessmentFindDateRequest $request)
+    public function getHeatMap(?int $year = null, RiskAssessmentFindDateRequest $request)
     {
         try {
             $this->logRequest();
-            $result = $this->service->getHeatMap($year,$request->validated());
+    
+            $data = $request->validated();
+    
+            // Se ano vier no $request, substitui o parâmetro $year
+            $year = $year ?? ($data['year'] ?? null);
+    
+            $result = $this->service->getHeatMap($year, $data);
+    
             return response()->json($result, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
