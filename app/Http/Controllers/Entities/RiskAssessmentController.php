@@ -186,7 +186,7 @@ class RiskAssessmentController extends AbstractController
         }
     }
 
-    public function getHeatMap(?int $year = null, RiskAssessmentFindDateRequest $request)
+    public function getHeatMap(RiskAssessmentFindDateRequest $request, ?int $year = null)
     {
         try {
             $this->logRequest();
