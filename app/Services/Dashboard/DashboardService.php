@@ -13,17 +13,17 @@ class DashboardService
         private readonly RiskAssessmentService $riskAssessmentService
     ) {}
 
-    public function totalGeralData()
+    public function totalGeralData(array $data = [])
     {
-        $totalEntities = $this->entitiesService->getTotalEntites();
-        $totalRiskAssessments = $this->riskAssessmentService->getTotalRiskAssessments();
-        $totalEntitiesColectivo = $this->entitiesService->getEntitiesByType(TypeEntity::COLECTIVA);
-        $totalEntitiesSingular = $this->entitiesService->getEntitiesByType(TypeEntity::SINGULAR);
+        $totalEntities = $this->entitiesService->getTotalEntites($data);
+        $totalRiskAssessments = $this->riskAssessmentService->getTotalRiskAssessments($data);
+        $totalEntitiesColectivo = $this->entitiesService->getEntitiesByType(TypeEntity::COLECTIVA,$data);
+        $totalEntitiesSingular = $this->entitiesService->getEntitiesByType(TypeEntity::SINGULAR,$data);
         $lastsAssessment = $this->riskAssessmentService->getLastAssessment(3);
 
         
-        $collective_evaluation = $this->entitiesService->collectiveEntities_evaluation();
-        $private_evaluation = $this->entitiesService->privateEntities_evaluation();
+        $collective_evaluation = $this->entitiesService->collectiveEntities_evaluation($data);
+        $private_evaluation = $this->entitiesService->privateEntities_evaluation($data);
         return [
             'total_entities' => $totalEntities,
             'total_risk_assessments' => $totalRiskAssessments,

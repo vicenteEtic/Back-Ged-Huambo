@@ -8,6 +8,7 @@ use App\Models\Entities\Entities;
 use App\Models\Entities\RiskAssessment;
 use App\Repositories\AbstractRepository;
 use App\Repositories\Indicator\IndicatorTypeRepository;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 
 class EntitiesRepository extends AbstractRepository
@@ -23,15 +24,54 @@ class EntitiesRepository extends AbstractRepository
         parent::__construct($model);
     }
 
-    public function getTotalEntities(): int
-    {
-        return $this->model->count();
+ 
+
+
+    public function getTotalEntities(array $data = []): int
+{
+    $startDate = !empty($data['startDate'])
+        ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
+        : null;
+
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
+        : null;
+
+    $query = $this->model;
+
+    if ($startDate && $endDate) {
+        $query->whereBetween('created_at', [$startDate, $endDate]);
+    } elseif ($startDate) {
+        $query->where('created_at', '>=', $startDate);
+    } elseif ($endDate) {
+        $query->where('created_at', '<=', $endDate);
     }
 
-    public function getEntitiesByType(TypeEntity $type): int
-    {
-        return $this->model->where('entity_type', $type)->count();
+    return $query->count();
+}
+
+public function getEntitiesByType(TypeEntity $type, array $data = []): int
+{
+    $startDate = !empty($data['startDate'])
+        ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
+        : null;
+
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
+        : null;
+
+    $query = $this->model->where('entity_type', $type);
+
+    if ($startDate && $endDate) {
+        $query->whereBetween('created_at', [$startDate, $endDate]);
+    } elseif ($startDate) {
+        $query->where('created_at', '>=', $startDate);
+    } elseif ($endDate) {
+        $query->where('created_at', '<=', $endDate);
     }
+
+    return $query->count();
+}
 
 
     public function getLastEntities(int $limit = 3): ?Collection
@@ -147,20 +187,54 @@ class EntitiesRepository extends AbstractRepository
     }
 
 
-    public function privateEntities_evaluation(): int
+    public function privateEntities_evaluation(array $data = []): int
     {
-
-
-        return    $privateEntities_evaluation  = RiskAssessment::whereHas('entity', function ($query) {
+        $startDate = !empty($data['startDate'])
+            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
+            : null;
+    
+        $endDate = !empty($data['endDate'])
+            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
+            : null;
+    
+        $query = RiskAssessment::whereHas('entity', function ($query) {
             $query->where('entity_type', 2);
-        })->count();
+        });
+    
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            $query->where('created_at', '>=', $startDate);
+        } elseif ($endDate) {
+            $query->where('created_at', '<=', $endDate);
+        }
+    
+        return $query->count();
     }
 
-    public function collectiveEntities_evaluation(): int
+    public function collectiveEntities_evaluation(array $data = []): int
     {
-        return   $collectiveEntities_evaluation = RiskAssessment::whereHas('entity', function ($query) {
+        $startDate = !empty($data['startDate'])
+            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
+            : null;
+    
+        $endDate = !empty($data['endDate'])
+            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
+            : null;
+    
+        $query = RiskAssessment::whereHas('entity', function ($query) {
             $query->where('entity_type', 1);
-        })->count();
+        });
+    
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            $query->where('created_at', '>=', $startDate);
+        } elseif ($endDate) {
+            $query->where('created_at', '<=', $endDate);
+        }
+    
+        return $query->count();
     }
 
 

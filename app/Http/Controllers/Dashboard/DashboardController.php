@@ -6,6 +6,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Entities\RiskAssessmentFindDateRequest;
 use App\Services\Dashboard\DashboardService;
 
 class DashboardController extends Controller
@@ -15,11 +16,15 @@ class DashboardController extends Controller
 
     public function __construct(private DashboardService $service) {}
 
-    public function dashboard(Request $request)
+
+
+  
+
+    public function dashboard(RiskAssessmentFindDateRequest $request)
     {
         try {
             $this->logRequest();
-            $data = $this->service->totalGeralData();
+            $data = $this->service->totalGeralData($request->validated());
             $this->logToDatabase(
                 type: $this->logType,
                 level: 'info',

@@ -446,9 +446,9 @@ class RiskAssessmentService extends AbstractService
         return $year;
     }
 
-    public function getTotalRiskAssessments(): int
+    public function getTotalRiskAssessments($data): int
     {
-        return $this->repository->getTotalRiskAssessments();
+        return $this->repository->getTotalRiskAssessments($data);
     }
 
     public function getLastAssessment(int $limit = 3): ?Collection

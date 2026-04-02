@@ -24,25 +24,25 @@ class EntitiesService extends AbstractService
         parent::__construct($repository);
     }
 
-    public function getTotalEntites()
+    public function getTotalEntites(array $data = [])
     {
-        return $this->repository->getTotalEntities();
+        return $this->repository->getTotalEntities($data);
     }
 
-    public function getEntitiesByType(TypeEntity $type)
+    public function getEntitiesByType(TypeEntity $type,$data)
     {
-        return $this->repository->getEntitiesByType($type);
+        return $this->repository->getEntitiesByType($type,$data);
     }
 
 
-    public function collectiveEntities_evaluation(): int
+    public function collectiveEntities_evaluation($data): int
     {
-        return $this->repository->collectiveEntities_evaluation();
+        return $this->repository->collectiveEntities_evaluation($data);
     }
 
-    public function privateEntities_evaluation()
+    public function privateEntities_evaluation($data)
     {
-        return $this->repository->privateEntities_evaluation();
+        return $this->repository->privateEntities_evaluation($data);
     }
 
     public function initializeImportBatch(int $userId): int
