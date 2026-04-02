@@ -376,12 +376,17 @@ class RiskAssessmentService extends AbstractService
     }
 
 
-    public function getHeatMap(?int $year = null): array
+    public function getHeatMap($year, array $data): array
     {
-        $year = $this->validateYear($year ?? (int) date('Y'));
-        $monthlyData = $this->repository->getMonthlyData($year);
+        // Se for enviado o ano no array, usa, senão pega o ano atual
+        $year = !empty($year) ? (int) $year : (int) date('Y');
+    
+        // Chama o método já preparado para aceitar intervalos ou ano
+        $monthlyData = $this->repository->getMonthlyData($year,$data);
+    
+        // Recupera os anos distintos para filtro/legenda
         $years = $this->repository->getDistinctYears();
-
+    
         return $this->formatResults($year, $monthlyData, $years);
     }
 

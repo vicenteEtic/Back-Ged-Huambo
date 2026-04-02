@@ -275,7 +275,18 @@ class AlertRepository extends AbstractRepository
     public function getTotalAlerts($data): array
     {
         return [
-            'total' => $this->model->count(),
+       
+
+            'total' => $this->model
+            ->when(!empty($data['startDate']), function ($query) use ($data) {
+                $startDate = Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay();
+                $query->where('created_at', '>=', $startDate);
+            })
+            ->when(!empty($data['endDate']), function ($query) use ($data) {
+                $endDate = Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay();
+                $query->where('created_at', '<=', $endDate);
+            })
+            ->count(),
             'transation' => [
 
                 "particularEntity" => $this->particularEntityTransation($data),

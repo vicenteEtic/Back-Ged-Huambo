@@ -224,9 +224,9 @@ class RiskAssessmentRepository extends AbstractRepository
             ->toArray();
     }
 
-    public function getMonthlyData(int $year): array
+    public function getMonthlyData($year,array $data): array
     {
-        $monthlyData = $this->model
+        $query = $this->model
             ->select(
                 DB::raw('MONTH(risk_assessment.created_at) AS month'),
                 DB::raw('MONTHNAME(risk_assessment.created_at) AS monthName'),
@@ -235,13 +235,33 @@ class RiskAssessmentRepository extends AbstractRepository
                 'diligence.color'
             )
             ->join('diligence', 'diligence.name', '=', 'risk_assessment.diligence')
-            ->whereYear('risk_assessment.created_at', $year)
             ->groupBy('month', 'monthName', 'name', 'diligence.color', 'risk_assessment.diligence')
-            ->orderBy('month')
-            ->get()
-            ->toArray();
-
-        return $monthlyData;
+            ->orderBy('month');
+    
+        // Filtra por intervalo de datas se existir
+        if (!empty($data['startDate']) || !empty($data['endDate'])) {
+            $startDate = !empty($data['startDate'])
+                ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
+                : null;
+    
+            $endDate = !empty($data['endDate'])
+                ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
+                : null;
+    
+            if ($startDate && $endDate) {
+                $query->whereBetween('risk_assessment.created_at', [$startDate, $endDate]);
+            } elseif ($startDate) {
+                $query->where('risk_assessment.created_at', '>=', $startDate);
+            } elseif ($endDate) {
+                $query->where('risk_assessment.created_at', '<=', $endDate);
+            }
+        }
+        // Se não houver intervalo, mas houver ano, filtra pelo ano
+        elseif (!empty($year)) {
+            $query->whereYear('risk_assessment.created_at', $year);
+        }
+    
+        return $query->get()->toArray();
     }
 
     public function getTotalRiskAssessments(array $data = []): int
