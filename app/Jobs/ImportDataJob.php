@@ -193,7 +193,10 @@ class ImportDataJob implements ShouldQueue
                 ];
             }
         }
+       
 
+       
+       
         $data = [
             'entity_id' => $entity->id,
             'identification_capacity' => $this->indicatorService->getByDescription($record['identification_capacity'] ?? null),
@@ -206,9 +209,9 @@ class ImportDataJob implements ShouldQueue
             'form_establishment' => $this->normalizeBoolean($record['form_establishment'] ?? false),
             'status_residence' => $this->normalizeBoolean($record['status_residence'] ?? false),
             'pep' => $record['pep'] ?? false,
-            'santion' => $record['sanction'] ?? false,
+            'santion' => $record['santion'] ?? false,
             'beneficial_owners' =>   $beneficialOwners,
-            'beneficiaries' =>    $beneficiaries,
+            'beneficial' =>    $beneficiaries,
             'type_assessment' => 2,
             'user_id' => $this->userID,
             'risk_assessment_control_id' => $this->batchId,
