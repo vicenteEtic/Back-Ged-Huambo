@@ -23,9 +23,9 @@ class AlertService extends AbstractService
 
 
   
-    public function getTotalAlerts(): array
+    public function getTotalAlerts(array $data = []): array
     {
-        return $this->repository->getTotalAlerts();
+        return $this->repository->getTotalAlerts($data);
     }
 
 

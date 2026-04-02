@@ -6,6 +6,7 @@ use App\Services\Alert\AlertService;
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\Alert\AlertDocumentRequest;
 use App\Http\Requests\Alert\AlertUpdateStatusRequest;
+use App\Http\Requests\Entities\RiskAssessmentFindDateRequest;
 use App\Services\Alert\AlertUser\AlertUserService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -22,12 +23,17 @@ class AlertController extends AbstractController
         $this->service = $service;
         $this->alertUserService = $alertUserService;
     }
-    public function getTotalAlerts()
+
+
+
+ 
+
+    public function getTotalAlerts(RiskAssessmentFindDateRequest $request)
     {
         try {
 
 
-            return $this->service->getTotalAlerts();
+            return $this->service->getTotalAlerts($request->validated());
         } catch (Exception $e) {
             if ($this->logRequest) {
                 $this->logRequest($e);
