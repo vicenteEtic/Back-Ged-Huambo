@@ -111,10 +111,12 @@ class ImportPoliciesJob implements ShouldQueue
             'numero_cliente'    => $row[array_search('NUMERO_CLIENTE', $header)] ?? null,
             'numero_apolice'    => $row[array_search('NUMERO_APOLICE', $header)] ?? null,
             'descricao_produto' => $row[array_search('DESCRICAO_PRODUTO', $header)] ?? null,
+         
             'estado_apolice'    => $this->mapStatus($row[array_search('ESTADO_APOLICE', $header)] ?? null),
             'data_inicio'       => $this->parseDate($row[array_search('DATA_INICIO', $header)] ?? null),
             'data_fim'          => $this->parseDate($row[array_search('DATA_FIM', $header)] ?? null),
             'capital'           => $this->toFloat($row[array_search('CAPITAL', $header)] ?? 0),
+            'data_proxima_renovacao' => $this->parseDate($row[array_search('DATA_PROXIMA_RENOVACAO', $header)] ?? null),
             'premium_total'     => $this->toFloat($row[array_search('PREMIO_TOTAL', $header)] ?? 0),
             'interest'          => $this->toFloat($row[array_search('JUROS', $header)] ?? 0),
             'created_at'        => now(),

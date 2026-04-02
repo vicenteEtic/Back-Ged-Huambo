@@ -51,5 +51,6 @@ class Policies extends Model
         'charges',                       // Encargos
         'other_charges',                 // Outros_Encargos
         'interest',                      // Juros
+        
     ];
 }
