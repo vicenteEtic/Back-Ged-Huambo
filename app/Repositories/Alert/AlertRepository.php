@@ -35,240 +35,267 @@ class AlertRepository extends AbstractRepository
      */
 
 
-    public function getTotalAlertsByMonth(array $data = []): array
-    {
-        $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
-            : null;
+   public function getTotalAlertsByMonth(array $data = []): array
+{
+    // 🔹 Normalizar datas (SEM conversão de timezone desnecessária)
+    $startDate = !empty($data['startDate'])
+        ? Carbon::parse($data['startDate'])->startOfDay()
+        : null;
 
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
-            : null;
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'])->endOfDay()
+        : null;
 
-        $months = collect(range(0, 11))
-            ->map(fn($i) => Carbon::now()->subMonths($i)->startOfMonth())
-            ->reverse()
-            ->values();
+    // 🔹 Últimos 12 meses (forçando UTC para consistência)
+    $months = collect(range(0, 11))
+        ->map(fn($i) => Carbon::now('UTC')->subMonths($i)->startOfMonth())
+        ->reverse()
+        ->values();
 
-        $query = $this->model->newQuery();
+    // 🔹 Nova query limpa
+    $query = $this->model->newQuery();
 
-        // 🔹 Aplicar filtro de datas
-        if ($startDate && $endDate) {
-            $query->whereBetween('created_at', [$startDate, $endDate]);
-        } elseif ($startDate) {
-            $query->where('created_at', '>=', $startDate);
-        } elseif ($endDate) {
-            $query->where('created_at', '<=', $endDate);
-        }
-
-        $alertsByMonth = $query
-            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month")
-            ->selectRaw("COUNT(*) as total")
-            ->groupBy('month')
-            ->pluck('total', 'month');
-
-        return $months->map(function (Carbon $month) use ($alertsByMonth) {
-            $key = $month->format('Y-m');
-
-            return [
-                'month' => $month->translatedFormat('F'),
-                'total' => $alertsByMonth[$key] ?? 0,
-            ];
-        })->toArray();
+    // 🔹 Aplicar filtro de datas
+    if ($startDate && $endDate) {
+        $query->whereBetween('created_at', [$startDate, $endDate]);
+    } elseif ($startDate) {
+        $query->where('created_at', '>=', $startDate);
+    } elseif ($endDate) {
+        $query->where('created_at', '<=', $endDate);
     }
+
+    // 🔹 Agrupar por mês (forma segura)
+    $alertsByMonth = $query
+        ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month")
+        ->selectRaw("COUNT(*) as total")
+        ->groupBy(DB::raw("DATE_FORMAT(created_at, '%Y-%m')"))
+        ->pluck('total', 'month');
+
+    // 🔹 Mapear todos os meses (mesmo os que não têm dados)
+    return $months->map(function (Carbon $month) use ($alertsByMonth) {
+        $key = $month->format('Y-m');
+
+        return [
+            'month' => $month->format('F'), // ou translatedFormat('F')
+            'total' => $alertsByMonth[$key] ?? 0,
+        ];
+    })->toArray();
+}
 
     /**
      * Totais gerais de alertas
      */
     public function getAllUsersAlertSummary(array $data = [])
-    {
-        // Filtra datas se fornecidas
-        $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
-            : null;
-    
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
-            : null;
-    
-        // Busca todos os usuários que têm alertas associados
-        $userIds = $this->alertUserRepository->getUsersWithAlerts($startDate, $endDate);
-    
-        return collect($userIds)->map(function ($userId) use ($startDate, $endDate) {
-            $user = \App\Models\User::find($userId);
-    
-            // Resumo por status do usuário, passando as datas
-            $summary = $this->alertUserRepository->countAlertsByUserGrouped($userId, $startDate, $endDate);
-    
-            return [
-                'id'              => $user->id,
-                'name'            => $user->first_name . ' ' . $user->last_name,
-                'email'           => $user->email,
-                'inactive_alerts' => $summary['closed'] ?? 0,
-                'new'             => $summary['new'] ?? 0,
-                'validation'      => $summary['validation'] ?? 0,
-                'supervision'     => $summary['supervision'] ?? 0,
-            ];
-        })->values();
-    }
+{
+    // 🔹 Datas SEM conversão de timezone
+    $startDate = !empty($data['startDate'])
+        ? Carbon::parse($data['startDate'])->startOfDay()
+        : null;
 
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'])->endOfDay()
+        : null;
 
+    // 🔹 IDs dos usuários com alertas
+    $userIds = $this->alertUserRepository
+        ->getUsersWithAlerts($startDate, $endDate);
 
-    public function particularEntity(array $data = []): array
-    {
-        $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
-            : null;
+    // 🔹 Buscar todos os usuários de uma vez (evita N+1)
+    $users = \App\Models\User::whereIn('id', $userIds)
+        ->get()
+        ->keyBy('id');
 
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
-            : null;
+    return collect($userIds)->map(function ($userId) use ($users, $startDate, $endDate) {
 
-        $baseQuery = DB::table('alert')
-            ->join('entities', 'alert.entity_id', '=', 'entities.id')
-            ->where('entities.entity_type', 2);
+        $user = $users[$userId] ?? null;
 
-        // 🔹 Aplicar filtro de datas
-        if ($startDate && $endDate) {
-            $baseQuery->whereBetween('alert.created_at', [$startDate, $endDate]);
-        } elseif ($startDate) {
-            $baseQuery->where('alert.created_at', '>=', $startDate);
-        } elseif ($endDate) {
-            $baseQuery->where('alert.created_at', '<=', $endDate);
+        // 🔹 Segurança
+        if (!$user) {
+            return null;
         }
 
-        // 🔹 Agrupado por nível
-        $alertasPorNivel = (clone $baseQuery)
-            ->select('alert.level', DB::raw('COUNT(alert.id) as total'))
-            ->groupBy('alert.level')
-            ->get();
-
-        // 🔹 Total geral
-        $totalAlertas = (clone $baseQuery)->count();
+        // 🔹 Resumo por status
+        $summary = $this->alertUserRepository
+            ->countAlertsByUserGrouped($userId, $startDate, $endDate);
 
         return [
-            'total' => $totalAlertas,
-            'byLevel' => $alertasPorNivel->toArray(),
+            'id'              => $user->id,
+            'name'            => $user->first_name . ' ' . $user->last_name,
+            'email'           => $user->email,
+            'inactive_alerts' => $summary['closed'] ?? 0,
+            'new'             => $summary['new'] ?? 0,
+            'validation'      => $summary['validation'] ?? 0,
+            'supervision'     => $summary['supervision'] ?? 0,
         ];
+    })
+    ->filter() // remove nulls
+    ->values();
+}
+
+
+
+   public function particularEntity(array $data = []): array
+{
+    // 🔹 Datas SEM conversão de timezone
+    $startDate = !empty($data['startDate'])
+        ? Carbon::parse($data['startDate'])->startOfDay()
+        : null;
+
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'])->endOfDay()
+        : null;
+
+    $baseQuery = DB::table('alert')
+        ->join('entities', 'alert.entity_id', '=', 'entities.id')
+        ->where('entities.entity_type', 2);
+
+    // 🔹 Filtro de datas
+    if ($startDate && $endDate) {
+        $baseQuery->whereBetween('alert.created_at', [$startDate, $endDate]);
+    } elseif ($startDate) {
+        $baseQuery->where('alert.created_at', '>=', $startDate);
+    } elseif ($endDate) {
+        $baseQuery->where('alert.created_at', '<=', $endDate);
     }
 
+    // 🔹 Agrupado por nível
+    $alertasPorNivel = (clone $baseQuery)
+        ->select('alert.level', DB::raw('COUNT(*) as total'))
+        ->groupBy('alert.level')
+        ->get();
 
-    public function particularEntityTransation(array $data = []): array
-    {
-        $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
-            : null;
+    // 🔹 Total
+    $totalAlertas = (clone $baseQuery)->count();
 
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
-            : null;
+    return [
+        'total' => $totalAlertas,
+        'byLevel' => $alertasPorNivel->toArray(),
+    ];
+}
 
-        $baseQuery = DB::table('alert')
-            ->join('entities', 'alert.entity_id', '=', 'entities.id')
-            ->where('entities.entity_type', 2)
-            ->where('category', 'KYT');
 
-        // 🔹 Aplicar filtro de datas
-        if ($startDate && $endDate) {
-            $baseQuery->whereBetween('alert.created_at', [$startDate, $endDate]);
-        } elseif ($startDate) {
-            $baseQuery->where('alert.created_at', '>=', $startDate);
-        } elseif ($endDate) {
-            $baseQuery->where('alert.created_at', '<=', $endDate);
-        }
+  public function particularEntityTransation(array $data = []): array
+{
+    // 🔹 Datas sem conversão de timezone desnecessária
+    $startDate = !empty($data['startDate'])
+        ? Carbon::parse($data['startDate'])->startOfDay()
+        : null;
 
-        // 🔹 Clonar query para evitar conflitos
-        $alertasPorNivel = (clone $baseQuery)
-            ->select('alert.level', DB::raw('COUNT(alert.id) as total'))
-            ->groupBy('alert.level')
-            ->get();
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'])->endOfDay()
+        : null;
 
-        $totalAlertas = (clone $baseQuery)->count();
+    // 🔹 Query base
+    $baseQuery = DB::table('alert')
+        ->join('entities', 'alert.entity_id', '=', 'entities.id')
+        ->where('entities.entity_type', 2)
+        ->where('category', 'KYT');
 
-        return [
-            'total' => $totalAlertas,
-            'byLevel' => $alertasPorNivel->toArray(),
-        ];
+    // 🔹 Aplicar filtro de datas de forma reutilizável
+    if ($startDate && $endDate) {
+        $baseQuery->whereBetween('alert.created_at', [$startDate, $endDate]);
+    } elseif ($startDate) {
+        $baseQuery->where('alert.created_at', '>=', $startDate);
+    } elseif ($endDate) {
+        $baseQuery->where('alert.created_at', '<=', $endDate);
     }
 
-    public function coletiveEntitytTrsantion(array $data = []): array
-    {
-        $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
-            : null;
+    // 🔹 Agrupar por nível
+    $alertasPorNivel = (clone $baseQuery)
+        ->select('alert.level', DB::raw('COUNT(*) as total'))
+        ->groupBy('alert.level')
+        ->get();
 
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
-            : null;
+    // 🔹 Total geral
+    $totalAlertas = (clone $baseQuery)->count();
 
-        $baseQuery = DB::table('alert')
-            ->join('entities', 'alert.entity_id', '=', 'entities.id')
-            ->where('entities.entity_type', 1)
-            ->where('category', 'KYT');
+    return [
+        'total' => $totalAlertas,
+        'byLevel' => $alertasPorNivel->toArray(),
+    ];
+}
 
-        // 🔹 Aplicar filtro de datas
-        if ($startDate && $endDate) {
-            $baseQuery->whereBetween('alert.created_at', [$startDate, $endDate]);
-        } elseif ($startDate) {
-            $baseQuery->where('alert.created_at', '>=', $startDate);
-        } elseif ($endDate) {
-            $baseQuery->where('alert.created_at', '<=', $endDate);
-        }
+   public function coletiveEntityTransation(array $data = []): array
+{
+    // 🔹 Datas sem conversão de timezone
+    $startDate = !empty($data['startDate'])
+        ? Carbon::parse($data['startDate'])->startOfDay()
+        : null;
 
-        // 🔹 Agrupado por nível
-        $alertasPorNivel = (clone $baseQuery)
-            ->select('alert.level', DB::raw('COUNT(alert.id) as total'))
-            ->groupBy('alert.level')
-            ->get();
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'])->endOfDay()
+        : null;
 
-        // 🔹 Total geral
-        $totalAlertas = (clone $baseQuery)->count();
+    // 🔹 Query base
+    $baseQuery = DB::table('alert')
+        ->join('entities', 'alert.entity_id', '=', 'entities.id')
+        ->where('entities.entity_type', 1)
+        ->where('category', 'KYT');
 
-        return [
-            'total' => $totalAlertas,
-            'byLevel' => $alertasPorNivel->toArray(),
-        ];
+    // 🔹 Aplicar filtro de datas
+    if ($startDate && $endDate) {
+        $baseQuery->whereBetween('alert.created_at', [$startDate, $endDate]);
+    } elseif ($startDate) {
+        $baseQuery->where('alert.created_at', '>=', $startDate);
+    } elseif ($endDate) {
+        $baseQuery->where('alert.created_at', '<=', $endDate);
     }
 
+    // 🔹 Agrupado por nível
+    $alertasPorNivel = (clone $baseQuery)
+        ->select('alert.level', DB::raw('COUNT(*) as total'))
+        ->groupBy('alert.level')
+        ->get();
 
-    public function coletiveEntity(array $data = []): array
-    {
-        $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
-            : null;
+    // 🔹 Total geral
+    $totalAlertas = (clone $baseQuery)->count();
 
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
-            : null;
+    return [
+        'total' => $totalAlertas,
+        'byLevel' => $alertasPorNivel->toArray(),
+    ];
+}
 
-        $baseQuery = DB::table('alert')
-            ->join('entities', 'alert.entity_id', '=', 'entities.id')
-            ->where('entities.entity_type', 1);
 
-        // 🔹 Aplicar filtro de datas
-        if ($startDate && $endDate) {
-            $baseQuery->whereBetween('alert.created_at', [$startDate, $endDate]);
-        } elseif ($startDate) {
-            $baseQuery->where('alert.created_at', '>=', $startDate);
-        } elseif ($endDate) {
-            $baseQuery->where('alert.created_at', '<=', $endDate);
-        }
+   public function coletiveEntity(array $data = []): array
+{
+    // 🔹 Datas sem conversão de timezone
+    $startDate = !empty($data['startDate'])
+        ? Carbon::parse($data['startDate'])->startOfDay()
+        : null;
 
-        // 🔹 Agrupado por nível
-        $alertasPorNivel = (clone $baseQuery)
-            ->select('alert.level', DB::raw('COUNT(alert.id) as total'))
-            ->groupBy('alert.level')
-            ->get();
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'])->endOfDay()
+        : null;
 
-        // 🔹 Total geral
-        $totalAlertas = (clone $baseQuery)->count();
+    // 🔹 Query base
+    $baseQuery = DB::table('alert')
+        ->join('entities', 'alert.entity_id', '=', 'entities.id')
+        ->where('entities.entity_type', 1);
 
-        return [
-            'total' => $totalAlertas,
-            'byLevel' => $alertasPorNivel->toArray(),
-        ];
+    // 🔹 Aplicar filtro de datas
+    if ($startDate && $endDate) {
+        $baseQuery->whereBetween('alert.created_at', [$startDate, $endDate]);
+    } elseif ($startDate) {
+        $baseQuery->where('alert.created_at', '>=', $startDate);
+    } elseif ($endDate) {
+        $baseQuery->where('alert.created_at', '<=', $endDate);
     }
 
+    // 🔹 Agrupado por nível
+    $alertasPorNivel = (clone $baseQuery)
+        ->select('alert.level', DB::raw('COUNT(*) as total'))
+        ->groupBy('alert.level')
+        ->get();
+
+    // 🔹 Total geral
+    $totalAlertas = (clone $baseQuery)->count();
+
+    return [
+        'total' => $totalAlertas,
+        'byLevel' => $alertasPorNivel->toArray(),
+    ];
+}
 
 
 
@@ -290,7 +317,7 @@ class AlertRepository extends AbstractRepository
             'transation' => [
 
                 "particularEntity" => $this->particularEntityTransation($data),
-                "coletiveEntit" => $this->coletiveEntitytTrsantion($data),
+                "coletiveEntit" => $this->coletiveEntityTransation($data),
                 'by_type' => $this->countByField('type', [
                     "Substituição rápida de apólice" => 'QuickPolicyReplacementDetected',
                     "Resgate antecipado de apólice" => 'EarlyRedemptionDetected',
@@ -383,108 +410,116 @@ class AlertRepository extends AbstractRepository
     /**
      * Contagem genérica por campo
      */
-    private function countByField(string $field, array $map, array $data = []): array
-    {
-        // 🔹 Preparar datas
-        $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
-            : null;
+  private function countByField(string $field, array $map, array $data = []): array
+{
+    // 🔹 Preparar datas
+    $startDate = !empty($data['startDate'])
+        ? Carbon::parse($data['startDate'])->startOfDay()
+        : null;
 
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
-            : null;
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'])->endOfDay()
+        : null;
 
-        $query = $this->model;
+    // 🔹 Nova query
+    $query = $this->model->newQuery();
 
-        // 🔹 Aplicar filtro de datas
-        if ($startDate && $endDate) {
-            $query->whereBetween('created_at', [$startDate, $endDate]);
-        } elseif ($startDate) {
-            $query->where('created_at', '>=', $startDate);
-        } elseif ($endDate) {
-            $query->where('created_at', '<=', $endDate);
-        }
-
-        // 🔹 Contagem agrupada pelo campo
-        $counts = $query
-            ->select($field, DB::raw('COUNT(*) as total'))
-            ->groupBy($field)
-            ->pluck('total', $field);
-
-        // 🔹 Mapear os resultados usando $map
-        return collect($map)->mapWithKeys(
-            fn($label, $value) => [$label => $counts[$value] ?? 0]
-        )->toArray();
+    // 🔹 Aplicar filtro de datas
+    if ($startDate && $endDate) {
+        $query->whereBetween('created_at', [$startDate, $endDate]);
+    } elseif ($startDate) {
+        $query->where('created_at', '>=', $startDate);
+    } elseif ($endDate) {
+        $query->where('created_at', '<=', $endDate);
     }
 
+    // 🔹 Contagem agrupada pelo campo
+    $counts = $query
+        ->select($field, DB::raw('COUNT(*) as total'))
+        ->groupBy($field)
+        ->pluck('total', $field)
+        ->toArray();
+
+    // 🔹 Mapear os resultados usando $map
+    return collect($map)->mapWithKeys(
+        fn($label, $value) => [$label => $counts[$value] ?? 0]
+    )->toArray();
+}
 
 
 
-    private function countByLevel(string $field, array $map, array $data = []): array
-    {
-        $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
-            : null;
+private function countByLevel(string $field, array $map, array $data = []): array
+{
+    // 🔹 Preparar datas
+    $startDate = !empty($data['startDate'])
+        ? Carbon::parse($data['startDate'])->startOfDay()
+        : null;
 
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
-            : null;
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'])->endOfDay()
+        : null;
 
-        $query = $this->model;
+    // 🔹 Nova query
+    $query = $this->model->newQuery();
 
-        // 🔹 Aplicar filtro de datas
-        if ($startDate && $endDate) {
-            $query->whereBetween('created_at', [$startDate, $endDate]);
-        } elseif ($startDate) {
-            $query->where('created_at', '>=', $startDate);
-        } elseif ($endDate) {
-            $query->where('created_at', '<=', $endDate);
-        }
-
-        // 🔹 Contagem agrupada pelo campo
-        $counts = $query
-            ->select($field, DB::raw('COUNT(*) as total'))
-            ->groupBy($field)
-            ->pluck('total', $field);
-
-        // 🔹 Mapear os resultados usando $map
-        return collect($map)->mapWithKeys(
-            fn($label, $value) => [$label => $counts[$value] ?? 0]
-        )->toArray();
+    // 🔹 Aplicar filtro de datas
+    if ($startDate && $endDate) {
+        $query->whereBetween('created_at', [$startDate, $endDate]);
+    } elseif ($startDate) {
+        $query->where('created_at', '>=', $startDate);
+    } elseif ($endDate) {
+        $query->where('created_at', '<=', $endDate);
     }
+
+    // 🔹 Contagem agrupada pelo campo
+    $counts = $query
+        ->select($field, DB::raw('COUNT(*) as total'))
+        ->groupBy($field)
+        ->pluck('total', $field)
+        ->toArray(); // garante array seguro
+
+    // 🔹 Mapear os resultados usando $map
+    return collect($map)->mapWithKeys(
+        fn($label, $value) => [$label => $counts[$value] ?? 0]
+    )->toArray();
+}
 
     /**
      * Contagem por categoria (KYC / KYT)
      */
-    private function countByCategory(array $data = []): array
-    {
-        $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
-            : null;
+   private function countByCategory(array $data = []): array
+{
+    // 🔹 Preparar datas
+    $startDate = !empty($data['startDate'])
+        ? Carbon::parse($data['startDate'])->startOfDay()
+        : null;
 
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
-            : null;
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'])->endOfDay()
+        : null;
 
-        $query = $this->model;
+    // 🔹 Nova query independente
+    $query = $this->model->newQuery();
 
-        // 🔹 Aplicar filtro de datas
-        if ($startDate && $endDate) {
-            $query->whereBetween('created_at', [$startDate, $endDate]);
-        } elseif ($startDate) {
-            $query->where('created_at', '>=', $startDate);
-        } elseif ($endDate) {
-            $query->where('created_at', '<=', $endDate);
-        }
-
-        // 🔹 Contagem por categoria
-        return $query
-            ->select('category', DB::raw('COUNT(*) as total'))
-            ->groupBy('category')
-            ->pluck('total', 'category')
-            ->only(['KYC', 'KYT'])
-            ->toArray();
+    // 🔹 Aplicar filtro de datas
+    if ($startDate && $endDate) {
+        $query->whereBetween('created_at', [$startDate, $endDate]);
+    } elseif ($startDate) {
+        $query->where('created_at', '>=', $startDate);
+    } elseif ($endDate) {
+        $query->where('created_at', '<=', $endDate);
     }
+
+    // 🔹 Contagem por categoria
+    $counts = $query
+        ->select('category', DB::raw('COUNT(*) as total'))
+        ->groupBy('category')
+        ->pluck('total', 'category')
+        ->only(['KYC', 'KYT'])
+        ->toArray();
+
+    return $counts;
+}
 
     /**
      * Atualizar status do alerta
