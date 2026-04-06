@@ -233,4 +233,75 @@ class AlertRepository extends AbstractRepository
 
         return $alert;
     }
+
+    public function getTotalAlerts(array $data): array
+{
+    return [
+        'total' => $this->model
+            ->when(!empty($data['startDate']), function ($query) use ($data) {
+                $query->where('created_at', '>=', Carbon::parse($data['startDate'])->startOfDay());
+            })
+            ->when(!empty($data['endDate']), function ($query) use ($data) {
+                $query->where('created_at', '<=', Carbon::parse($data['endDate'])->endOfDay());
+            })
+            ->count(),
+
+        'transation' => [
+            "particularEntity" => $this->particularEntityTransation($data),
+            "coletiveEntity" => $this->coletiveEntityTransation($data),
+            'by_type' => $this->countByField('type', [
+                "Substituição rápida de apólice" => 'QuickPolicyReplacementDetected',
+                "Resgate antecipado de apólice" => 'EarlyRedemptionDetected',
+                "Prémio elevado com risco baixo" => 'HighPremiumLowRisk',
+                "Substituição ou cancelamento repetido" => 'RepeatedReplacementOrCancellation',
+                "Churn de apólices (trocas frequentes)" => 'PolicyChurn',
+                "Aumento elevado de capital na apólice" => 'HighCapitalIncrease',
+                "Pagamentos por terceiros sem relação clara" => 'ThirdPartyPayments',
+                "Alterações frequentes de beneficiários" => 'FrequentBeneficiaryChanges',
+                "Ligação a jurisdições de alto risco" => 'HighRiskGeography',
+                "Sobrepagamento seguido de reembolso a terceiros" => 'OverpaymentRefund',
+            ], $data),
+        ],
+
+        'ParticularEntity' => $this->particularEntity($data),
+        'coletiveEntity' => $this->coletiveEntity($data),
+        'by_status' => $this->countByField('is_active', [
+            1 => 'new',
+            2 => 'validation',
+            3 => 'supervision',
+            0 => 'closed',
+        ], $data),
+        'by_sanctioned' => $this->countByField('is_sanctioned', [
+            1 => 'with_communication',
+            0 => 'without_communication',
+        ], $data),
+        'by_communication' => $this->countByField('is_reported', [
+            1 => 'with_communication',
+            0 => 'without_communication',
+        ], $data),
+        'pep' => $this->model
+            ->when(!empty($data['startDate']), fn($query) => $query->where('created_at', '>=', Carbon::parse($data['startDate'])->startOfDay()))
+            ->when(!empty($data['endDate']), fn($query) => $query->where('created_at', '<=', Carbon::parse($data['endDate'])->endOfDay()))
+            ->where('type', 'PEP')
+            ->count(),
+        'sanction' => $this->model
+            ->when(!empty($data['startDate']), fn($query) => $query->where('created_at', '>=', Carbon::parse($data['startDate'])->startOfDay()))
+            ->when(!empty($data['endDate']), fn($query) => $query->where('created_at', '<=', Carbon::parse($data['endDate'])->endOfDay()))
+            ->where('type', 'SANCTIONS')
+            ->count(),
+        'AML' => $this->model
+            ->when(!empty($data['startDate']), fn($query) => $query->where('created_at', '>=', Carbon::parse($data['startDate'])->startOfDay()))
+            ->when(!empty($data['endDate']), fn($query) => $query->where('created_at', '<=', Carbon::parse($data['endDate'])->endOfDay()))
+            ->where('type', 'AML')
+            ->count(),
+        'by_type' => $this->countByCategory($data),
+        'by_level' => $this->countByLevel('level', [
+            "Alto" => 'Alto',
+            "Médio" => 'Médio',
+            "Baixo" => 'Baixo',
+        ], $data),
+        'users' => $this->getAllUsersAlertSummary($data),
+        'by_month' => $this->getTotalAlertsByMonth($data),
+    ];
+}
 }
