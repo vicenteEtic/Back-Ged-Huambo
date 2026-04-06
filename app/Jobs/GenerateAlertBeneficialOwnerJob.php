@@ -76,7 +76,6 @@ class GenerateAlertBeneficialOwnerJob implements ShouldQueue
             if (!empty($sanctionData['data'])) {
                 $this->createAlerts($sanctionData['data'], $entity_id, $name, 'SANCTIONS');
             }
-
         } catch (\Throwable $e) {
             Log::error("Erro nas APIs externas: " . $e->getMessage());
         }
@@ -94,21 +93,21 @@ class GenerateAlertBeneficialOwnerJob implements ShouldQueue
                 $score >= 50 => 'Médio',
                 default      => 'Baixo',
             };
- $description = sprintf(
-                    'No âmbito da avaliação de risco AML/KYC, foi identificada correspondência do beneficiário efetivo %s em listas externas (%s).',
-                    $name,
-                    $item['datasets'] ?? $typeData['list']
-                );
+            $description = sprintf(
+                'No âmbito da avaliação de risco AML/KYC, foi identificada correspondência do beneficiário efetivo %s em listas externas (%s).',
+                $name,
+                $item['datasets'] ?? $typeData['list']
+            );
             $criteria = [
                 'entity_id' => $entity_id,
-                'origin_id' => $item['id'] ?? null,
-                'description' => $description ,
+                'origin_id' => '#'.$entity_id ?? null,
+             
             ];
 
             $alert = $this->alertRepository->findByValidate($criteria);
 
             if (!$alert) {
-               
+
 
                 $alert = $this->alertRepository->store([
                     'name'        => $item['name'] ?? 'UNKNOWN',
