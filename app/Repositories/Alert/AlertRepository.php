@@ -132,7 +132,8 @@ class AlertRepository extends AbstractRepository
         return ['total' => $totalAlertas, 'byLevel' => $alertasPorNivel->toArray()];
     }
 
-    public function coletiveEntityTransation(array $data = []): array
+
+     public function coletiveEntityTransation(array $data = []): array
     {
         $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'])->startOfDay() : null;
         $endDate = !empty($data['endDate']) ? Carbon::parse($data['endDate'])->endOfDay() : null;
@@ -155,6 +156,8 @@ class AlertRepository extends AbstractRepository
 
         return ['total' => $totalAlertas, 'byLevel' => $alertasPorNivel->toArray()];
     }
+
+   
 
     public function coletiveEntity(array $data = []): array
     {
@@ -234,35 +237,53 @@ class AlertRepository extends AbstractRepository
         return $alert;
     }
 
-    public function getTotalAlerts(array $data): array
+public function getTotalAlerts(array $data): array
 {
+    // Função auxiliar para aplicar filtros de data
+    $applyDateFilter = function ($query) use ($data) {
+        if (!empty($data['startDate']) && !empty($data['endDate'])) {
+            $query->whereBetween('created_at', [
+                Carbon::parse($data['startDate'])->startOfDay(),
+                Carbon::parse($data['endDate'])->endOfDay(),
+            ]);
+        } elseif (!empty($data['startDate'])) {
+            $query->where('created_at', '>=', Carbon::parse($data['startDate'])->startOfDay());
+        } elseif (!empty($data['endDate'])) {
+            $query->where('created_at', '<=', Carbon::parse($data['endDate'])->endOfDay());
+        }
+        return $query;
+    };
+
+    // Total geral de alertas
+    $totalAlertsQuery = $applyDateFilter($this->model->newQuery());
+    $total = $totalAlertsQuery->count();
+
+    // Contagem por tipos principais
+    $transation = [
+        "particularEntity" => $this->particularEntityTransation($data),
+        "coletiveEntity" => $this->coletiveEntityTransation($data),
+        'by_type' => $this->countByField('type', [
+            "Substituição rápida de apólice" => 'QuickPolicyReplacementDetected',
+            "Resgate antecipado de apólice" => 'EarlyRedemptionDetected',
+            "Prémio elevado com risco baixo" => 'HighPremiumLowRisk',
+            "Substituição ou cancelamento repetido" => 'RepeatedReplacementOrCancellation',
+            "Churn de apólices (trocas frequentes)" => 'PolicyChurn',
+            "Aumento elevado de capital na apólice" => 'HighCapitalIncrease',
+            "Pagamentos por terceiros sem relação clara" => 'ThirdPartyPayments',
+            "Alterações frequentes de beneficiários" => 'FrequentBeneficiaryChanges',
+            "Ligação a jurisdições de alto risco" => 'HighRiskGeography',
+            "Sobrepagamento seguido de reembolso a terceiros" => 'OverpaymentRefund',
+        ], $data),
+    ];
+
+    // Totais por tipo específico
+    $pep = $applyDateFilter($this->model->newQuery())->where('type', 'PEP')->count();
+    $sanction = $applyDateFilter($this->model->newQuery())->where('type', 'SANCTIONS')->count();
+    $aml = $applyDateFilter($this->model->newQuery())->where('type', 'AML')->count();
+
     return [
-        'total' => $this->model
-            ->when(!empty($data['startDate']), function ($query) use ($data) {
-                $query->where('created_at', '>=', Carbon::parse($data['startDate'])->startOfDay());
-            })
-            ->when(!empty($data['endDate']), function ($query) use ($data) {
-                $query->where('created_at', '<=', Carbon::parse($data['endDate'])->endOfDay());
-            })
-            ->count(),
-
-        'transation' => [
-            "particularEntity" => $this->particularEntityTransation($data),
-            "coletiveEntity" => $this->coletiveEntityTransation($data),
-            'by_type' => $this->countByField('type', [
-                "Substituição rápida de apólice" => 'QuickPolicyReplacementDetected',
-                "Resgate antecipado de apólice" => 'EarlyRedemptionDetected',
-                "Prémio elevado com risco baixo" => 'HighPremiumLowRisk',
-                "Substituição ou cancelamento repetido" => 'RepeatedReplacementOrCancellation',
-                "Churn de apólices (trocas frequentes)" => 'PolicyChurn',
-                "Aumento elevado de capital na apólice" => 'HighCapitalIncrease',
-                "Pagamentos por terceiros sem relação clara" => 'ThirdPartyPayments',
-                "Alterações frequentes de beneficiários" => 'FrequentBeneficiaryChanges',
-                "Ligação a jurisdições de alto risco" => 'HighRiskGeography',
-                "Sobrepagamento seguido de reembolso a terceiros" => 'OverpaymentRefund',
-            ], $data),
-        ],
-
+        'total' => $total,
+        'transation' => $transation,
         'ParticularEntity' => $this->particularEntity($data),
         'coletiveEntity' => $this->coletiveEntity($data),
         'by_status' => $this->countByField('is_active', [
@@ -279,21 +300,9 @@ class AlertRepository extends AbstractRepository
             1 => 'with_communication',
             0 => 'without_communication',
         ], $data),
-        'pep' => $this->model
-            ->when(!empty($data['startDate']), fn($query) => $query->where('created_at', '>=', Carbon::parse($data['startDate'])->startOfDay()))
-            ->when(!empty($data['endDate']), fn($query) => $query->where('created_at', '<=', Carbon::parse($data['endDate'])->endOfDay()))
-            ->where('type', 'PEP')
-            ->count(),
-        'sanction' => $this->model
-            ->when(!empty($data['startDate']), fn($query) => $query->where('created_at', '>=', Carbon::parse($data['startDate'])->startOfDay()))
-            ->when(!empty($data['endDate']), fn($query) => $query->where('created_at', '<=', Carbon::parse($data['endDate'])->endOfDay()))
-            ->where('type', 'SANCTIONS')
-            ->count(),
-        'AML' => $this->model
-            ->when(!empty($data['startDate']), fn($query) => $query->where('created_at', '>=', Carbon::parse($data['startDate'])->startOfDay()))
-            ->when(!empty($data['endDate']), fn($query) => $query->where('created_at', '<=', Carbon::parse($data['endDate'])->endOfDay()))
-            ->where('type', 'AML')
-            ->count(),
+        'pep' => $pep,
+        'sanction' => $sanction,
+        'AML' => $aml,
         'by_type' => $this->countByCategory($data),
         'by_level' => $this->countByLevel('level', [
             "Alto" => 'Alto',
