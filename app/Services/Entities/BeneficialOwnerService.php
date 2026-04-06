@@ -19,8 +19,8 @@ class BeneficialOwnerService extends AbstractService
             $owner['risk_assessment_id'] = $riskAssessmentId;
            $beneficialOwer= $this->storeOrUpdate($owner, $owner);
 
-              GenerateAlertBeneficialOwnerJob::dispatch(  $beneficialOwer->id, $entity_id)
-                    ->onQueue('high');
+              GenerateAlertBeneficialOwnerJob::dispatch(  $beneficialOwer->id, $entity_id);
+                
             if ($owner['pep']) {
                 $pepData = [
                     "name" => $owner['name'] ?? null,
