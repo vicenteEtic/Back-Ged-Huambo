@@ -24,6 +24,7 @@ class BeneficialOwnerRequest extends BaseFormRequest
         return [
             'name' => 'required',
             'pep' => 'required',
+            'santion'=> 'required',
             'risk_assessment_id' => 'required',
             'nationality' => 'string',
             'percentage' => 'string',
