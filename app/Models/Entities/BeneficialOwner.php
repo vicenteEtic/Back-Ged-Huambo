@@ -11,10 +11,11 @@ class BeneficialOwner extends Model
     use HasFactory, SoftDeletes;
     protected $table = 'beneficial_owner';
     protected $primaryKey = 'id';
-       public $casts = [
-      
-        'is_legal_representative'=> 'boolean',
+    public $casts = [
 
+        'is_legal_representative' => 'boolean',
+        'santion' => 'boolean',
+        'pep' => 'boolean',
     ];
 
     protected $fillable = [
