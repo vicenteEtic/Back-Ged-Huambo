@@ -28,22 +28,14 @@ class GenerateAlertBeneficialOwnerJob implements ShouldQueue
     public $tries = 10;
     public $timeout = 120;
 
-    /**
-     * Create a new job instance.
-     */
     public function __construct(int $beneficialOwnerID, int $entity_id)
     {
         $this->beneficialOwnerID = $beneficialOwnerID;
         $this->entity_id = $entity_id;
     }
 
-    /**
-     * Execute the job.
-     */
-    public function handle(
-        AlertRepository $alertRepository,
-        BeneficialOwnerRepository $beneficialOwnerRepository
-    ): void {
+    public function handle(AlertRepository $alertRepository, BeneficialOwnerRepository $beneficialOwnerRepository): void
+    {
         $this->alertRepository = $alertRepository;
         $this->beneficialOwnerRepository = $beneficialOwnerRepository;
 
@@ -55,9 +47,6 @@ class GenerateAlertBeneficialOwnerJob implements ShouldQueue
         $this->generateAlertGeneral($this->beneficialOwnerID, $this->entity_id);
     }
 
-    /**
-     * Generate alerts
-     */
     private function generateAlertGeneral(int $beneficialOwnerID, int $entity_id): void
     {
         $beneficialOwner = BeneficialOwner::find($beneficialOwnerID);
@@ -68,14 +57,12 @@ class GenerateAlertBeneficialOwnerJob implements ShouldQueue
         }
 
         $name = $beneficialOwner->name;
-
         if (empty($name)) {
             Log::warning("BeneficialOwner sem nome (ID: {$beneficialOwnerID})");
             return;
         }
 
         try {
-            // 🔎 APIs externas
             $pepData = PepExternalApi::getDataPepExternal($name);
             $sanctionData = SanctionExternalApi::getDataSanctionExternal($name);
 
@@ -95,15 +82,11 @@ class GenerateAlertBeneficialOwnerJob implements ShouldQueue
         }
     }
 
-    /**
-     * Create alerts
-     */
     private function createAlerts(array $data, int $entity_id, string $name, string $type): void
     {
         $typeData = $this->resolveType($type);
 
         foreach ($data as $item) {
-
             $score = $item['score'] ?? 0;
 
             $level = match (true) {
@@ -122,7 +105,6 @@ class GenerateAlertBeneficialOwnerJob implements ShouldQueue
             $alert = $this->alertRepository->findByValidate($criteria);
 
             if (!$alert) {
-
                 $description = sprintf(
                     'No âmbito da avaliação de risco AML/KYC, foi identificada correspondência do beneficiário efetivo %s em listas externas (%s).',
                     $name,
@@ -148,7 +130,6 @@ class GenerateAlertBeneficialOwnerJob implements ShouldQueue
                 Log::info('Alerta criado', ['alert_id' => $alert->id]);
             }
 
-            // 📧 Enviar email
             try {
                 $host = config('app.url');
                 SendGrupoAlertEmailJob::dispatch($alert->id, $host)->onQueue('high');
@@ -158,30 +139,12 @@ class GenerateAlertBeneficialOwnerJob implements ShouldQueue
         }
     }
 
-    /**
-     * Resolve alert type
-     */
     private function resolveType(string $type): array
     {
         return match ($type) {
-            'PEP' => [
-                'type' => 'PEP',
-                'list' => 'PEP List world',
-                'is_pep' => 1,
-                'is_sanctioned' => 0,
-            ],
-            'SANCTIONS' => [
-                'type' => 'SANCTIONS',
-                'list' => 'Sanctions List',
-                'is_pep' => 0,
-                'is_sanctioned' => 1,
-            ],
-            default => [
-                'type' => 'KYC',
-                'list' => 'KYC List',
-                'is_pep' => 0,
-                'is_sanctioned' => 0,
-            ],
+            'PEP' => ['type' => 'PEP', 'list' => 'PEP List world', 'is_pep' => 1, 'is_sanctioned' => 0],
+            'SANCTIONS' => ['type' => 'SANCTIONS', 'list' => 'Sanctions List', 'is_pep' => 0, 'is_sanctioned' => 1],
+            default => ['type' => 'KYC', 'list' => 'KYC List', 'is_pep' => 0, 'is_sanctioned' => 0],
         };
     }
 }
