@@ -94,22 +94,21 @@ class GenerateAlertBeneficialOwnerJob implements ShouldQueue
                 $score >= 50 => 'Médio',
                 default      => 'Baixo',
             };
-
+ $description = sprintf(
+                    'No âmbito da avaliação de risco AML/KYC, foi identificada correspondência do beneficiário efetivo %s em listas externas (%s).',
+                    $name,
+                    $item['datasets'] ?? $typeData['list']
+                );
             $criteria = [
                 'entity_id' => $entity_id,
                 'origin_id' => $item['id'] ?? null,
-                'type'      => $typeData['type'],
-                'category'  => 'KYC',
+                'description' => $description ,
             ];
 
             $alert = $this->alertRepository->findByValidate($criteria);
 
             if (!$alert) {
-                $description = sprintf(
-                    'No âmbito da avaliação de risco AML/KYC, foi identificada correspondência do beneficiário efetivo %s em listas externas (%s).',
-                    $name,
-                    $item['datasets'] ?? $typeData['list']
-                );
+               
 
                 $alert = $this->alertRepository->store([
                     'name'        => $item['name'] ?? 'UNKNOWN',
