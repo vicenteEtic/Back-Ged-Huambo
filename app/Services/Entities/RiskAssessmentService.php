@@ -125,7 +125,7 @@ class RiskAssessmentService extends AbstractService
             $riskAssessment = $this->repository->store($data);
             Log::info('RISK STORE: RiskAssessment criado', ['riskAssessment_id' => $riskAssessment->id ?? null]);
 
-            $this->handleBeneficialOwners($data, $riskAssessment);
+            $this->handleBeneficialOwners($data, $riskAssessment, $data['entity_id']);
             Log::info('RISK STORE: BeneficialOwners processados');
 
             $this->handlePEP($data);
@@ -187,10 +187,10 @@ class RiskAssessmentService extends AbstractService
         }
     }
 
-    private function handleBeneficialOwners(array $data, $riskAssessment): void
+    private function handleBeneficialOwners(array $data, $riskAssessment, $entity_id): void
     {
         if (isset($data['beneficial_owners'])) {
-            $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id,   $data['entity_id'] );
+            $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id,   $entity_id );
         }
         if (isset($data['beneficial'])) {
             $this->beneficialService->createBeneficial($data, $riskAssessment->id);
