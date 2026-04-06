@@ -2,6 +2,7 @@
 
 namespace App\Services\Entities;
 
+use App\Jobs\GenerateAlertBeneficialOwnerJob;
 use App\Repositories\Entities\BeneficialOwnerRepository;
 use App\Services\AbstractService;
 
@@ -12,11 +13,14 @@ class BeneficialOwnerService extends AbstractService
         parent::__construct($repository);
     }
 
-    public function createBeneficialOwner(array $data, int $riskAssessmentId): void
+    public function createBeneficialOwner(array $data, int $riskAssessmentId,$entity_id): void
     {
         foreach ($data['beneficial_owners'] as $owner) {
             $owner['risk_assessment_id'] = $riskAssessmentId;
-            $this->storeOrUpdate($owner, $owner);
+           $beneficialOwer= $this->storeOrUpdate($owner, $owner);
+
+              GenerateAlertBeneficialOwnerJob::dispatch(  $beneficialOwer->id, $entity_id)
+                    ->onQueue('high');
             if ($owner['pep']) {
                 $pepData = [
                     "name" => $owner['name'] ?? null,

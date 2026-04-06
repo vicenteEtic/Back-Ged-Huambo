@@ -190,7 +190,7 @@ class RiskAssessmentService extends AbstractService
     private function handleBeneficialOwners(array $data, $riskAssessment): void
     {
         if (isset($data['beneficial_owners'])) {
-            $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id);
+            $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id,   $data['entity_id'] );
         }
         if (isset($data['beneficial'])) {
             $this->beneficialService->createBeneficial($data, $riskAssessment->id);
