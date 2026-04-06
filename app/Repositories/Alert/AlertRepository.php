@@ -280,7 +280,6 @@ public function getTotalAlerts(array $data): array
     $pep = $applyDateFilter($this->model->newQuery())->where('type', 'PEP')->count();
     $sanction = $applyDateFilter($this->model->newQuery())->where('type', 'SANCTIONS')->count();
     $aml = $applyDateFilter($this->model->newQuery())->where('type', 'AML')->count();
-
     return [
         'total' => $total,
         'transation' => $transation,
