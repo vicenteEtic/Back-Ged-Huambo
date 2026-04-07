@@ -9,19 +9,20 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class ImportPolicyChangesJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 10800; // 3h
+    public $timeout = 10800;
     public $tries = 3;
     private int $chunkSize = 100;
 
     public function handle()
     {
         try {
-            // 🔹 Buscar CSVs de alterações
+
             $files = collect(scandir(base_path()))
                 ->filter(fn($file) =>
                     str_starts_with(strtolower($file), 'alteracoes_') &&
@@ -32,57 +33,28 @@ class ImportPolicyChangesJob implements ShouldQueue
                 ->toArray();
 
             if (empty($files)) {
-                Log::warning("Nenhum CSV de alterações encontrado");
+                Log::warning("Nenhum CSV encontrado");
                 return;
             }
 
             foreach ($files as $filePath) {
 
-                if (!file_exists($filePath)) continue;
-
                 $handle = fopen($filePath, 'r');
-                if (!$handle) {
-                    Log::error("Erro ao abrir CSV: {$filePath}");
-                    continue;
-                }
+                if (!$handle) continue;
 
-                Log::info("📄 Importando alterações: {$filePath}");
+                Log::info("📄 Processando: {$filePath}");
 
-                // 🔹 Header
-                $header = null;
-                while (($line = fgetcsv($handle, 0, ',')) !== false) {
-                    $line = array_map('trim', $line);
-                    if (empty(array_filter($line))) continue;
-                    if (str_contains(implode(',', $line), '---')) continue;
-
-                    $header = array_map(fn($h) => strtoupper($h), $line);
-                    break;
-                }
-
-                if (!$header) {
-                    Log::error("Header inválido: {$filePath}");
-                    fclose($handle);
-                    continue;
-                }
+                $header = $this->readHeader($handle);
+                if (!$header) continue;
 
                 $rows = [];
                 $inserted = 0;
 
                 while (($row = fgetcsv($handle, 0, ',')) !== false) {
 
-                    $row = array_map('trim', $row);
-
-                    if (empty(array_filter($row))) continue;
-                    if (str_contains(implode(',', $row), '---')) continue;
-
-                    if (count($row) !== count($header)) {
-                        Log::warning("Linha inválida (colunas diferentes): {$filePath}");
-                        continue;
-                    }
-
                     $mapped = $this->mapRow($row, $header);
 
-                    if (!$mapped['numero_apolice']) continue;
+                    if (!$mapped) continue;
 
                     $rows[] = $mapped;
 
@@ -90,9 +62,6 @@ class ImportPolicyChangesJob implements ShouldQueue
                         DB::table('policy_changes_staging')->insert($rows);
                         $inserted += count($rows);
                         $rows = [];
-
-                        Log::info("📦 {$inserted} alterações inseridas ({$filePath})");
-                        gc_collect_cycles();
                     }
                 }
 
@@ -103,47 +72,87 @@ class ImportPolicyChangesJob implements ShouldQueue
 
                 fclose($handle);
 
-                Log::info("✅ Importação concluída: {$filePath} | Total: {$inserted}");
+                Log::info("✅ {$filePath} -> {$inserted} registros");
             }
 
         } catch (\Throwable $e) {
-            Log::error("❌ Erro ao importar alterações: " . $e->getMessage());
+            Log::error("Erro: " . $e->getMessage());
             $this->fail($e);
         }
     }
 
-    private function mapRow(array $row, array $header): array
+    private function readHeader($handle): ?array
     {
-        return [
-            'numero_apolice' => $row[array_search('NUMERO_APOLICE', $header)] ?? null,
+        while (($line = fgetcsv($handle, 0, ',')) !== false) {
+            $line = array_map('trim', $line);
 
-            'data_alteracao' => $this->parseDate(
-                $row[array_search('DATA_ALTERACAO', $header)] ?? null
-            ),
+            if (empty(array_filter($line))) continue;
+            if (str_contains(implode(',', $line), '---')) continue;
 
-            'tipo_alteracao' => strtoupper(
-                trim($row[array_search('TIPO_ALTERACAO', $header)] ?? '')
-            ),
+            return array_map(fn($h) => strtoupper($h), $line);
+        }
 
-            'valor_anterior' => $this->toFloat(
-                $row[array_search('VALOR_ANTERIOR', $header)] ?? 0
-            ),
+        return null;
+    }
 
-            'novo_valor' => $this->toFloat(
-                $row[array_search('NOVO_VALOR', $header)] ?? 0
-            ),
+    private function mapRow(array $row, array $header): ?array
+    {
+        try {
 
-            'percentual_variacao' => $this->toFloat(
-                $row[array_search('PERCENTUAL_VARIACAO', $header)] ?? 0
-            ),
+            if (count($row) !== count($header)) return null;
 
-            'motivo_alteracao' => trim(
-                $row[array_search('MOTIVO_ALTERACAO', $header)] ?? ''
-            ),
+            $numero = $this->get($row, $header, 'NUMERO_APOLICE');
+            if (!$numero) return null;
 
-            'created_at' => now(),
-            'updated_at' => now(),
-        ];
+            $anterior = $this->toFloat($this->get($row, $header, 'VALOR_ANTERIOR'));
+            $novo     = $this->toFloat($this->get($row, $header, 'NOVO_VALOR'));
+
+            $percentual = $this->calculatePercentual($anterior, $novo);
+
+            return [
+                'numero_apolice' => $numero,
+                'data_alteracao' => $this->parseDate($this->get($row, $header, 'DATA_ALTERACAO')),
+                'tipo_alteracao' => strtoupper(trim($this->get($row, $header, 'TIPO_ALTERACAO'))),
+
+                'valor_anterior' => $anterior,
+                'novo_valor' => $novo,
+                'percentual_variacao' => $percentual,
+
+                'motivo_alteracao' => trim($this->get($row, $header, 'MOTIVO_ALTERACAO')),
+
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+
+        } catch (\Throwable $e) {
+            Log::warning("Linha ignorada", ['erro' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    private function calculatePercentual(float $anterior, float $novo): ?float
+    {
+        if ($anterior <= 0) {
+            Log::warning('Valor anterior inválido', [
+                'anterior' => $anterior,
+                'novo' => $novo
+            ]);
+            return null;
+        }
+
+        $percentual = (($novo - $anterior) / $anterior) * 100;
+
+        // 🔥 filtro anti-lixo
+        if (abs($percentual) > 1000) {
+            Log::warning('Percentual absurdo', [
+                'anterior' => $anterior,
+                'novo' => $novo,
+                'percentual' => $percentual
+            ]);
+            return null;
+        }
+
+        return round($percentual, 2);
     }
 
     private function parseDate(?string $date): ?string
@@ -151,8 +160,8 @@ class ImportPolicyChangesJob implements ShouldQueue
         if (!$date) return null;
 
         try {
-            $date = preg_replace('/\.\d+$/', '', $date);
-            return \Carbon\Carbon::parse($date)->format('Y-m-d H:i:s');
+            return Carbon::parse(preg_replace('/\.\d+$/', '', $date))
+                ->format('Y-m-d H:i:s');
         } catch (\Exception $e) {
             return null;
         }
@@ -165,5 +174,11 @@ class ImportPolicyChangesJob implements ShouldQueue
         }
 
         return is_numeric($value) ? (float)$value : 0.0;
+    }
+
+    private function get(array $row, array $header, string $key): ?string
+    {
+        $index = array_search($key, $header);
+        return $index !== false ? ($row[$index] ?? null) : null;
     }
 }
