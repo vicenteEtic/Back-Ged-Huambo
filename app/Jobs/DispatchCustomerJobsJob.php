@@ -70,7 +70,7 @@ class DispatchCustomerJobsJob implements ShouldQueue
                             $entity->id,
                             $policiesArray,
                             $changes
-                        )->onQueue('high');
+                        )->onQueue('cliente');
 
                         Log::info("📬 Cliente {$numero_cliente} enviado com " . count($policiesArray) . " apólices e " . count($changes) . " alterações");
 
