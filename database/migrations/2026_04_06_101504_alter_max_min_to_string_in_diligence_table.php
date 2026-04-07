@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::table('diligence', function (Blueprint $table) {
             // Alterar as colunas max e min de float para string
-            $table->string('max')->change();
-            $table->string('min')->change();
+            $table->decimal('max', 10, 2)->change();
+            $table->decimal('min', 10, 2)->change();
         });
     }
 
@@ -22,8 +22,8 @@ return new class extends Migration
     {
         Schema::table('diligence', function (Blueprint $table) {
             // Reverter para float caso faça rollback
-            $table->float('max')->change();
-            $table->float('min')->change();
+            $table->decimal('max', 10, 2)->change();
+            $table->decimal('min', 10, 2)->change();
         });
     }
 };
