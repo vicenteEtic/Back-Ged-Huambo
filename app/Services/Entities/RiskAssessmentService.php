@@ -323,7 +323,7 @@ class RiskAssessmentService extends AbstractService
             $total += $baseScores['channel']          * $safeFormula('channel');
         }
 
-        return $total;
+        return round($total, 3);
     }
 
 
