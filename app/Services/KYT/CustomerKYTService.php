@@ -204,7 +204,7 @@ class CustomerKYTService
 
         $this->createAlert(
             $customer,
-            "Aumento abrupto de capital (KYT)",
+            "Aumento elevado de capital na apólice",
             $description,
             'Alto',
             $score
