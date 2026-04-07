@@ -65,7 +65,7 @@ class CustomerKYTService
         return $data;
     }
 
-    public function runAllChecksMemory(Entities $customer, array $policies): void
+    public function runAllChecksMemory(Entities $customer, array $policies, array $changes = []): void
     {
         $policies = $this->normalizePolicies($policies);
 
@@ -76,13 +76,13 @@ class CustomerKYTService
 
         if (empty($policies)) return;
 
-        $this->checkHighCapitalIncrease($customer, $policies);
-        $this->checkEarlyRedemption($customer, $policies);
-        $this->checkHighPremium($customer, $policies);
-        $this->checkMultipleShortPolicies($customer, $policies);
+        $this->checkHighCapitalIncrease($customer, $changes);
+    //    $this->checkEarlyRedemption($customer, $policies);
+     //   $this->checkHighPremium($customer, $policies);
+     //   $this->checkMultipleShortPolicies($customer, $policies);
 
-        $this->checkPolicyChurning($customer, $policies);
-        $this->checkRapidReplacement($customer, $policies);
+      //  $this->checkPolicyChurning($customer, $policies);
+      //  $this->checkRapidReplacement($customer, $policies);
 
         Log::info("✅ KYT FINISHED", ['customer' => $customer->customer_number]);
     }
@@ -156,92 +156,62 @@ class CustomerKYTService
        REGRAS KYT COM NÚMEROS DAS APÓLICES
     ========================== */
 
-    private function checkHighCapitalIncrease(Entities $customer, array $policies): void
-    {
-        // 🔹 Agrupa por produto
-        $policiesByProduct = [];
 
-        foreach ($policies as $p) {
-            $produto = $p['descricao_produto'] ?? 'OUTROS';
-            $policiesByProduct[$produto][] = $p;
-        }
+    private function checkHighCapitalIncrease(Entities $customer, array $changes): void
+{
+    foreach ($changes as $change) {
 
-        foreach ($policiesByProduct as $produto => $group) {
+        $tipo = strtoupper(trim($change->tipo_alteracao ?? ''));
 
-            // 🔹 filtra válidas
-            $valid = array_filter(
-                $group,
-                fn($p) =>
-                $p['data_inicio'] && $p['capital'] > 1000000
-            );
+        // 🔥 Só capital (ajusta conforme teus dados)
+        if (!str_contains($tipo, 'ALTER')) continue;
 
-            if (count($valid) < 2) continue;
+        $old = (float) $change->valor_anterior;
+        $new = (float) $change->novo_valor;
 
-            // 🔹 ordena por data (mais recentes primeiro)
-            usort(
-                $valid,
-                fn($a, $b) =>
-                strtotime($b['data_inicio']) - strtotime($a['data_inicio'])
-            );
+        if ($old <= 0) continue;
 
-            // 🔥 pega apenas as últimas 20 para análise
-            $valid = array_slice($valid, 0, 20);
+        $increaseRate = ($new - $old) / $old;
 
-            // 🔹 reordena cronologicamente para análise correta
-            usort(
-                $valid,
-                fn($a, $b) =>
-                strtotime($a['data_inicio']) - strtotime($b['data_inicio'])
-            );
+        // 🔥 REGRA AML
+        if ($increaseRate < 0.30) continue;
 
-            $first = $valid[0];
+        $motivo = strtolower(trim($change->motivo_alteracao ?? ''));
 
-            for ($i = 1; $i < count($valid); $i++) {
-                $current = $valid[$i];
+        $motivoValido = in_array($motivo, [
+            'herança',
+            'mudança de emprego',
+            'promoção'
+        ]);
 
-                $days = $this->safeDays($first['data_inicio'], $current['data_inicio']);
-                if ($days === null || $days == 0 || $days > 60) continue;
+        $score = 10;
 
-                if ($first['premium_total'] <= 0 && $current['premium_total'] <= 0) continue;
+        if ($increaseRate >= 0.50) $score += 10;
+        if (!$motivoValido) $score += 10;
 
-                $increaseRate = ($current['capital'] - $first['capital']) / $first['capital'];
-                if ($increaseRate < 0.40) continue;
+        // 🔥 SE FOR > 80% → ALERTA FORTE
+        if ($increaseRate >= 0.80) $score += 10;
 
-                // 🔥 apenas apólices analisadas
-                $apolices = [
-                    $first['numero_apolice'],
-                    $current['numero_apolice']
-                ];
+        $description = sprintf(
+            "Apólice: %s | Tipo: %s | Capital: %s → %s | Aumento: %.2f%% | Motivo: %s",
+            $change->numero_apolice,
+            $tipo,
+            $this->formatMoney($old),
+            $this->formatMoney($new),
+            $increaseRate * 100,
+            $change->motivo_alteracao ?? 'Não informado'
+        );
 
-                // 🔹 período analisado
-                $startDate = $first['data_inicio'];
-                $endDate   = $current['data_inicio'];
-
-                $description = sprintf(
-                    "Produto: %s | Apólices analisadas: %s | Período: %s → %s | Capital: %s → %s | Aumento: %.0f%% em %d dias",
-                    $produto,
-                    implode(' → ', $apolices),
-                    $startDate,
-                    $endDate,
-                    $this->formatMoney($first['capital']),
-                    $this->formatMoney($current['capital']),
-                    $increaseRate * 100,
-                    $days
-                );
-
-                $this->createAlert(
-                    $customer,
-                    "Aumento elevado de capital na apólice",
-                    $description,
-                    'Alto',
-                    30
-                );
-
-                // 🔁 baseline evolutivo
-                $first = $current;
-            }
-        }
+        $this->createAlert(
+            $customer,
+            "Aumento abrupto de capital (KYT)",
+            $description,
+            'Alto',
+            $score
+        );
     }
+}
+   
 
     private function checkEarlyRedemption(Entities $customer, array $policies): void
     {

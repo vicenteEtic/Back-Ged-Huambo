@@ -16,8 +16,8 @@ class DispatchCustomerJobsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 10800; // 3 horas
-    public $tries = 10;      // Máximo de tentativas
+    public $timeout = 10800;
+    public $tries = 10;
 
     public function handle()
     {
@@ -30,10 +30,10 @@ class DispatchCustomerJobsJob implements ShouldQueue
             ->chunk(500, function ($clientes) {
 
                 foreach ($clientes as $clienteRow) {
+
                     try {
                         $numero_cliente = $clienteRow->numero_cliente;
 
-                        // Buscar entidade
                         $entity = Entities::where('customer_number', $numero_cliente)->first();
 
                         if (!$entity) {
@@ -41,46 +41,47 @@ class DispatchCustomerJobsJob implements ShouldQueue
                             continue;
                         }
 
-                        // Buscar todas as apólices do cliente
+                        // 🔹 Apólices
                         $policies = DB::table('policies_staging')
                             ->where('numero_cliente', $numero_cliente)
                             ->get();
 
-                        if ($policies->isEmpty()) {
-                            Log::info("ℹ Cliente {$numero_cliente} não possui apólices.");
-                            continue;
-                        }
+                        if ($policies->isEmpty()) continue;
 
-                        // Mapear apólices
-                        $policiesArray = $policies->map(function ($row) {
-                            return [
-                                'numero_apolice'    => $row->numero_apolice,
-                                'descricao_produto' => $row->descricao_produto,
-                                'estado_apolice'    => $row->estado_apolice,
-                                'data_inicio'       => $row->data_inicio,
-                                'data_fim'          => $row->data_fim,
-                                'capital'           => $row->capital,
-                                'premium_total'     => $row->premium_total,
-                                'interest'          => $row->interest,
-                            ];
-                        })->toArray();
+                        $policiesArray = $policies->map(fn($row) => [
+                            'numero_apolice' => $row->numero_apolice,
+                            'descricao_produto' => $row->descricao_produto,
+                            'estado_apolice' => $row->estado_apolice,
+                            'data_inicio' => $row->data_inicio,
+                            'data_fim' => $row->data_fim,
+                            'capital' => $row->capital,
+                            'premium_total' => $row->premium_total,
+                            'interest' => $row->interest,
+                        ])->toArray();
 
-                        // Disparar job individual por cliente
-                        ProcessCustomerPoliciesJob::dispatch($entity->id, $policiesArray)
-                            ->onQueue('high');
+                        // 🔥 ALTERAÇÕES (NOVO)
+                        $changes = DB::table('policy_changes_staging')
+                            ->whereIn('numero_apolice', $policies->pluck('numero_apolice'))
+                            ->get()
+                            ->toArray();
 
-                        Log::info("📬 Job disparado para cliente {$numero_cliente} com " . count($policiesArray) . " apólices.");
+                        // 🔥 DISPATCH COMPLETO
+                        ProcessCustomerPoliciesJob::dispatch(
+                            $entity->id,
+                            $policiesArray,
+                            $changes
+                        )->onQueue('high');
+
+                        Log::info("📬 Cliente {$numero_cliente} enviado com " . count($policiesArray) . " apólices e " . count($changes) . " alterações");
 
                     } catch (\Exception $e) {
-                        Log::error("❌ Erro processando cliente {$clienteRow->numero_cliente}: {$e->getMessage()}");
-                        continue; // continua com o próximo cliente
+                        Log::error("❌ Erro cliente {$clienteRow->numero_cliente}: {$e->getMessage()}");
                     }
                 }
 
-                // Limpeza de memória
                 gc_collect_cycles();
             });
 
-        Log::info("✅ Todos os jobs disparados com sucesso.");
+        Log::info("✅ Dispatch concluído.");
     }
 }

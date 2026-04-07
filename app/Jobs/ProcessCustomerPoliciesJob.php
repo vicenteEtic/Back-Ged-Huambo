@@ -19,26 +19,28 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
 
     private int $customerId;
     private array $policies;
+    private array $changes;
 
-    public function __construct(int $customerId, array $policies)
+    public function __construct(int $customerId, array $policies, array $changes)
     {
         $this->customerId = $customerId;
         $this->policies = $policies;
+        $this->changes = $changes;
     }
 
     public function handle(CustomerKYTService $kytService)
     {
-        Log::info("🚀 Iniciando KYT para cliente {$this->customerId}", ['policies_count' => count($this->policies)]);
+        Log::info("🚀 KYT cliente {$this->customerId}");
 
         $customer = Entities::find($this->customerId);
-        if (!$customer) {
-            Log::warning("Cliente não encontrado: {$this->customerId}");
-            return;
-        }
+        if (!$customer) return;
 
-        // Força todas as regras KYT, mesmo que dados sejam pequenos
-        $kytService->runAllChecksMemory($customer, $this->policies);
+        $kytService->runAllChecksMemory(
+            $customer,
+            $this->policies,
+            $this->changes
+        );
 
-        Log::info("✅ KYT concluído para cliente {$this->customerId}");
+        Log::info("✅ KYT concluído {$this->customerId}");
     }
 }
