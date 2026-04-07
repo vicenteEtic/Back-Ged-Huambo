@@ -77,12 +77,12 @@ class CustomerKYTService
         if (empty($policies)) return;
 
         $this->checkHighCapitalIncrease($customer, $changes);
-    //    $this->checkEarlyRedemption($customer, $policies);
-     //   $this->checkHighPremium($customer, $policies);
-     //   $this->checkMultipleShortPolicies($customer, $policies);
+       $this->checkEarlyRedemption($customer, $policies);
+       $this->checkHighPremium($customer, $policies);
+       $this->checkMultipleShortPolicies($customer, $policies);
 
-      //  $this->checkPolicyChurning($customer, $policies);
-      //  $this->checkRapidReplacement($customer, $policies);
+      $this->checkPolicyChurning($customer, $policies);
+      $this->checkRapidReplacement($customer, $policies);
 
         Log::info("✅ KYT FINISHED", ['customer' => $customer->customer_number]);
     }

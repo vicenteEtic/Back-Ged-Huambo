@@ -23,7 +23,7 @@ class ImportAndDispatchPolicies extends Command
 
         $this->info('📄 Job de importação disparado. Aguarde a conclusão...');
 
-    //   ImportPoliciesJob::dispatch()->delay(now());
+      ImportPoliciesJob::dispatch()->delay(now());
 
         ImportPolicyChangesJob::dispatch()->onQueue('policyChanges')->delay(now());
         // 2️⃣ Dispara job que vai processar todos os clientes (pode colocar delay para garantir que o Import finalize)
