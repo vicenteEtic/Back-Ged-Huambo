@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Jobs\ImportPoliciesJob;
 use App\Jobs\DispatchCustomerJobsJob;
+use App\Jobs\ImportApolAnuladaEstornoJob;
 use App\Jobs\ImportPolicyChangesJob;
 use Illuminate\Support\Facades\Log;
 
@@ -18,8 +19,10 @@ class ImportAndDispatchPolicies extends Command
         $this->info('🚀 Iniciando importação de apólices...');
 
         // 1️⃣ Dispara job de importação do CSV
-      ImportPoliciesJob::dispatch()->onQueue('policy')->delay(now());
-   
+     // ImportPoliciesJob::dispatch()->onQueue('policy')->delay(now());
+      ImportApolAnuladaEstornoJob::dispatch()->onQueue('policy')->delay(now());
+
+      
 
         $this->info('📄 Job de importação disparado. Aguarde a conclusão...');
 
