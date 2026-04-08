@@ -26,7 +26,7 @@ return new class extends Migration
             
             // Compliance / AML (IBAN e Origem)
             $blueprint->string('iban_origem')->nullable();
-            $blueprint->string('pais_iban_origem', 3)->nullable(); // ISO 3166-1 alpha-3
+            $blueprint->string('pais_iban_origem')->nullable(); // ISO 3166-1 alpha-3
             
             // Dados do Pagador
             $blueprint->string('codigo_pagador')->nullable();
