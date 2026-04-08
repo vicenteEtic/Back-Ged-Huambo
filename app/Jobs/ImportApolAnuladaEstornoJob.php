@@ -55,15 +55,15 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
                         $firstDataLineSkipped = true;
                         continue;
                     }
-                
-                    // Ignorar linhas de separadores
-                    if ($this->isSeparatorLine($row)) continue;
-                
+
+                    // 🔹 Ignorar linhas de separadores ou linhas com '---------'
+                    if ($this->isSeparatorLine($row) || $this->hasPlaceholder($row)) continue;
+
                     $mapped = $this->mapRow($row, $header);
                     if (!$mapped) continue;
-                
+
                     $rows[] = $mapped;
-                
+
                     if (count($rows) >= $this->chunkSize) {
                         DB::table('apol_anulada_estorno')->insert($rows);
                         $inserted += count($rows);
@@ -93,7 +93,7 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
 
             // Ignora linhas vazias ou separadores
             if (empty(array_filter($line))) continue;
-            if ($this->isSeparatorLine($line)) continue;
+            if ($this->isSeparatorLine($line) || $this->hasPlaceholder($line)) continue;
 
             return array_map(fn($h) => strtoupper($h), $line);
         }
@@ -105,6 +105,15 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
     {
         $lineStr = implode('', $line);
         return str_contains($lineStr, '---');
+    }
+
+    // 🔹 Nova função para detectar placeholder '---------'
+    private function hasPlaceholder(array $line): bool
+    {
+        foreach ($line as $value) {
+            if (trim($value) === '---------') return true;
+        }
+        return false;
     }
 
     private function mapRow(array $row, array $header): ?array
