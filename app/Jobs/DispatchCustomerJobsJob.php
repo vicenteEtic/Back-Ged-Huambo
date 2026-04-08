@@ -35,27 +35,35 @@ class DispatchCustomerJobsJob implements ShouldQueue
 
                         if (!$entity) continue;
 
-                        $policies = DB::table('policies_staging')
+                        // 1. Buscamos os dados puros primeiro para facilitar manipulação
+                        $policiesRaw = DB::table('policies_staging')
                             ->where('numero_cliente', $numero_cliente)
                             ->get();
 
-                        if ($policies->isEmpty()) continue;
+                        if ($policiesRaw->isEmpty()) continue;
 
-                        // 🔥 BUSCAR ANULAÇÕES/ESTORNOS DO CLIENTE
+                        // 2. Extraímos os números das apólices ANTES de converter para array
+                        $policyNumbers = $policiesRaw->pluck('numero_apolice')->toArray();
+
+                        // 3. Convertemos tudo para array para evitar erro de stdClass no Service
+                        $policiesArray = $policiesRaw->map(fn($item) => (array) $item)->toArray();
+
                         $refunds = DB::table('apol_anulada_estorno')
                             ->where('idtitular', (string)$numero_cliente)
                             ->get()
+                            ->map(fn($item) => (array) $item)
                             ->toArray();
 
                         $changes = DB::table('policy_changes_staging')
-                            ->whereIn('numero_apolice', $policies->pluck('numero_apolice'))
+                            ->whereIn('numero_apolice', $policyNumbers) // 🔥 Mais seguro
                             ->get()
+                            ->map(fn($item) => (array) $item)
                             ->toArray();
 
-                        // 🔥 PASSA O NOVO ARRAY DE REFUNDS
+                        // 4. Dispatch
                         ProcessCustomerPoliciesJob::dispatch(
                             $entity->id,
-                            $policies->toArray(),
+                            $policiesArray,
                             $changes,
                             $refunds 
                         )->onQueue('cliente');
@@ -66,5 +74,7 @@ class DispatchCustomerJobsJob implements ShouldQueue
                 }
                 gc_collect_cycles();
             });
+            
+        Log::info("✅ Dispatch concluído.");
     }
 }
