@@ -145,7 +145,7 @@ class ImportPoliciesJob implements ShouldQueue
             'data_anulacao' => $this->parseDate($get('DATA_ANULACAO')),
 
             // 💰 Financeiros
-            'moeda' => $get('MOEDA'),
+            'moeda' => $get('MOEDA'), 
             'capital' => $this->toFloat($get('CAPITAL')),
             'capital_liquido_cosseguro' => $this->toFloat($get('CAPITAL_LIQUIDO_COSSEGURO')),
             'premio_simples' => $this->toFloat($get('PREMIO_SIMPLES')),

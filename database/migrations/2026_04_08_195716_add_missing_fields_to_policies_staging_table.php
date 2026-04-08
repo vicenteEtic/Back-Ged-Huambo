@@ -29,7 +29,7 @@ return new class extends Migration
 
 
             // 💰 Financeiros
-            $table->string('moeda', 10)->nullable();
+            $table->string('moeda', )->nullable();
 
             $table->decimal('capital_liquido_cosseguro', 18, 2)->default(0);
             $table->decimal('premio_simples', 18, 2)->default(0);
