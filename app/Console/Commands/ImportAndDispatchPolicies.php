@@ -7,6 +7,7 @@ use App\Jobs\ImportPoliciesJob;
 use App\Jobs\DispatchCustomerJobsJob;
 use App\Jobs\ImportApolAnuladaEstornoJob;
 use App\Jobs\ImportPolicyChangesJob;
+use App\Jobs\ImportRecibosCobradosJob;
 use Illuminate\Support\Facades\Log;
 
 class ImportAndDispatchPolicies extends Command
@@ -20,8 +21,10 @@ class ImportAndDispatchPolicies extends Command
 
         // 1️⃣ Dispara job de importação do CSV
      // ImportPoliciesJob::dispatch()->onQueue('policy')->delay(now());
-      ImportApolAnuladaEstornoJob::dispatch()->onQueue('policy')->delay(now());
+     // ImportApolAnuladaEstornoJob::dispatch()->onQueue('policy')->delay(now());
+      ImportRecibosCobradosJob::dispatch()->onQueue('policy')->delay(now());
 
+      
     
         $this->info('📄 Job de importação disparado. Aguarde a conclusão...');
 
