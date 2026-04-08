@@ -50,14 +50,12 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
                 $inserted = 0;
 
                 while (($row = fgetcsv($handle, 0, ',')) !== false) {
-                    // 🔹 Ignora a primeira linha de dados após o header
-                    if (!isset($firstDataLineSkipped)) {
-                        $firstDataLineSkipped = true;
+                    $row = array_map('trim', $row);
+
+                    // 🔹 Ignora linhas inválidas: vazias, separadores, placeholders ou só NULL/0.00
+                    if (empty(array_filter($row)) || $this->isSeparatorLine($row) || $this->hasPlaceholder($row) || $this->isEmptyDataLine($row)) {
                         continue;
                     }
-
-                    // 🔹 Ignorar linhas de separadores ou linhas com '---------'
-                    if ($this->isSeparatorLine($row) || $this->hasPlaceholder($row)) continue;
 
                     $mapped = $this->mapRow($row, $header);
                     if (!$mapped) continue;
@@ -107,7 +105,6 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
         return str_contains($lineStr, '---');
     }
 
-    // 🔹 Nova função para detectar placeholder '---------'
     private function hasPlaceholder(array $line): bool
     {
         foreach ($line as $value) {
@@ -116,22 +113,29 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
         return false;
     }
 
+    private function isEmptyDataLine(array $row): bool
+    {
+        foreach ($row as $value) {
+            if ($value !== null && trim($value) !== '' && trim($value) !== '0.00') {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private function mapRow(array $row, array $header): ?array
     {
         try {
             if (count($row) !== count($header)) return null;
-    
+
             $numeroApolice = $this->get($row, $header, 'N_APOLICE');
             if (!$numeroApolice) return null;
-    
+
             $idtitular = $this->get($row, $header, 'IDTITULAR');
-            // 🔹 Ignorar linha se IDTITULAR for vazio ou '---------'
-            if (empty($idtitular) || trim($idtitular) === '---------') {
-                return null;
-            }
-    
+            if (empty($idtitular) || trim($idtitular) === '---------') return null;
+
             $valor = $this->toFloat($this->get($row, $header, 'VALOR_TOTAL'));
-    
+
             return [
                 'n_apolice' => $numeroApolice,
                 'idtitular' => $idtitular,

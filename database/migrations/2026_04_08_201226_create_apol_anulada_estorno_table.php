@@ -18,7 +18,7 @@ return new class extends Migration
 
             // 🔑 Identificação
             $table->string('n_apolice', 50)->index();
-            $table->unsignedBigInteger('idtitular')->nullable()->index();
+            $table->string('idtitular')->nullable()->index();
 
             // 📅 Datas
             $table->date('data_anulacao')->nullable();
