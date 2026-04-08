@@ -10,102 +10,157 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-use Throwable;
 
 class ImportApolAnuladaEstornoJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected string $filePath;
-    protected int $batchSize = 500;
+    public $timeout = 10800; // 3h
+    public $tries = 3;
+    private int $chunkSize = 100;
 
-    public function __construct(string $filePath)
+    /**
+     * O construtor agora é vazio para evitar o erro de argumentos no dispatch()
+     */
+    public function __construct()
     {
-        $this->filePath = $filePath;
     }
 
     public function handle()
     {
-        if (!file_exists($this->filePath)) {
-            Log::error("Arquivo não encontrado: " . $this->filePath);
-            return;
-        }
-
-        $handle = fopen($this->filePath, "r");
-        
-        // 1. IGNORA A PRIMEIRA LINHA (Cabeçalho)
-        $header = fgetcsv($handle, 0, ","); 
-
-        $rowsToInsert = [];
-        $count = 0;
-
-        DB::beginTransaction();
-
         try {
-            // 2. Lê as próximas linhas
-            while (($data = fgetcsv($handle, 0, ",")) !== FALSE) {
-                // Combina o cabeçalho com os dados para acessar por nome
-                $row = array_combine($header, $data);
+            // Escaneia o diretório base procurando arquivos que começam com 'apol_anulada_'
+            $files = collect(scandir(base_path()))
+                ->filter(fn($file) =>
+                    str_starts_with(strtolower($file), 'apol_anulada_') &&
+                    str_ends_with(strtolower($file), '.csv')
+                )
+                ->map(fn($file) => base_path($file))
+                ->values()
+                ->toArray();
 
-                // 3. VALIDAÇÃO: Ignora se o idtitular não for número (ex: '-------' ou vazio)
-                if (!isset($row['idtitular']) || !is_numeric(trim($row['idtitular']))) {
+            if (empty($files)) {
+                Log::warning("Nenhum CSV 'apol_anulada_' encontrado no diretório base");
+                return;
+            }
+
+            foreach ($files as $filePath) {
+                if (!file_exists($filePath)) continue;
+
+                $handle = fopen($filePath, 'r');
+                if (!$handle) {
+                    Log::error("Erro ao abrir CSV: {$filePath}");
                     continue;
                 }
 
-                $rowsToInsert[] = [
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                    'data_anulacao'   => $this->parseDate($row['data_anulacao'] ?? null),
-                    'data_pagamento'  => $this->parseDate($row['data_pagamento'] ?? null),
-                    'idtitular'       => (int)trim($row['idtitular']),
-                    'n_apolice'       => $row['n_apolice'] ?? null,
-                    'razao'           => $row['razao'] ?? null,
-                    'recibo_estorno'  => $row['recibo_estorno'] ?? null,
-                    'situacao'        => $row['situacao'] ?? null,
-                    'subrazao'        => $row['subrazao'] ?? null,
-                    'valor_total'     => $this->parseFloat($row['valor_total'] ?? 0),
-                ];
+                Log::info("📄 Importando CSV de Estornos: {$filePath}");
 
-                $count++;
+                // 1. Localizar o Header (Ignora linhas vazias ou com traços)
+                $header = null;
+                while (($line = fgetcsv($handle, 0, ',')) !== false) {
+                    $line = array_map('trim', $line);
+                    if (empty(array_filter($line))) continue;
+                    if (str_contains(implode(',', $line), '---')) continue;
 
-                if ($count % $this->batchSize === 0) {
-                    DB::table('apol_anulada_estorno')->insert($rowsToInsert);
-                    $rowsToInsert = [];
+                    $header = array_map(fn($h) => strtoupper($h), $line);
+                    break;
                 }
+
+                if (!$header) {
+                    Log::error("Header CSV inválido ou não encontrado: {$filePath}");
+                    fclose($handle);
+                    continue;
+                }
+
+                $rows = [];
+                $inserted = 0;
+
+                // 2. Processar Dados
+                while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                    $row = array_map('trim', $row);
+
+                    // Ignora linhas de separação (sujeira) ou vazias
+                    if (empty(array_filter($row))) continue;
+                    if (str_contains(implode(',', $row), '---')) continue;
+
+                    // Garante que a linha tem o mesmo número de colunas que o header
+                    if (count($row) !== count($header)) {
+                        continue;
+                    }
+
+                    $mappedRow = $this->mapRow($row, $header);
+
+                    // Validação mínima para não inserir lixo
+                    if (!$mappedRow['idtitular'] || !$mappedRow['n_apolice']) {
+                        continue;
+                    }
+
+                    $rows[] = $mappedRow;
+
+                    // Inserção em lotes (Chunks)
+                    if (count($rows) >= $this->chunkSize) {
+                        DB::table('apol_anulada_estorno')->insert($rows);
+                        $inserted += count($rows);
+                        $rows = [];
+                        gc_collect_cycles();
+                    }
+                }
+
+                // Insere o restante
+                if (!empty($rows)) {
+                    DB::table('apol_anulada_estorno')->insert($rows);
+                    $inserted += count($rows);
+                }
+
+                fclose($handle);
+                Log::info("✅ CSV Finalizado: {$filePath} | Total: {$inserted} estornos.");
             }
 
-            if (!empty($rowsToInsert)) {
-                DB::table('apol_anulada_estorno')->insert($rowsToInsert);
-            }
-
-            DB::commit();
-            fclose($handle);
-            Log::info("Sucesso! {$count} registros importados.");
-
-        } catch (Throwable $e) {
-            DB::rollBack();
-            if ($handle) fclose($handle);
-            Log::error("Erro na importação: " . $e->getMessage());
-            throw $e;
+        } catch (\Throwable $e) {
+            Log::error("❌ Erro na importação de estornos: " . $e->getMessage());
+            $this->fail($e);
         }
     }
 
-    private function parseFloat($value)
+    private function mapRow(array $row, array $header): array
     {
-        if (!$value) return 0;
-        $cleanValue = str_replace(['.', ','], ['', '.'], trim($value));
-        return is_numeric($cleanValue) ? (float)$cleanValue : 0;
+        $get = function ($key) use ($row, $header) {
+            $index = array_search(strtoupper($key), $header);
+            return $index !== false ? $row[$index] : null;
+        };
+
+        return [
+            'idtitular'       => (int)$get('IDTITULAR'),
+            'n_apolice'       => $get('N_APOLICE'),
+            'data_anulacao'   => $this->parseDate($get('DATA_ANULACAO')),
+            'data_pagamento'  => $this->parseDate($get('DATA_PAGAMENTO')),
+            'razao'           => $get('RAZAO'),
+            'subrazao'        => $get('SUBRAZAO'),
+            'situacao'        => $get('SITUACAO'),
+            'recibo_estorno'  => $get('RECIBO_ESTORNO'),
+            'valor_total'     => $this->toFloat($get('VALOR_TOTAL')),
+            'created_at'      => now(),
+            'updated_at'      => now(),
+        ];
     }
 
-    private function parseDate($value)
+    private function parseDate(?string $date): ?string
     {
-        if (empty($value) || trim($value) === '?' || trim($value) === '-------') {
+        if (!$date || in_array(strtoupper(trim($date)), ['NULL', '', '?', '-------'])) {
             return null;
         }
+
         try {
-            return Carbon::parse(trim($value))->format('Y-m-d H:i:s');
-        } catch (Throwable $e) {
+            return Carbon::parse(trim($date))->format('Y-m-d H:i:s');
+        } catch (\Exception $e) {
             return null;
         }
+    }
+
+    private function toFloat($value): float
+    {
+        if (!$value) return 0.0;
+        $value = str_replace(['.', ','], ['', '.'], trim($value));
+        return is_numeric($value) ? (float)$value : 0.0;
     }
 }
