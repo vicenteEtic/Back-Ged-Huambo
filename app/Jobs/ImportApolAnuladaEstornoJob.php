@@ -50,14 +50,20 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
                 $inserted = 0;
 
                 while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                    // 🔹 Ignora a primeira linha de dados após o header
+                    if (!isset($firstDataLineSkipped)) {
+                        $firstDataLineSkipped = true;
+                        continue;
+                    }
+                
                     // Ignorar linhas de separadores
                     if ($this->isSeparatorLine($row)) continue;
-
+                
                     $mapped = $this->mapRow($row, $header);
                     if (!$mapped) continue;
-
+                
                     $rows[] = $mapped;
-
+                
                     if (count($rows) >= $this->chunkSize) {
                         DB::table('apol_anulada_estorno')->insert($rows);
                         $inserted += count($rows);
