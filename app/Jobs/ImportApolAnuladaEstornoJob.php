@@ -22,7 +22,6 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
     public function handle()
     {
         try {
-
             // 🔹 Buscar arquivos CSV
             $files = collect(scandir(base_path()))
                 ->filter(fn($file) =>
@@ -39,7 +38,6 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
             }
 
             foreach ($files as $filePath) {
-
                 $handle = fopen($filePath, 'r');
                 if (!$handle) continue;
 
@@ -52,6 +50,8 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
                 $inserted = 0;
 
                 while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                    // Ignorar linhas de separadores
+                    if ($this->isSeparatorLine($row)) continue;
 
                     $mapped = $this->mapRow($row, $header);
                     if (!$mapped) continue;
@@ -71,7 +71,6 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
                 }
 
                 fclose($handle);
-
                 Log::info("✅ {$filePath} -> {$inserted} registros inseridos");
             }
 
@@ -86,8 +85,9 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
         while (($line = fgetcsv($handle, 0, ',')) !== false) {
             $line = array_map('trim', $line);
 
+            // Ignora linhas vazias ou separadores
             if (empty(array_filter($line))) continue;
-            if (str_contains(implode(',', $line), '---')) continue;
+            if ($this->isSeparatorLine($line)) continue;
 
             return array_map(fn($h) => strtoupper($h), $line);
         }
@@ -95,10 +95,15 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
         return null;
     }
 
+    private function isSeparatorLine(array $line): bool
+    {
+        $lineStr = implode('', $line);
+        return str_contains($lineStr, '---');
+    }
+
     private function mapRow(array $row, array $header): ?array
     {
         try {
-
             if (count($row) !== count($header)) return null;
 
             $numeroApolice = $this->get($row, $header, 'N_APOLICE');
@@ -107,34 +112,20 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
             $valor = $this->toFloat($this->get($row, $header, 'VALOR_TOTAL'));
 
             return [
-                // 🔑 Identificação
                 'n_apolice' => $numeroApolice,
                 'idtitular' => $this->get($row, $header, 'IDTITULAR'),
-
-                // 📅 Datas
                 'data_anulacao' => $this->parseDate($this->get($row, $header, 'DATA_ANULACAO')),
                 'data_pagamento' => $this->parseDate($this->get($row, $header, 'DATA_PAGAMENTO')),
-
-                // 📄 Motivos
                 'razao' => trim($this->get($row, $header, 'RAZAO')),
                 'subrazao' => trim($this->get($row, $header, 'SUBRAZAO')),
-
-                // 💰 Financeiro
                 'recibo_estorno' => $this->get($row, $header, 'RECIBO_ESTORNO'),
                 'valor_total' => $valor,
-
-                // 📊 Situação
                 'situacao' => strtoupper(trim($this->get($row, $header, 'SITUACAO'))),
-
-                // 🕒 Auditoria
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
-
         } catch (\Throwable $e) {
-            Log::warning("Linha ignorada (estorno)", [
-                'erro' => $e->getMessage()
-            ]);
+            Log::warning("Linha ignorada (estorno)", ['erro' => $e->getMessage()]);
             return null;
         }
     }
@@ -142,7 +133,6 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
     private function parseDate(?string $date): ?string
     {
         if (!$date) return null;
-
         try {
             return Carbon::parse(preg_replace('/\.\d+$/', '', $date))
                 ->format('Y-m-d H:i:s');
@@ -156,7 +146,6 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
         if (is_string($value)) {
             $value = str_replace(',', '.', trim($value));
         }
-
         return is_numeric($value) ? (float)$value : 0.0;
     }
 
