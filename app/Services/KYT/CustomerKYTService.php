@@ -472,7 +472,7 @@ class CustomerKYTService
 
         $this->createAlert(
             $customer,
-            'Churn de apólices (trocas frequentes)',
+            'Trocas Frequentes de Apólices',
             $description,
             'Médio',
             20
