@@ -20,27 +20,27 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
     private int $customerId;
     private array $policies;
     private array $changes;
+    private array $refunds; // <--- Nova propriedade
 
-    public function __construct(int $customerId, array $policies, array $changes)
+    public function __construct(int $customerId, array $policies, array $changes, array $refunds = [])
     {
         $this->customerId = $customerId;
         $this->policies = $policies;
         $this->changes = $changes;
+        $this->refunds = $refunds;
     }
 
     public function handle(CustomerKYTService $kytService)
     {
-        Log::info("🚀 KYT cliente {$this->customerId}");
-
         $customer = Entities::find($this->customerId);
         if (!$customer) return;
 
+        // 🔥 Passando refunds para o Service
         $kytService->runAllChecksMemory(
             $customer,
             $this->policies,
-            $this->changes
+            $this->changes,
+            $this->refunds
         );
-
-        Log::info("✅ KYT concluído {$this->customerId}");
     }
 }

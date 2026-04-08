@@ -65,7 +65,7 @@ class CustomerKYTService
         return $data;
     }
 
-    public function runAllChecksMemory(Entities $customer, array $policies, array $changes = []): void
+    public function runAllChecksMemory(Entities $customer, array $policies, array $changes = [], array $refunds = []): void
     {
         $policies = $this->normalizePolicies($policies);
 
@@ -76,13 +76,15 @@ class CustomerKYTService
 
         if (empty($policies)) return;
 
-        $this->checkHighCapitalIncrease($customer, $changes);
-       $this->checkEarlyRedemption($customer, $policies);
-       $this->checkHighPremium($customer, $policies);
-       $this->checkMultipleShortPolicies($customer, $policies);
+     //   $this->checkHighCapitalIncrease($customer, $changes);
+      // 🔥 Agora passa os dados de estorno reais para a detecção de Early Redemption
+    $this->checkEarlyRedemption($customer, $policies, $refunds);
+     
+    //$this->checkHighPremium($customer, $policies);
+     //  $this->checkMultipleShortPolicies($customer, $policies);
 
-      $this->checkPolicyChurning($customer, $policies);
-      $this->checkRapidReplacement($customer, $policies);
+    //  $this->checkPolicyChurning($customer, $policies);
+   //   $this->checkRapidReplacement($customer, $policies);
 
         Log::info("✅ KYT FINISHED", ['customer' => $customer->customer_number]);
     }
@@ -212,71 +214,49 @@ class CustomerKYTService
     }
 }
    
+private function checkEarlyRedemption(Entities $customer, array $policies, array $refunds = []): void
+{
+    foreach ($policies as $p) {
+        $nApolice = $p['numero_apolice'];
+        
+        // Localiza se há registro de estorno para esta apólice específica
+        $estorno = collect($refunds)->first(function($item) use ($nApolice) {
+            return (string)$item->n_apolice === (string)$nApolice;
+        });
 
-    private function checkEarlyRedemption(Entities $customer, array $policies): void
-    {
-        // 🔹 Agrupa por produto
-        $grouped = [];
+        $dataInicio = $this->parseDate($p['data_inicio']);
+        $dataCancelamento = $estorno ? Carbon::parse($estorno->data_anulacao) : $this->parseDate($p['data_fim']);
 
-        foreach ($policies as $p) {
-            $produto = $p['descricao_produto'] ?? 'OUTROS';
-            $grouped[$produto][] = $p;
-        }
+        if (!$dataInicio || !$dataCancelamento) continue;
 
-        foreach ($grouped as $produto => $group) {
+        $diasAtiva = Carbon::parse($dataInicio)->diffInDays($dataCancelamento);
 
-            // 🔹 filtra apenas apólices com cancelamento/resgate < 12 meses
-            $valid = array_filter($group, function ($p) {
-                $days = $this->safeDays($p['data_inicio'], $p['data_fim']);
-
-                return $days !== null
-                    && $days < 365
-                    && in_array($p['estado_apolice'], ['cancelled', 'terminated']);
-            });
-
-            if (count($valid) < 1) continue;
-
-            // 🔹 ordena por data mais recente
-            usort(
-                $valid,
-                fn($a, $b) =>
-                strtotime($b['data_inicio'] ?? '1970') - strtotime($a['data_inicio'] ?? '1970')
-            );
-
-            // 🔥 últimas 20 analisadas
-            $latest = array_slice($valid, 0, 20);
-
-            // 🔹 extrai apólices analisadas
-            $apolices = array_column($latest, 'numero_apolice');
-
-            // 🔹 período analisado
-            $firstDate = $latest[0]['data_inicio'] ?? null;
-            $lastDate  = end($latest)['data_fim'] ?? null;
-
-            // 🔹 métricas adicionais (nível AML)
-            $totalCapital = array_sum(array_column($latest, 'capital'));
-            $totalPremium = array_sum(array_column($latest, 'premium_total'));
+        // Regra ARSEG/GAFI: Resgate antes de 12 meses
+        if ($diasAtiva < 365 && $diasAtiva > 0) {
+            
+            $valorPago = (float)$p['premium_total'];
+            $valorDevolvido = $estorno ? (float)$estorno->valor_total : 0;
+            $perda = $valorPago - $valorDevolvido;
 
             $description = sprintf(
-                "Produto: %s | Apólices analisadas: %s | Período: %s → %s | Total Capital: %s | Total Prêmio: %s | Resgates antes de data prevista",
-                $produto,
-                implode(', ', $apolices),
-                $firstDate,
-                $lastDate,
-                $this->formatMoney($totalCapital),
-                $this->formatMoney($totalPremium)
+                "Produto: %s | Apólice: %s\n" .
+                "Datas: Início [%s] | Cancelamento [%s] (%d dias ativa)\n" .
+                "Financeiro: Pago [%s] | Reembolsado [%s] | Perda Aceite [%s]\n" .
+                "Motivo: %s",
+                $p['descricao_produto'],
+                $nApolice,
+                Carbon::parse($dataInicio)->format('d/m/Y'),
+                $dataCancelamento->format('d/m/Y'),
+                $diasAtiva,
+                $this->formatMoney($valorPago),
+                $this->formatMoney($valorDevolvido),
+                $this->formatMoney($perda),
+                $estorno->razao ?? 'Não informado'
             );
 
-            $this->createAlert(
-                $customer,
-                'Resgate antecipado de apólice',
-                $description,
-                'Alto',
-                20
-            );
+            $this->createAlert($customer, 'Resgate antecipado de apólice', $description, 'Alto', 20);
         }
-    }
-
+    }   }
     private function checkHighPremium(Entities $customer, array $policies): void
     {
         // 🔹 Agrupa por produto
