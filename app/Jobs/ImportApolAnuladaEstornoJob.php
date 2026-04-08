@@ -120,15 +120,21 @@ class ImportApolAnuladaEstornoJob implements ShouldQueue
     {
         try {
             if (count($row) !== count($header)) return null;
-
+    
             $numeroApolice = $this->get($row, $header, 'N_APOLICE');
             if (!$numeroApolice) return null;
-
+    
+            $idtitular = $this->get($row, $header, 'IDTITULAR');
+            // 🔹 Ignorar linha se IDTITULAR for vazio ou '---------'
+            if (empty($idtitular) || trim($idtitular) === '---------') {
+                return null;
+            }
+    
             $valor = $this->toFloat($this->get($row, $header, 'VALOR_TOTAL'));
-
+    
             return [
                 'n_apolice' => $numeroApolice,
-                'idtitular' => $this->get($row, $header, 'IDTITULAR'),
+                'idtitular' => $idtitular,
                 'data_anulacao' => $this->parseDate($this->get($row, $header, 'DATA_ANULACAO')),
                 'data_pagamento' => $this->parseDate($this->get($row, $header, 'DATA_PAGAMENTO')),
                 'razao' => trim($this->get($row, $header, 'RAZAO')),
