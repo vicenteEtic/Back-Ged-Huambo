@@ -90,7 +90,7 @@ class CustomerKYTService
     //$this->checkEarlyRedemption($customer, $policies, $refunds);
      
     //$this->checkHighPremium($customer, $policies);
-       $this->checkMultipleShortPolicies($customer, $policies);
+     $this->checkMultipleShortPolicies($customer, $policies);
 
     //  $this->checkPolicyChurning($customer, $policies);
    //   $this->checkRapidReplacement($customer, $policies);
