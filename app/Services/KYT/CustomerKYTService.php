@@ -569,9 +569,6 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     }
 
 
-
-
-
     private function checkRapidReplacement(Entities $customer, array $policies): void
     {
         usort($policies, fn($a, $b) =>
@@ -588,21 +585,28 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     
             $cancelDate = $this->safeDate($prev['data_anulacao'] ?? $prev['data_fim'] ?? null);
             $currStart  = $this->safeDate($curr['data_inicio'] ?? null);
+            $startPrev  = $this->safeDate($prev['data_inicio'] ?? null);
     
-            if (!$cancelDate || !$currStart) continue;
-    
-            $startPrev = $this->safeDate($prev['data_inicio'] ?? null);
-            if (!$startPrev) continue;
+            if (!$cancelDate || !$currStart || !$startPrev) continue;
     
             $duration = $startPrev->diffInDays($cancelDate);
     
+            // 🔥 cancelamento precoce
             if ($duration > 30) continue;
     
             $gap = $cancelDate->diffInDays($currStart);
     
             if ($gap <= 7) {
-                $current[] = $prev;
-                $current[] = $curr;
+    
+                // 🔥 evita duplicados
+                if (empty($current) || end($current)['numero_apolice'] !== $prev['numero_apolice']) {
+                    $current[] = $prev;
+                }
+    
+                if (end($current)['numero_apolice'] !== $curr['numero_apolice']) {
+                    $current[] = $curr;
+                }
+    
             } else {
                 if (count($current) >= 3) {
                     $chains[] = $current;
@@ -615,24 +619,25 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
             $chains[] = $current;
         }
     
+        // 🔴 PROTEÇÃO CRÍTICA
         if (empty($chains)) return;
     
         usort($chains, fn($a, $b) => count($b) <=> count($a));
-        $chain = $chains[0];
+        $chain = $chains[0] ?? [];
     
-        $chain = array_filter($chain, function ($p) {
+        if (empty($chain)) return;
+    
+        // 🔥 FILTRO 12 MESES
+        $chain = array_values(array_filter($chain, function ($p) {
             return isset($p['data_inicio']) &&
                 Carbon::parse($p['data_inicio'])->gte(now()->subYear());
-        });
+        }));
     
+        // 🔴 PROTEÇÃO CRÍTICA (AQUI ESTAVA O TEU ERRO)
         if (count($chain) < 3) return;
     
-        /* =========================
-           🔥 REMOVER DUPLICADOS AQUI
-        ========================== */
-    
-        $seenPairs = [];
-        $apolices = [];
+        $pairs = [];
+        $timeline = [];
         $early = 0;
     
         for ($i = 1; $i < count($chain); $i++) {
@@ -647,48 +652,75 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     
             $gap = $cancelDate->diffInDays($currStart);
     
-            // 🔥 chave única para evitar repetição
-            $key = $prev['numero_apolice'] . '->' . $curr['numero_apolice'];
+            $pair = $prev['numero_apolice'] . " → " . $curr['numero_apolice'];
     
-            if (!in_array($key, $seenPairs)) {
-                $seenPairs[] = $key;
-                $apolices[] = $key;
+            // 🔥 evitar duplicados na descrição
+            if (!in_array($pair, $pairs)) {
+                $pairs[] = $pair;
             }
+    
+            $timeline[] = sprintf(
+                "%s (%s → %s = %d dias)",
+                $prev['numero_apolice'],
+                $cancelDate->format('Y-m-d'),
+                $currStart->format('Y-m-d'),
+                $gap
+            );
     
             if ($gap <= 7) $early++;
         }
     
-        $description = sprintf(
-            "RELATÓRIO KYT - SUBSTITUIÇÃO RÁPIDA DE APÓLICES\n\n" .
-            "Cliente: %s\n\n" .
-            "Resumo do comportamento:\n" .
-            "- Cadeia de substituição identificada com %d eventos\n" .
-            "- Substituições ocorreram em intervalo ≤ 7 dias\n" .
-            "- Cancelamentos rápidos (<30 dias): %d\n\n" .
-            "Fluxo de substituição (sem repetições):\n%s\n\n" .
-            "Interpretação AML:\n" .
-            "Existe um padrão consistente de cancelamento e re-subscrição de apólices em curto espaço de tempo.\n" .
-            "Este comportamento é típico de técnicas de layering utilizadas para ocultação e reestruturação de fundos.\n\n" .
-            "Período analisado: últimos 12 meses",
-            $customer->customer_number,
-            count($chain),
-            $early,
-            implode(', ', $apolices)
-        );
+        if (empty($pairs)) return;
     
-        $score = 20;
+        /* =========================
+           DESCRIÇÃO LIMPA
+        ========================== */
+    
+        $description =
+    "RELATÓRIO KYT - SUBSTITUIÇÃO RÁPIDA DE APÓLICES
+    
+    Cliente: {$customer->customer_number}
+    
+    🔍 Resumo:
+    - Eventos de substituição: " . count($pairs) . "
+    - Substituições ≤ 7 dias: {$early}
+    
+    📄 Cadeia de substituição:
+    " . implode(', ', $pairs) . "
+    
+    📅 Timeline:
+    " . implode("\n", $timeline) . "
+    
+    📌 Interpretação AML:
+    Foi identificado um padrão de cancelamento e reativação de apólices em intervalos muito curtos.
+    
+    Este comportamento é típico de:
+    - Layering acelerado
+    - Ocultação de beneficiários
+    - Reestruturação artificial de contratos
+    
+    📊 Risco: Alto";
+    
+        /* =========================
+           SCORE
+        ========================== */
+    
+        $score = 15;
     
         if ($early >= 2) $score += 5;
         if (count($chain) >= 5) $score += 5;
     
         $this->createAlert(
             $customer,
-            'Substituição rápida de apólices (KYT)',
+            'Substituição ou cancelamento repetido',
             $description,
             'Alto',
             $score
         );
     }
+
+
+  
     private function checkThirdPartyPayments(Entities $customer, array $policies): void
     {
         foreach ($policies as $policy) {
