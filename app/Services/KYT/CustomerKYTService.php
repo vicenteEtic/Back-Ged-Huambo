@@ -393,90 +393,118 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
             $start = $this->safeDate($p['data_inicio'] ?? null);
             $end   = $this->safeDate($p['data_fim'] ?? null);
     
-            if (!$start || !$end) {
-                continue;
-            }
+            if (!$start || !$end) continue;
     
             $days = $start->diffInDays($end);
     
-            if ($days >= 90 && $days <= 180) {
-    
-                $premium = (float) ($p['premium_total'] ?? 0);
-    
-                if ($premium > 0) {
-                    $valid[] = $p;
-                }
+            if ($days >= 90 && $days <= 180 && ($p['premium_total'] ?? 0) > 0) {
+                $valid[] = $p;
             }
         }
     
-        if (count($valid) < 3) {
-            Log::warning("❌ KYT: Menos de 3 apólices válidas");
-            return;
-        }
+        if (count($valid) < 3) return;
     
         usort($valid, fn($a, $b) =>
             strtotime($a['data_inicio']) <=> strtotime($b['data_inicio'])
         );
     
-        for ($i = 0; $i < count($valid); $i++) {
+        $window = [];
+        $totalPremium = 0;
+        $earlyCancels = 0;
     
-            $window = [$valid[$i]];
-            $totalPremium = (float) $valid[$i]['premium_total'];
+        $seen = [];
     
-            for ($j = $i + 1; $j < count($valid); $j++) {
+        foreach ($valid as $p) {
     
-                $gap = $this->safeDays(
-                    $valid[$i]['data_inicio'],
-                    $valid[$j]['data_inicio']
-                );
+            $key = $p['numero_apolice'] ?? null;
     
-                // 🔥 janela de 60 dias
-                if ($gap !== null && $gap <= 60) {
-    
-                    $window[] = $valid[$j];
-                    $totalPremium += (float) $valid[$j]['premium_total'];
-    
-                } else {
-                    break;
-                }
+            if (!$key || in_array($key, $seen)) {
+                continue;
             }
     
-            // 🔥 REGRA AML
-            if (count($window) >= 3 && $totalPremium >= 150000) { // 👈 BAIXEI LIMIAR
+            $seen[] = $key;
     
-                $apolices = array_unique(array_column($window, 'numero_apolice'));
+            $window[] = $p;
+            $totalPremium += $p['premium_total'];
     
-                Log::warning("🚨 KYT DETECTADO", [
-                    'cliente' => $customer->customer_number,
-                    'apolices' => $apolices,
-                    'total' => $totalPremium
-                ]);
+            $start = $this->safeDate($p['data_inicio']);
+            $end   = $this->safeDate($p['data_fim']);
     
-                $description = sprintf(
-                    "\n\n" .
-                    "Cliente: %s\n" .
-                    "Apólices: %s\n" .
-                    "Qtd: %d\n" .
-                    "Total: %s\n\n" .
-                    "Indicador AML: Fragmentação (Smurfing)",
-                    $customer->customer_number,
-                    implode(', ', $apolices),
-                    count($window),
-                    $this->formatMoney($totalPremium)
-                );
-    
-                $this->createAlert(
-                    $customer,
-                    'Churn de apólices (trocas frequentes)',
-                    $description,
-                    'Médio',
-                    15
-                );
-    
-                return;
+            if ($start && $end && $start->diffInDays($end) < 180) {
+                $earlyCancels++;
             }
         }
+    
+        // 🔥 VALIDAÇÃO CRÍTICA (evita erro)
+        if (count($window) < 3 || $totalPremium < 300000) return;
+    
+        if (empty($window)) return;
+    
+        /* =========================
+           APÓLICES ÚNICAS
+        ========================== */
+    
+        $apolices = array_unique(array_column($window, 'numero_apolice'));
+    
+        /* =========================
+           PERÍODO SEGURO
+        ========================== */
+    
+        $periodStart = $window[0]['data_inicio'] ?? 'N/A';
+        $last = end($window);
+        $periodEnd = $last['data_inicio'] ?? 'N/A';
+    
+        /* =========================
+           DESCRIÇÃO MELHORADA
+        ========================== */
+    
+        $description =
+    "RELATÓRIO KYT - MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO
+    
+    Cliente: {$customer->customer_number}
+    
+    🔍 Resumo:
+    - Apólices analisadas: " . count($window) . "
+    - Apólices únicas: " . implode(', ', $apolices) . "
+    - Prémio total: " . $this->formatMoney($totalPremium) . "
+    - Cancelamentos < 180 dias: {$earlyCancels}
+    
+    📅 Período:
+    {$periodStart} → {$periodEnd}
+    
+    📌 Interpretação AML:
+    Padrão consistente de contratação de apólices de curta duração com possível fragmentação de valores.
+    
+    Comportamento compatível com:
+    - Smurfing (divisão de montantes)
+    - Layering (dispersão para ocultação)
+    
+    Risco: Médio-Alto";
+    
+        /* =========================
+           SCORE
+        ========================== */
+    
+        $score = 15;
+    
+        if ($totalPremium >= 500000) $score += 5;
+        if (count($window) >= 5) $score += 5;
+        if ($earlyCancels >= 2) $score += 5;
+    
+        /* =========================
+           ALERTA
+        ========================== */
+    
+        $this->createAlert(
+            $customer,
+            'Churn de apólices (trocas frequentes)',
+            $description,
+            'Médio',
+            $score
+        );
     }
+
+  
 
 
     private function checkPolicyChurning(Entities $customer, array $policies): void
