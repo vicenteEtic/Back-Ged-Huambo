@@ -65,9 +65,12 @@ class CustomerKYTService
         return $data;
     }
 
+
+
     public function runAllChecksMemory(Entities $customer, array $policies, array $changes = [], array $refunds = []): void
     {
         $policies = $this->normalizePolicies($policies);
+        $refunds  = $this->normalizeRefunds($refunds);
 
         Log::info("🔍 KYT START", [
             'customer' => $customer->customer_number,
@@ -76,7 +79,7 @@ class CustomerKYTService
 
         if (empty($policies)) return;
 
-     //   $this->checkHighCapitalIncrease($customer, $changes);
+      //   $this->checkHighCapitalIncrease($customer, $changes);
       // 🔥 Agora passa os dados de estorno reais para a detecção de Early Redemption
     $this->checkEarlyRedemption($customer, $policies, $refunds);
      
@@ -88,11 +91,29 @@ class CustomerKYTService
 
         Log::info("✅ KYT FINISHED", ['customer' => $customer->customer_number]);
     }
+   
 
     /* =========================
        NORMALIZAÇÃO
     ========================== */
+    private function normalizeRefunds(array $refunds): array
+    {
+        $result = [];
 
+        foreach ($refunds as $r) {
+            $numero = $r['n_apolice'] ?? $r['numero_apolice'] ?? null;
+
+            if (!$numero) continue;
+
+            $result[(string)$numero] = [
+                'data_cancelamento' => $this->parseDate($r['data_anulacao'] ?? $r['data_cancelamento'] ?? null),
+                'valor_total' => $this->toFloat($r['valor_total'] ?? 0),
+                'razao' => $r['razao'] ?? null,
+            ];
+        }
+
+        return $result;
+    }
     private function normalizePolicies(array $policies): array
     {
         return array_map(function ($p) {
@@ -214,53 +235,70 @@ class CustomerKYTService
     }
 }
    
-private function checkEarlyRedemption(Entities $customer, array $policies, array $refunds = []): void
+private function checkEarlyRedemption(Entities $customer, array $policies, array $refunds): void
 {
     foreach ($policies as $p) {
-        $nApolice = $p['numero_apolice'];
 
-        // Localiza se há registro de estorno para esta apólice específica
-        $estorno = collect($refunds)->first(function($item) use ($nApolice) {
-            return (string)($item['n_apolice'] ?? $item['numero_apolice'] ?? '') === (string)$nApolice;
-        });
+        $numero = (string)$p['numero_apolice'];
+        $refund = $refunds[$numero] ?? null;
 
-        // Garantir que são objetos Carbon ou null
-        $dataInicio = $this->parseDate($p['data_inicio']);
-        $dataCancelamento = $estorno 
-            ? ($estorno['data_anulacao'] ?? $estorno['data_cancelamento'] ?? null)
-            : $p['data_fim'];
+        $inicio = $p['data_inicio'];
+        $fim    = $refund['data_cancelamento'] ?? $p['data_fim'];
 
-        // Parse seguro
-        $dataInicioCarbon = $dataInicio ? Carbon::parse($dataInicio) : null;
-        $dataCancelCarbon = $dataCancelamento ? Carbon::parse($dataCancelamento) : null;
+        if (!$inicio || !$fim) continue;
 
-        if (!$dataInicioCarbon || !$dataCancelCarbon) continue;
-
-        $diasAtiva = $dataInicioCarbon->diffInDays($dataCancelCarbon);
-
-        if ($diasAtiva < 365 && $diasAtiva > 0) {
-            $valorPago = (float)$p['premium_total'];
-            $valorDevolvido = $estorno ? (float)($estorno['valor_total'] ?? 0) : 0;
-            $perda = $valorPago - $valorDevolvido;
-
-            $description = sprintf(
-                "Produto: %s | Apólice: %s\n" .
-                "Datas: Início [%s] | Cancelamento [%s] (%d dias ativa)\n" .
-                "Financeiro: Pago [%s] | Reembolsado [%s] | Perda Aceite [%s]\n" .
-                "Motivo: %s",
-                $p['descricao_produto'],
-                $nApolice,
-                $dataInicioCarbon->format('d/m/Y'),
-                $dataCancelCarbon->format('d/m/Y'),
-                $diasAtiva,
-                $this->formatMoney($valorPago),
-                $this->formatMoney($valorDevolvido),
-                $this->formatMoney($perda),
-                $estorno['razao'] ?? 'Não informado'
-            );
-
-            $this->createAlert($customer, 'Resgate antecipado de apólice', $description, 'Alto', 20);
+        try {
+            $dias = Carbon::parse($inicio)->diffInDays(Carbon::parse($fim));
+        } catch (\Exception $e) {
+            continue;
         }
+
+        // 🔥 REGRA 1: menos de 12 meses
+        if ($dias <= 0 || $dias >= 365) continue;
+
+        $valorPago = (float)$p['premium_total'];
+        $valorDevolvido = (float)($refund['valor_total'] ?? 0);
+
+        if ($valorPago <= 0) continue;
+
+        $perda = $valorPago - $valorDevolvido;
+        $percentualPerda = $valorPago > 0 ? ($perda / $valorPago) : 0;
+
+        // 🔥 REGRA 2: valor relevante (ajustável)
+        if ($valorPago < 300000) continue;
+
+        // 🔥 REGRA 3: perda mínima de 10%
+        if ($percentualPerda < 0.10) continue;
+
+        // 🔥 SCORE DINÂMICO
+        $score = 20;
+
+        if ($percentualPerda >= 0.20) $score += 10; // perda alta
+        if ($dias <= 180) $score += 10;             // muito rápido (<6 meses)
+
+        // 🔥 DESCRIÇÃO AML (auditoria)
+        $description = sprintf(
+            "KYT_EARLY_REDEMPTION ⚠️\n" .
+            "Apólice: %s\n" .
+            "Duração: %d dias (<12 meses)\n" .
+            "Pago: %s | Devolvido: %s\n" .
+            "Perda: %s (%.2f%%)\n" .
+            "Indicador: Resgate precoce com perda financeira aceite",
+            $numero,
+            $dias,
+            $this->formatMoney($valorPago),
+            $this->formatMoney($valorDevolvido),
+            $this->formatMoney($perda),
+            $percentualPerda * 100
+        );
+
+        $this->createAlert(
+            $customer,
+            'KYT_EARLY_REDEMPTION',
+            $description,
+            'Alto',
+            $score
+        );
     }
 }
     private function checkHighPremium(Entities $customer, array $policies): void
