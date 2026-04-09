@@ -666,7 +666,7 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     if (count($chain) >= 5) $score += 5;
 
     $description = sprintf(
-        "KYT RAPID POLICY REPLACEMENT (Layering / Obfuscation)\n" .
+        "\n" .
         "Cliente: %s\n\n" .
         "Cadeia de substituição:\n%s\n\n" .
         "Timeline de substituições:\n%s\n\n" .
@@ -682,7 +682,7 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
 
     $this->createAlert(
         $customer,
-        'Substituição rápida de apólices (AML Layering)',
+        'Substituição ou cancelamento repetido',
         $description,
         'Alto',
         $score
