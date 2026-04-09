@@ -383,105 +383,91 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
         }
     }
 
-   private function checkMultipleShortPolicies(Entities $customer, array $policies): void
+
+    private function checkMultipleShortPolicies(Entities $customer, array $policies): void
 {
-    // 🔹 filtrar apólices curtas válidas (3-6 meses)
-    $short = array_filter($policies, function ($p) {
-        $days = $this->safeDays($p['data_inicio'], $p['data_fim']);
+    $valid = [];
 
-        return $days !== null
-            && $days >= 90 && $days <= 180
-            && $p['premium_total'] > 0
-            && $p['data_inicio']
-            && $p['data_fim'];
-    });
+    // 🔥 normalização robusta de datas
+    foreach ($policies as $p) {
 
-    if (count($short) < 3) return;
+        $start = $this->safeDate($p['data_inicio'] ?? null);
+        $end   = $this->safeDate($p['data_fim'] ?? null);
 
-    // 🔹 ordenar por data
-    usort(
-        $short,
-        fn($a, $b) =>
-        strtotime($a['data_inicio']) - strtotime($b['data_inicio'])
-    );
+        if (!$start || !$end) continue;
 
-    for ($i = 0; $i < count($short); $i++) {
+        $days = $start->diffInDays($end);
 
-        $window = [$short[$i]];
-        $totalPremium = $short[$i]['premium_total'];
-        $cancelledEarlyCount = 0;
-
-        // 🔍 verificar se foi cancelada cedo (<180 dias)
-        $daysFirst = $this->safeDays($short[$i]['data_inicio'], $short[$i]['data_fim']);
-        if ($daysFirst !== null && $daysFirst < 180) {
-            $cancelledEarlyCount++;
-        }
-
-        for ($j = $i + 1; $j < count($short); $j++) {
-
-            $gap = $this->safeDays(
-                $short[$i]['data_inicio'],
-                $short[$j]['data_inicio']
-            );
-
-            // 🔹 janela de fragmentação (até 60 dias)
-            if ($gap !== null && $gap <= 60) {
-
-                $window[] = $short[$j];
-                $totalPremium += $short[$j]['premium_total'];
-
-                $days = $this->safeDays($short[$j]['data_inicio'], $short[$j]['data_fim']);
-
-                if ($days !== null && $days < 180) {
-                    $cancelledEarlyCount++;
-                }
-
-            } else {
-                break;
-            }
-        }
-
-        // 🔥 REGRA AML PRINCIPAL
-        if (count($window) >= 3 && $totalPremium >= 300000) {
-
-            $apolices = array_column($window, 'numero_apolice');
-
-            // 🔥 SCORE DINÂMICO
-            $score = 15;
-
-            if ($totalPremium >= 500000) $score += 5;
-            if (count($window) >= 5) $score += 5;
-            if ($cancelledEarlyCount >= 2) $score += 5; // comportamento suspeito real
-
-            $description = sprintf(
-                "KYT MULTIPLE SHORT POLICIES (Fragmentação)\n" .
-                "Cliente: %s\n" .
-                "Apólices: %s\n" .
-                "Qtd: %d | Prémio Total: %s\n" .
-                "Cancelamentos precoces: %d\n" .
-                "Período: %s → %s\n" .
-                "Indicador AML: Possível smurfing/layering (fragmentação de valores)",
-                $customer->customer_number,
-                implode(', ', $apolices),
-                count($window),
-                $this->formatMoney($totalPremium),
-                $cancelledEarlyCount,
-                $window[0]['data_inicio'],
-                end($window)['data_inicio']
-            );
-
-            $this->createAlert(
-                $customer,
-                '"Churn de apólices (trocas frequentes)',
-                $description,
-                'Médio',
-                $score
-            );
-
-            return; // evita duplicados
+        // 🔥 3-6 meses
+        if ($days >= 90 && $days <= 180 && ($p['premium_total'] ?? 0) > 0) {
+            $valid[] = $p;
         }
     }
+
+    if (count($valid) < 3) return;
+
+    usort($valid, fn($a, $b) =>
+        strtotime($a['data_inicio']) <=> strtotime($b['data_inicio'])
+    );
+
+    $window = [];
+    $totalPremium = 0;
+    $earlyCancels = 0;
+
+    foreach ($valid as $p) {
+
+        $window[] = $p;
+        $totalPremium += $p['premium_total'];
+
+        $start = $this->safeDate($p['data_inicio']);
+        $end   = $this->safeDate($p['data_fim']);
+
+        if ($start && $end && $start->diffInDays($end) < 180) {
+            $earlyCancels++;
+        }
+    }
+
+    if (count($window) < 3 || $totalPremium < 300000) return;
+
+    $apolices = array_column($window, 'numero_apolice');
+
+    $description = sprintf(
+        "RELATÓRIO KYT - MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO\n\n" .
+        "Cliente: %s\n\n" .
+        "Resumo do comportamento:\n" .
+        "- Total de apólices analisadas: %d\n" .
+        "- Apólices identificadas: %s\n" .
+        "- Valor total acumulado: %s\n" .
+        "- Cancelamentos antecipados (<180 dias): %d\n\n" .
+        "Interpretação AML:\n" .
+        "Foi identificado um padrão de fragmentação de contratos através de múltiplas apólices de curta duração.\n" .
+        "Este comportamento pode indicar tentativa de dispersão de valores (smurfing) ou estruturação de operações financeiras.\n\n" .
+        "Período analisado: %s → %s",
+        $customer->customer_number,
+        count($window),
+        implode(', ', $apolices),
+        $this->formatMoney($totalPremium),
+        $earlyCancels,
+        $window[0]['data_inicio'],
+        end($window)['data_inicio']
+    );
+
+    $score = 15;
+
+    if ($totalPremium >= 500000) $score += 5;
+    if (count($window) >= 5) $score += 5;
+    if ($earlyCancels >= 2) $score += 5;
+
+    $this->createAlert(
+        $customer,
+        'Churn de apólices (trocas frequentes)',
+        $description,
+        'Médio',
+        $score
+    );
 }
+
+
 
 
     private function checkPolicyChurning(Entities $customer, array $policies): void
@@ -545,81 +531,64 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
         );
     }
 
-   private function checkRapidReplacement(Entities $customer, array $policies): void
+
+
+
+
+private function checkRapidReplacement(Entities $customer, array $policies): void
 {
-    usort(
-        $policies,
-        fn($a, $b) =>
-        strtotime($a['data_inicio'] ?? '1970') - strtotime($b['data_inicio'] ?? '1970')
+    usort($policies, fn($a, $b) =>
+        strtotime($a['data_inicio'] ?? '1970') <=> strtotime($b['data_inicio'] ?? '1970')
     );
 
     $chains = [];
-    $currentChain = [];
+    $current = [];
 
     for ($i = 1; $i < count($policies); $i++) {
 
         $prev = $policies[$i - 1];
         $curr = $policies[$i];
 
-        // 🔒 apenas apólices canceladas
-        if (!in_array($prev['estado_apolice'] ?? null, ['terminated', 'cancelled'])) {
-            continue;
-        }
+        // 🔥 cancelamento real
+        $cancelDate = $this->safeDate(
+            $prev['data_anulacao'] ?? $prev['data_fim'] ?? null
+        );
 
-        // 🔥 DATA DE CANCELAMENTO CORRETA
-        $cancelDate = $prev['data_anulacao'] ?? null;
+        $currStart = $this->safeDate($curr['data_inicio'] ?? null);
 
-        if (!$cancelDate && in_array($prev['estado_apolice'], ['cancelled', 'terminated'])) {
-            $cancelDate = $prev['data_fim'];
-        }
+        if (!$cancelDate || !$currStart) continue;
 
-        if (!$cancelDate || !$prev['data_inicio'] || !$curr['data_inicio']) {
-            continue;
-        }
+        // 🔥 duração da apólice
+        $startPrev = $this->safeDate($prev['data_inicio'] ?? null);
+        if (!$startPrev) continue;
 
-        // 🔥 duração real da apólice
-        $duration = $this->safeDays($prev['data_inicio'], $cancelDate);
+        $duration = $startPrev->diffInDays($cancelDate);
 
-        // 🔒 só interessa cancelamento precoce
-        if ($duration === null || $duration > 30) {
-            continue;
-        }
+        if ($duration > 30) continue;
 
-        // 🔥 DATA DE SUBSTITUIÇÃO (CRÍTICO AML)
-        $replacementDays = $this->safeDays($cancelDate, $curr['data_inicio']);
+        // 🔥 substituição rápida
+        $gap = $cancelDate->diffInDays($currStart);
 
-        if ($replacementDays === null) {
-            continue;
-        }
-
-        // 🔥 regra principal: substituição rápida (<= 7 dias)
-        if ($replacementDays <= 7) {
-
-            if (empty($currentChain)) {
-                $currentChain[] = $prev;
-            }
-
-            $currentChain[] = $curr;
-
+        if ($gap <= 7) {
+            $current[] = $prev;
+            $current[] = $curr;
         } else {
-            if (count($currentChain) >= 3) {
-                $chains[] = $currentChain;
+            if (count($current) >= 3) {
+                $chains[] = $current;
             }
-            $currentChain = [];
+            $current = [];
         }
     }
 
-    // 🔹 última cadeia
-    if (count($currentChain) >= 3) {
-        $chains[] = $currentChain;
+    if (count($current) >= 3) {
+        $chains[] = $current;
     }
 
     if (empty($chains)) return;
 
-    usort($chains, fn($a, $b) => count($b) - count($a));
+    usort($chains, fn($a, $b) => count($b) <=> count($a));
     $chain = $chains[0];
 
-    // 🔹 últimos 12 meses
     $chain = array_filter($chain, function ($p) {
         return isset($p['data_inicio']) &&
             Carbon::parse($p['data_inicio'])->gte(now()->subYear());
@@ -627,58 +596,46 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
 
     if (count($chain) < 3) return;
 
-    $chain = array_slice($chain, -20);
-
     $apolices = [];
-    $replacementTimeline = [];
-    $earlyCancels = 0;
+    $early = 0;
 
     for ($i = 1; $i < count($chain); $i++) {
 
         $prev = $chain[$i - 1];
         $curr = $chain[$i];
 
-        // 🔥 cancelamento correto
-        $cancelDate = $prev['data_anulacao'] ?? $prev['data_fim'];
+        $cancelDate = $this->safeDate($prev['data_anulacao'] ?? $prev['data_fim']);
+        $currStart = $this->safeDate($curr['data_inicio']);
 
-        // 🔥 substituição real
-        $replacementDays = $this->safeDays($cancelDate, $curr['data_inicio']);
+        $gap = $cancelDate->diffInDays($currStart);
 
-        $apolices[] = $prev['numero_apolice'] . ' → ' . $curr['numero_apolice'];
+        $apolices[] = $prev['numero_apolice'] . " → " . $curr['numero_apolice'];
 
-        $replacementTimeline[] = sprintf(
-            "%s (%s → %s = %d dias)",
-            $prev['numero_apolice'],
-            $cancelDate,
-            $curr['data_inicio'],
-            $replacementDays
-        );
-
-        if ($this->safeDays($prev['data_inicio'], $cancelDate) <= 30) {
-            $earlyCancels++;
-        }
+        if ($gap <= 7) $early++;
     }
 
-    // 🔥 SCORE AML
-    $score = 15;
-
-    if ($earlyCancels >= 2) $score += 5;
-    if (count($chain) >= 5) $score += 5;
-
     $description = sprintf(
-        "\n" .
+        "RELATÓRIO KYT - SUBSTITUIÇÃO RÁPIDA DE APÓLICES\n\n" .
         "Cliente: %s\n\n" .
-        "Cadeia de substituição:\n%s\n\n" .
-        "Timeline de substituições:\n%s\n\n" .
-        "Eventos: %d\n" .
-        "Cancelamentos precoces (<30 dias): %d\n\n" .
-        "Indicador AML: Substituição rápida de apólices com possível ocultação de fundos (layering acelerado)",
+        "Resumo do comportamento:\n" .
+        "- Cadeia de substituição identificada com %d eventos\n" .
+        "- Substituições ocorreram em intervalo ≤ 7 dias\n" .
+        "- Cancelamentos rápidos (<30 dias): %d\n\n" .
+        "Apólices envolvidas:\n%s\n\n" .
+        "Interpretação AML:\n" .
+        "Existe um padrão consistente de cancelamento e re-subscrição de apólices em curto espaço de tempo.\n" .
+        "Este comportamento é típico de técnicas de layering utilizadas para dificultar rastreamento de fundos e beneficiários.\n\n" .
+        "Período analisado: últimos 12 meses",
         $customer->customer_number,
-        implode(', ', $apolices),
-        implode("\n", $replacementTimeline),
         count($chain),
-        $earlyCancels
+        $early,
+        implode(', ', $apolices)
     );
+
+    $score = 20;
+
+    if ($early >= 2) $score += 5;
+    if (count($chain) >= 5) $score += 5;
 
     $this->createAlert(
         $customer,
@@ -688,7 +645,6 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
         $score
     );
 }
-
     private function checkThirdPartyPayments(Entities $customer, array $policies): void
     {
         foreach ($policies as $policy) {
@@ -735,6 +691,17 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
         }
     }
 
+    private function safeDate($date)
+{
+    try {
+        if (!$date) return null;
+        if ($date === '0000-00-00' || $date === '1900-01-01') return null;
+
+        return Carbon::parse($date);
+    } catch (\Exception $e) {
+        return null;
+    }
+}
     /* =========================
        ALERTAS
     ========================== */
