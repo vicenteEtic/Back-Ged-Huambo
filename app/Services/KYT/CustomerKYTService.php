@@ -221,16 +221,22 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
 
         // Localiza se há registro de estorno para esta apólice específica
         $estorno = collect($refunds)->first(function($item) use ($nApolice) {
-            // ⚡ Acessa como array, não como objeto
             return (string)($item['n_apolice'] ?? $item['numero_apolice'] ?? '') === (string)$nApolice;
         });
 
+        // Garantir que são objetos Carbon ou null
         $dataInicio = $this->parseDate($p['data_inicio']);
-        $dataCancelamento = $estorno ? Carbon::parse($estorno['data_anulacao'] ?? $estorno['data_cancelamento'] ?? null) : $this->parseDate($p['data_fim']);
+        $dataCancelamento = $estorno 
+            ? ($estorno['data_anulacao'] ?? $estorno['data_cancelamento'] ?? null)
+            : $p['data_fim'];
 
-        if (!$dataInicio || !$dataCancelamento) continue;
+        // Parse seguro
+        $dataInicioCarbon = $dataInicio ? Carbon::parse($dataInicio) : null;
+        $dataCancelCarbon = $dataCancelamento ? Carbon::parse($dataCancelamento) : null;
 
-        $diasAtiva = Carbon::parse($dataInicio)->diffInDays($dataCancelamento);
+        if (!$dataInicioCarbon || !$dataCancelCarbon) continue;
+
+        $diasAtiva = $dataInicioCarbon->diffInDays($dataCancelCarbon);
 
         if ($diasAtiva < 365 && $diasAtiva > 0) {
             $valorPago = (float)$p['premium_total'];
@@ -244,8 +250,8 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
                 "Motivo: %s",
                 $p['descricao_produto'],
                 $nApolice,
-                Carbon::parse($dataInicio)->format('d/m/Y'),
-                $dataCancelamento->format('d/m/Y'),
+                $dataInicioCarbon->format('d/m/Y'),
+                $dataCancelCarbon->format('d/m/Y'),
                 $diasAtiva,
                 $this->formatMoney($valorPago),
                 $this->formatMoney($valorDevolvido),
