@@ -20,20 +20,20 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
     private array $policies;
     private array $changes;
     private array $refunds;
-    private array $receipts;
+    private array $receipts; // 👈 adiciona aqui
 
     public function __construct(
         int $customerId,
         array $policies,
         array $changes,
         array $refunds = [],
-        array $receipts = []
+        array $receipts = [] // 👈 DEFAULT OBRIGATÓRIO
     ) {
         $this->customerId = $customerId;
         $this->policies = $policies;
         $this->changes = $changes;
         $this->refunds = $refunds;
-        $this->receipts = $receipts;
+        $this->receipts = $receipts; // 👈 inicializa SEMPRE
     }
 
     public function handle(CustomerKYTService $kytService)
@@ -46,7 +46,7 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
             $this->policies,
             $this->changes,
             $this->refunds,
-            $this->receipts
+            $this->receipts // 👈 agora seguro
         );
     }
 }
