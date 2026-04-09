@@ -9,7 +9,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 class ProcessCustomerPoliciesJob implements ShouldQueue
 {
@@ -20,7 +19,7 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
     private int $customerId;
     private array $policies;
     private array $changes;
-    private array $refunds; // <--- Nova propriedade
+    private array $refunds;
 
     public function __construct(int $customerId, array $policies, array $changes, array $refunds = [])
     {
@@ -35,7 +34,7 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
         $customer = Entities::find($this->customerId);
         if (!$customer) return;
 
-        // 🔥 Passando refunds para o Service
+        // 🔹 Passa todos os dados para o Service
         $kytService->runAllChecksMemory(
             $customer,
             $this->policies,

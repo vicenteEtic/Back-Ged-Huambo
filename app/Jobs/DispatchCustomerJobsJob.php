@@ -16,7 +16,7 @@ class DispatchCustomerJobsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 10800;
+    public $timeout = 10800; // 3 horas
     public $tries = 10;
 
     public function handle()
@@ -35,46 +35,47 @@ class DispatchCustomerJobsJob implements ShouldQueue
 
                         if (!$entity) continue;
 
-                        // 1. Buscamos os dados puros primeiro para facilitar manipulação
+                        // 🔹 Policies
                         $policiesRaw = DB::table('policies_staging')
                             ->where('numero_cliente', $numero_cliente)
                             ->get();
 
                         if ($policiesRaw->isEmpty()) continue;
 
-                        // 2. Extraímos os números das apólices ANTES de converter para array
-                        $policyNumbers = $policiesRaw->pluck('numero_apolice')->toArray();
-
-                        // 3. Convertemos tudo para array para evitar erro de stdClass no Service
                         $policiesArray = $policiesRaw->map(fn($item) => (array) $item)->toArray();
 
-                        $refunds = DB::table('apol_anulada_estorno')
+                        // 🔹 Refunds / Estornos
+                        $refundsRaw = DB::table('apol_anulada_estorno')
                             ->where('idtitular', (string)$numero_cliente)
-                            ->get()
-                            ->map(fn($item) => (array) $item)
-                            ->toArray();
+                            ->get();
 
-                        $changes = DB::table('policy_changes_staging')
-                            ->whereIn('numero_apolice', $policyNumbers) // 🔥 Mais seguro
-                            ->get()
-                            ->map(fn($item) => (array) $item)
-                            ->toArray();
+                        $refunds = $refundsRaw->map(fn($item) => (array) $item)->toArray();
 
-                        // 4. Dispatch
+                        // 🔹 Changes / Alterações
+                        $policyNumbers = array_column($policiesArray, 'Numero_Apolice');
+
+                        $changesRaw = DB::table('policy_changes_staging')
+                            ->whereIn('numero_apolice', $policyNumbers)
+                            ->get();
+
+                        $changes = $changesRaw->map(fn($item) => (array) $item)->toArray();
+
+                        // 🔹 Dispatch do job para o cliente
                         ProcessCustomerPoliciesJob::dispatch(
                             $entity->id,
                             $policiesArray,
                             $changes,
-                            $refunds 
+                            $refunds
                         )->onQueue('cliente');
 
                     } catch (\Exception $e) {
                         Log::error("❌ Erro cliente {$clienteRow->numero_cliente}: {$e->getMessage()}");
                     }
                 }
-                gc_collect_cycles();
+
+                gc_collect_cycles(); // libera memória
             });
-            
+
         Log::info("✅ Dispatch concluído.");
     }
 }
