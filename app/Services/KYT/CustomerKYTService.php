@@ -93,9 +93,9 @@ class CustomerKYTService
      $this->checkMultipleShortPolicies($customer, $policies);
 
     //  $this->checkPolicyChurning($customer, $policies);
-   //   $this->checkRapidReplacement($customer, $policies);
+     $this->checkRapidReplacement($customer, $policies);
 
-        Log::info("✅ KYT FINISHED", ['customer' => $customer->customer_number]);
+        Log::info("✅ KYT FINISHED ", ['customer' => $customer->customer_number]);
     }
 
     /* =========================
@@ -545,86 +545,149 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
         );
     }
 
-    private function checkRapidReplacement(Entities $customer, array $policies): void
-    {
-        // 🔹 ordenar por data
-        usort(
-            $policies,
-            fn($a, $b) =>
-            strtotime($a['data_inicio'] ?? '1970') - strtotime($b['data_inicio'] ?? '1970')
-        );
+   private function checkRapidReplacement(Entities $customer, array $policies): void
+{
+    usort(
+        $policies,
+        fn($a, $b) =>
+        strtotime($a['data_inicio'] ?? '1970') - strtotime($b['data_inicio'] ?? '1970')
+    );
 
-        $chains = [];
-        $currentChain = [];
+    $chains = [];
+    $currentChain = [];
 
-        for ($i = 1; $i < count($policies); $i++) {
-            $prev = $policies[$i - 1];
-            $curr = $policies[$i];
+    for ($i = 1; $i < count($policies); $i++) {
 
-            if (!in_array($prev['estado_apolice'] ?? null, ['terminated', 'cancelled'])) {
-                continue;
+        $prev = $policies[$i - 1];
+        $curr = $policies[$i];
+
+        // 🔒 apenas apólices canceladas
+        if (!in_array($prev['estado_apolice'] ?? null, ['terminated', 'cancelled'])) {
+            continue;
+        }
+
+        // 🔥 DATA DE CANCELAMENTO CORRETA
+        $cancelDate = $prev['data_anulacao'] ?? null;
+
+        if (!$cancelDate && in_array($prev['estado_apolice'], ['cancelled', 'terminated'])) {
+            $cancelDate = $prev['data_fim'];
+        }
+
+        if (!$cancelDate || !$prev['data_inicio'] || !$curr['data_inicio']) {
+            continue;
+        }
+
+        // 🔥 duração real da apólice
+        $duration = $this->safeDays($prev['data_inicio'], $cancelDate);
+
+        // 🔒 só interessa cancelamento precoce
+        if ($duration === null || $duration > 30) {
+            continue;
+        }
+
+        // 🔥 DATA DE SUBSTITUIÇÃO (CRÍTICO AML)
+        $replacementDays = $this->safeDays($cancelDate, $curr['data_inicio']);
+
+        if ($replacementDays === null) {
+            continue;
+        }
+
+        // 🔥 regra principal: substituição rápida (<= 7 dias)
+        if ($replacementDays <= 7) {
+
+            if (empty($currentChain)) {
+                $currentChain[] = $prev;
             }
 
-            $gap = $this->safeDays($prev['data_fim'], $curr['data_inicio']);
+            $currentChain[] = $curr;
 
-            if ($gap !== null && $gap <= 7) {
-
-                if (empty($currentChain)) {
-                    $currentChain[] = $prev;
-                }
-
-                $currentChain[] = $curr;
-            } else {
-                if (count($currentChain) >= 3) {
-                    $chains[] = $currentChain;
-                }
-                $currentChain = [];
+        } else {
+            if (count($currentChain) >= 3) {
+                $chains[] = $currentChain;
             }
+            $currentChain = [];
         }
-
-        // 🔹 última cadeia
-        if (count($currentChain) >= 3) {
-            $chains[] = $currentChain;
-        }
-
-        if (empty($chains)) return;
-
-        // 🔹 usar a maior cadeia
-        usort($chains, fn($a, $b) => count($b) - count($a));
-        $chain = $chains[0];
-
-        // 🔹 filtrar últimos 12 meses
-        $chain = array_filter($chain, function ($p) {
-            return isset($p['data_inicio']) &&
-                Carbon::parse($p['data_inicio'])->gte(now()->subYear());
-        });
-
-        if (count($chain) < 3) return;
-
-        // 🔹 limitar a 20
-        $chain = array_slice($chain, -20);
-
-        $apolices = [];
-        for ($i = 1; $i < count($chain); $i++) {
-            $apolices[] = $chain[$i - 1]['numero_apolice'] . ' → ' . $chain[$i]['numero_apolice'];
-        }
-
-        $description = sprintf(
-            "Cliente: %s | Substituições rápidas (<=7 dias): %s | Cadeia: %d eventos",
-            $customer->customer_number,
-            implode(', ', $apolices),
-            count($chain)
-        );
-
-        $this->createAlert(
-            $customer,
-            'Substituição rápida de apólice',
-            $description,
-            'Alto',
-            15 // ✅ corrigido
-        );
     }
 
+    // 🔹 última cadeia
+    if (count($currentChain) >= 3) {
+        $chains[] = $currentChain;
+    }
+
+    if (empty($chains)) return;
+
+    usort($chains, fn($a, $b) => count($b) - count($a));
+    $chain = $chains[0];
+
+    // 🔹 últimos 12 meses
+    $chain = array_filter($chain, function ($p) {
+        return isset($p['data_inicio']) &&
+            Carbon::parse($p['data_inicio'])->gte(now()->subYear());
+    });
+
+    if (count($chain) < 3) return;
+
+    $chain = array_slice($chain, -20);
+
+    $apolices = [];
+    $replacementTimeline = [];
+    $earlyCancels = 0;
+
+    for ($i = 1; $i < count($chain); $i++) {
+
+        $prev = $chain[$i - 1];
+        $curr = $chain[$i];
+
+        // 🔥 cancelamento correto
+        $cancelDate = $prev['data_anulacao'] ?? $prev['data_fim'];
+
+        // 🔥 substituição real
+        $replacementDays = $this->safeDays($cancelDate, $curr['data_inicio']);
+
+        $apolices[] = $prev['numero_apolice'] . ' → ' . $curr['numero_apolice'];
+
+        $replacementTimeline[] = sprintf(
+            "%s (%s → %s = %d dias)",
+            $prev['numero_apolice'],
+            $cancelDate,
+            $curr['data_inicio'],
+            $replacementDays
+        );
+
+        if ($this->safeDays($prev['data_inicio'], $cancelDate) <= 30) {
+            $earlyCancels++;
+        }
+    }
+
+    // 🔥 SCORE AML
+    $score = 15;
+
+    if ($earlyCancels >= 2) $score += 5;
+    if (count($chain) >= 5) $score += 5;
+
+    $description = sprintf(
+        "KYT RAPID POLICY REPLACEMENT (Layering / Obfuscation)\n" .
+        "Cliente: %s\n\n" .
+        "Cadeia de substituição:\n%s\n\n" .
+        "Timeline de substituições:\n%s\n\n" .
+        "Eventos: %d\n" .
+        "Cancelamentos precoces (<30 dias): %d\n\n" .
+        "Indicador AML: Substituição rápida de apólices com possível ocultação de fundos (layering acelerado)",
+        $customer->customer_number,
+        implode(', ', $apolices),
+        implode("\n", $replacementTimeline),
+        count($chain),
+        $earlyCancels
+    );
+
+    $this->createAlert(
+        $customer,
+        'Substituição rápida de apólices (AML Layering)',
+        $description,
+        'Alto',
+        $score
+    );
+}
 
     private function checkThirdPartyPayments(Entities $customer, array $policies): void
     {
