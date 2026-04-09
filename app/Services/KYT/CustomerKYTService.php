@@ -218,24 +218,23 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
 {
     foreach ($policies as $p) {
         $nApolice = $p['numero_apolice'];
-        
+
         // Localiza se há registro de estorno para esta apólice específica
         $estorno = collect($refunds)->first(function($item) use ($nApolice) {
-            return (string)$item->n_apolice === (string)$nApolice;
+            // ⚡ Acessa como array, não como objeto
+            return (string)($item['n_apolice'] ?? $item['numero_apolice'] ?? '') === (string)$nApolice;
         });
 
         $dataInicio = $this->parseDate($p['data_inicio']);
-        $dataCancelamento = $estorno ? Carbon::parse($estorno->data_anulacao) : $this->parseDate($p['data_fim']);
+        $dataCancelamento = $estorno ? Carbon::parse($estorno['data_anulacao'] ?? $estorno['data_cancelamento'] ?? null) : $this->parseDate($p['data_fim']);
 
         if (!$dataInicio || !$dataCancelamento) continue;
 
         $diasAtiva = Carbon::parse($dataInicio)->diffInDays($dataCancelamento);
 
-        // Regra ARSEG/GAFI: Resgate antes de 12 meses
         if ($diasAtiva < 365 && $diasAtiva > 0) {
-            
             $valorPago = (float)$p['premium_total'];
-            $valorDevolvido = $estorno ? (float)$estorno->valor_total : 0;
+            $valorDevolvido = $estorno ? (float)($estorno['valor_total'] ?? 0) : 0;
             $perda = $valorPago - $valorDevolvido;
 
             $description = sprintf(
@@ -251,12 +250,13 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
                 $this->formatMoney($valorPago),
                 $this->formatMoney($valorDevolvido),
                 $this->formatMoney($perda),
-                $estorno->razao ?? 'Não informado'
+                $estorno['razao'] ?? 'Não informado'
             );
 
             $this->createAlert($customer, 'Resgate antecipado de apólice', $description, 'Alto', 20);
         }
-    }   }
+    }
+}
     private function checkHighPremium(Entities $customer, array $policies): void
     {
         // 🔹 Agrupa por produto
