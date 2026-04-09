@@ -591,14 +591,12 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     
             $duration = $startPrev->diffInDays($cancelDate);
     
-            // 🔥 cancelamento precoce
             if ($duration > 30) continue;
     
             $gap = $cancelDate->diffInDays($currStart);
     
             if ($gap <= 7) {
     
-                // 🔥 evita duplicados
                 if (empty($current) || end($current)['numero_apolice'] !== $prev['numero_apolice']) {
                     $current[] = $prev;
                 }
@@ -619,7 +617,6 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
             $chains[] = $current;
         }
     
-        // 🔴 PROTEÇÃO CRÍTICA
         if (empty($chains)) return;
     
         usort($chains, fn($a, $b) => count($b) <=> count($a));
@@ -627,14 +624,16 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     
         if (empty($chain)) return;
     
-        // 🔥 FILTRO 12 MESES
+        // 🔥 últimos 12 meses
         $chain = array_values(array_filter($chain, function ($p) {
             return isset($p['data_inicio']) &&
                 Carbon::parse($p['data_inicio'])->gte(now()->subYear());
         }));
     
-        // 🔴 PROTEÇÃO CRÍTICA (AQUI ESTAVA O TEU ERRO)
         if (count($chain) < 3) return;
+    
+        // 🔥 LIMITAR A 20 (AQUI)
+        $chain = array_slice($chain, -20);
     
         $pairs = [];
         $timeline = [];
@@ -654,7 +653,6 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     
             $pair = $prev['numero_apolice'] . " → " . $curr['numero_apolice'];
     
-            // 🔥 evitar duplicados na descrição
             if (!in_array($pair, $pairs)) {
                 $pairs[] = $pair;
             }
@@ -672,38 +670,26 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     
         if (empty($pairs)) return;
     
-        /* =========================
-           DESCRIÇÃO LIMPA
-        ========================== */
-    
         $description =
     "RELATÓRIO KYT - SUBSTITUIÇÃO RÁPIDA DE APÓLICES
     
     Cliente: {$customer->customer_number}
     
-    🔍 Resumo:
-    - Eventos de substituição: " . count($pairs) . "
+    Resumo:
+    - Eventos analisados (máx 20): " . count($pairs) . "
     - Substituições ≤ 7 dias: {$early}
     
-    📄 Cadeia de substituição:
+    Cadeia:
     " . implode(', ', $pairs) . "
     
-    📅 Timeline:
+    Timeline:
     " . implode("\n", $timeline) . "
     
-    📌 Interpretação AML:
-    Foi identificado um padrão de cancelamento e reativação de apólices em intervalos muito curtos.
+    Interpretação AML:
+    Padrão de cancelamento e re-substituição em curto prazo (≤7 dias),
+    indicando possível layering e ocultação de fluxos financeiros.
     
-    Este comportamento é típico de:
-    - Layering acelerado
-    - Ocultação de beneficiários
-    - Reestruturação artificial de contratos
-    
-    📊 Risco: Alto";
-    
-        /* =========================
-           SCORE
-        ========================== */
+    Risco: Alto";
     
         $score = 15;
     
@@ -718,7 +704,6 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
             $score
         );
     }
-
 
   
     private function checkThirdPartyPayments(Entities $customer, array $policies): void
