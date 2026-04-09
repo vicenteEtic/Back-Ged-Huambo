@@ -85,15 +85,24 @@ class CustomerKYTService
 
         if (empty($policies)) return;
 
-     //   $this->checkHighCapitalIncrease($customer, $changes);
+       $this->checkHighCapitalIncrease($customer, $changes);
       // 🔥 Agora passa os dados de estorno reais para a detecção de Early Redemption
-    //$this->checkEarlyRedemption($customer, $policies, $refunds);
+    $this->checkEarlyRedemption($customer, $policies, $refunds);
      
-    //$this->checkHighPremium($customer, $policies);
+    $this->checkHighPremium($customer, $policies);
      $this->checkMultipleShortPolicies($customer, $policies);
 
-    //  $this->checkPolicyChurning($customer, $policies);
+     $this->checkPolicyChurning($customer, $policies);
      $this->checkRapidReplacement($customer, $policies);
+
+     $this->checkRapidReplacement($customer, $policies);
+
+      $this->checkThirdPartyPayments($customer, $policies);
+
+
+      //cenario 10
+       $this->checkOverpaymentRefund($customer, $policies, $receipts, $refunds);
+   
 
         Log::info("✅ KYT FINISHED ", ['customer' => $customer->customer_number]);
     }
@@ -469,10 +478,10 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     - Prémio total: " . $this->formatMoney($totalPremium) . "
     - Cancelamentos < 180 dias: {$earlyCancels}
     
-    📅 Período:
+    Período:
     {$periodStart} → {$periodEnd}
     
-    📌 Interpretação AML:
+     Interpretação AML:
     Padrão consistente de contratação de apólices de curta duração com possível fragmentação de valores.
     
     Comportamento compatível com:
@@ -752,6 +761,130 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
         }
     }
 
+
+    private function checkOverpaymentRefund(
+        Entities $customer,
+        array $policies,
+        array $receipts = [],
+        array $refunds = []
+    ): void
+    {
+        if (empty($receipts) || empty($refunds)) return;
+    
+        $alerts = [];
+    
+        foreach ($receipts as $receipt) {
+    
+            $policyNumber = $receipt['Numero_Apolice'] ?? null;
+            if (!$policyNumber) continue;
+    
+            // 🔥 valor pago
+            $paidAmount = (float) ($receipt['Valor_Pago'] ?? 0);
+            if ($paidAmount <= 0) continue;
+    
+            // 🔥 buscar apólice
+            $policy = collect($policies)->firstWhere('numero_apolice', $policyNumber);
+            if (!$policy) continue;
+    
+            $expectedPremium = (float) ($policy['premium_total'] ?? 0);
+            if ($expectedPremium <= 0) continue;
+    
+            // 🔥 REGRA PRINCIPAL → SOBRE PAGAMENTO >=150%
+            $ratio = $paidAmount / $expectedPremium;
+    
+            if ($ratio < 1.5) continue;
+    
+            // 🔥 PAGADOR ORIGINAL
+            $originalPayer = $receipt['Nome_Pagador'] ?? null;
+    
+            // 🔥 DATA PAGAMENTO
+            $paymentDate = $this->safeDate($receipt['Data_Pagamento'] ?? null);
+            if (!$paymentDate) continue;
+    
+            foreach ($refunds as $refund) {
+    
+                $refundPolicy = $refund['Numero_Apolice'] ?? null;
+    
+                if ($refundPolicy !== $policyNumber) continue;
+    
+                $refundAmount = (float) ($refund['Valor_Estorno'] ?? 0);
+                if ($refundAmount <= 0) continue;
+    
+                $refundDate = $this->safeDate($refund['Data_Estorno'] ?? null);
+                if (!$refundDate) continue;
+    
+                // 🔥 intervalo curto (<=30 dias)
+                $days = $paymentDate->diffInDays($refundDate);
+    
+                if ($days > 30) continue;
+    
+                // 🔥 DESTINO DO REEMBOLSO
+                $refundReceiver = $refund['Nome_Beneficiario'] ?? null;
+    
+                // 🔥 TERCEIRO (CRÍTICO AML)
+                $isThirdParty = $refundReceiver && $originalPayer &&
+                    trim(strtolower($refundReceiver)) !== trim(strtolower($originalPayer));
+    
+                if (!$isThirdParty) continue;
+    
+                // 🔥 evitar duplicados
+                $key = $policyNumber . '_' . $paymentDate->format('Ymd');
+                if (in_array($key, $alerts)) continue;
+    
+                $alerts[] = $key;
+    
+                /* =========================
+                   DESCRIÇÃO (NÍVEL AUDITORIA)
+                ========================== */
+    
+                $description =
+    "RELATÓRIO KYT - SOBREPAGAMENTO COM REEMBOLSO A TERCEIROS
+    
+    Cliente: {$customer->customer_number}
+    
+    Resumo do comportamento:
+    - Apólice: {$policyNumber}
+    - Prémio esperado: " . $this->formatMoney($expectedPremium) . "
+    - Valor pago: " . $this->formatMoney($paidAmount) . " (" . round($ratio * 100, 2) . "%)
+    - Valor reembolsado: " . $this->formatMoney($refundAmount) . "
+    - Intervalo pagamento → reembolso: {$days} dias
+    
+    Detalhes do fluxo financeiro:
+    - Pagador original: {$originalPayer}
+    - Beneficiário do reembolso: {$refundReceiver}
+    
+    Interpretação AML:
+    Foi identificado um sobrepagamento significativo do prémio, seguido de pedido de reembolso
+    em curto intervalo para uma entidade diferente do pagador inicial.
+    
+    Este padrão é altamente consistente com:
+    - Injecção de fundos ilícitos através de sobrepagamento
+    - Extração de fundos com aparência legítima via reembolso
+    - Uso de terceiros para ocultação de origem (layering)
+    
+    Indicador regulatório:
+    Tipologia reconhecida pelo GAFI e ARSEG como operação suspeita.
+    ";
+    
+                /* =========================
+                   SCORE AML
+                ========================== */
+    
+                $score = 20;
+    
+                if ($ratio >= 2) $score += 5;
+                if ($days <= 7) $score += 5;
+    
+                $this->createAlert(
+                    $customer,
+                    'Sobrepagamento seguido de reembolso a terceiros',
+                    $description,
+                    'Alto',
+                    $score
+                );
+            }
+        }
+    }
     private function safeDate($date)
 {
     try {
