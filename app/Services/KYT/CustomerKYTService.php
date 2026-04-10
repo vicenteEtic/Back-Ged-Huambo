@@ -176,18 +176,13 @@ class CustomerKYTService
         // 🔥 REGRA AML
         if ($increaseRate < 0.30) continue;
 
-        $motivo = strtolower(trim($change->motivo_alteracao ?? ''));
+        $motivo = strtolower(trim($change->motivo_alteracao ?? 'Não informado'));
 
-        $motivoValido = in_array($motivo, [
-            'herança',
-            'mudança de emprego',
-            'promoção'
-        ]);
 
         $score = 10;
 
         if ($increaseRate >= 0.50) $score += 10;
-        if (!$motivoValido) $score += 10;
+        if (!$motivo) $score += 10;
 
         // 🔥 SE FOR > 80% → ALERTA FORTE
         if ($increaseRate >= 0.80) $score += 10;
@@ -199,7 +194,7 @@ class CustomerKYTService
             $this->formatMoney($old),
             $this->formatMoney($new),
             $increaseRate * 100,
-            $change->motivo_alteracao ?? 'Não informado'
+            $motivo ?? 'Não informado'
         );
 
         $this->createAlert(
@@ -605,6 +600,57 @@ class CustomerKYTService
             }
         }
     }
+
+
+
+    /**
+ * 🔹 KYT_OVERPAYMENT_REFUND
+ * Detecta prémios pagos em excesso seguidos de pedidos de reembolso para terceiros
+ */
+private function checkOverpaymentRefunds(Entities $customer, array $policies): void
+{
+    foreach ($policies as $policy) {
+
+        // 🔹 Ignora apólices sem prémio ou capital
+        if (!$policy['premium_total'] || !$policy['capital']) continue;
+
+        // 🔹 Pagador e beneficiário do reembolso
+        $payer = $policy['payer'] ?? null;           // quem pagou
+        $refund = $policy['refund_to'] ?? null;      // para quem é pedido reembolso
+
+        if (!$payer || !$refund) continue;
+
+        // 🔹 Pagador diferente do beneficiário do reembolso
+        $isThirdPartyRefund = ($payer['name'] ?? '') !== ($refund['name'] ?? '');
+
+        // 🔹 Pagamento excessivo (ex.: > 150% do capital/expected)
+        $overpaymentThreshold = $policy['premium_total'] >= ($policy['capital'] * 1.5);
+
+        // 🔹 Apenas apólices recentes (últimos 12 meses)
+        $isRecent = $policy['data_inicio'] && Carbon::parse($policy['data_inicio'])->gte(now()->subYear());
+
+        if ($isThirdPartyRefund && $overpaymentThreshold && $isRecent) {
+
+            $description = sprintf(
+                "Apólice: %s | Prémio pago: %s | Capital: %s | Pagador: %s | Reembolso para: %s | Data: %s",
+                $policy['numero_apolice'],
+                $this->formatMoney($policy['premium_total']),
+                $this->formatMoney($policy['capital']),
+                $payer['name'] ?? 'Desconhecido',
+                $refund['name'] ?? 'Desconhecido',
+                $policy['data_inicio'] ?? 'Desconhecida'
+            );
+
+            $this->createAlert(
+                $customer,
+                'Sobrepagamento seguido de reembolso a terceiros',
+                $description,
+                'Alto',  // Nível de risco alto
+                20       // Pontuação KYT conforme tabela
+            );
+        }
+    }
+}
 
     /* =========================
        ALERTAS
