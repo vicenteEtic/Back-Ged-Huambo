@@ -9,7 +9,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 class ProcessCustomerPoliciesJob implements ShouldQueue
 {
@@ -20,27 +19,34 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
     private int $customerId;
     private array $policies;
     private array $changes;
+    private array $refunds;
+    private array $receipts; // 👈 adiciona aqui
 
-    public function __construct(int $customerId, array $policies, array $changes)
-    {
+    public function __construct(
+        int $customerId,
+        array $policies,
+        array $changes,
+        array $refunds = [],
+        array $receipts = [] // 👈 DEFAULT OBRIGATÓRIO
+    ) {
         $this->customerId = $customerId;
         $this->policies = $policies;
         $this->changes = $changes;
+        $this->refunds = $refunds;
+        $this->receipts = $receipts; // 👈 inicializa SEMPRE
     }
 
     public function handle(CustomerKYTService $kytService)
     {
-        Log::info("🚀 KYT cliente {$this->customerId}");
-
         $customer = Entities::find($this->customerId);
         if (!$customer) return;
 
         $kytService->runAllChecksMemory(
             $customer,
             $this->policies,
-            $this->changes
+            $this->changes,
+            $this->refunds,
+            $this->receipts // 👈 agora seguro
         );
-
-        Log::info("✅ KYT concluído {$this->customerId}");
     }
 }

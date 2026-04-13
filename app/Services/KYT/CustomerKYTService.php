@@ -7,33 +7,30 @@ use App\Models\Alert\Alert;
 use App\Jobs\SendGrupoAlertEmailJob;
 use App\Models\Entities\RiskAssessment;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Carbon\Carbon;
 
 class CustomerKYTService
 {
+    public $timeout = 100;
+    public $tries = 8;
+    public $backoff = 10;
 
-    public $timeout = 100; // 15 minutos (aumentado)
-    public $tries = 8;     // Tenta 3 vezes antes de desistir
-    public $backoff = 10;  // Espera 10 segundos entre tentativas
+    /* =========================
+       RISK ASSESSMENT
+    ========================== */
+
     public function RiskAssessmentEntity(Entities $customer): array
     {
         $cacheKey = "risk_assessment_entity_{$customer->id}";
 
-        // 🔍 1. Verifica primeiro no cache
         if (Cache::has($cacheKey)) {
             return Cache::get($cacheKey);
         }
 
-        // 🔥 2. Só consulta a BD se não existir
-        $risk = RiskAssessment::where('entity_id', $customer->id)
-            ->latest()
-            ->first();
+        $risk = RiskAssessment::where('entity_id', $customer->id)->latest()->first();
 
-        // ❌ Sem avaliação
         if (!$risk) {
-            Log::warning("⚠️ Avaliação de risco ausente para cliente {$customer->customer_number}");
-
             $data = [
                 'risk_id' => null,
                 'alert_priority' => false,
@@ -41,17 +38,10 @@ class CustomerKYTService
             ];
 
             Cache::put($cacheKey, $data, now()->addHours(20));
-
             return $data;
         }
 
         $isHighRisk = in_array($risk->diligence, ["Cliente Inaceitável", "Reforçada"]);
-
-        if ($isHighRisk) {
-            Log::warning(
-                "⚠️ Cliente {$customer->customer_number} com avaliação de risco {$risk->diligence} (ID: {$risk->id})"
-            );
-        }
 
         $data = [
             'risk_id' => $risk->id,
@@ -59,36 +49,49 @@ class CustomerKYTService
             'valid' => !$isHighRisk
         ];
 
-        // 💾 3. Guarda no cache
         Cache::put($cacheKey, $data, now()->addHours(20));
 
         return $data;
     }
 
-    public function runAllChecksMemory(Entities $customer, array $policies, array $changes = []): void
-    {
+    /* =========================
+       ENTRY POINT
+    ========================== */
+
+    public function runAllChecksMemory(
+        Entities $customer,
+        array $policies,
+        array $changes = [],
+        array $refunds = [],
+        array $receipts = []
+    ): void {
+
         $policies = $this->normalizePolicies($policies);
 
-        Log::info("🔍 KYT START", [
+        Log::info("KYT START", [
             'customer' => $customer->customer_number,
-            'policies_count' => count($policies)
+            'policies' => count($policies)
         ]);
 
         if (empty($policies)) return;
 
-        $this->checkHighCapitalIncrease($customer, $changes);
-       $this->checkEarlyRedemption($customer, $policies);
-       $this->checkHighPremium($customer, $policies);
-       $this->checkMultipleShortPolicies($customer, $policies);
+        //   $this->checkHighCapitalIncrease($customer, $changes);
+        //   $this->checkEarlyRedemption($customer, $policies, $refunds);
+        //   $this->checkHighPremium($customer, $policies);
+        //   $this->checkMultipleShortPolicies($customer, $policies);
+        //  $this->checkPolicyChurning($customer, $policies);
+        //  $this->checkRapidReplacement($customer, $policies);
+        //   $this->checkThirdPartyPayments($customer, $policies);
+        // $this->checkOverpaymentRefund($customer, $policies, $receipts, $refunds);
+        $this->checkFrequentBeneficiaryChanges($customer, $receipts);
 
-      $this->checkPolicyChurning($customer, $policies);
-      $this->checkRapidReplacement($customer, $policies);
-
-        Log::info("✅ KYT FINISHED", ['customer' => $customer->customer_number]);
+        Log::info("KYT FINISHED", [
+            'customer' => $customer->customer_number
+        ]);
     }
 
     /* =========================
-       NORMALIZAÇÃO
+       NORMALIZATION
     ========================== */
 
     private function normalizePolicies(array $policies): array
@@ -96,177 +99,106 @@ class CustomerKYTService
         return array_map(function ($p) {
             return [
                 'numero_apolice' => $p['Numero_Apolice'] ?? $p['numero_apolice'] ?? null,
-                'numero_cliente' => $p['Numero_Cliente'] ?? $p['numero_cliente'] ?? null,
-                'descricao_produto' => strtoupper(trim($p['Descricao_Produto'] ?? $p['descricao_produto'] ?? '')),
-                'estado_apolice' => $this->normalizeStatus($p['Estado_Apolice'] ?? $p['estado_apolice'] ?? null),
-                'data_inicio' => $this->parseDate($p['Data_Inicio'] ?? $p['data_inicio'] ?? null),
-                'data_fim' => $this->parseDate($p['Data_Fim'] ?? $p['data_fim'] ?? null),
-                'capital' => $this->toFloat($p['Capital'] ?? $p['capital'] ?? 0),
-                'premium_total' => $this->toFloat($p['Premio_Total'] ?? $p['premium_total'] ?? 0),
-                'interest' => $this->toFloat($p['Juros'] ?? $p['interest'] ?? 0),
+                'descricao_produto' => strtoupper(trim($p['Descricao_Produto'] ?? '')),
+                'estado_apolice' => $this->normalizeStatus($p['Estado_Apolice'] ?? null),
+                'TOMADOR' => $this->normalizeStatus($p['TOMADOR'] ?? null),
+                'data_inicio' => $this->parseDate($p['Data_Inicio'] ?? null),
+                'data_fim' => $this->parseDate($p['Data_Fim'] ?? null),
+                'data_anulacao' => $p['Data_Anulacao'] ?? null,
+                'capital' => (float)($p['Capital'] ?? 0),
+                'premium_total' => (float)($p['Premio_Total'] ?? 0),
+                'interest' => (float)($p['Juros'] ?? 0),
             ];
         }, $policies);
     }
 
-    private function toFloat($value): float
-    {
-        return is_numeric($value) ? (float)$value : 0.0;
-    }
-
     private function normalizeStatus(?string $status): string
     {
-        $status = strtoupper(trim($status ?? ''));
-        return match ($status) {
+        return match (strtoupper(trim($status ?? ''))) {
             'NORMAL', 'ATIVA' => 'active',
             'CANCELADA', 'C/ CARTA' => 'cancelled',
-            'ANULADA', 'TERMINADA', 'INACTIVOS', 'Anulada' => 'terminated',
+            'ANULADA', 'TERMINADA', 'INACTIVOS' => 'terminated',
             default => 'unknown'
         };
     }
 
-    private function parseDate(?string $date): ?string
+    private function parseDate($date): ?string
     {
         if (!$date) return null;
-        $invalid = ['ANULADA', 'TERMINADA', 'INACTIVOS', 'NORMAL', ''];
-        if (in_array(strtoupper(trim($date)), $invalid)) return null;
 
         try {
-            $dt = preg_replace('/\.\d+$/', '', $date);
-            return Carbon::parse($dt)->format('Y-m-d H:i:s');
+            return Carbon::parse($date)->format('Y-m-d H:i:s');
         } catch (\Exception $e) {
             return null;
         }
     }
 
-    private function safeDays(?string $start, ?string $end): ?int
+    private function safeDate($date)
     {
         try {
-            if (!$start || !$end) return null;
-            return Carbon::parse($start)->diffInDays(Carbon::parse($end));
+            if (!$date) return null;
+            return Carbon::parse($date);
         } catch (\Exception $e) {
             return null;
         }
     }
+
     private function formatMoney($value): string
     {
         return number_format((float)$value, 2, '.', ' ');
     }
 
     /* =========================
-       REGRAS KYT COM NÚMEROS DAS APÓLICES
+       RULES
     ========================== */
 
-
     private function checkHighCapitalIncrease(Entities $customer, array $changes): void
-{
-    foreach ($changes as $change) {
-
-        $tipo = strtoupper(trim($change->tipo_alteracao ?? ''));
-
-        // 🔥 Só capital (ajusta conforme teus dados)
-        if (!str_contains($tipo, 'ALTER')) continue;
-
-        $old = (float) $change->valor_anterior;
-        $new = (float) $change->novo_valor;
-
-        if ($old <= 0) continue;
-
-        $increaseRate = ($new - $old) / $old;
-
-        // 🔥 REGRA AML
-        if ($increaseRate < 0.30) continue;
-
-        $motivo = strtolower(trim($change->motivo_alteracao ?? 'Não informado'));
-
-
-        $score = 10;
-
-        if ($increaseRate >= 0.50) $score += 10;
-        if (!$motivo) $score += 10;
-
-        // 🔥 SE FOR > 80% → ALERTA FORTE
-        if ($increaseRate >= 0.80) $score += 10;
-
-        $description = sprintf(
-            "Apólice: %s | Tipo: %s | Capital: %s → %s | Aumento: %.2f%% | Motivo: %s",
-            $change->numero_apolice,
-            $tipo,
-            $this->formatMoney($old),
-            $this->formatMoney($new),
-            $increaseRate * 100,
-            $motivo ?? 'Não informado'
-        );
-
-        $this->createAlert(
-            $customer,
-            "Aumento elevado de capital na apólice",
-            $description,
-            'Alto',
-            $score
-        );
-    }
-}
-   
-
-    private function checkEarlyRedemption(Entities $customer, array $policies): void
     {
-        // 🔹 Agrupa por produto
-        $grouped = [];
+        foreach ($changes as $change) {
 
-        foreach ($policies as $p) {
-            $produto = $p['descricao_produto'] ?? 'OUTROS';
-            $grouped[$produto][] = $p;
-        }
+            $old = (float)($change->valor_anterior ?? 0);
+            $new = (float)($change->novo_valor ?? 0);
 
-        foreach ($grouped as $produto => $group) {
+            if ($old <= 0) continue;
 
-            // 🔹 filtra apenas apólices com cancelamento/resgate < 12 meses
-            $valid = array_filter($group, function ($p) {
-                $days = $this->safeDays($p['data_inicio'], $p['data_fim']);
+            $increase = ($new - $old) / $old;
 
-                return $days !== null
-                    && $days < 365
-                    && in_array($p['estado_apolice'], ['cancelled', 'terminated']);
-            });
-
-            if (count($valid) < 1) continue;
-
-            // 🔹 ordena por data mais recente
-            usort(
-                $valid,
-                fn($a, $b) =>
-                strtotime($b['data_inicio'] ?? '1970') - strtotime($a['data_inicio'] ?? '1970')
-            );
-
-            // 🔥 últimas 20 analisadas
-            $latest = array_slice($valid, 0, 20);
-
-            // 🔹 extrai apólices analisadas
-            $apolices = array_column($latest, 'numero_apolice');
-
-            // 🔹 período analisado
-            $firstDate = $latest[0]['data_inicio'] ?? null;
-            $lastDate  = end($latest)['data_fim'] ?? null;
-
-            // 🔹 métricas adicionais (nível AML)
-            $totalCapital = array_sum(array_column($latest, 'capital'));
-            $totalPremium = array_sum(array_column($latest, 'premium_total'));
-
-            $description = sprintf(
-                "Produto: %s | Apólices analisadas: %s | Período: %s → %s | Total Capital: %s | Total Prêmio: %s | Resgates antes de data prevista",
-                $produto,
-                implode(', ', $apolices),
-                $firstDate,
-                $lastDate,
-                $this->formatMoney($totalCapital),
-                $this->formatMoney($totalPremium)
-            );
+            if ($increase < 0.30) continue;
 
             $this->createAlert(
                 $customer,
-                'Resgate antecipado de apólice',
-                $description,
-                'Alto',
+                "Aumento de capital elevado",
+                "Apólice {$change->numero_apolice} aumento de " . ($increase * 100) . "%",
+                "Alto",
+                20
+            );
+        }
+    }
+
+    private function checkEarlyRedemption(Entities $customer, array $policies, array $refunds = []): void
+    {
+        foreach ($policies as $p) {
+
+            if (!in_array($p['estado_apolice'], ['cancelled', 'terminated'])) continue;
+
+            $start = $this->safeDate($p['data_inicio']);
+            $end = $this->safeDate($p['data_fim'] ?? $p['data_anulacao']);
+
+            if (!$start || !$end) continue;
+
+            $days = $start->diffInDays($end);
+
+            if ($days <= 0 || $days >= 365) continue;
+
+            $paid = (float)$p['premium_total'];
+
+            if ($paid <= 0) continue;
+
+            $this->createAlert(
+                $customer,
+                "Resgate antecipado",
+                "Apólice {$p['numero_apolice']} resgatada em {$days} dias",
+                "Alto",
                 20
             );
         }
@@ -274,388 +206,235 @@ class CustomerKYTService
 
     private function checkHighPremium(Entities $customer, array $policies): void
     {
-        // 🔹 Agrupa por produto
-        $grouped = [];
-
         foreach ($policies as $p) {
-            $produto = $p['descricao_produto'] ?? 'OUTROS';
-            $grouped[$produto][] = $p;
-        }
 
-        foreach ($grouped as $produto => $group) {
+            if ($p['capital'] <= 0 || $p['premium_total'] <= 0) continue;
 
-            // 🔹 filtra válidas
-            $valid = array_filter($group, function ($p) {
-                return $p['capital'] > 0 && $p['premium_total'] > 0;
-            });
+            $ratio = $p['premium_total'] / $p['capital'];
 
-            if (count($valid) < 1) continue;
+            if ($ratio < 0.08) continue;
 
-            // 🔹 ordena por data (mais recentes primeiro)
-            usort(
-                $valid,
-                fn($a, $b) =>
-                strtotime($b['data_inicio'] ?? '1970') - strtotime($a['data_inicio'] ?? '1970')
+            $this->createAlert(
+                $customer,
+                "Prémio elevado",
+                "Apólice {$p['numero_apolice']} ratio {$ratio}",
+                "Alto",
+                25
             );
-
-            // 🔥 últimas 20 analisadas
-            $latest = array_slice($valid, 0, 20);
-
-            // 🔹 cálculo com TODAS (regra KYT correta)
-            $totalCapital = array_sum(array_column($valid, 'capital'));
-            $totalPremium = array_sum(array_column($valid, 'premium_total'));
-
-            if ($totalCapital <= 0 || $totalPremium <= 0) continue;
-
-            $ratio = $totalPremium / $totalCapital;
-
-            if ($ratio >= 0.08) {
-
-                // 🔹 apenas apólices analisadas (últimas 20)
-                $apolices = array_column($latest, 'numero_apolice');
-
-                // 🔹 período analisado (melhora auditoria)
-                $firstDate = $latest[0]['data_inicio'] ?? null;
-                $lastDate  = end($latest)['data_inicio'] ?? null;
-
-                $description = sprintf(
-                    "Produto: %s | Últimas 20 apólices: %s | Período: %s → %s | Capital total: %s | Prêmio total: %s | Ratio: %.2f%%",
-                    $produto,
-                    implode(', ', $apolices),
-                    $firstDate,
-                    $lastDate,
-                    $this->formatMoney($totalCapital),
-                    $this->formatMoney($totalPremium),
-                    $ratio * 100
-                );
-
-                $this->createAlert(
-                    $customer,
-                    "Prémio elevado com risco baixo",
-                    $description,
-                    'Alto',
-                    25
-                );
-            }
         }
     }
 
     private function checkMultipleShortPolicies(Entities $customer, array $policies): void
     {
-        // 🔹 filtrar apólices curtas válidas
-        $short = array_filter($policies, function ($p) {
-            $days = $this->safeDays($p['data_inicio'], $p['data_fim']);
+        $valid = [];
 
-            return $days !== null
-                && $days >= 90 && $days <= 180 // 3-6 meses
-                && $p['capital'] > 0
-                && $p['data_inicio']
-                && $p['data_fim'];
-        });
+        foreach ($policies as $p) {
+            $start = $this->safeDate($p['data_inicio']);
+            $end = $this->safeDate($p['data_fim']);
 
-        if (count($short) < 3) return;
+            if (!$start || !$end) continue;
 
-        // 🔹 ordenar por data
-        usort(
-            $short,
-            fn($a, $b) =>
-            strtotime($a['data_inicio']) - strtotime($b['data_inicio'])
-        );
-
-        $window = [];
-        $alerts = [];
-
-        for ($i = 0; $i < count($short); $i++) {
-            $window = [$short[$i]];
-            $totalCapital = $short[$i]['capital'];
-
-            for ($j = $i + 1; $j < count($short); $j++) {
-                $gap = $this->safeDays(
-                    $short[$i]['data_inicio'],
-                    $short[$j]['data_inicio']
-                );
-
-                // 🔹 janela de 60 dias (fragmentação)
-                if ($gap !== null && $gap <= 60) {
-                    $window[] = $short[$j];
-                    $totalCapital += $short[$j]['capital'];
-                } else {
-                    break;
-                }
-            }
-
-            // 🔥 regra principal AML
-            if (count($window) >= 3 && $totalCapital >= 300000) {
-
-                $apolices = array_column($window, 'numero_apolice');
-
-                $description = sprintf(
-                    "Cliente: %s | Apólices curtas (3-6 meses): %s | Quantidade: %d | Capital total: %s | Período: %s → %s",
-                    $customer->customer_number,
-                    implode(', ', $apolices),
-                    count($window),
-                    $this->formatMoney($totalCapital),
-                    $window[0]['data_inicio'],
-                    end($window)['data_inicio']
-                );
-
-                $this->createAlert(
-                    $customer,
-                    'Substituição ou cancelamento repetido',
-                    $description,
-                    'Médio',
-                    15
-                );
-
-                return; // evita múltiplos alerts duplicados
-            }
-        }
-    }
-
-
-    private function checkPolicyChurning(Entities $customer, array $policies): void
-    {
-        // 🔹 filtrar cancelamentos válidos (últimos 12 meses)
-        $terminated = array_filter($policies, function ($p) {
-            if (!in_array($p['estado_apolice'], ['cancelled', 'terminated'])) {
-                return false;
-            }
-
-            if (!$p['data_fim']) return false;
-
-            return Carbon::parse($p['data_fim'])->gte(now()->subYear());
-        });
-
-        if (count($terminated) < 3) return;
-
-        // 🔹 ordenar por data de cancelamento
-        usort(
-            $terminated,
-            fn($a, $b) =>
-            strtotime($a['data_fim']) - strtotime($b['data_fim'])
-        );
-
-        $clusters = 0;
-
-        // 🔹 detectar frequência (ex: cancelamentos próximos)
-        for ($i = 1; $i < count($terminated); $i++) {
-            $gap = $this->safeDays(
-                $terminated[$i - 1]['data_fim'],
-                $terminated[$i]['data_fim']
-            );
-
-            if ($gap !== null && $gap <= 60) {
-                $clusters++;
+            if ($start->diffInDays($end) >= 90 && $start->diffInDays($end) <= 180) {
+                $valid[] = $p;
             }
         }
 
-        // 🔥 regra AML: frequência relevante
-        if ($clusters < 2) return;
-
-        // 🔹 limitar a 20 para auditoria
-        $latest = array_slice($terminated, -20);
-
-        $apolices = array_column($latest, 'numero_apolice');
-
-        $description = sprintf(
-            "Cliente: %s | Cancelamentos frequentes detectados: %s | Total: %d | Clusters (<=60 dias): %d",
-            $customer->customer_number,
-            implode(', ', $apolices),
-            count($terminated),
-            $clusters
-        );
+        if (count($valid) < 3) return;
 
         $this->createAlert(
             $customer,
-            'Trocas Frequentes de Apólices',
-            $description,
-            'Médio',
+            "Múltiplas apólices curtas",
+            "Detectado padrão de fragmentação",
+            "Médio",
+            15
+        );
+    }
+
+    private function checkPolicyChurning(Entities $customer, array $policies): void
+    {
+        $count = 0;
+
+        foreach ($policies as $p) {
+            if (in_array($p['estado_apolice'], ['cancelled', 'terminated'])) {
+                $count++;
+            }
+        }
+
+        if ($count < 3) return;
+
+        $this->createAlert(
+            $customer,
+            "Churn de apólices",
+            "Cancelamentos frequentes detectados",
+            "Médio",
             20
         );
     }
 
     private function checkRapidReplacement(Entities $customer, array $policies): void
     {
-        // 🔹 ordenar por data
-        usort(
-            $policies,
-            fn($a, $b) =>
-            strtotime($a['data_inicio'] ?? '1970') - strtotime($b['data_inicio'] ?? '1970')
-        );
-
-        $chains = [];
-        $currentChain = [];
-
-        for ($i = 1; $i < count($policies); $i++) {
-            $prev = $policies[$i - 1];
-            $curr = $policies[$i];
-
-            if (!in_array($prev['estado_apolice'] ?? null, ['terminated', 'cancelled'])) {
-                continue;
-            }
-
-            $gap = $this->safeDays($prev['data_fim'], $curr['data_inicio']);
-
-            if ($gap !== null && $gap <= 7) {
-
-                if (empty($currentChain)) {
-                    $currentChain[] = $prev;
-                }
-
-                $currentChain[] = $curr;
-            } else {
-                if (count($currentChain) >= 3) {
-                    $chains[] = $currentChain;
-                }
-                $currentChain = [];
-            }
-        }
-
-        // 🔹 última cadeia
-        if (count($currentChain) >= 3) {
-            $chains[] = $currentChain;
-        }
-
-        if (empty($chains)) return;
-
-        // 🔹 usar a maior cadeia
-        usort($chains, fn($a, $b) => count($b) - count($a));
-        $chain = $chains[0];
-
-        // 🔹 filtrar últimos 12 meses
-        $chain = array_filter($chain, function ($p) {
-            return isset($p['data_inicio']) &&
-                Carbon::parse($p['data_inicio'])->gte(now()->subYear());
-        });
-
-        if (count($chain) < 3) return;
-
-        // 🔹 limitar a 20
-        $chain = array_slice($chain, -20);
-
-        $apolices = [];
-        for ($i = 1; $i < count($chain); $i++) {
-            $apolices[] = $chain[$i - 1]['numero_apolice'] . ' → ' . $chain[$i]['numero_apolice'];
-        }
-
-        $description = sprintf(
-            "Cliente: %s | Substituições rápidas (<=7 dias): %s | Cadeia: %d eventos",
-            $customer->customer_number,
-            implode(', ', $apolices),
-            count($chain)
-        );
+        if (count($policies) < 3) return;
 
         $this->createAlert(
             $customer,
-            'Substituição rápida de apólice',
-            $description,
-            'Alto',
-            15 // ✅ corrigido
+            "Substituição rápida",
+            "Possível troca rápida de apólices",
+            "Alto",
+            15
         );
     }
 
-
     private function checkThirdPartyPayments(Entities $customer, array $policies): void
     {
-        foreach ($policies as $policy) {
-
-            // 🔹 Ignora apólices sem prémio ou capital
-            if (!$policy['premium_total'] || !$policy['capital']) continue;
-
-            // 🔹 Simulação de pagador; assumimos que $policy['payer'] existe:
-            // ['name' => string, 'relation' => string|null, 'origin' => string|null]
-            $payer = $policy['payer'] ?? null;
-
-            if (!$payer) continue; // sem informação do pagador, ignora
-
-            // 🔹 Pagador não é o próprio segurado
-            $isThirdParty = ($payer['relation'] ?? 'self') !== 'self';
-
-            // 🔹 Montante relevante (exemplo > 100.000 Kz)
-            $isHighAmount = $policy['premium_total'] >= 100000;
-
-            // 🔹 Somente apólices iniciais ou renovações recentes (últimos 12 meses)
-            $isRecentPolicy = $policy['data_inicio'] && Carbon::parse($policy['data_inicio'])->gte(now()->subYear());
-
-            if ($isThirdParty && $isHighAmount && $isRecentPolicy) {
-
-                $description = sprintf(
-                    "Apólice: %s | Prémio: %s | Pagador: %s (%s) | Origem fundos: %s | Segurado: %s",
-                    $policy['numero_apolice'],
-                    $this->formatMoney($policy['premium_total']),
-                    $payer['name'] ?? 'Desconhecido',
-                    $payer['relation'] ?? 'Desconhecida',
-                    $payer['origin'] ?? 'Desconhecida',
-                    $customer->social_denomination
-                );
-
+        foreach ($policies as $p) {
+            if (($p['premium_total'] ?? 0) > 100000) {
                 $this->createAlert(
                     $customer,
-                    'Pagamentos de prémios por terceiros',
-                    $description,
-                    'Alto',         // nível de risco
+                    "Pagamento terceiro",
+                    "Pagamento elevado detectado",
+                    "Alto",
                     25
-
                 );
             }
         }
     }
 
+    private function checkOverpaymentRefund(
+        Entities $customer,
+        array $policies,
+        array $receipts = [],
+        array $refunds = []
+    ): void {
 
+        foreach ($receipts as $r) {
 
-    /**
- * 🔹 KYT_OVERPAYMENT_REFUND
- * Detecta prémios pagos em excesso seguidos de pedidos de reembolso para terceiros
- */
-private function checkOverpaymentRefunds(Entities $customer, array $policies): void
-{
-    foreach ($policies as $policy) {
+            $paid = (float)($r['Valor_Pago'] ?? 0);
+            if ($paid <= 0) continue;
 
-        // 🔹 Ignora apólices sem prémio ou capital
-        if (!$policy['premium_total'] || !$policy['capital']) continue;
+            $policy = collect($policies)
+                ->firstWhere('numero_apolice', $r['Numero_Apolice'] ?? null);
 
-        // 🔹 Pagador e beneficiário do reembolso
-        $payer = $policy['payer'] ?? null;           // quem pagou
-        $refund = $policy['refund_to'] ?? null;      // para quem é pedido reembolso
+            if (!$policy) continue;
 
-        if (!$payer || !$refund) continue;
+            $expected = (float)($policy['premium_total'] ?? 0);
+            if ($expected <= 0) continue;
 
-        // 🔹 Pagador diferente do beneficiário do reembolso
-        $isThirdPartyRefund = ($payer['name'] ?? '') !== ($refund['name'] ?? '');
-
-        // 🔹 Pagamento excessivo (ex.: > 150% do capital/expected)
-        $overpaymentThreshold = $policy['premium_total'] >= ($policy['capital'] * 1.5);
-
-        // 🔹 Apenas apólices recentes (últimos 12 meses)
-        $isRecent = $policy['data_inicio'] && Carbon::parse($policy['data_inicio'])->gte(now()->subYear());
-
-        if ($isThirdPartyRefund && $overpaymentThreshold && $isRecent) {
-
-            $description = sprintf(
-                "Apólice: %s | Prémio pago: %s | Capital: %s | Pagador: %s | Reembolso para: %s | Data: %s",
-                $policy['numero_apolice'],
-                $this->formatMoney($policy['premium_total']),
-                $this->formatMoney($policy['capital']),
-                $payer['name'] ?? 'Desconhecido',
-                $refund['name'] ?? 'Desconhecido',
-                $policy['data_inicio'] ?? 'Desconhecida'
-            );
+            if (($paid / $expected) < 1.5) continue;
 
             $this->createAlert(
                 $customer,
-                'Sobrepagamento seguido de reembolso a terceiros',
-                $description,
-                'Alto',  // Nível de risco alto
-                20       // Pontuação KYT conforme tabela
+                "Sobrepagamento com reembolso",
+                "Apólice {$policy['numero_apolice']}",
+                "Alto",
+                20
             );
         }
     }
-}
+
+
+    private function checkFrequentBeneficiaryChanges(
+        Entities $customer,
+        array $receipts = []
+    ): void {
+        if (empty($receipts)) return;
+
+        // 🔹 Agrupar por apólice
+        $grouped = collect($receipts)->groupBy('numero_apolice');
+
+        foreach ($grouped as $numeroApolice => $payments) {
+
+            if (!$numeroApolice || $payments->count() < 3) continue;
+
+            // 🔥 Filtro AML CORRETO (terceiros reais)
+            $filtered = $payments->filter(function ($p) {
+                return (
+                    strtoupper($p['relacao_com_tomador'] ?? '') !== 'TOMADOR'
+                    && strtoupper($p['indicador_pagamento_terceiro'] ?? '') === 'TOMADOR'
+                );
+            });
+
+            if ($filtered->count() < 3) continue;
+
+            // 🔑 Pagadores únicos
+            $uniquePayers = $filtered
+                ->pluck('nif_pagador')
+                ->filter(fn($v) => !empty($v))
+                ->unique();
+
+            if ($uniquePayers->count() < 3) continue;
+
+            // 📅 Datas seguras
+            $dates = $filtered
+                ->pluck('data_pagamento')
+                ->map(fn($d) => $this->safeDate($d))
+                ->filter();
+
+            if ($dates->isEmpty()) continue;
+
+            $minDate = $dates->sort()->first();
+            $maxDate = $dates->sort()->last();
+
+            if (!$minDate || !$maxDate) continue;
+
+            // 🔥 janela AML (1 ano)
+            if ($minDate->diffInDays($maxDate) > 365) continue;
+
+            // 🌍 países
+            $countries = $filtered
+                ->pluck('pais_iban_origem')
+                ->filter()
+                ->unique();
+
+            /* =========================
+           DESCRIÇÃO
+        ========================== */
+
+            $description = "
+Cliente: {$customer->customer_number}
+
+Resumo:
+- Apólice: {$numeroApolice}
+- Nº pagamentos suspeitos: {$filtered->count()}
+- Pagadores distintos: {$uniquePayers->count()}
+- Países envolvidos: " . ($countries->isEmpty() ? 'N/A' : $countries->implode(', ')) . "
+
+Período:
+{$minDate->format('Y-m-d')} → {$maxDate->format('Y-m-d')}
+
+Interpretação AML:
+Mudanças frequentes de beneficiários sem relação com o tomador.
+
+Possível comportamento:
+- Layering (dispersão de fundos)
+- Ocultação de origem
+";
+
+            /* =========================
+           SCORE
+        ========================== */
+
+            $score = 20;
+
+            if ($uniquePayers->count() >= 4) $score += 5;
+            if ($countries->count() >= 2) $score += 5;
+
+            /* =========================
+           ALERTA
+        ========================== */
+
+            $this->createAlert(
+                $customer,
+                'Mudanças frequentes de beneficiário',
+                $description,
+                'Alto',
+                $score
+            );
+        }
+    }
 
     /* =========================
-       ALERTAS
+       ALERT
     ========================== */
-
 
     private function createAlert(
         Entities $customer,
@@ -664,7 +443,9 @@ private function checkOverpaymentRefunds(Entities $customer, array $policies): v
         string $severity,
         int $score
     ): void {
-        $riskData = $this->RiskAssessmentEntity($customer);
+
+        $risk = $this->RiskAssessmentEntity($customer);
+
         $alert = Alert::updateOrCreate(
             [
                 'entity_id' => $customer->id,
@@ -672,8 +453,8 @@ private function checkOverpaymentRefunds(Entities $customer, array $policies): v
                 'description' => $description,
             ],
             [
-                'alert_priority' => $riskData['alert_priority'],
-                'risk_assessment_id' => $riskData['risk_id'],
+                'alert_priority' => $risk['alert_priority'],
+                'risk_assessment_id' => $risk['risk_id'],
                 'category' => 'KYT',
                 'level' => $severity,
                 'name' => $customer->social_denomination,
@@ -683,9 +464,9 @@ private function checkOverpaymentRefunds(Entities $customer, array $policies): v
 
         if ($alert->wasRecentlyCreated || $alert->wasChanged()) {
             SendGrupoAlertEmailJob::dispatch($alert->id, config('app.url'))->onQueue('high');
-            Log::warning("🚨 ALERTA {$type}", [
-                'cliente' => $customer->customer_number,
-                'descricao' => $description
+
+            Log::warning("ALERT {$type}", [
+                'customer' => $customer->customer_number
             ]);
         }
     }

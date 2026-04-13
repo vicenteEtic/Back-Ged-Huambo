@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Models\Entities\Entities;
-use App\Jobs\ProcessCustomerPoliciesJob;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -30,52 +29,56 @@ class DispatchCustomerJobsJob implements ShouldQueue
             ->chunk(500, function ($clientes) {
 
                 foreach ($clientes as $clienteRow) {
-
                     try {
                         $numero_cliente = $clienteRow->numero_cliente;
 
                         $entity = Entities::where('customer_number', $numero_cliente)->first();
+                        if (!$entity) continue;
 
-                        if (!$entity) {
-                            Log::warning("⚠ Cliente não encontrado: {$numero_cliente}");
-                            continue;
-                        }
-
-                        // 🔹 Apólices
-                        $policies = DB::table('policies_staging')
+                        // 🔹 POLICIES
+                        $policiesRaw = DB::table('policies_staging')
                             ->where('numero_cliente', $numero_cliente)
                             ->get();
 
-                        if ($policies->isEmpty()) continue;
+                        if ($policiesRaw->isEmpty()) continue;
 
-                        $policiesArray = $policies->map(fn($row) => [
-                            'numero_apolice' => $row->numero_apolice,
-                            'descricao_produto' => $row->descricao_produto,
-                            'estado_apolice' => $row->estado_apolice,
-                            'data_inicio' => $row->data_inicio,
-                            'data_fim' => $row->data_fim,
-                            'capital' => $row->capital,
-                            'premium_total' => $row->premium_total,
-                            'interest' => $row->interest,
-                        ])->toArray();
+                        $policiesArray = $policiesRaw->map(fn($i) => (array)$i)->toArray();
 
-                        // 🔥 ALTERAÇÕES (NOVO)
-                        $changes = DB::table('policy_changes_staging')
-                            ->whereIn('numero_apolice', $policies->pluck('numero_apolice'))
-                            ->get()
-                            ->toArray();
+                        // 🔹 POLICY NUMBERS
+                        $policyNumbers = array_column($policiesArray, 'Numero_Apolice');
 
-                        // 🔥 DISPATCH COMPLETO
+                        // 🔹 REFUNDS
+                        $refundsRaw = DB::table('apol_anulada_estorno')
+                            ->where('idtitular', (string)$numero_cliente)
+                            ->get();
+
+                        $refunds = $refundsRaw->map(fn($i) => (array)$i)->toArray();
+
+                        // 🔹 RECEIPTS (🔥 NOVO)
+                        $receiptsRaw = DB::table('recibos_cobrados')
+                            ->whereIn('numero_apolice', $policyNumbers)
+                            ->get();
+
+                        $receipts = $receiptsRaw->map(fn($i) => (array)$i)->toArray();
+
+                        // 🔹 CHANGES
+                        $changesRaw = DB::table('policy_changes_staging')
+                            ->whereIn('numero_apolice', $policyNumbers)
+                            ->get();
+
+                        $changes = $changesRaw->map(fn($i) => (array)$i)->toArray();
+
+                        // 🚀 DISPATCH
                         ProcessCustomerPoliciesJob::dispatch(
                             $entity->id,
                             $policiesArray,
-                            $changes
+                            $changes,
+                            $refunds,
+                            $receipts
                         )->onQueue('cliente');
 
-                        Log::info("📬 Cliente {$numero_cliente} enviado com " . count($policiesArray) . " apólices e " . count($changes) . " alterações");
-
                     } catch (\Exception $e) {
-                        Log::error("❌ Erro cliente {$clienteRow->numero_cliente}: {$e->getMessage()}");
+                        Log::error(" Erro cliente {$clienteRow->numero_cliente}: {$e->getMessage()}");
                     }
                 }
 
