@@ -207,10 +207,47 @@ class CustomerKYTService
             if ($changes >= 3) $score += 5;
             if ($changes >= 5) $score += 10;
 
+
+            $description = "
+
+
+IDENTIFICAÇÃO
+- Cliente: {$customer->customer_number}
+- Apólice: {$apolice}
+- Total de transações analisadas: {$payments->count()}
+
+PADRÃO DETECTADO
+- Beneficiários únicos identificados: {$uniqueCount}
+- Número de alterações entre beneficiários: {$changes}
+- Período de análise: {$min->format('Y-m-d')} até {$max->format('Y-m-d')}
+- Duração total do comportamento: {$min->diffInDays($max)} dias
+
+ANÁLISE COMPORTAMENTAL
+Foi identificado um padrão consistente de alterações frequentes de beneficiários associados a esta apólice, com substituição repetida de entidades pagadoras (pessoas ou organizações).
+
+As alterações não apresentam justificação operacional evidente (ex: herança, divórcio, alteração contratual documentada ou atualização de dados cadastrais).
+
+RISCO AML/KYT
+Este comportamento pode indicar:
+- Tentativa de ocultação da origem ou destino dos fundos
+- Estruturação de pagamentos através de terceiros
+- Possível layering financeiro
+- Fragmentação de beneficiários para dificultar rastreio
+
+REFERENCIAL REGULATÓRIO
+Este padrão está alinhado com indicadores de risco descritos pelo GAFI (Guidance 2018), nomeadamente:
+- Alterações frequentes de beneficiários em fase de movimentação financeira
+- Redirecionamento recorrente de pagamentos para terceiros sem relação clara com o tomador
+
+CLASSIFICAÇÃO
+- Score KYT: {$score}
+- Nível de risco: Alto
+";
+
             $this->createAlert(
                 $customer,
                 'KYT_FREQUENT_BENEFICIARY_CHANGES',
-                "Apólice {$apolice} | mudanças {$changes} | beneficiários {$uniqueCount}",
+                 $description,
                 'Alto',
                 $score
             );
