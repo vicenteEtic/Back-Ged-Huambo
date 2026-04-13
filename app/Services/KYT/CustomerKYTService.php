@@ -85,185 +85,143 @@ class CustomerKYTService
        KYT RULE
     ========================== */
 
-   
 
-private function checkFrequentBeneficiaryChanges(
-    Entities $customer,
-    array $receipts = []
-): void {
+    private function checkFrequentBeneficiaryChanges(
+        Entities $customer,
+        array $receipts = []
+    ): void {
 
-    Log::info('KYT RECEIPTS START', [
-        'customer' => $customer->customer_number,
-        'receipts_count' => count($receipts)
-    ]);
-
-    if (empty($receipts)) {
-        Log::info('KYT EXIT - EMPTY RECEIPTS');
-        return;
-    }
-
-    $grouped = collect($receipts)
-        ->map(fn($r) => (array) $r)
-        ->filter(fn($r) => !empty($r['numero_apolice']))
-        ->groupBy('numero_apolice');
-
-    Log::info('KYT GROUPED', [
-        'policies' => $grouped->count()
-    ]);
-
-    foreach ($grouped as $apolice => $payments) {
-
-        Log::info('KYT POLICY CHECK', [
-            'apolice' => $apolice,
-            'payments' => $payments->count()
+        Log::info('KYT RECEIPTS START', [
+            'customer' => $customer->customer_number,
+            'receipts_count' => count($receipts)
         ]);
 
-        // 🔥 AJUSTE IMPORTANTE: não ser tão rígido
-        if ($payments->count() < 2) {
-            Log::info('KYT SKIP - NOT ENOUGH PAYMENTS', [
-                'apolice' => $apolice
-            ]);
-            continue;
+        if (empty($receipts)) {
+            Log::info('KYT EXIT - EMPTY RECEIPTS');
+            return;
         }
 
-        // 🔥 ordenar corretamente
-        $payments = $payments->sortBy(function ($p) {
-            return $this->safeDate($p['data_pagamento'])?->timestamp ?? 0;
-        })->values();
+        $grouped = collect($receipts)
+            ->map(fn($r) => (array) $r)
+            ->filter(fn($r) => !empty($r['numero_apolice']))
+            ->groupBy('numero_apolice');
 
-        $beneficiaries = [];
-        $changes = 0;
-        $prev = null;
+        foreach ($grouped as $apolice => $payments) {
 
-        foreach ($payments as $p) {
+            if ($payments->count() < 2) continue;
 
-            $nif = trim((string) ($p['nif_pagador'] ?? ''));
-            $name = trim((string) ($p['nome_pagador'] ?? ''));
+            $payments = $payments->sortBy(
+                fn($p) =>
+                $this->safeDate($p['data_pagamento'])?->timestamp ?? 0
+            )->values();
 
-            // 🔥 evita lixo total
-            if ($nif === '' && $name === '') {
-                Log::info('KYT SKIP EMPTY ROW');
-                continue;
+            $beneficiaries = [];
+            $changes = 0;
+            $prev = null;
+
+            foreach ($payments as $p) {
+
+                // 🔥 NORMALIZAÇÃO (CRÍTICO)
+                $nif = strtoupper(trim((string) ($p['nif_pagador'] ?? '')));
+                $name = strtoupper(trim((string) ($p['nome_pagador'] ?? '')));
+
+                if ($nif === '' && $name === '') continue;
+
+                // 🔥 ID único consistente
+                $current = $nif ?: md5($name);
+
+                $beneficiaries[$current] = true;
+
+                if ($prev !== null && $prev !== $current) {
+                    $changes++;
+                }
+
+                $prev = $current;
             }
 
-            $current = $nif . '|' . $name;
+            $uniqueCount = count($beneficiaries);
 
-            Log::info('KYT PAYMENT STEP', [
+            if ($uniqueCount < 2 || $changes < 1) continue;
+
+            $dates = $payments->map(
+                fn($p) =>
+                $this->safeDate($p['data_pagamento'])
+            )->filter();
+
+            if ($dates->isEmpty()) continue;
+
+            $min = $dates->min();
+            $max = $dates->max();
+
+            if (!$min || !$max) continue;
+
+            $days = $min->diffInDays($max);
+
+            if ($days > 730) continue;
+
+            // 🔥 SCORE MELHORADO
+            $score = 20;
+
+            if ($uniqueCount >= 3) $score += 10;
+            if ($uniqueCount >= 4) $score += 15;
+            if ($changes >= 2) $score += 10;
+            if ($changes >= 3) $score += 15;
+
+            Log::warning('🔥 KYT ALERT TRIGGERED', [
                 'apolice' => $apolice,
-                'current' => $current
+                'score' => $score
             ]);
 
-            $beneficiaries[$current] = true;
+            // 🔥 DESCRIÇÃO MELHORADA
+            $description = "
+KYT ALERT - ALTERAÇÕES FREQUENTES DE PAGADOR
 
-            if ($prev !== null && $prev !== $current) {
-                $changes++;
-            }
-
-            $prev = $current;
-        }
-
-        $uniqueCount = count($beneficiaries);
-
-        Log::info('KYT SUMMARY', [
-            'apolice' => $apolice,
-            'unique_beneficiaries' => $uniqueCount,
-            'changes' => $changes,
-            'payments' => $payments->count()
-        ]);
-
-        // 🔥 AJUSTE CRÍTICO (ANTES ESTAVA MUITO RESTRITO)
-        if ($uniqueCount < 2) {
-            Log::info('KYT SKIP - ONLY ONE BENEFICIARY');
-            continue;
-        }
-
-        if ($changes < 1) {
-            Log::info('KYT SKIP - NO CHANGES DETECTED');
-            continue;
-        }
-
-        // 📅 janela temporal
-        $dates = $payments->map(fn($p) => $this->safeDate($p['data_pagamento']))
-            ->filter();
-
-        if ($dates->isEmpty()) {
-            Log::info('KYT SKIP - NO VALID DATES');
-            continue;
-        }
-
-        $min = $dates->min();
-        $max = $dates->max();
-
-        if (!$min || !$max) {
-            Log::info('KYT SKIP - INVALID DATES');
-            continue;
-        }
-
-        $days = $min->diffInDays($max);
-
-        Log::info('KYT TIME WINDOW', [
-            'apolice' => $apolice,
-            'days' => $days
-        ]);
-
-        if ($days > 730) { // 🔥 2 anos (mais realista)
-            Log::info('KYT SKIP - PERIOD TOO LONG');
-            continue;
-        }
-
-        // 🔥 SCORE mais sensível (IMPORTANTE PARA ALERTAR MAIS)
-        $score = 15;
-
-        if ($uniqueCount >= 3) $score += 5;
-        if ($uniqueCount >= 4) $score += 10;
-        if ($changes >= 2) $score += 5;
-        if ($changes >= 3) $score += 10;
-
-        Log::warning('🔥 KYT ALERT TRIGGERED', [
-            'apolice' => $apolice,
-            'score' => $score,
-            'changes' => $changes,
-            'unique' => $uniqueCount
-        ]);
-
-        $description = "
-KYT - FREQUENT BENEFICIARY CHANGES
-
+══════════════════════════════
 IDENTIFICAÇÃO
-- Cliente: {$customer->customer_number}
-- Apólice: {$apolice}
-- Transações: {$payments->count()}
+══════════════════════════════
+Cliente: {$customer->customer_number}
+Apólice: {$apolice}
+Transações: {$payments->count()}
 
-PADRÃO DETECTADO
-- Beneficiários únicos: {$uniqueCount}
-- Mudanças detectadas: {$changes}
-- Período: {$min->format('Y-m-d')} → {$max->format('Y-m-d')}
-- Duração: {$days} dias
+══════════════════════════════
+ANÁLISE
+══════════════════════════════
+Pagadores distintos: {$uniqueCount}
+Mudanças detectadas: {$changes}
+Período: {$min->format('Y-m-d')} até {$max->format('Y-m-d')}
+Duração: {$days} dias
 
+══════════════════════════════
 INTERPRETAÇÃO AML
-Alterações de beneficiários indicam possível:
-- Layering financeiro
-- Fragmentação de pagamentos
-- Redirecionamento de fundos via terceiros
-- Tentativa de dissimulação de beneficiário real
+══════════════════════════════
+Foi identificado um padrão de múltiplos pagadores associados à mesma apólice.
 
-REFERÊNCIA GAFI (2018)
-Mudanças frequentes de beneficiários em fases de movimentação financeira são indicadores relevantes de risco AML.
+Possíveis riscos:
+- Utilização de terceiros para pagamento
+- Ocultação do beneficiário real
+- Estruturação de fluxos financeiros (layering)
+- Fragmentação de valores
 
-SCORE KYT: {$score}
+Referência: GAFI/FATF (2018)
+
+══════════════════════════════
+CLASSIFICAÇÃO
+══════════════════════════════
+Score: {$score}
+Nível: Alto
 ";
 
-        $this->createAlert(
-            $customer,
-            'KYT_FREQUENT_BENEFICIARY_CHANGES',
-            $description,
-            'Alto',
-            $score
-        );
-    }
+            $this->createAlert(
+                $customer,
+                'Alterações frequentes de beneficiários', // 🔥 nome mais correto
+                $description,
+                'Alto',
+                $score
+            );
+        }
 
-    Log::info('KYT FINISHED CHECK');
-}
+        Log::info('KYT FINISHED CHECK');
+    }
 
     /* =========================
        ALERT CREATION
