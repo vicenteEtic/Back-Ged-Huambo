@@ -97,6 +97,7 @@ class CustomerKYTService
             'customer' => $customer->customer_number,
             'records_received' => count($beneficiaries)
         ]);
+        
 
         if (empty($beneficiaries)) {
             Log::warning('⚠️ KYT EXIT - EMPTY BENEFICIARIES');
