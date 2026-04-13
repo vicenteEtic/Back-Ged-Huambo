@@ -172,8 +172,22 @@ class CustomerKYTService
                 'score' => $score
             ]);
 
+
+            $totalPago = $payments->sum(fn($p) => max(0, (float)($p['valor_pago'] ?? 0)));
+            $totalEstornado = $payments->sum(fn($p) => min(0, (float)($p['valor_pago'] ?? 0)));
+            $saldo = $payments->sum(fn($p) => (float)($p['valor_pago'] ?? 0));
+
+            // 🔥 lista de pagadores (limpa e única)
+            $payersList = $payments->map(function ($p) {
+                return strtoupper(trim((string)($p['nome_pagador'] ?? '')));
+            })
+                ->filter()
+                ->unique()
+                ->values()
+                ->take(5) // evita texto gigante
+                ->implode(', ');
             // 🔥 DESCRIÇÃO MELHORADA
-            $description = "
+        $description = "
 KYT ALERT - ALTERAÇÕES FREQUENTES DE PAGADOR
 
 ══════════════════════════════
@@ -181,34 +195,49 @@ IDENTIFICAÇÃO
 ══════════════════════════════
 Cliente: {$customer->customer_number}
 Apólice: {$apolice}
-Transações: {$payments->count()}
+Total de Transações: {$payments->count()}
 
 ══════════════════════════════
-ANÁLISE
+ANÁLISE FINANCEIRA
+══════════════════════════════
+Valor total pago: " . number_format($totalPago, 2, ',', '.') . "
+Valor total estornado: " . number_format($totalEstornado, 2, ',', '.') . "
+Saldo líquido: " . number_format($saldo, 2, ',', '.') . "
+
+══════════════════════════════
+ANÁLISE COMPORTAMENTAL
 ══════════════════════════════
 Pagadores distintos: {$uniqueCount}
 Mudanças detectadas: {$changes}
-Período: {$min->format('Y-m-d')} até {$max->format('Y-m-d')}
+Principais pagadores: {$payersList}
+
+Período analisado: {$min->format('Y-m-d')} até {$max->format('Y-m-d')}
 Duração: {$days} dias
 
 ══════════════════════════════
-INTERPRETAÇÃO AML
+PADRÃO DETECTADO
 ══════════════════════════════
-Foi identificado um padrão de múltiplos pagadores associados à mesma apólice.
+Foi identificado um padrão de múltiplos pagadores associados à mesma apólice, com alterações recorrentes ao longo do tempo.
 
-Possíveis riscos:
-- Utilização de terceiros para pagamento
-- Ocultação do beneficiário real
-- Estruturação de fluxos financeiros (layering)
-- Fragmentação de valores
+Este comportamento pode indicar:
+- Utilização de terceiros para execução de pagamentos
+- Redirecionamento de fluxos financeiros
+- Fragmentação de valores para evitar controlo
+- Possível ocultação do beneficiário final (UBO)
 
-Referência: GAFI/FATF (2018)
+══════════════════════════════
+AVALIAÇÃO DE RISCO AML
+══════════════════════════════
+A alternância de pagadores, combinada com movimentação financeira relevante, constitui um indicador típico de risco em processos de monitorização KYT.
+
+Referência: GAFI/FATF (2018) - Risk-Based Approach Guidance
 
 ══════════════════════════════
 CLASSIFICAÇÃO
 ══════════════════════════════
-Score: {$score}
-Nível: Alto
+Score KYT: {$score}
+Nível de Risco: Alto
+Tipo de Evento: Alterações Frequentes de Pagador
 ";
 
             $this->createAlert(
