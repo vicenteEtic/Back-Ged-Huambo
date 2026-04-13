@@ -52,11 +52,9 @@ class CustomerKYTService
         array $refunds = [],
         array $receipts = [],
         array $beneficiaries = []
-
-
     ): void {
 
-        Log::info("KYT START", [
+        Log::info("🚀 KYT START", [
             'customer' => $customer->customer_number,
             'policies' => count($policies)
         ]);
@@ -65,7 +63,7 @@ class CustomerKYTService
 
         $this->checkFrequentBeneficiaryChanges($customer, $beneficiaries);
 
-        Log::info("KYT FINISHED", [
+        Log::info("🏁 KYT FINISHED", [
             'customer' => $customer->customer_number
         ]);
     }
@@ -97,67 +95,65 @@ class CustomerKYTService
             'customer' => $customer->customer_number,
             'records_received' => count($beneficiaries)
         ]);
-        
 
         if (empty($beneficiaries)) {
             Log::warning('⚠️ KYT EXIT - EMPTY BENEFICIARIES');
             return;
         }
 
-        Log::info('📥 RAW BENEFICIARIES SAMPLE', [
-            'sample' => array_slice($beneficiaries, 0, 2)
-        ]);
+        /* =========================
+           NORMALIZAÇÃO CRÍTICA
+        ========================== */
 
-        $grouped = collect($beneficiaries)
+        $beneficiaries = collect($beneficiaries)
             ->map(function ($b) {
 
                 $b = (array) $b;
 
-                $mapped = [
-                    'numero_apolice' => trim($b['numero_apolice'] ?? ''),
-                    'descricao_produto' => strtoupper(trim($b['descricao_produto'] ?? 'UNKNOWN_PRODUCT')),
-                    'codigo_beneficiario' => trim($b['codigo_beneficiario'] ?? ''),
+                return [
+                    'numero_apolice' => trim((string)($b['numero_apolice'] ?? '')),
+                    'descricao_produto' => strtoupper(trim($b['descricao_produto'] ?? 'UNKNOWN')),
+                    'codigo_beneficiario' => trim((string)($b['codigo_beneficiario'] ?? '')),
                     'nome_beneficiario' => strtoupper(trim($b['nome_beneficiario'] ?? '')),
                     'tipo_beneficiario' => strtoupper(trim($b['tipo_beneficiario'] ?? '')),
                     'data' => $b['data_atualizacao_beneficiario'] ?? null,
                 ];
-
-                return $mapped;
             })
-            ->filter(function ($b) {
+            ->filter(fn($b) => $b['numero_apolice'] !== '')
+            ->values();
 
-                $valid = !empty($b['numero_apolice']);
+        Log::info('📦 NORMALIZED BENEFICIARIES', [
+            'count' => $beneficiaries->count()
+        ]);
 
-                if (!$valid) {
-                    Log::warning('❌ FILTERED OUT BENEFICIARY (NO APOLICE)', $b);
-                }
+        /* =========================
+           GROUP BY PRODUCT
+        ========================== */
 
-                return $valid;
-            })
-            ->groupBy('descricao_produto');
+        $grouped = $beneficiaries->groupBy('descricao_produto');
 
         Log::info('📊 GROUPS CREATED', [
             'total_groups' => $grouped->count(),
-            'groups' => $grouped->keys()
+            'products' => $grouped->keys()
         ]);
 
         foreach ($grouped as $produto => $records) {
 
-            Log::info('🔎 PROCESSING PRODUCT GROUP', [
+            Log::info('🔎 PROCESSING PRODUCT', [
                 'produto' => $produto,
                 'records' => $records->count()
             ]);
 
-            $records = $records
-                ->sortBy(fn($r) => $this->safeDate($r['data'])?->timestamp ?? 0)
-                ->values();
-
             if ($records->count() < 2) {
-                Log::info('⛔ SKIP GROUP (INSUFFICIENT RECORDS)', [
+                Log::info('⛔ SKIP PRODUCT (INSUFFICIENT DATA)', [
                     'produto' => $produto
                 ]);
                 continue;
             }
+
+            $records = $records->sortBy(fn($r) =>
+                $this->safeDate($r['data'])?->timestamp ?? 0
+            )->values();
 
             $history = [];
             $changes = 0;
@@ -166,29 +162,12 @@ class CustomerKYTService
             foreach ($records as $r) {
 
                 $beneficiaryId = $r['codigo_beneficiario']
-                    ?: md5($r['nome_beneficiario'] . '|' . $r['tipo_beneficiario']);
-
-                Log::debug('👤 BENEFICIARY STEP', [
-                    'apolice' => $r['numero_apolice'],
-                    'beneficiary' => $beneficiaryId,
-                    'date' => $r['data']
-                ]);
-
-                if (!$beneficiaryId) {
-                    Log::warning('❌ INVALID BENEFICIARY ID', $r);
-                    continue;
-                }
+                    ?: md5($r['nome_beneficiario'] . $r['tipo_beneficiario']);
 
                 $history[] = $beneficiaryId;
 
                 if ($prev !== null && $prev !== $beneficiaryId) {
                     $changes++;
-
-                    Log::warning('🔁 BENEFICIARY CHANGE DETECTED', [
-                        'from' => $prev,
-                        'to' => $beneficiaryId,
-                        'changes' => $changes
-                    ]);
                 }
 
                 $prev = $beneficiaryId;
@@ -196,27 +175,25 @@ class CustomerKYTService
 
             $unique = count(array_unique($history));
 
-            Log::info('📈 BENEFICIARY ANALYSIS RESULT', [
+            Log::info('📈 ANALYSIS RESULT', [
                 'produto' => $produto,
                 'unique_beneficiaries' => $unique,
                 'changes' => $changes
             ]);
 
             if ($unique < 3 || $changes < 2) {
-                Log::info('⛔ KYT RULE NOT MET', [
-                    'produto' => $produto,
-                    'unique' => $unique,
-                    'changes' => $changes
+                Log::info('⛔ RULE NOT TRIGGERED', [
+                    'produto' => $produto
                 ]);
                 continue;
             }
 
-            $dates = collect($records)
-                ->map(fn($r) => $this->safeDate($r['data']))
-                ->filter();
+            $dates = $records->map(fn($r) =>
+                $this->safeDate($r['data'])
+            )->filter();
 
             if ($dates->isEmpty()) {
-                Log::warning('❌ NO VALID DATES FOUND', [
+                Log::warning('❌ NO VALID DATES', [
                     'produto' => $produto
                 ]);
                 continue;
@@ -226,26 +203,18 @@ class CustomerKYTService
             $max = $dates->max();
             $days = $min->diffInDays($max);
 
-            Log::info('📅 TIME WINDOW ANALYSIS', [
-                'produto' => $produto,
-                'start' => $min,
-                'end' => $max,
-                'days' => $days
-            ]);
-
             if ($days > 365) {
-                Log::info('⛔ TIME WINDOW TOO LARGE (SKIP)', [
+                Log::info('⛔ TIME RANGE EXCEEDED', [
                     'produto' => $produto,
                     'days' => $days
                 ]);
                 continue;
             }
 
-            /**
-             * =========================
-             * SCORE KYT
-             * =========================
-             */
+            /* =========================
+               SCORE KYT
+            ========================== */
+
             $score = 20;
 
             if ($changes >= 3) $score += 10;
@@ -257,15 +226,31 @@ class CustomerKYTService
 
             Log::warning('🚨 KYT ALERT TRIGGERED', [
                 'produto' => $produto,
-                'score' => $score,
-                'unique' => $unique,
-                'changes' => $changes
+                'score' => $score
             ]);
+
+            $description = "
+KYT_FREQUENT_BENEFICIARY_CHANGES
+
+Produto: {$produto}
+Cliente: {$customer->customer_number}
+
+Resumo:
+- Beneficiários distintos: {$unique}
+- Alterações: {$changes}
+- Período: {$min->format('Y-m-d')} até {$max->format('Y-m-d')}
+- Duração: {$days} dias
+
+Risco:
+Alterações frequentes de beneficiários indicam possível tentativa de ocultação de beneficiário final (UBO).
+
+Referência GAFI 2018.
+";
 
             $this->createAlert(
                 $customer,
                 'KYT_FREQUENT_BENEFICIARY_CHANGES',
-                "KYT detectado no produto {$produto}",
+                $description,
                 'Alto',
                 $score
             );
@@ -273,6 +258,7 @@ class CustomerKYTService
 
         Log::info('🏁 KYT PRODUCT BENEFICIARY ANALYSIS FINISHED');
     }
+
     /* =========================
        ALERT CREATION
     ========================== */
@@ -307,7 +293,8 @@ class CustomerKYTService
             SendGrupoAlertEmailJob::dispatch($alert->id, config('app.url'))
                 ->onQueue('high');
 
-            Log::warning("ALERT {$type}", [
+            Log::warning("ALERT CREATED", [
+                'type' => $type,
                 'customer' => $customer->customer_number
             ]);
         }
