@@ -20,68 +20,81 @@ class BeneficiariosStagingJob implements ShouldQueue
 
     public function __construct() {}
 
-    public function handle()
-    {
-        try {
-            $files = collect(scandir(base_path()))
-                ->filter(fn($file) => 
-                    str_starts_with(strtolower($file), 'beneficiarios') && 
-                    str_ends_with(strtolower($file), '.csv')
-                )
-                ->map(fn($file) => base_path($file));
+   public function handle()
+{
+    try {
+        $files = collect(scandir(base_path()))
+            ->filter(fn($file) =>
+                str_starts_with(strtolower($file), 'beneficiarios') &&
+                str_ends_with(strtolower($file), '.csv')
+            )
+            ->map(fn($file) => base_path($file));
 
-            foreach ($files as $filePath) {
-                if (!file_exists($filePath)) continue;
+        foreach ($files as $filePath) {
 
-                $handle = fopen($filePath, 'r');
-                $header = null;
-                $rows = [];
-                $inserted = 0;
+            if (!file_exists($filePath)) continue;
 
-                while (($line = fgetcsv($handle, 0, ',')) !== false) {
+            $handle = fopen($filePath, 'r');
+
+            $header = null;
+            $rows = [];
+            $inserted = 0;
+
+            while (($line = fgetcsv($handle, 0, "\t")) !== false) {
+
+                $line = array_map('trim', $line);
+
+                // Se vier tudo numa coluna só → fallback CSV
+                if (count($line) === 1) {
+                    $line = str_getcsv($line[0], ',');
                     $line = array_map('trim', $line);
-                    
-                    // 1. Ignora linhas vazias ou que contenham apenas os traços (---------)
-                    if (empty(array_filter($line)) || str_contains(implode('', $line), '---')) {
-                        continue;
-                    }
-
-                    // 2. Define o Header na primeira linha válida
-                    if (!$header) {
-                        $header = array_map(fn($h) => strtoupper($h), $line);
-                        continue;
-                    }
-
-                    // 3. Mapeia os dados
-                    $mappedRow = $this->mapRow($line, $header);
-
-                    // 4. Validação crucial para evitar o erro 1366 (Integer value)
-                    if (!is_numeric($mappedRow['numero_apolice'])) {
-                        continue;
-                    }
-
-                    $rows[] = $mappedRow;
-
-                    if (count($rows) >= $this->chunkSize) {
-                        DB::table('beneficiarios_staging')->insert($rows);
-                        $inserted += count($rows);
-                        $rows = [];
-                    }
                 }
 
-                if (!empty($rows)) {
+                // Ignorar linhas vazias ou separadores
+                if (empty(array_filter($line)) || str_contains(implode('', $line), '---')) {
+                    continue;
+                }
+
+                // Header
+                if (!$header) {
+                    $header = array_map(fn($h) => strtoupper(trim($h)), $line);
+                    continue;
+                }
+
+                $mappedRow = $this->mapRow($line, $header);
+
+                // DEBUG (remove depois)
+                Log::info('ROW IMPORT', $mappedRow);
+
+                // validação mais segura
+                if (empty($mappedRow['numero_apolice'])) {
+                    continue;
+                }
+
+                $rows[] = $mappedRow;
+
+                if (count($rows) >= $this->chunkSize) {
                     DB::table('beneficiarios_staging')->insert($rows);
                     $inserted += count($rows);
+                    $rows = [];
                 }
-
-                fclose($handle);
-                Log::info("✅ Importação concluída: {$filePath} | Registos: {$inserted}");
             }
-        } catch (\Throwable $e) {
-            Log::error("❌ Erro: " . $e->getMessage());
-            throw $e;
+
+            if (!empty($rows)) {
+                DB::table('beneficiarios_staging')->insert($rows);
+                $inserted += count($rows);
+            }
+
+            fclose($handle);
+
+            Log::info("✅ Importação concluída: {$filePath} | Registos: {$inserted}");
         }
+
+    } catch (\Throwable $e) {
+        Log::error("❌ Erro: " . $e->getMessage());
+        throw $e;
     }
+}
 
     private function mapRow(array $row, array $header): array
     {
