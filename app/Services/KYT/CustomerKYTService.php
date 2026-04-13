@@ -17,7 +17,7 @@ class CustomerKYTService
     public $backoff = 10;
 
     /* =========================
-       RISK ASSESSMENT
+       RISK
     ========================== */
 
     public function RiskAssessmentEntity(Entities $customer): array
@@ -33,7 +33,7 @@ class CustomerKYTService
         $data = [
             'risk_id' => $risk->id ?? null,
             'alert_priority' => $risk ? in_array($risk->diligence, ["Cliente Inaceitável", "Reforçada"]) : false,
-            'valid' => $risk ? false : true,
+            'valid' => (bool) $risk
         ];
 
         Cache::put($cacheKey, $data, now()->addHours(20));
@@ -53,11 +53,6 @@ class CustomerKYTService
         array $receipts = []
     ): void {
 
-        $policies = $this->normalizePolicies($policies);
-        $receipts = $this->normalizeArray($receipts);
-        $changes  = $this->normalizeArray($changes);
-        $refunds  = $this->normalizeArray($refunds);
-
         Log::info("KYT START", [
             'customer' => $customer->customer_number,
             'policies' => count($policies)
@@ -73,61 +68,15 @@ class CustomerKYTService
     }
 
     /* =========================
-       NORMALIZERS (ANTI CRASH CORE)
+       SAFE DATE
     ========================== */
-
-    private function normalizeArray(array $data): array
-    {
-        return array_values(array_filter(array_map(function ($item) {
-            return is_array($item) ? $item : (array) $item;
-        }, $data)));
-    }
-
-    private function normalizePolicies(array $policies): array
-    {
-        return $this->normalizeArray(array_map(function ($p) {
-
-            $p = (array) $p;
-
-            return [
-                'numero_apolice' => $p['Numero_Apolice'] ?? $p['numero_apolice'] ?? null,
-                'estado_apolice' => $this->normalizeStatus($p['Estado_Apolice'] ?? null),
-                'data_inicio' => $this->parseDate($p['Data_Inicio'] ?? null),
-                'data_fim' => $this->parseDate($p['Data_Fim'] ?? null),
-                'capital' => (float) ($p['Capital'] ?? 0),
-                'premium_total' => (float) ($p['Premio_Total'] ?? 0),
-            ];
-
-        }, $policies));
-    }
-
-    private function normalizeStatus(?string $status): string
-    {
-        return match (strtoupper(trim($status ?? ''))) {
-            'NORMAL', 'ATIVA' => 'active',
-            'CANCELADA', 'C/ CARTA' => 'cancelled',
-            'ANULADA', 'TERMINADA', 'INACTIVOS' => 'terminated',
-            default => 'unknown'
-        };
-    }
-
-    private function parseDate($date): ?string
-    {
-        if (!$date) return null;
-
-        try {
-            return Carbon::parse($date)->format('Y-m-d H:i:s');
-        } catch (\Exception $e) {
-            return null;
-        }
-    }
 
     private function safeDate($date): ?Carbon
     {
         try {
             if (!$date) return null;
             return Carbon::parse($date);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return null;
         }
     }
@@ -143,27 +92,19 @@ class CustomerKYTService
 
         if (empty($receipts)) return;
 
-        Log::info('KYT DEBUG RECEIPT SAMPLE', [
-            'first' => $receipts[0] ?? null
-        ]);
-
-        $grouped = collect($this->normalizeArray($receipts))
+        $grouped = collect($receipts)
+            ->map(fn($r) => (array) $r)
+            ->filter(fn($r) => !empty($r['numero_apolice']))
             ->groupBy('numero_apolice');
 
         foreach ($grouped as $apolice => $payments) {
 
-            if (!$apolice || $payments->count() < 3) continue;
-
-            $payments = $payments
-                ->map(function ($p) {
-                    $p['parsed_date'] = $this->safeDate($p['data_pagamento'] ?? null);
-                    return $p;
-                })
-                ->filter(fn($p) => $p['parsed_date'] !== null)
-                ->sortBy('parsed_date')
-                ->values();
-
             if ($payments->count() < 3) continue;
+
+            // ordenar seguro
+            $payments = $payments->sortBy(function ($p) {
+                return $this->safeDate($p['data_pagamento'])?->timestamp ?? 0;
+            })->values();
 
             $beneficiaries = [];
             $changes = 0;
@@ -171,12 +112,12 @@ class CustomerKYTService
 
             foreach ($payments as $p) {
 
-                $current = trim(
-                    ($p['nif_pagador'] ?? '') . '|' .
-                    ($p['nome_pagador'] ?? '')
-                );
+                $nif = trim($p['nif_pagador'] ?? '');
+                $name = trim($p['nome_pagador'] ?? '');
 
-                if ($current === '|') continue;
+                if ($nif === '' && $name === '') continue;
+
+                $current = $nif . '|' . $name;
 
                 $beneficiaries[$current] = true;
 
@@ -189,17 +130,22 @@ class CustomerKYTService
 
             $uniqueCount = count($beneficiaries);
 
-            if ($uniqueCount < 3) continue;
-            if ($changes < 2) continue;
+            if ($uniqueCount < 3 && $changes < 3) continue;
 
-            $dates = $payments->pluck('parsed_date');
+            $dates = $payments->map(fn($p) => $this->safeDate($p['data_pagamento']))->filter();
 
-            $min = $dates->first();
-            $max = $dates->last();
+            if ($dates->isEmpty()) continue;
+
+            $min = $dates->sort()->first();
+            $max = $dates->sort()->last();
 
             if (!$min || !$max) continue;
 
             if ($min->diffInDays($max) > 365) continue;
+
+            /* =========================
+               SCORE
+            ========================== */
 
             $score = 20;
 
@@ -207,47 +153,46 @@ class CustomerKYTService
             if ($changes >= 3) $score += 5;
             if ($changes >= 5) $score += 10;
 
+            /* =========================
+               DESCRIPTION AML
+            ========================== */
 
             $description = "
-
+KYT - FREQUENT BENEFICIARY CHANGES
 
 IDENTIFICAÇÃO
 - Cliente: {$customer->customer_number}
 - Apólice: {$apolice}
-- Total de transações analisadas: {$payments->count()}
+- Transações analisadas: {$payments->count()}
 
 PADRÃO DETECTADO
-- Beneficiários únicos identificados: {$uniqueCount}
-- Número de alterações entre beneficiários: {$changes}
-- Período de análise: {$min->format('Y-m-d')} até {$max->format('Y-m-d')}
-- Duração total do comportamento: {$min->diffInDays($max)} dias
+- Beneficiários únicos: {$uniqueCount}
+- Alterações de beneficiários: {$changes}
+- Período: {$min->format('Y-m-d')} → {$max->format('Y-m-d')}
+- Duração: {$min->diffInDays($max)} dias
 
-ANÁLISE COMPORTAMENTAL
-Foi identificado um padrão consistente de alterações frequentes de beneficiários associados a esta apólice, com substituição repetida de entidades pagadoras (pessoas ou organizações).
+ANÁLISE
+Foi identificado padrão de alterações recorrentes de beneficiários sem justificação operacional clara.
 
-As alterações não apresentam justificação operacional evidente (ex: herança, divórcio, alteração contratual documentada ou atualização de dados cadastrais).
-
-RISCO AML/KYT
-Este comportamento pode indicar:
-- Tentativa de ocultação da origem ou destino dos fundos
-- Estruturação de pagamentos através de terceiros
+RISCO AML
 - Possível layering financeiro
-- Fragmentação de beneficiários para dificultar rastreio
+- Redirecionamento de pagamentos via terceiros
+- Tentativa de ocultação de origem/destino de fundos
 
-REFERENCIAL REGULATÓRIO
-Este padrão está alinhado com indicadores de risco descritos pelo GAFI (Guidance 2018), nomeadamente:
-- Alterações frequentes de beneficiários em fase de movimentação financeira
-- Redirecionamento recorrente de pagamentos para terceiros sem relação clara com o tomador
+REFERÊNCIA GAFI (2018)
+Alterações frequentes de beneficiários em fase de movimentação financeira são indicadores clássicos de risco AML.
 
-CLASSIFICAÇÃO
-- Score KYT: {$score}
-- Nível de risco: Alto
+SCORE KYT: {$score}
 ";
+
+            /* =========================
+               ALERT
+            ========================== */
 
             $this->createAlert(
                 $customer,
                 'KYT_FREQUENT_BENEFICIARY_CHANGES',
-                 $description,
+                $description,
                 'Alto',
                 $score
             );
@@ -255,7 +200,7 @@ CLASSIFICAÇÃO
     }
 
     /* =========================
-       ALERT SYSTEM
+       ALERT CREATION
     ========================== */
 
     private function createAlert(
