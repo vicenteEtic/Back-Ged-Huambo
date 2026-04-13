@@ -96,7 +96,7 @@ class DispatchCustomerJobsJob implements ShouldQueue
 
                         $beneficiaries = DB::table('beneficiarios_staging as b')
                             ->join('policies_staging as p', 'b.numero_apolice', '=', 'p.numero_apolice')
-                            ->where('p.numero_apolice', $policyNumbers)
+                         ->whereIn('p.numero_apolice', $policyNumbers)
                             ->select([
                                 'b.numero_apolice',
                                 'p.descricao_produto',
