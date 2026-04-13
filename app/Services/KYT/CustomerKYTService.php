@@ -330,27 +330,31 @@ class CustomerKYTService
             );
         }
     }
-
 private function checkFrequentBeneficiaryChanges(
     Entities $customer,
     array $receipts = []
 ): void {
 
     Log::info('KYT DEBUG RECEIPT SAMPLE', [
-    'first' => $receipts[0] ?? null
-]);
+        'first' => $receipts[0] ?? null
+    ]);
 
     if (empty($receipts)) return;
 
     $grouped = collect($receipts)
-        ->map(fn($p) => (array) $p) // 🔥 FIX CRÍTICO
+        ->map(fn($p) => (array) $p)
         ->groupBy('numero_apolice');
 
     foreach ($grouped as $apolice => $payments) {
 
-        if ($payments->count() < 3) continue;
+        if (!$apolice || $payments->count() < 3) continue;
 
-        $payments = $payments->sortBy('data_pagamento')->values();
+        // 🔥 ordenar corretamente
+        $payments = $payments
+            ->sortBy(function ($p) {
+                return $this->safeDate($p['data_pagamento']);
+            })
+            ->values();
 
         $beneficiaries = [];
         $changes = 0;
@@ -363,6 +367,8 @@ private function checkFrequentBeneficiaryChanges(
                 ($p['nome_pagador'] ?? '')
             );
 
+            if ($current === '|') continue;
+
             $beneficiaries[$current] = true;
 
             if ($prev !== null && $prev !== $current) {
@@ -374,25 +380,35 @@ private function checkFrequentBeneficiaryChanges(
 
         $uniqueCount = count($beneficiaries);
 
-        if ($changes < 3) continue;
+        // 🔥 regra mínima KYT (ajustada realista)
         if ($uniqueCount < 3) continue;
+        if ($changes < 2) continue;
 
+        // 📅 janela temporal correta
         $dates = $payments->map(fn($p) => $this->safeDate($p['data_pagamento']))
             ->filter();
 
         if ($dates->isEmpty()) continue;
 
-        $min = $dates->min();
-        $max = $dates->max();
+        $min = $dates->sort()->first();
+        $max = $dates->sort()->last();
+
+        if (!$min || !$max) continue;
 
         if ($min->diffInDays($max) > 365) continue;
 
-        $score = 20 + ($changes >= 4 ? 5 : 0);
+        // 🔥 SCORE KYT realista
+        $score = 20;
 
+        if ($uniqueCount >= 4) $score += 5;
+        if ($changes >= 3) $score += 5;
+        if ($changes >= 5) $score += 10;
+
+        // 📊 ALERTA KYT
         $this->createAlert(
             $customer,
-            'KYT_FREQUENT_BENEFICIARY_CHANGES',
-            "Apólice {$apolice} | mudanças {$changes} | beneficiários {$uniqueCount}",
+            'Alterações frequentes de beneficiários',
+            "Apólice {$apolice} | mudanças {$changes} | beneficiários {$uniqueCount} | transações {$payments->count()}",
             'Alto',
             $score
         );

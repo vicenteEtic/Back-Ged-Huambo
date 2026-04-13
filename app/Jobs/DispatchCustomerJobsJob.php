@@ -18,73 +18,91 @@ class DispatchCustomerJobsJob implements ShouldQueue
     public $timeout = 10800;
     public $tries = 10;
 
-    public function handle()
-    {
-        Log::info("🚀 Iniciando dispatch de jobs por cliente...");
+  public function handle()
+{
+    Log::info("🚀 Iniciando dispatch de jobs por cliente...");
 
-        DB::table('policies_staging')
-            ->select('numero_cliente')
-            ->distinct()
-            ->orderBy('numero_cliente')
-            ->chunk(500, function ($clientes) {
+    DB::table('policies_staging')
+        ->select('numero_cliente')
+        ->distinct()
+        ->orderBy('numero_cliente')
+        ->chunkById(200, function ($clientes) {
 
-                foreach ($clientes as $clienteRow) {
-                    try {
-                        $numero_cliente = $clienteRow->numero_cliente;
+            foreach ($clientes as $clienteRow) {
 
-                        $entity = Entities::where('customer_number', $numero_cliente)->first();
-                        if (!$entity) continue;
+                try {
+                    $numero_cliente = $clienteRow->numero_cliente;
 
-                        // 🔹 POLICIES
-                        $policiesRaw = DB::table('policies_staging')
-                            ->where('numero_cliente', $numero_cliente)
-                            ->get();
+                    $entity = Entities::where('customer_number', $numero_cliente)->first();
+                    if (!$entity) continue;
 
-                        if ($policiesRaw->isEmpty()) continue;
+                    // 🔹 POLICIES (STREAM em vez de get massivo)
+                    $policiesRaw = DB::table('policies_staging')
+                        ->where('numero_cliente', $numero_cliente)
+                        ->limit(5000) // 🔥 PROTEÇÃO MEMÓRIA
+                        ->get();
 
-                        $policiesArray = $policiesRaw->map(fn($i) => (array)$i)->toArray();
+                    if ($policiesRaw->isEmpty()) continue;
 
-                        // 🔹 POLICY NUMBERS
-                      $policyNumbers = array_values(array_filter(array_column($policiesArray, 'numero_apolice')));
+                    $policiesArray = $policiesRaw->map(fn($i) => (array)$i)->toArray();
 
-                        // 🔹 REFUNDS
-                        $refundsRaw = DB::table('apol_anulada_estorno')
-                            ->where('idtitular', (string)$numero_cliente)
-                            ->get();
+                    $policyNumbers = $policiesRaw
+                        ->pluck('numero_apolice')
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->toArray();
 
-                        $refunds = $refundsRaw->map(fn($i) => (array)$i)->toArray();
+                    if (empty($policyNumbers)) continue;
 
-                        // 🔹 RECEIPTS (🔥 NOVO)
-                        $receiptsRaw = DB::table('recibos_cobrados')
-                            ->whereIn('numero_apolice', $policyNumbers)
-                            ->get();
+                    // 🔹 RECEIPTS (LIMITADO)
+                    $receipts = DB::table('recibos_cobrados')
+                        ->select([
+                            'numero_apolice',
+                            'data_pagamento',
+                            'valor_pago',
+                            'nome_pagador',
+                            'nif_pagador',
+                            'relacao_com_tomador',
+                            'indicador_pagamento_terceiro',
+                            'pais_iban_origem'
+                        ])
+                        ->whereIn('numero_apolice', $policyNumbers)
+                        ->limit(5000)
+                        ->get()
+                        ->map(fn($i) => (array)$i)
+                        ->toArray();
 
-                        $receipts = $receiptsRaw->map(fn($i) => (array)$i)->toArray();
+                    // 🔹 CHANGES (LIMITADO)
+                    $changes = DB::table('policy_changes_staging')
+                        ->whereIn('numero_apolice', $policyNumbers)
+                        ->limit(3000)
+                        ->get()
+                        ->map(fn($i) => (array)$i)
+                        ->toArray();
 
-                        // 🔹 CHANGES
-                        $changesRaw = DB::table('policy_changes_staging')
-                            ->whereIn('numero_apolice', $policyNumbers)
-                            ->get();
+                    // 🔹 REFUNDS
+                    $refunds = DB::table('apol_anulada_estorno')
+                        ->where('idtitular', (string)$numero_cliente)
+                        ->limit(2000)
+                        ->get()
+                        ->map(fn($i) => (array)$i)
+                        ->toArray();
 
-                        $changes = $changesRaw->map(fn($i) => (array)$i)->toArray();
+                    ProcessCustomerPoliciesJob::dispatch(
+                        $entity->id,
+                        $policiesArray,
+                        $changes,
+                        $refunds,
+                        $receipts
+                    )->onQueue('cliente');
 
-                        // 🚀 DISPATCH
-                        ProcessCustomerPoliciesJob::dispatch(
-                            $entity->id,
-                            $policiesArray,
-                            $changes,
-                            $refunds,
-                            $receipts
-                        )->onQueue('cliente');
-
-                    } catch (\Exception $e) {
-                        Log::error(" Erro cliente {$clienteRow->numero_cliente}: {$e->getMessage()}");
-                    }
+                } catch (\Throwable $e) {
+                    Log::error("Erro cliente {$clienteRow->numero_cliente}: {$e->getMessage()}");
                 }
+            }
+        });
 
-                gc_collect_cycles();
-            });
-
-        Log::info("✅ Dispatch concluído.");
-    }
+    Log::info("✅ Dispatch concluído.");
+}
 }
