@@ -332,105 +332,94 @@ class CustomerKYTService
     }
 
 
-    private function checkFrequentBeneficiaryChanges(
-        Entities $customer,
-        array $receipts = []
-    ): void {
-        if (empty($receipts)) return;
+  private function checkFrequentBeneficiaryChanges(
+    Entities $customer,
+    array $receipts = []
+): void {
 
-        // 🔹 Agrupar por apólice
-        $grouped = collect($receipts)->groupBy('numero_apolice');
+    if (empty($receipts)) return;
 
-        foreach ($grouped as $numeroApolice => $payments) {
+    $grouped = collect($receipts)->groupBy('numero_apolice');
 
-            if (!$numeroApolice || $payments->count() < 3) continue;
+    foreach ($grouped as $apolice => $payments) {
 
-            // 🔥 Filtro AML CORRETO (terceiros reais)
-            $filtered = $payments->filter(function ($p) {
-                return (
-                    strtoupper($p['relacao_com_tomador'] ?? '') !== 'TOMADOR'
-                    && strtoupper($p['indicador_pagamento_terceiro'] ?? '') === 'TOMADOR'
-                );
-            });
+        if ($payments->count() < 4) continue;
 
-            if ($filtered->count() < 3) continue;
+        // 🔥 ordenar cronologicamente
+        $payments = $payments->sortBy('data_pagamento')->values();
 
-            // 🔑 Pagadores únicos
-            $uniquePayers = $filtered
-                ->pluck('nif_pagador')
-                ->filter(fn($v) => !empty($v))
-                ->unique();
+        $changes = 0;
+        $previous = null;
+        $uniqueBeneficiaries = [];
 
-            if ($uniquePayers->count() < 3) continue;
+        foreach ($payments as $p) {
 
-            // 📅 Datas seguras
-            $dates = $filtered
-                ->pluck('data_pagamento')
-                ->map(fn($d) => $this->safeDate($d))
-                ->filter();
+            $current = trim(
+                ($p['nif_pagador'] ?? '') . '|' .
+                ($p['nome_pagador'] ?? '')
+            );
 
-            if ($dates->isEmpty()) continue;
+            $uniqueBeneficiaries[$current] = true;
 
-            $minDate = $dates->sort()->first();
-            $maxDate = $dates->sort()->last();
+            // 🔥 conta mudança REAL (transição)
+            if ($previous !== null && $previous !== $current) {
+                $changes++;
+            }
 
-            if (!$minDate || !$maxDate) continue;
+            $previous = $current;
+        }
 
-            // 🔥 janela AML (1 ano)
-            if ($minDate->diffInDays($maxDate) > 365) continue;
+        $uniqueCount = count($uniqueBeneficiaries);
 
-            // 🌍 países
-            $countries = $filtered
-                ->pluck('pais_iban_origem')
-                ->filter()
-                ->unique();
+        // 🚨 REGRA KYT CORRETA
+        if ($changes < 3) continue;          // 3–4 mudanças reais
+        if ($uniqueCount < 3) continue;      // diversidade mínima
 
-            /* =========================
-           DESCRIÇÃO
-        ========================== */
+        // 📅 janela temporal
+        $dates = $payments->map(fn($p) => $this->safeDate($p['data_pagamento']))
+            ->filter();
 
-            $description = "
+        if ($dates->isEmpty()) continue;
+
+        $min = $dates->min();
+        $max = $dates->max();
+
+        if ($min->diffInDays($max) > 365) continue;
+
+        // 🔥 SCORE KYT
+        $score = 20;
+
+        if ($changes >= 4) $score += 5;
+        if ($uniqueCount >= 4) $score += 5;
+
+        $description = "
+Alterações frequentes de beneficiários
+
+Apólice: {$apolice}
 Cliente: {$customer->customer_number}
 
 Resumo:
-- Apólice: {$numeroApolice}
-- Nº pagamentos suspeitos: {$filtered->count()}
-- Pagadores distintos: {$uniquePayers->count()}
-- Países envolvidos: " . ($countries->isEmpty() ? 'N/A' : $countries->implode(', ')) . "
-
-Período:
-{$minDate->format('Y-m-d')} → {$maxDate->format('Y-m-d')}
+- Mudanças de beneficiário: {$changes}
+- Beneficiários únicos: {$uniqueCount}
+- Transações: {$payments->count()}
+- Período: {$min->format('Y-m-d')} → {$max->format('Y-m-d')}
 
 Interpretação AML:
-Mudanças frequentes de beneficiários sem relação com o tomador.
+Alterações repetidas de beneficiários/pagadores ao longo do tempo,
+indicando possível layering e redirecionamento de fundos.
 
-Possível comportamento:
-- Layering (dispersão de fundos)
-- Ocultação de origem
+Regra GAFI (2018): mudanças frequentes sem justificação aparente em fase de movimentação.
 ";
 
-            /* =========================
-           SCORE
-        ========================== */
-
-            $score = 20;
-
-            if ($uniquePayers->count() >= 4) $score += 5;
-            if ($countries->count() >= 2) $score += 5;
-
-            /* =========================
-           ALERTA
-        ========================== */
-
-            $this->createAlert(
-                $customer,
-                'Mudanças frequentes de beneficiário',
-                $description,
-                'Alto',
-                $score
-            );
-        }
+        $this->createAlert(
+            $customer,
+            'Alterações frequentes de beneficiários',
+            $description,
+            'Alto',
+            $score
+        );
     }
+}
 
     /* =========================
        ALERT
