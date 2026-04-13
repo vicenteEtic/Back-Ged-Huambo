@@ -87,8 +87,7 @@ class CustomerKYTService
 
    
 
-
-    private function checkFrequentBeneficiaryChanges(
+private function checkFrequentBeneficiaryChanges(
     Entities $customer,
     array $receipts = []
 ): void {
@@ -105,13 +104,11 @@ class CustomerKYTService
 
     $grouped = collect($receipts)
         ->map(fn($r) => (array) $r)
-        ->filter(function ($r) {
-            return !empty($r['numero_apolice']);
-        })
+        ->filter(fn($r) => !empty($r['numero_apolice']))
         ->groupBy('numero_apolice');
 
     Log::info('KYT GROUPED', [
-        'policies_grouped' => $grouped->count()
+        'policies' => $grouped->count()
     ]);
 
     foreach ($grouped as $apolice => $payments) {
@@ -121,13 +118,15 @@ class CustomerKYTService
             'payments' => $payments->count()
         ]);
 
-        if ($payments->count() < 3) {
-            Log::info('KYT SKIP - LESS THAN 3 PAYMENTS', [
+        // 🔥 AJUSTE IMPORTANTE: não ser tão rígido
+        if ($payments->count() < 2) {
+            Log::info('KYT SKIP - NOT ENOUGH PAYMENTS', [
                 'apolice' => $apolice
             ]);
             continue;
         }
 
+        // 🔥 ordenar corretamente
         $payments = $payments->sortBy(function ($p) {
             return $this->safeDate($p['data_pagamento'])?->timestamp ?? 0;
         })->values();
@@ -138,8 +137,14 @@ class CustomerKYTService
 
         foreach ($payments as $p) {
 
-            $nif = trim($p['nif_pagador'] ?? '');
-            $name = trim($p['nome_pagador'] ?? '');
+            $nif = trim((string) ($p['nif_pagador'] ?? ''));
+            $name = trim((string) ($p['nome_pagador'] ?? ''));
+
+            // 🔥 evita lixo total
+            if ($nif === '' && $name === '') {
+                Log::info('KYT SKIP EMPTY ROW');
+                continue;
+            }
 
             $current = $nif . '|' . $name;
 
@@ -147,11 +152,6 @@ class CustomerKYTService
                 'apolice' => $apolice,
                 'current' => $current
             ]);
-
-            if ($current === '|') {
-                Log::info('KYT SKIP EMPTY BENEFICIARY');
-                continue;
-            }
 
             $beneficiaries[$current] = true;
 
@@ -167,19 +167,22 @@ class CustomerKYTService
         Log::info('KYT SUMMARY', [
             'apolice' => $apolice,
             'unique_beneficiaries' => $uniqueCount,
-            'changes' => $changes
+            'changes' => $changes,
+            'payments' => $payments->count()
         ]);
 
-        if ($uniqueCount < 3) {
-            Log::info('KYT SKIP - UNIQUE < 3');
+        // 🔥 AJUSTE CRÍTICO (ANTES ESTAVA MUITO RESTRITO)
+        if ($uniqueCount < 2) {
+            Log::info('KYT SKIP - ONLY ONE BENEFICIARY');
             continue;
         }
 
-        if ($changes < 2) {
-            Log::info('KYT SKIP - CHANGES < 2');
+        if ($changes < 1) {
+            Log::info('KYT SKIP - NO CHANGES DETECTED');
             continue;
         }
 
+        // 📅 janela temporal
         $dates = $payments->map(fn($p) => $this->safeDate($p['data_pagamento']))
             ->filter();
 
@@ -188,11 +191,11 @@ class CustomerKYTService
             continue;
         }
 
-        $min = $dates->sort()->first();
-        $max = $dates->sort()->last();
+        $min = $dates->min();
+        $max = $dates->max();
 
         if (!$min || !$max) {
-            Log::info('KYT SKIP - INVALID DATE RANGE');
+            Log::info('KYT SKIP - INVALID DATES');
             continue;
         }
 
@@ -203,16 +206,18 @@ class CustomerKYTService
             'days' => $days
         ]);
 
-        if ($days > 365) {
-            Log::info('KYT SKIP - PERIOD > 365 DAYS');
+        if ($days > 730) { // 🔥 2 anos (mais realista)
+            Log::info('KYT SKIP - PERIOD TOO LONG');
             continue;
         }
 
-        $score = 20;
+        // 🔥 SCORE mais sensível (IMPORTANTE PARA ALERTAR MAIS)
+        $score = 15;
 
-        if ($uniqueCount >= 4) $score += 5;
-        if ($changes >= 3) $score += 5;
-        if ($changes >= 5) $score += 10;
+        if ($uniqueCount >= 3) $score += 5;
+        if ($uniqueCount >= 4) $score += 10;
+        if ($changes >= 2) $score += 5;
+        if ($changes >= 3) $score += 10;
 
         Log::warning('🔥 KYT ALERT TRIGGERED', [
             'apolice' => $apolice,
@@ -221,31 +226,29 @@ class CustomerKYTService
             'unique' => $uniqueCount
         ]);
 
-
-          $description = "
+        $description = "
 KYT - FREQUENT BENEFICIARY CHANGES
 
 IDENTIFICAÇÃO
 - Cliente: {$customer->customer_number}
 - Apólice: {$apolice}
-- Transações analisadas: {$payments->count()}
+- Transações: {$payments->count()}
 
 PADRÃO DETECTADO
 - Beneficiários únicos: {$uniqueCount}
-- Alterações de beneficiários: {$changes}
+- Mudanças detectadas: {$changes}
 - Período: {$min->format('Y-m-d')} → {$max->format('Y-m-d')}
-- Duração: {$min->diffInDays($max)} dias
+- Duração: {$days} dias
 
-ANÁLISE
-Foi identificado padrão de alterações recorrentes de beneficiários sem justificação operacional clara.
-
-RISCO AML
-- Possível layering financeiro
-- Redirecionamento de pagamentos via terceiros
-- Tentativa de ocultação de origem/destino de fundos
+INTERPRETAÇÃO AML
+Alterações de beneficiários indicam possível:
+- Layering financeiro
+- Fragmentação de pagamentos
+- Redirecionamento de fundos via terceiros
+- Tentativa de dissimulação de beneficiário real
 
 REFERÊNCIA GAFI (2018)
-Alterações frequentes de beneficiários em fase de movimentação financeira são indicadores clássicos de risco AML.
+Mudanças frequentes de beneficiários em fases de movimentação financeira são indicadores relevantes de risco AML.
 
 SCORE KYT: {$score}
 ";
@@ -253,7 +256,7 @@ SCORE KYT: {$score}
         $this->createAlert(
             $customer,
             'KYT_FREQUENT_BENEFICIARY_CHANGES',
-             $description ,
+            $description,
             'Alto',
             $score
         );
@@ -261,7 +264,6 @@ SCORE KYT: {$score}
 
     Log::info('KYT FINISHED CHECK');
 }
-
 
     /* =========================
        ALERT CREATION
