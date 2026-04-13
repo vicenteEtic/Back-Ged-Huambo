@@ -45,7 +45,7 @@ class DispatchCustomerJobsJob implements ShouldQueue
                         $policiesArray = $policiesRaw->map(fn($i) => (array)$i)->toArray();
 
                         // 🔹 POLICY NUMBERS
-                        $policyNumbers = array_column($policiesArray, 'Numero_Apolice');
+                      $policyNumbers = array_values(array_filter(array_column($policiesArray, 'numero_apolice')));
 
                         // 🔹 REFUNDS
                         $refundsRaw = DB::table('apol_anulada_estorno')
