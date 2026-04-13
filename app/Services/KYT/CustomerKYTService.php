@@ -63,7 +63,7 @@ class CustomerKYTService
 
         if (empty($policies)) return;
 
-        $this->checkFrequentBeneficiaryChanges($customer, $receipts);
+        $this->checkFrequentBeneficiaryChanges($customer, $beneficiaries);
 
         Log::info("KYT FINISHED", [
             'customer' => $customer->customer_number
@@ -89,155 +89,144 @@ class CustomerKYTService
     ========================== */
 
 
-    private function checkFrequentBeneficiaryChanges(
-        Entities $customer,
-        array $receipts = []
-    ): void {
+   private function checkFrequentBeneficiaryChanges(
+    Entities $customer,
+    array $beneficiaries = []
+): void {
 
-        Log::info('KYT RECEIPTS START', [
-            'customer' => $customer->customer_number,
-            'receipts_count' => count($receipts)
-        ]);
+    Log::info('KYT PRODUCT BENEFICIARY ANALYSIS START', [
+        'customer' => $customer->customer_number,
+        'records' => count($beneficiaries)
+    ]);
 
-        if (empty($receipts)) {
-            Log::info('KYT EXIT - EMPTY RECEIPTS');
-            return;
-        }
+    if (empty($beneficiaries)) return;
 
-        $grouped = collect($receipts)
-            ->map(fn($r) => (array) $r)
-            ->filter(fn($r) => !empty($r['numero_apolice']))
-            ->groupBy('numero_apolice');
+    $grouped = collect($beneficiaries)
+        ->map(fn($b) => (array) $b)
+        ->filter(fn($b) =>
+            !empty($b['descricao_produto']) &&
+            !empty($b['numero_apolice'])
+        )
+        ->groupBy('descricao_produto');
 
-        foreach ($grouped as $apolice => $payments) {
+    foreach ($grouped as $produto => $records) {
 
-            if ($payments->count() < 2) continue;
+        $records = $records->sortBy(fn($r) =>
+            $this->safeDate($r['data_atualizacao_beneficiario'] ?? null)?->timestamp ?? 0
+        )->values();
 
-            $payments = $payments->sortBy(
-                fn($p) =>
-                $this->safeDate($p['data_pagamento'])?->timestamp ?? 0
-            )->values();
+        if ($records->count() < 2) continue;
 
-            $beneficiaries = [];
-            $changes = 0;
-            $prev = null;
+        $changes = 0;
+        $history = [];
+        $prev = null;
 
-            foreach ($payments as $p) {
+        foreach ($records as $r) {
 
-                // 🔥 NORMALIZAÇÃO (CRÍTICO)
-                $nif = strtoupper(trim((string) ($p['nif_pagador'] ?? '')));
-                $name = strtoupper(trim((string) ($p['nome_pagador'] ?? '')));
+            $beneficiaryId = strtoupper(trim((string) (
+                $r['codigo_beneficiario']
+                ?? $r['nome_beneficiario']
+                ?? ''
+            )));
 
-                if ($nif === '' && $name === '') continue;
+            $type = strtoupper(trim((string) ($r['tipo_beneficiario'] ?? '')));
 
-                // 🔥 ID único consistente
-                $current = $nif ?: md5($name);
+            if ($beneficiaryId === '') continue;
 
-                $beneficiaries[$current] = true;
+            $current = md5($beneficiaryId . '|' . $type);
 
-                if ($prev !== null && $prev !== $current) {
-                    $changes++;
-                }
+            $history[] = $current;
 
-                $prev = $current;
+            if ($prev !== null && $prev !== $current) {
+                $changes++;
             }
 
-            $uniqueCount = count($beneficiaries);
-
-            if ($uniqueCount < 2 || $changes < 1) continue;
-
-            $dates = $payments->map(
-                fn($p) =>
-                $this->safeDate($p['data_pagamento'])
-            )->filter();
-
-            if ($dates->isEmpty()) continue;
-
-            $min = $dates->min();
-            $max = $dates->max();
-
-            if (!$min || !$max) continue;
-
-            $days = $min->diffInDays($max);
-
-            if ($days > 730) continue;
-
-            // 🔥 SCORE MELHORADO
-            $score = 20;
-
-            if ($uniqueCount >= 3) $score += 10;
-            if ($uniqueCount >= 4) $score += 15;
-            if ($changes >= 2) $score += 10;
-            if ($changes >= 3) $score += 15;
-
-            Log::warning('🔥 KYT ALERT TRIGGERED', [
-                'apolice' => $apolice,
-                'score' => $score
-            ]);
-
-
-            $totalPago = $payments->sum(fn($p) => max(0, (float)($p['valor_pago'] ?? 0)));
-            $totalEstornado = $payments->sum(fn($p) => min(0, (float)($p['valor_pago'] ?? 0)));
-            $saldo = $payments->sum(fn($p) => (float)($p['valor_pago'] ?? 0));
-
-            // 🔥 lista de pagadores (limpa e única)
-            $payersList = $payments->map(function ($p) {
-                return strtoupper(trim((string)($p['nome_pagador'] ?? '')));
-            })
-                ->filter()
-                ->unique()
-                ->values()
-                ->take(5) // evita texto gigante
-                ->implode(', ');
-            // 🔥 DESCRIÇÃO MELHORADA
-            $description = "
-
-IDENTIFICAÇÃO
-
-Cliente: {$customer->customer_number}
-Apólice: {$apolice}
-Total de Transações: {$payments->count()}
-
-ANÁLISE FINANCEIRA
-
-Valor total pago: " . number_format($totalPago, 2, ',', '.') . "
-Valor total estornado: " . number_format($totalEstornado, 2, ',', '.') . "
-Saldo líquido: " . number_format($saldo, 2, ',', '.') . "
-
-
-ANÁLISE COMPORTAMENTAL
-
-Pagadores distintos: {$uniqueCount}
-Mudanças detectadas: {$changes}
-Principais pagadores: {$payersList}
-
-Período analisado: {$min->format('Y-m-d')} até {$max->format('Y-m-d')}
-Duração: {$days} dias
-
-
-PADRÃO DETECTADO
-
-Foi identificado um padrão de múltiplos pagadores associados à mesma apólice, com alterações recorrentes ao longo do tempo.
-
-Este comportamento pode indicar:
-- Utilização de terceiros para execução de pagamentos
-- Redirecionamento de fluxos financeiros
-- Fragmentação de valores para evitar controlo
-- Possível ocultação do beneficiário final (UBO)
-
-";
-
-            $this->createAlert(
-                $customer,
-                'Alterações frequentes de beneficiários', // 🔥 nome mais correto
-                $description,
-                'Alto',
-                $score
-            );
+            $prev = $current;
         }
 
-        Log::info('KYT FINISHED CHECK');
+        $unique = count(array_unique($history));
+
+        // KYT RULE BASE
+        if ($unique < 3 || $changes < 2) continue;
+
+        $dates = $records->map(fn($r) =>
+            $this->safeDate($r['data_atualizacao_beneficiario'] ?? null)
+        )->filter();
+
+        if ($dates->isEmpty()) continue;
+
+        $min = $dates->min();
+        $max = $dates->max();
+        $days = $min->diffInDays($max);
+
+        if ($days > 365) continue;
+
+        /**
+         * =========================
+         * KYT SCORE
+         * =========================
+         */
+        $score = 20;
+
+        if ($changes >= 3) $score += 10;
+        if ($changes >= 4) $score += 15;
+        if ($changes >= 5) $score += 20;
+
+        if ($unique >= 3) $score += 10;
+        if ($unique >= 4) $score += 15;
+
+        Log::warning('🔥 KYT FREQUENT BENEFICIARY CHANGES (BY PRODUCT)', [
+            'produto' => $produto,
+            'changes' => $changes,
+            'unique_beneficiaries' => $unique,
+            'score' => $score
+        ]);
+
+        $description = "
+
+KYT_FREQUENT_BENEFICIARY_CHANGES
+
+Produto: {$produto}
+Cliente: {$customer->customer_number}
+
+ANÁLISE DE COMPORTAMENTO
+
+Beneficiários distintos: {$unique}
+Alterações detetadas: {$changes}
+Período: {$min->format('Y-m-d')} até {$max->format('Y-m-d')}
+Duração: {$days} dias
+
+INTERPRETAÇÃO KYT
+
+Foi identificada alteração recorrente de beneficiários dentro do mesmo produto financeiro.
+
+Este padrão pode indicar:
+- Redirecionamento de benefícios dentro de produtos estruturados
+- Substituição frequente sem justificação documental
+- Tentativas de ocultação do beneficiário final (UBO)
+- Potencial fase de layering em operações financeiras
+
+De acordo com GAFI (2018), mudanças frequentes de beneficiários
+em produtos financeiros são indicadores relevantes de risco AML/KYT,
+especialmente quando ocorrem em períodos curtos (< 12 meses).
+
+AÇÃO REQUERIDA
+- Verificação documental de alterações de beneficiário
+- Análise de relação entre titulares e beneficiários
+- Avaliação de STR (Suspicious Transaction Report)
+";
+
+        $this->createAlert(
+            $customer,
+            'KYT_FREQUENT_BENEFICIARY_CHANGES',
+            $description,
+            'Alto',
+            $score
+        );
     }
+
+    Log::info('KYT PRODUCT BENEFICIARY ANALYSIS FINISHED');
+}
 
     /* =========================
        ALERT CREATION

@@ -94,12 +94,12 @@ class DispatchCustomerJobsJob implements ShouldQueue
                             ->get()
                             ->toArray();
 
-        $beneficiaries = DB::table('beneficiarios_staging')
+                        $beneficiaries = DB::table('beneficiarios_staging')
                             ->whereIn('numero_apolice', $policyNumbers)
                             ->limit(1500)
                             ->get()
                             ->toArray();
-                            
+
                         /**
                          * 🚀 DISPATCH
                          */
@@ -108,14 +108,13 @@ class DispatchCustomerJobsJob implements ShouldQueue
                             $policiesArray,
                             $changes,
                             $refunds,
-                            $receipts,   
-                             $beneficiaries
+                            $receipts,
+                            $beneficiaries
                         )->onQueue('cliente');
 
                         unset($policiesRaw, $receipts, $changes, $refunds, $policyNumbers);
 
                         gc_collect_cycles();
-
                     } catch (\Throwable $e) {
                         Log::error("❌ Cliente {$clienteRow->numero_cliente}: {$e->getMessage()}");
                     }
