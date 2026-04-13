@@ -39,19 +39,13 @@ class BeneficiariosStagingJob implements ShouldQueue
                 $rows = [];
                 $inserted = 0;
 
-                while (($line = fgetcsv($handle, 0, "\t")) !== false) {
+                while (($line = fgetcsv($handle, 0, ',')) !== false) {
 
                     $line = array_map('trim', $line);
 
-                    // fallback caso venha mal formatado
-                    if (count($line) === 1) {
-                        $line = str_getcsv($line[0], "\t");
-                        $line = array_map('trim', $line);
-                    }
-
-                    // ignora linhas vazias ou separadores (-----)
-                    $joined = trim(implode('', $line));
-                    if ($joined === '' || preg_match('/^-+$/', str_replace("\t", '', $joined))) {
+                    // remove linhas lixo tipo "------"
+                    $joined = implode('', $line);
+                    if ($joined === '' || preg_match('/^-+$/', str_replace(',', '', $joined))) {
                         continue;
                     }
 
@@ -62,14 +56,14 @@ class BeneficiariosStagingJob implements ShouldQueue
                         continue;
                     }
 
-                    $mappedRow = $this->mapRow($line, $header);
+                    $mapped = $this->mapRow($line, $header);
 
-                    // ignora linhas sem apólice válida
-                    if (empty($mappedRow['numero_apolice'])) {
+                    // ignora linhas inválidas
+                    if (empty($mapped['numero_apolice'])) {
                         continue;
                     }
 
-                    $rows[] = $mappedRow;
+                    $rows[] = $mapped;
 
                     if (count($rows) >= $this->chunkSize) {
                         DB::table('beneficiarios_staging')->insert($rows);
@@ -97,9 +91,8 @@ class BeneficiariosStagingJob implements ShouldQueue
     private function normalizeHeader(array $line): array
     {
         return array_map(function ($h) {
-            $h = preg_replace('/^\xEF\xBB\xBF/', '', $h); // remove BOM
+            $h = preg_replace('/^\xEF\xBB\xBF/', '', $h);
             $h = trim($h);
-            $h = preg_replace('/\s+/', '_', $h); // espaços → _
             return strtoupper($h);
         }, $line);
     }
@@ -111,13 +104,15 @@ class BeneficiariosStagingJob implements ShouldQueue
             $key = strtoupper($key);
 
             foreach ($header as $i => $h) {
-                if (strtoupper(trim($h)) === $key) {
+                if ($h === $key) {
                     $val = $row[$i] ?? null;
                     $val = trim($val ?? '');
 
-                    return ($val === '' || strtoupper($val) === 'NULL')
-                        ? null
-                        : $val;
+                    if ($val === '' || strtoupper($val) === 'NULL') {
+                        return null;
+                    }
+
+                    return $val;
                 }
             }
 
@@ -125,20 +120,20 @@ class BeneficiariosStagingJob implements ShouldQueue
         };
 
         return [
-            'codigo_produto'                 => $get('CODIGO_PRODUTO'),
-            'descricao_produto'              => $get('DESCRICAO_PRODUTO'),
-            'numero_apolice'                 => $get('NUMERO_APOLICE'),
-            'codigo_beneficiario'            => $get('CODIGO_BENEFICIARIO'),
-            'nome_beneficiario'              => $get('NOME_BENEFICIARIO'),
-            'tipo_beneficiario'             => $get('TIPO_BENEFICIARIO'),
-            'percentagem_atribuida'         => $this->toFloat($get('PERCENTAGEM_ATRIBUIDA')),
-            'pais_residencia_beneficiario'  => $get('PAIS_RESIDENCIA_BENEFICIARIO'),
-            'parentesco_beneficiario'       => $get('PARENTESCO_BENEFICIARIO'),
-            'codigo_situacao_apolice'       => $get('CODIGO_SITUACAO_APOLICE'),
-            'situacao_apolice'              => $get('SITUACAO_APOLICE'),
-            'data_atualizacao_beneficiario' => $this->parseDate($get('DATA_ATUALIZACAO_BENEFICIARIO')),
-            'created_at'                    => now(),
-            'updated_at'                    => now(),
+            'codigo_produto'                => $get('CODIGO_PRODUTO'),
+            'descricao_produto'             => $get('DESCRICAO_PRODUTO'),
+            'numero_apolice'                => $get('NUMERO_APOLICE'),
+            'codigo_beneficiario'           => $get('CODIGO_BENEFICIARIO'),
+            'nome_beneficiario'             => $get('NOME_BENEFICIARIO'),
+            'tipo_beneficiario'            => $get('TIPO_BENEFICIARIO'),
+            'percentagem_atribuida'        => $this->toFloat($get('PERCENTAGEM_ATRIBUIDA')),
+            'pais_residencia_beneficiario' => $get('PAIS_RESIDENCIA_BENEFICIARIO'),
+            'parentesco_beneficiario'      => $get('PARENTESCO_BENEFICIARIO'),
+            'codigo_situacao_apolice'      => $get('CODIGO_SITUACAO_APOLICE'),
+            'situacao_apolice'             => $get('SITUACAO_APOLICE'),
+            'data_atualizacao_beneficiario'=> $this->parseDate($get('DATA_ATUALIZACAO_BENEFICIARIO')),
+            'created_at'                   => now(),
+            'updated_at'                   => now(),
         ];
     }
 
