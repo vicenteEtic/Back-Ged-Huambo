@@ -331,26 +331,30 @@ class CustomerKYTService
         }
     }
 
-
-  private function checkFrequentBeneficiaryChanges(
+private function checkFrequentBeneficiaryChanges(
     Entities $customer,
     array $receipts = []
 ): void {
 
+    Log::info('KYT DEBUG RECEIPT SAMPLE', [
+    'first' => $receipts[0] ?? null
+]);
+
     if (empty($receipts)) return;
 
-    $grouped = collect($receipts)->groupBy('numero_apolice');
+    $grouped = collect($receipts)
+        ->map(fn($p) => (array) $p) // 🔥 FIX CRÍTICO
+        ->groupBy('numero_apolice');
 
     foreach ($grouped as $apolice => $payments) {
 
-        if ($payments->count() < 4) continue;
+        if ($payments->count() < 3) continue;
 
-        // 🔥 ordenar cronologicamente
         $payments = $payments->sortBy('data_pagamento')->values();
 
+        $beneficiaries = [];
         $changes = 0;
-        $previous = null;
-        $uniqueBeneficiaries = [];
+        $prev = null;
 
         foreach ($payments as $p) {
 
@@ -359,23 +363,20 @@ class CustomerKYTService
                 ($p['nome_pagador'] ?? '')
             );
 
-            $uniqueBeneficiaries[$current] = true;
+            $beneficiaries[$current] = true;
 
-            // 🔥 conta mudança REAL (transição)
-            if ($previous !== null && $previous !== $current) {
+            if ($prev !== null && $prev !== $current) {
                 $changes++;
             }
 
-            $previous = $current;
+            $prev = $current;
         }
 
-        $uniqueCount = count($uniqueBeneficiaries);
+        $uniqueCount = count($beneficiaries);
 
-        // 🚨 REGRA KYT CORRETA
-        if ($changes < 3) continue;          // 3–4 mudanças reais
-        if ($uniqueCount < 3) continue;      // diversidade mínima
+        if ($changes < 3) continue;
+        if ($uniqueCount < 3) continue;
 
-        // 📅 janela temporal
         $dates = $payments->map(fn($p) => $this->safeDate($p['data_pagamento']))
             ->filter();
 
@@ -386,41 +387,17 @@ class CustomerKYTService
 
         if ($min->diffInDays($max) > 365) continue;
 
-        // 🔥 SCORE KYT
-        $score = 20;
-
-        if ($changes >= 4) $score += 5;
-        if ($uniqueCount >= 4) $score += 5;
-
-        $description = "
-Alterações frequentes de beneficiários
-
-Apólice: {$apolice}
-Cliente: {$customer->customer_number}
-
-Resumo:
-- Mudanças de beneficiário: {$changes}
-- Beneficiários únicos: {$uniqueCount}
-- Transações: {$payments->count()}
-- Período: {$min->format('Y-m-d')} → {$max->format('Y-m-d')}
-
-Interpretação AML:
-Alterações repetidas de beneficiários/pagadores ao longo do tempo,
-indicando possível layering e redirecionamento de fundos.
-
-Regra GAFI (2018): mudanças frequentes sem justificação aparente em fase de movimentação.
-";
+        $score = 20 + ($changes >= 4 ? 5 : 0);
 
         $this->createAlert(
             $customer,
-            'Alterações frequentes de beneficiários',
-            $description,
+            'KYT_FREQUENT_BENEFICIARY_CHANGES',
+            "Apólice {$apolice} | mudanças {$changes} | beneficiários {$uniqueCount}",
             'Alto',
             $score
         );
     }
 }
-
     /* =========================
        ALERT
     ========================== */
