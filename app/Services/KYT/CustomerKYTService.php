@@ -110,14 +110,15 @@ class CustomerKYTService
 
                 $b = (array) $b;
 
-                return [
-                    'numero_apolice' => trim((string)($b['numero_apolice'] ?? '')),
-                    'descricao_produto' => strtoupper(trim($b['descricao_produto'] ?? 'UNKNOWN')),
-                    'codigo_beneficiario' => trim((string)($b['codigo_beneficiario'] ?? '')),
-                    'nome_beneficiario' => strtoupper(trim($b['nome_beneficiario'] ?? '')),
-                    'tipo_beneficiario' => strtoupper(trim($b['tipo_beneficiario'] ?? '')),
-                    'data' => $b['data_atualizacao_beneficiario'] ?? null,
-                ];
+              return [
+    'numero_apolice' => trim((string)($b['numero_apolice'] ?? '')),
+    'descricao_produto' => strtoupper(trim($b['descricao_produto'] ?? 'UNKNOWN')),
+    'codigo_beneficiario' => trim((string)($b['codigo_beneficiario'] ?? '')),
+    'nome_beneficiario' => strtoupper(trim($b['nome_beneficiario'] ?? '')),
+    'tipo_beneficiario' => strtoupper(trim($b['tipo_beneficiario'] ?? '')),
+    'percentagem_atribuida' => (float)($b['percentagem_atribuida'] ?? 0),
+    'data' => $b['data_atualizacao_beneficiario'] ?? null,
+];
             })
             ->filter(fn($b) => $b['numero_apolice'] !== '')
             ->values();
