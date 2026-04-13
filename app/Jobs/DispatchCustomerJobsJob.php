@@ -94,6 +94,12 @@ class DispatchCustomerJobsJob implements ShouldQueue
                             ->get()
                             ->toArray();
 
+        $beneficiaries = DB::table('beneficiarios_staging')
+                            ->whereIn('numero_apolice', $policyNumbers)
+                            ->limit(1500)
+                            ->get()
+                            ->toArray();
+                            
                         /**
                          * 🚀 DISPATCH
                          */
@@ -102,7 +108,8 @@ class DispatchCustomerJobsJob implements ShouldQueue
                             $policiesArray,
                             $changes,
                             $refunds,
-                            $receipts
+                            $receipts,   
+                             $beneficiaries
                         )->onQueue('cliente');
 
                         unset($policiesRaw, $receipts, $changes, $refunds, $policyNumbers);

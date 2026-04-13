@@ -50,7 +50,10 @@ class CustomerKYTService
         array $policies,
         array $changes = [],
         array $refunds = [],
-        array $receipts = []
+        array $receipts = [],
+        array $beneficiaries = []
+
+
     ): void {
 
         Log::info("KYT START", [
@@ -187,26 +190,23 @@ class CustomerKYTService
                 ->take(5) // evita texto gigante
                 ->implode(', ');
             // 🔥 DESCRIÇÃO MELHORADA
-        $description = "
-KYT ALERT - ALTERAÇÕES FREQUENTES DE PAGADOR
+            $description = "
 
-══════════════════════════════
 IDENTIFICAÇÃO
-══════════════════════════════
+
 Cliente: {$customer->customer_number}
 Apólice: {$apolice}
 Total de Transações: {$payments->count()}
 
-══════════════════════════════
 ANÁLISE FINANCEIRA
-══════════════════════════════
+
 Valor total pago: " . number_format($totalPago, 2, ',', '.') . "
 Valor total estornado: " . number_format($totalEstornado, 2, ',', '.') . "
 Saldo líquido: " . number_format($saldo, 2, ',', '.') . "
 
-══════════════════════════════
+
 ANÁLISE COMPORTAMENTAL
-══════════════════════════════
+
 Pagadores distintos: {$uniqueCount}
 Mudanças detectadas: {$changes}
 Principais pagadores: {$payersList}
@@ -214,9 +214,9 @@ Principais pagadores: {$payersList}
 Período analisado: {$min->format('Y-m-d')} até {$max->format('Y-m-d')}
 Duração: {$days} dias
 
-══════════════════════════════
+
 PADRÃO DETECTADO
-══════════════════════════════
+
 Foi identificado um padrão de múltiplos pagadores associados à mesma apólice, com alterações recorrentes ao longo do tempo.
 
 Este comportamento pode indicar:
@@ -225,19 +225,6 @@ Este comportamento pode indicar:
 - Fragmentação de valores para evitar controlo
 - Possível ocultação do beneficiário final (UBO)
 
-══════════════════════════════
-AVALIAÇÃO DE RISCO AML
-══════════════════════════════
-A alternância de pagadores, combinada com movimentação financeira relevante, constitui um indicador típico de risco em processos de monitorização KYT.
-
-Referência: GAFI/FATF (2018) - Risk-Based Approach Guidance
-
-══════════════════════════════
-CLASSIFICAÇÃO
-══════════════════════════════
-Score KYT: {$score}
-Nível de Risco: Alto
-Tipo de Evento: Alterações Frequentes de Pagador
 ";
 
             $this->createAlert(
