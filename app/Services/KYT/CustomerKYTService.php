@@ -228,23 +228,42 @@ class CustomerKYTService
                 'produto' => $produto,
                 'score' => $score
             ]);
+$beneficiaryList = collect($records)
+    ->map(function ($r) {
+        return "- Nome: {$r['nome_beneficiario']}
+  Tipo: {$r['tipo_beneficiario']}
+  ID Beneficiário: {$r['codigo_beneficiario']}
+  Apólice: {$r['numero_apolice']}
+  Percentagem: {$r['percentagem_atribuida']}%";
+    })
+    ->implode("\n\n");
 
-            $description = "
-KYT_FREQUENT_BENEFICIARY_CHANGES
+$apolicesUnicas = $records->pluck('numero_apolice')->unique()->implode(', ');
 
-Produto: {$produto}
+$description = "
+KYT - ALTERAÇÃO FREQUENTE DE BENEFICIÁRIOS
+
 Cliente: {$customer->customer_number}
+Produto: {$produto}
+Apólices envolvidas: {$apolicesUnicas}
 
-Resumo:
+📊 RESUMO DO RISCO:
 - Beneficiários distintos: {$unique}
-- Alterações: {$changes}
-- Período: {$min->format('Y-m-d')} até {$max->format('Y-m-d')}
+- Número de alterações: {$changes}
+- Período analisado: {$min->format('Y-m-d')} → {$max->format('Y-m-d')}
 - Duração: {$days} dias
 
-Risco:
-Alterações frequentes de beneficiários indicam possível tentativa de ocultação de beneficiário final (UBO).
+👥 BENEFICIÁRIOS IDENTIFICADOS:
+{$beneficiaryList}
 
-Referência GAFI 2018.
+⚠️ ANÁLISE DE RISCO:
+Foi identificado um padrão de alterações de beneficiários dentro do mesmo produto/apólice.
+Este comportamento pode indicar redistribuição frequente de capital segurado ou tentativa de ocultação de beneficiário final (UBO).
+
+📌 RECOMENDAÇÃO:
+Solicitar validação documental das alterações e justificar a relação entre os beneficiários e o segurado.
+
+Referência: GAFI 2018 - Beneficial Ownership Risk Indicators
 ";
 
             $this->createAlert(
