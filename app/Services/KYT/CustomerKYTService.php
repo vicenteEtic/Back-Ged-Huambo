@@ -228,6 +228,13 @@ class CustomerKYTService
                 'produto' => $produto,
                 'score' => $score
             ]);
+            $apolicesDetalhadas = $records
+    ->groupBy('numero_apolice')
+    ->map(function ($items, $apolice) {
+        return "- Apólice: {$apolice} | Registos: " . $items->count();
+    })
+    ->implode("\n");
+
 $beneficiaryList = collect($records)
     ->map(function ($r) {
         return "- Nome: {$r['nome_beneficiario']}
@@ -238,16 +245,22 @@ $beneficiaryList = collect($records)
     })
     ->implode("\n\n");
 
-$apolicesUnicas = $records->pluck('numero_apolice')->unique()->implode(', ');
+$apolicesUnicas = $records
+    ->pluck('numero_apolice')
+    ->unique()
+    ->implode(', ');
 
 $description = "
 KYT - ALTERAÇÃO FREQUENTE DE BENEFICIÁRIOS
 
 Cliente: {$customer->customer_number}
 Produto: {$produto}
-Apólices envolvidas: {$apolicesUnicas}
 
-📊 RESUMO DO RISCO:
+📌 APÓLICES ENVOLVIDAS:
+{$apolicesDetalhadas}
+
+📊 RESUMO GLOBAL:
+- Apólices afetadas: {$apolicesUnicas}
 - Beneficiários distintos: {$unique}
 - Número de alterações: {$changes}
 - Período analisado: {$min->format('Y-m-d')} → {$max->format('Y-m-d')}
@@ -257,11 +270,11 @@ Apólices envolvidas: {$apolicesUnicas}
 {$beneficiaryList}
 
 ⚠️ ANÁLISE DE RISCO:
-Foi identificado um padrão de alterações de beneficiários dentro do mesmo produto/apólice.
-Este comportamento pode indicar redistribuição frequente de capital segurado ou tentativa de ocultação de beneficiário final (UBO).
+Foi identificado um padrão de alterações de beneficiários distribuído por múltiplas apólices do mesmo produto.
+Este comportamento pode indicar reorganização de beneficiários ou tentativa de diluição de beneficiário final (UBO).
 
 📌 RECOMENDAÇÃO:
-Solicitar validação documental das alterações e justificar a relação entre os beneficiários e o segurado.
+Validar consistência das alterações entre apólices e solicitar suporte documental para justificar mudanças recorrentes.
 
 Referência: GAFI 2018 - Beneficial Ownership Risk Indicators
 ";
