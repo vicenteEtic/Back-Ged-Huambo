@@ -30,23 +30,10 @@ class CustomerKYTService
 
         $risk = RiskAssessment::where('entity_id', $customer->id)->latest()->first();
 
-        if (!$risk) {
-            $data = [
-                'risk_id' => null,
-                'alert_priority' => false,
-                'valid' => false
-            ];
-
-            Cache::put($cacheKey, $data, now()->addHours(20));
-            return $data;
-        }
-
-        $isHighRisk = in_array($risk->diligence, ["Cliente Inaceitável", "Reforçada"]);
-
         $data = [
-            'risk_id' => $risk->id,
-            'alert_priority' => $isHighRisk,
-            'valid' => !$isHighRisk
+            'risk_id' => $risk->id ?? null,
+            'alert_priority' => $risk ? in_array($risk->diligence, ["Cliente Inaceitável", "Reforçada"]) : false,
+            'valid' => $risk ? false : true,
         ];
 
         Cache::put($cacheKey, $data, now()->addHours(20));
@@ -67,6 +54,9 @@ class CustomerKYTService
     ): void {
 
         $policies = $this->normalizePolicies($policies);
+        $receipts = $this->normalizeArray($receipts);
+        $changes  = $this->normalizeArray($changes);
+        $refunds  = $this->normalizeArray($refunds);
 
         Log::info("KYT START", [
             'customer' => $customer->customer_number,
@@ -75,14 +65,6 @@ class CustomerKYTService
 
         if (empty($policies)) return;
 
-        //   $this->checkHighCapitalIncrease($customer, $changes);
-        //   $this->checkEarlyRedemption($customer, $policies, $refunds);
-        //   $this->checkHighPremium($customer, $policies);
-        //   $this->checkMultipleShortPolicies($customer, $policies);
-        //  $this->checkPolicyChurning($customer, $policies);
-        //  $this->checkRapidReplacement($customer, $policies);
-        //   $this->checkThirdPartyPayments($customer, $policies);
-        // $this->checkOverpaymentRefund($customer, $policies, $receipts, $refunds);
         $this->checkFrequentBeneficiaryChanges($customer, $receipts);
 
         Log::info("KYT FINISHED", [
@@ -91,25 +73,32 @@ class CustomerKYTService
     }
 
     /* =========================
-       NORMALIZATION
+       NORMALIZERS (ANTI CRASH CORE)
     ========================== */
+
+    private function normalizeArray(array $data): array
+    {
+        return array_values(array_filter(array_map(function ($item) {
+            return is_array($item) ? $item : (array) $item;
+        }, $data)));
+    }
 
     private function normalizePolicies(array $policies): array
     {
-        return array_map(function ($p) {
+        return $this->normalizeArray(array_map(function ($p) {
+
+            $p = (array) $p;
+
             return [
                 'numero_apolice' => $p['Numero_Apolice'] ?? $p['numero_apolice'] ?? null,
-                'descricao_produto' => strtoupper(trim($p['Descricao_Produto'] ?? '')),
                 'estado_apolice' => $this->normalizeStatus($p['Estado_Apolice'] ?? null),
-                'TOMADOR' => $this->normalizeStatus($p['TOMADOR'] ?? null),
                 'data_inicio' => $this->parseDate($p['Data_Inicio'] ?? null),
                 'data_fim' => $this->parseDate($p['Data_Fim'] ?? null),
-                'data_anulacao' => $p['Data_Anulacao'] ?? null,
-                'capital' => (float)($p['Capital'] ?? 0),
-                'premium_total' => (float)($p['Premio_Total'] ?? 0),
-                'interest' => (float)($p['Juros'] ?? 0),
+                'capital' => (float) ($p['Capital'] ?? 0),
+                'premium_total' => (float) ($p['Premio_Total'] ?? 0),
             ];
-        }, $policies);
+
+        }, $policies));
     }
 
     private function normalizeStatus(?string $status): string
@@ -133,7 +122,7 @@ class CustomerKYTService
         }
     }
 
-    private function safeDate($date)
+    private function safeDate($date): ?Carbon
     {
         try {
             if (!$date) return null;
@@ -143,279 +132,93 @@ class CustomerKYTService
         }
     }
 
-    private function formatMoney($value): string
-    {
-        return number_format((float)$value, 2, '.', ' ');
-    }
-
     /* =========================
-       RULES
+       KYT RULE
     ========================== */
 
-    private function checkHighCapitalIncrease(Entities $customer, array $changes): void
-    {
-        foreach ($changes as $change) {
-
-            $old = (float)($change->valor_anterior ?? 0);
-            $new = (float)($change->novo_valor ?? 0);
-
-            if ($old <= 0) continue;
-
-            $increase = ($new - $old) / $old;
-
-            if ($increase < 0.30) continue;
-
-            $this->createAlert(
-                $customer,
-                "Aumento de capital elevado",
-                "Apólice {$change->numero_apolice} aumento de " . ($increase * 100) . "%",
-                "Alto",
-                20
-            );
-        }
-    }
-
-    private function checkEarlyRedemption(Entities $customer, array $policies, array $refunds = []): void
-    {
-        foreach ($policies as $p) {
-
-            if (!in_array($p['estado_apolice'], ['cancelled', 'terminated'])) continue;
-
-            $start = $this->safeDate($p['data_inicio']);
-            $end = $this->safeDate($p['data_fim'] ?? $p['data_anulacao']);
-
-            if (!$start || !$end) continue;
-
-            $days = $start->diffInDays($end);
-
-            if ($days <= 0 || $days >= 365) continue;
-
-            $paid = (float)$p['premium_total'];
-
-            if ($paid <= 0) continue;
-
-            $this->createAlert(
-                $customer,
-                "Resgate antecipado",
-                "Apólice {$p['numero_apolice']} resgatada em {$days} dias",
-                "Alto",
-                20
-            );
-        }
-    }
-
-    private function checkHighPremium(Entities $customer, array $policies): void
-    {
-        foreach ($policies as $p) {
-
-            if ($p['capital'] <= 0 || $p['premium_total'] <= 0) continue;
-
-            $ratio = $p['premium_total'] / $p['capital'];
-
-            if ($ratio < 0.08) continue;
-
-            $this->createAlert(
-                $customer,
-                "Prémio elevado",
-                "Apólice {$p['numero_apolice']} ratio {$ratio}",
-                "Alto",
-                25
-            );
-        }
-    }
-
-    private function checkMultipleShortPolicies(Entities $customer, array $policies): void
-    {
-        $valid = [];
-
-        foreach ($policies as $p) {
-            $start = $this->safeDate($p['data_inicio']);
-            $end = $this->safeDate($p['data_fim']);
-
-            if (!$start || !$end) continue;
-
-            if ($start->diffInDays($end) >= 90 && $start->diffInDays($end) <= 180) {
-                $valid[] = $p;
-            }
-        }
-
-        if (count($valid) < 3) return;
-
-        $this->createAlert(
-            $customer,
-            "Múltiplas apólices curtas",
-            "Detectado padrão de fragmentação",
-            "Médio",
-            15
-        );
-    }
-
-    private function checkPolicyChurning(Entities $customer, array $policies): void
-    {
-        $count = 0;
-
-        foreach ($policies as $p) {
-            if (in_array($p['estado_apolice'], ['cancelled', 'terminated'])) {
-                $count++;
-            }
-        }
-
-        if ($count < 3) return;
-
-        $this->createAlert(
-            $customer,
-            "Churn de apólices",
-            "Cancelamentos frequentes detectados",
-            "Médio",
-            20
-        );
-    }
-
-    private function checkRapidReplacement(Entities $customer, array $policies): void
-    {
-        if (count($policies) < 3) return;
-
-        $this->createAlert(
-            $customer,
-            "Substituição rápida",
-            "Possível troca rápida de apólices",
-            "Alto",
-            15
-        );
-    }
-
-    private function checkThirdPartyPayments(Entities $customer, array $policies): void
-    {
-        foreach ($policies as $p) {
-            if (($p['premium_total'] ?? 0) > 100000) {
-                $this->createAlert(
-                    $customer,
-                    "Pagamento terceiro",
-                    "Pagamento elevado detectado",
-                    "Alto",
-                    25
-                );
-            }
-        }
-    }
-
-    private function checkOverpaymentRefund(
+    private function checkFrequentBeneficiaryChanges(
         Entities $customer,
-        array $policies,
-        array $receipts = [],
-        array $refunds = []
+        array $receipts = []
     ): void {
 
-        foreach ($receipts as $r) {
+        if (empty($receipts)) return;
 
-            $paid = (float)($r['Valor_Pago'] ?? 0);
-            if ($paid <= 0) continue;
+        Log::info('KYT DEBUG RECEIPT SAMPLE', [
+            'first' => $receipts[0] ?? null
+        ]);
 
-            $policy = collect($policies)
-                ->firstWhere('numero_apolice', $r['Numero_Apolice'] ?? null);
+        $grouped = collect($this->normalizeArray($receipts))
+            ->groupBy('numero_apolice');
 
-            if (!$policy) continue;
+        foreach ($grouped as $apolice => $payments) {
 
-            $expected = (float)($policy['premium_total'] ?? 0);
-            if ($expected <= 0) continue;
+            if (!$apolice || $payments->count() < 3) continue;
 
-            if (($paid / $expected) < 1.5) continue;
+            $payments = $payments
+                ->map(function ($p) {
+                    $p['parsed_date'] = $this->safeDate($p['data_pagamento'] ?? null);
+                    return $p;
+                })
+                ->filter(fn($p) => $p['parsed_date'] !== null)
+                ->sortBy('parsed_date')
+                ->values();
+
+            if ($payments->count() < 3) continue;
+
+            $beneficiaries = [];
+            $changes = 0;
+            $prev = null;
+
+            foreach ($payments as $p) {
+
+                $current = trim(
+                    ($p['nif_pagador'] ?? '') . '|' .
+                    ($p['nome_pagador'] ?? '')
+                );
+
+                if ($current === '|') continue;
+
+                $beneficiaries[$current] = true;
+
+                if ($prev !== null && $prev !== $current) {
+                    $changes++;
+                }
+
+                $prev = $current;
+            }
+
+            $uniqueCount = count($beneficiaries);
+
+            if ($uniqueCount < 3) continue;
+            if ($changes < 2) continue;
+
+            $dates = $payments->pluck('parsed_date');
+
+            $min = $dates->first();
+            $max = $dates->last();
+
+            if (!$min || !$max) continue;
+
+            if ($min->diffInDays($max) > 365) continue;
+
+            $score = 20;
+
+            if ($uniqueCount >= 4) $score += 5;
+            if ($changes >= 3) $score += 5;
+            if ($changes >= 5) $score += 10;
 
             $this->createAlert(
                 $customer,
-                "Sobrepagamento com reembolso",
-                "Apólice {$policy['numero_apolice']}",
-                "Alto",
-                20
+                'KYT_FREQUENT_BENEFICIARY_CHANGES',
+                "Apólice {$apolice} | mudanças {$changes} | beneficiários {$uniqueCount}",
+                'Alto',
+                $score
             );
         }
     }
-private function checkFrequentBeneficiaryChanges(
-    Entities $customer,
-    array $receipts = []
-): void {
 
-    Log::info('KYT DEBUG RECEIPT SAMPLE', [
-        'first' => $receipts[0] ?? null
-    ]);
-
-    if (empty($receipts)) return;
-
-    $grouped = collect($receipts)
-        ->map(fn($p) => (array) $p)
-        ->groupBy('numero_apolice');
-
-    foreach ($grouped as $apolice => $payments) {
-
-        if (!$apolice || $payments->count() < 3) continue;
-
-        // 🔥 ordenar corretamente
-        $payments = $payments
-            ->sortBy(function ($p) {
-                return $this->safeDate($p['data_pagamento']);
-            })
-            ->values();
-
-        $beneficiaries = [];
-        $changes = 0;
-        $prev = null;
-
-        foreach ($payments as $p) {
-
-            $current = trim(
-                ($p['nif_pagador'] ?? '') . '|' .
-                ($p['nome_pagador'] ?? '')
-            );
-
-            if ($current === '|') continue;
-
-            $beneficiaries[$current] = true;
-
-            if ($prev !== null && $prev !== $current) {
-                $changes++;
-            }
-
-            $prev = $current;
-        }
-
-        $uniqueCount = count($beneficiaries);
-
-        // 🔥 regra mínima KYT (ajustada realista)
-        if ($uniqueCount < 3) continue;
-        if ($changes < 2) continue;
-
-        // 📅 janela temporal correta
-        $dates = $payments->map(fn($p) => $this->safeDate($p['data_pagamento']))
-            ->filter();
-
-        if ($dates->isEmpty()) continue;
-
-        $min = $dates->sort()->first();
-        $max = $dates->sort()->last();
-
-        if (!$min || !$max) continue;
-
-        if ($min->diffInDays($max) > 365) continue;
-
-        // 🔥 SCORE KYT realista
-        $score = 20;
-
-        if ($uniqueCount >= 4) $score += 5;
-        if ($changes >= 3) $score += 5;
-        if ($changes >= 5) $score += 10;
-
-        // 📊 ALERTA KYT
-        $this->createAlert(
-            $customer,
-            'Alterações frequentes de beneficiários',
-            "Apólice {$apolice} | mudanças {$changes} | beneficiários {$uniqueCount} | transações {$payments->count()}",
-            'Alto',
-            $score
-        );
-    }
-}
     /* =========================
-       ALERT
+       ALERT SYSTEM
     ========================== */
 
     private function createAlert(
@@ -445,7 +248,8 @@ private function checkFrequentBeneficiaryChanges(
         );
 
         if ($alert->wasRecentlyCreated || $alert->wasChanged()) {
-            SendGrupoAlertEmailJob::dispatch($alert->id, config('app.url'))->onQueue('high');
+            SendGrupoAlertEmailJob::dispatch($alert->id, config('app.url'))
+                ->onQueue('high');
 
             Log::warning("ALERT {$type}", [
                 'customer' => $customer->customer_number
