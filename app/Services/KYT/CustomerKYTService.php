@@ -74,7 +74,10 @@ class CustomerKYTService
         $this->checkHighCapitalIncrease($customer, $changes);
 
         //2. KYT_EARLY_REDEMPTION
-        $this->checkEarlyRedemption($customer, $policies, $refunds);
+        $this->checkEarlyRedemption( $customer,
+        $policies,
+        $receipts ,
+        $refunds );
 
         //3. KYT_HIGH_PREMIUM_LOW_RISK
         $this->checkHighPremium($customer, $policies);
@@ -757,77 +760,83 @@ class CustomerKYTService
         }
     }
 
-    private function checkEarlyRedemption(Entities $customer, array $policies, array $refunds = []): void
-    {
+    private function checkEarlyRedemption(
+        Entities $customer,
+        array $policies,
+        array $receipts = [],
+        array $refunds = []
+    ): void {
+    
         foreach ($policies as $p) {
     
-            $estado = $this->get($p, 'estado_apolice');
+            $estado = strtolower(trim($this->get($p, 'estado_apolice')));
+            if (!in_array($estado, ['cancelled', 'terminated'])) continue;
     
-            if (!in_array($estado, ['cancelled', 'terminated'])) {
-                continue;
-            }
+            $inicio = $this->safeDate($this->get($p, 'data_inicio'));
+            $fim = $this->safeDate($this->get($p, 'data_anulacao') ?? $this->get($p, 'data_fim'));
     
-            // 🔒 Datas
-            $dataInicio = $this->parseDate($this->get($p, 'data_inicio'));
-            $dataCancelamentoRaw = $this->get($p, 'data_anulacao') ?? $this->get($p, 'data_fim');
-    
-            if ($dataCancelamentoRaw === '1900-01-01 00:00:00') {
-                $dataCancelamentoRaw = null;
-            }
-    
-            $dataCancelamento = $this->parseDate($dataCancelamentoRaw);
-    
-            if (!$dataInicio || !$dataCancelamento) continue;
-    
-            try {
-                $inicio = Carbon::parse($dataInicio);
-                $fim = Carbon::parse($dataCancelamento);
-            } catch (\Exception $e) {
-                continue;
-            }
-    
-            if ($fim->lt($inicio)) continue;
+            if (!$inicio || !$fim) continue;
     
             $dias = $inicio->diffInDays($fim);
+            if ($dias <= 0 || $dias > 365) continue;
     
-            if ($dias >= 365 || $dias <= 0) continue;
+            $apolice = $this->get($p, 'numero_apolice');
     
-            $valorPago = (float)($this->get($p, 'premium_total')
-                ?: $this->get($p, 'premio_simples', 0)
-            );
+            /* =========================
+               💰 ENTRADAS (RECIBOS)
+            ========================== */
     
-            if ($valorPago <= 0) continue;
+            $totalPago = array_sum(array_map(
+                fn($r) =>
+                    ($r['numero_apolice'] ?? null) === $apolice
+                        ? (float)($r['valor_pago'] ?? 0)
+                        : 0,
+                $receipts
+            ));
     
-            $valorRecebido = 0;
-            $perda = $valorPago - $valorRecebido;
+            /* =========================
+               💸 SAÍDAS (ESTORNOS)
+            ========================== */
+    
+            $totalEstorno = array_sum(array_map(
+                fn($r) =>
+                    ($r['n_apolice'] ?? null) === $apolice
+                        ? (float)($r['valor_total'] ?? 0)
+                        : 0,
+                $refunds
+            ));
+    
+            if ($totalPago <= 0) continue;
+    
+            $perda = $totalPago - $totalEstorno;
     
             if ($perda <= 0) continue;
     
-            $percentualPerda = $perda / $valorPago;
+            $percentualPerda = $perda / $totalPago;
     
             if ($percentualPerda < 0.10) continue;
     
-            $produto = strtoupper($this->get($p, 'descricao_produto', ''));
-    
-            $isProdutoSensivel =
-                str_contains($produto, 'VIDA') ||
-                str_contains($produto, 'POUP');
-    
             $score = 20;
     
-            if ($percentualPerda >= 0.20) $score += 5;
-            if ($dias < 180) $score += 5;
-            if ($isProdutoSensivel) $score += 5;
+            if ($percentualPerda >= 0.20) $score += 10;
+            if ($dias <= 180) $score += 10;
     
-            $description = sprintf(
-                "KYT EARLY REDEMPTION\nProduto: %s | Apólice: %s\nDuração: %d dias\nPerda: %s (%.2f%%)\nMotivo: %s",
-                $produto,
-                $this->get($p, 'numero_apolice'),
-                $dias,
-                $this->formatMoney($perda),
-                $percentualPerda * 100,
-                $this->get($p, 'motivo_anulacao', 'N/A')
-            );
+            $description =
+    "
+    
+    Cliente: {$customer->customer_number}
+    Apólice: {$apolice}
+    
+     Fluxo financeiro:
+    - Pago: " . $this->formatMoney($totalPago) . "
+    - Estorno: " . $this->formatMoney($totalEstorno) . "
+    - Perda: " . $this->formatMoney($perda) . "
+    - Percentual: " . round($percentualPerda * 100, 2) . "%
+    - Duração: {$dias} dias
+    
+    AML:
+    Resgate antecipado com perda financeira aceite,
+    compatível com layering de fundos e ausência de racional económico.";
     
             $this->createAlert(
                 $customer,
