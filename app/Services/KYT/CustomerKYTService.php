@@ -427,56 +427,66 @@ class CustomerKYTService
     }
     private function checkPolicyChurning(Entities $customer, array $policies): void
     {
-        // 🔹 filtrar cancelamentos válidos (últimos 12 meses)
         $terminated = array_filter($policies, function ($p) {
-            if (!in_array($p['estado_apolice'], ['cancelled', 'terminated'])) {
+    
+            $estado = strtolower(trim($p['estado_apolice'] ?? ''));
+    
+            if (!in_array($estado, ['cancelled', 'terminated'])) {
                 return false;
             }
-
-            if (!$p['data_fim']) return false;
-
-            return Carbon::parse($p['data_fim'])->gte(now()->subYear());
+    
+            $dataFim = $this->safeDate($p['data_fim'] ?? null);
+            if (!$dataFim) return false;
+    
+            return $dataFim->gte(now()->subYear());
         });
-
+    
         if (count($terminated) < 3) return;
-
-        // 🔹 ordenar por data de cancelamento
-        usort(
-            $terminated,
-            fn($a, $b) =>
-            strtotime($a['data_fim']) - strtotime($b['data_fim'])
-        );
-
+    
+        usort($terminated, function ($a, $b) {
+            return strtotime($a['data_fim'] ?? '1970-01-01')
+                <=> strtotime($b['data_fim'] ?? '1970-01-01');
+        });
+    
         $clusters = 0;
-
-        // 🔹 detectar frequência (ex: cancelamentos próximos)
+    
         for ($i = 1; $i < count($terminated); $i++) {
+    
             $gap = $this->safeDays(
-                $terminated[$i - 1]['data_fim'],
-                $terminated[$i]['data_fim']
+                $terminated[$i - 1]['data_fim'] ?? null,
+                $terminated[$i]['data_fim'] ?? null
             );
-
-            if ($gap !== null && $gap <= 60) {
+    
+            if ($gap !== null && (int)$gap <= 60) {
                 $clusters++;
             }
         }
-
-        // 🔥 regra AML: frequência relevante
-        if ($clusters < 2) return;
-
-        // 🔹 limitar a 20 para auditoria
+    
+        if ($clusters === 0 && count($terminated) < 5) return;
+    
         $latest = array_slice($terminated, -20);
-
+    
         $apolices = array_column($latest, 'numero_apolice');
-
-        $description = sprintf(
-            "Cliente: %s | Cancelamentos frequentes detectados: %s | Total: %d | Clusters (<=60 dias): %d",
-            $customer->customer_number,
-            implode(', ', $apolices),
-            count($terminated),
-            $clusters
-        );
-
+    
+        $description =
+            "🚨 KYT POLICY CHURNING
+    
+    Cliente: {$customer->customer_number}
+    
+    📊 Análise:
+    - Cancelamentos (12 meses): " . count($terminated) . "
+    - Clusters (≤60 dias): {$clusters}
+    
+    📄 Apólices:
+    " . implode(', ', $apolices) . "
+    
+    ⚠️ AML INTERPRETAÇÃO:
+    Padrão de cancelamentos repetidos em curto espaço de tempo,
+    indicando possível:
+    - reestruturação artificial de contratos
+    - tentativa de ocultação de exposição financeira
+    - comportamento compatível com layering";
+    
         $this->createAlert(
             $customer,
             'Trocas Frequentes de Apólices',
