@@ -1243,6 +1243,19 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
 
         return strtoupper(trim($country));
     }
+    private function parseDate(?string $date): ?string
+    {
+        if (!$date) return null;
+        $invalid = ['ANULADA', 'TERMINADA', 'INACTIVOS', 'NORMAL', ''];
+        if (in_array(strtoupper(trim($date)), $invalid)) return null;
+
+        try {
+            $dt = preg_replace('/\.\d+$/', '', $date);
+            return Carbon::parse($dt)->format('Y-m-d H:i:s');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
 
     private function createAlert(
         Entities $customer,
