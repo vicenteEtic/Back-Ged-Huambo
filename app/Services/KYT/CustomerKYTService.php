@@ -654,54 +654,104 @@ class CustomerKYTService
     }
     private function checkHighCapitalIncrease(Entities $customer, array $changes): void
     {
+        Log::info('🚀 KYT CAPITAL CHANGE START', [
+            'customer' => $customer->customer_number,
+            'count' => count($changes)
+        ]);
+    
         foreach ($changes as $change) {
-
-            $tipo = strtoupper(trim($change->tipo_alteracao ?? ''));
-
-            // 🔥 Só capital (ajusta conforme teus dados)
-            if (!str_contains($tipo, 'ALTER')) continue;
-
-            $old = (float) $change->valor_anterior;
-            $new = (float) $change->novo_valor;
-
-            if ($old <= 0) continue;
-
+    
+            $change = (array) $change;
+    
+            $tipo = strtoupper(trim($change['tipo_alteracao'] ?? ''));
+    
+            $old = (float) ($change['valor_anterior'] ?? 0);
+            $new = (float) ($change['novo_valor'] ?? 0);
+    
+            if ($old <= 0 || $new <= 0) continue;
+    
             $increaseRate = ($new - $old) / $old;
-
-            // 🔥 REGRA AML
-            if ($increaseRate < 0.30) continue;
-
-            $motivo = strtolower(trim($change->motivo_alteracao ?? ''));
-
+            $increaseAbs = abs($new - $old);
+    
+            // 🔥 REGRAS AML MAIS INTELIGENTES
+            $isRelevantType =
+                str_contains($tipo, 'ALTER') ||
+                str_contains($tipo, 'ACTA') ||
+                str_contains($tipo, 'RENOVAÇÃO');
+    
+            if (!$isRelevantType) continue;
+    
+            // 🔥 NOVA LÓGICA: valor alto COMPENSA percentagem baixa
+            $isHighValueMove = $increaseAbs >= 1000000; // 1M+
+    
+            $isModerateIncrease = $increaseRate >= 0.10; // 10%
+    
+            if (!$isHighValueMove && !$isModerateIncrease) {
+                continue;
+            }
+    
+            $motivo = strtolower(trim($change['motivo_alteracao'] ?? 'não informado'));
+    
             $motivoValido = in_array($motivo, [
                 'herança',
                 'mudança de emprego',
-                'promoção'
+                'promoção',
+                'renovação automática'
             ]);
-
-            $score = 10;
-
-            if ($increaseRate >= 0.50) $score += 10;
+    
+            // 🔥 SCORE AML INTELIGENTE
+            $score = 15;
+    
+            if ($increaseRate >= 0.10) $score += 10;
+            if ($increaseRate >= 0.20) $score += 10;
+            if ($increaseAbs >= 5000000) $score += 10;
             if (!$motivoValido) $score += 10;
-
-            // 🔥 SE FOR > 80% → ALERTA FORTE
-            if ($increaseRate >= 0.80) $score += 10;
-
-            $description = sprintf(
-                "Apólice: %s | Tipo: %s | Capital: %s → %s | Aumento: %.2f%% | Motivo: %s",
-                $change->numero_apolice,
-                $tipo,
-                $this->formatMoney($old),
-                $this->formatMoney($new),
-                $increaseRate * 100,
-                $change->motivo_alteracao ?? 'Não informado'
-            );
-
+    
+            $riskLevel = match (true) {
+                $score >= 40 => 'Crítico',
+                $score >= 30 => 'Alto',
+                $score >= 20 => 'Médio',
+                default => 'Baixo'
+            };
+    
+            // 🔥 DESCRIÇÃO MELHORADA (nível auditoria bancária)
+            $description = "
+    KYT - VARIAÇÃO DE CAPITAL EM APÓLICE
+    
+    IDENTIFICAÇÃO
+    - Cliente: {$customer->customer_number}
+    - Apólice: " . ($change['numero_apolice'] ?? 'N/A') . "
+    - Tipo de alteração: {$tipo}
+    
+    MOVIMENTO FINANCEIRO
+    - Capital anterior: " . $this->formatMoney($old) . "
+    - Capital atual: " . $this->formatMoney($new) . "
+    - Variação absoluta: " . $this->formatMoney($increaseAbs) . "
+    - Variação percentual: " . round($increaseRate * 100, 2) . "%
+    
+    CLASSIFICAÇÃO AML
+    - Score de risco: {$score}
+    - Nível de risco: {$riskLevel}
+    - Motivo declarado: {$motivo}
+    
+    ANÁLISE DE RISCO
+    Foi identificado um movimento de capital relevante associado a alteração contratual.
+    Apesar de variação percentual moderada, o valor absoluto envolvido é significativo,
+    o que pode indicar:
+    
+    - Reestruturação de capital sem justificação económica clara
+    - Ajuste de exposição ao risco em curto prazo
+    - Possível tentativa de fragmentação ou otimização de cobertura
+    
+    CONCLUSÃO
+    Operação requer revisão reforçada no contexto de perfil do cliente e histórico de alterações.
+    ";
+    
             $this->createAlert(
                 $customer,
-                "Aumento elevado de capital na apólice",
+                "Alteração relevante de capital em apólice",
                 $description,
-                'Alto',
+                $riskLevel,
                 $score
             );
         }
