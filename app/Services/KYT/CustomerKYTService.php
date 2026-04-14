@@ -315,11 +315,14 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
     ): void {
     
         Log::info('🌍 KYT HIGH RISK GEOGRAPHY START', [
-            'customer' => $customer->customer_number
+            'customer' => $customer->customer_number,
+            'policies_count' => count($policies),
+            'receipts_count' => count($receipts),
+            'beneficiaries_count' => count($beneficiaries)
         ]);
     
         /* =========================
-           NORMALIZAÇÃO GLOBAL 🔥
+           NORMALIZAÇÃO
         ========================== */
     
         $policies = collect($policies)->map(fn($p) => (array) $p);
@@ -327,22 +330,32 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
         $receipts = collect($receipts)->map(fn($r) => (array) $r);
     
         /* =========================
-           LISTA DE RISCO
+           LISTA DINÂMICA
         ========================== */
     
-        $highRiskCountries = [
-            'IRAN',
-            'KP', // Coreia do Norte (ISO)
-            'AFEGANISTAO',
-            'SY', // Síria
-            'MM'  // Myanmar
-        ];
+        $highRiskCountries = IndicatorType::where('indicator_id', 9)
+            ->where('score', '>=', 3)
+            ->pluck('description')
+            ->map(fn($c) => strtoupper(trim($c)))
+            ->toArray();
+    
+        Log::info('📌 HIGH RISK COUNTRIES LOADED', [
+            'count' => count($highRiskCountries),
+            'countries' => $highRiskCountries
+        ]);
     
         foreach ($policies as $policy) {
     
             $apolice = $policy['numero_apolice'] ?? null;
     
-            if (!$apolice) continue;
+            if (!$apolice) {
+                Log::warning('⚠️ POLICY WITHOUT APOLICE NUMBER', ['policy' => $policy]);
+                continue;
+            }
+    
+            Log::info('🔎 PROCESSING APOLICE', [
+                'apolice' => $apolice
+            ]);
     
             $countriesDetected = [];
     
@@ -350,8 +363,12 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
                BENEFICIÁRIOS
             ========================== */
     
-            $beneficiariosApolice = $beneficiaries
-                ->where('numero_apolice', $apolice);
+            $beneficiariosApolice = $beneficiaries->where('numero_apolice', $apolice);
+    
+            Log::info('👤 BENEFICIARIES FOUND', [
+                'apolice' => $apolice,
+                'count' => $beneficiariosApolice->count()
+            ]);
     
             foreach ($beneficiariosApolice as $b) {
     
@@ -359,6 +376,16 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
     
                 if ($pais) {
                     $countriesDetected[] = $pais;
+    
+                    Log::info('🌍 BENEFICIARY COUNTRY DETECTED', [
+                        'apolice' => $apolice,
+                        'country' => $pais
+                    ]);
+                } else {
+                    Log::warning('⚠️ BENEFICIARY WITHOUT COUNTRY', [
+                        'apolice' => $apolice,
+                        'data' => $b
+                    ]);
                 }
             }
     
@@ -366,68 +393,141 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
                RECIBOS
             ========================== */
     
-            $recibosApolice = $receipts
-                ->where('numero_apolice', $apolice);
+            $recibosApolice = $receipts->where('numero_apolice', $apolice);
+    
+            Log::info('💰 RECEIPTS FOUND', [
+                'apolice' => $apolice,
+                'count' => $recibosApolice->count()
+            ]);
     
             foreach ($recibosApolice as $r) {
     
-                // direto
                 $pais = $this->normalizeCountry($r['pais_iban_origem'] ?? null);
     
-                // fallback IBAN
                 if (!$pais && !empty($r['iban_origem'])) {
                     $pais = $this->extractCountryFromIBAN($r['iban_origem']);
+    
+                    Log::info('🏦 COUNTRY FROM IBAN', [
+                        'iban' => $r['iban_origem'],
+                        'country' => $pais
+                    ]);
                 }
     
                 if ($pais) {
                     $countriesDetected[] = $pais;
+    
+                    Log::info('💰 RECEIPT COUNTRY DETECTED', [
+                        'apolice' => $apolice,
+                        'country' => $pais
+                    ]);
+                } else {
+                    Log::warning('⚠️ RECEIPT WITHOUT COUNTRY', [
+                        'apolice' => $apolice,
+                        'data' => $r
+                    ]);
                 }
             }
     
+            /* =========================
+               RESULTADO DETECÇÃO
+            ========================== */
+    
             $countriesDetected = array_unique($countriesDetected);
     
-            if (empty($countriesDetected)) continue;
+            Log::info('📊 COUNTRIES DETECTED FINAL', [
+                'apolice' => $apolice,
+                'countries' => $countriesDetected
+            ]);
+    
+            if (empty($countriesDetected)) {
+                Log::warning('⛔ NO COUNTRIES DETECTED - SKIPPING', [
+                    'apolice' => $apolice
+                ]);
+                continue;
+            }
     
             /* =========================
-               DETECÇÃO
+               MATCH RISCO
             ========================== */
     
             $riskCountries = array_intersect($countriesDetected, $highRiskCountries);
     
-            if (empty($riskCountries)) continue;
+            Log::info('⚠️ RISK MATCH RESULT', [
+                'apolice' => $apolice,
+                'risk_countries' => $riskCountries
+            ]);
     
-            /* =========================
-               SCORE DINÂMICO
-            ========================== */
-    
-            $indicator = IndicatorType::where('description', 'like', '%pais%')->first();
-    
-            $score = 25;
-    
-            if ($indicator && $indicator->score >= 3) {
-                $score += 10;
+            if (empty($riskCountries)) {
+                Log::warning('⛔ NO HIGH RISK MATCH - NO ALERT GENERATED', [
+                    'apolice' => $apolice,
+                    'detected' => $countriesDetected,
+                    'risk_list' => $highRiskCountries
+                ]);
+                continue;
             }
     
             /* =========================
-               DESCRIÇÃO
+               SCORE
             ========================== */
     
+            $score = 25;
+    
+            Log::info('🚨 ALERT TRIGGERED', [
+                'apolice' => $apolice,
+                'score' => $score,
+                'risk_countries' => $riskCountries
+            ]);
+    
+            /* =========================
+               ALERTA
+            ========================== */
             $description = sprintf(
-                "KYT - HIGH RISK GEOGRAPHY\n\n" .
-                "Cliente: %s\n" .
-                "Apólice: %s\n\n" .
-                "🌍 Países detectados: %s\n" .
-                "⚠️ Países de risco: %s\n\n" .
-                "📊 Fonte:\n" .
-                "- Beneficiários e/ou pagamentos internacionais\n\n" .
-                "⚠️ Análise AML:\n" .
-                "Ligação a jurisdições de alto risco sem justificação aparente.\n" .
-                "Possível tentativa de integração de fundos via reembolsos internacionais.",
+                "KYT - HIGH RISK GEOGRAPHY (ANÁLISE AML/KYT)
+                
+                IDENTIFICAÇÃO DO CLIENTE
+                - Cliente: %s
+                - Apólice: %s
+                
+                EXPOSIÇÃO GEOGRÁFICA DETECTADA
+                - Países identificados nas operações: %s
+                - Países classificados como alto risco: %s
+                
+                FONTES DE DADOS
+                - Beneficiários da apólice (país de residência declarado)
+                - Fluxos financeiros (recibos e pagamentos)
+                - Origem de fundos via IBAN (quando aplicável)
+                
+                ANÁLISE DE RISCO
+                Foi identificado envolvimento direto ou indireto com jurisdições classificadas como de risco elevado, através de:
+                - Beneficiários associados a países sensíveis
+                - Movimentações financeiras com origem externa potencialmente não justificadas
+                - Incongruência entre perfil do cliente e exposição internacional
+                
+                INTERPRETAÇÃO AML
+                Este padrão pode indicar tentativa de:
+                - Estruturação de fundos através de jurisdições de baixo controlo regulatório
+                - Integração de capitais via reembolsos ou pagamentos internacionais
+                - Ocultação de beneficiário efetivo (UBO)
+                
+                REFERÊNCIAS REGULATÓRIAS
+                - GAFI/FATF: jurisdições de alto risco e não cooperantes
+                - ARSEG: transações internacionais sem racional económico claro como red flag
+                
+                CLASSIFICAÇÃO
+                - Tipologia: KYT_HIGH_RISK_GEOGRAPHY
+                - Severidade: ALTA
+                - Recomendação: Submissão para análise reforçada (EDD) e possível STR à UIF
+                
+                DETALHE OPERACIONAL
+                - Sistema: KYT Automated Monitoring Engine
+                - Data de análise: %s
+                ",
                 $customer->customer_number,
                 $apolice,
                 implode(', ', $countriesDetected),
-                implode(', ', $riskCountries)
-            );
+                implode(', ', $riskCountries),
+                now()->format('Y-m-d H:i:s')
+                );
     
             $this->createAlert(
                 $customer,
