@@ -26,63 +26,107 @@ class DispatchCustomerJobsJob implements ShouldQueue
             ->select('numero_cliente')
             ->distinct()
             ->orderBy('numero_cliente')
-            ->chunk(500, function ($clientes) {
+            ->chunk(200, function ($clientes) {
 
                 foreach ($clientes as $clienteRow) {
+
                     try {
                         $numero_cliente = $clienteRow->numero_cliente;
 
                         $entity = Entities::where('customer_number', $numero_cliente)->first();
                         if (!$entity) continue;
 
-                        // 🔹 POLICIES
+                        /**
+                         * 🔥 POLICIES (LIMIT + STREAM SAFE)
+                         */
                         $policiesRaw = DB::table('policies_staging')
                             ->where('numero_cliente', $numero_cliente)
+                            ->limit(2000)
                             ->get();
 
                         if ($policiesRaw->isEmpty()) continue;
 
-                        $policiesArray = $policiesRaw->map(fn($i) => (array)$i)->toArray();
+                        $policiesArray = $policiesRaw->toArray();
 
-                        // 🔹 POLICY NUMBERS
-                        $policyNumbers = array_column($policiesArray, 'Numero_Apolice');
+                        $policyNumbers = $policiesRaw
+                            ->pluck('numero_apolice')
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->all();
 
-                        // 🔹 REFUNDS
-                        $refundsRaw = DB::table('apol_anulada_estorno')
+                        if (empty($policyNumbers)) continue;
+
+                        /**
+                         * 🔥 RECEIPTS (PROTEGIDO)
+                         */
+                        $receipts = DB::table('recibos_cobrados')
+                            ->select([
+                                'numero_apolice',
+                                'data_pagamento',
+                                'valor_pago',
+                                'nome_pagador',
+                                'nif_pagador',
+                                'relacao_com_tomador',
+                                'indicador_pagamento_terceiro',
+                                'pais_iban_origem'
+                            ])
+                            ->whereIn('numero_apolice', $policyNumbers)
+                            ->limit(2000)
+                            ->get()
+                            ->toArray();
+
+                        /**
+                         * 🔥 CHANGES (LIMITADO)
+                         */
+                        $changes = DB::table('policy_changes_staging')
+                            ->whereIn('numero_apolice', $policyNumbers)
+                            ->limit(1500)
+                            ->get()
+                            ->toArray();
+
+                        /**
+                         * 🔥 REFUNDS (LIMITADO)
+                         */
+                        $refunds = DB::table('apol_anulada_estorno')
                             ->where('idtitular', (string)$numero_cliente)
-                            ->get();
+                            ->limit(1000)
+                            ->get()
+                            ->toArray();
 
-                        $refunds = $refundsRaw->map(fn($i) => (array)$i)->toArray();
-
-                        // 🔹 RECEIPTS (🔥 NOVO)
-                        $receiptsRaw = DB::table('recibos_cobrados')
-                            ->whereIn('numero_apolice', $policyNumbers)
-                            ->get();
-
-                        $receipts = $receiptsRaw->map(fn($i) => (array)$i)->toArray();
-
-                        // 🔹 CHANGES
-                        $changesRaw = DB::table('policy_changes_staging')
-                            ->whereIn('numero_apolice', $policyNumbers)
-                            ->get();
-
-                        $changes = $changesRaw->map(fn($i) => (array)$i)->toArray();
-
-                        // 🚀 DISPATCH
+                        $beneficiaries = DB::table('beneficiarios_staging as b')
+                            ->join('policies_staging as p', 'b.numero_apolice', '=', 'p.numero_apolice')
+                         ->whereIn('p.numero_apolice', $policyNumbers)
+                            ->select([
+                                'b.numero_apolice',
+                                'p.descricao_produto',
+                                'b.codigo_beneficiario',
+                                'b.nome_beneficiario',
+                                'b.tipo_beneficiario',
+                                'b.percentagem_atribuida',
+                                'b.data_atualizacao_beneficiario'
+                            ])
+                            ->get()
+                            ->toArray();
+                        /**
+                         * 🚀 DISPATCH
+                         */
                         ProcessCustomerPoliciesJob::dispatch(
                             $entity->id,
                             $policiesArray,
                             $changes,
                             $refunds,
-                            $receipts
+                            $receipts,
+                            $beneficiaries
                         )->onQueue('cliente');
 
-                    } catch (\Exception $e) {
-                        Log::error("❌ Erro cliente {$clienteRow->numero_cliente}: {$e->getMessage()}");
+                        unset($policiesRaw, $receipts, $changes, $refunds, $policyNumbers);
+
+                        gc_collect_cycles();
+                    } catch (\Throwable $e) {
+                        Log::error("❌ Cliente {$clienteRow->numero_cliente}: {$e->getMessage()}");
                     }
                 }
-
-                gc_collect_cycles();
             });
 
         Log::info("✅ Dispatch concluído.");
