@@ -419,7 +419,7 @@ class CustomerKYTService
 
         $this->createAlert(
             $customer,
-            'Substituição ou cancelamento repetido',
+            'Substituição ou Cancelamento Repetido',
             $description,
             'Alto',
             $score
@@ -441,7 +441,7 @@ class CustomerKYTService
             return $dataFim->gte(now()->subYear());
         });
     
-        if (count($terminated) < 3) return;
+        if (count($terminated) < 2) return;
     
         usort($terminated, function ($a, $b) {
             return strtotime($a['data_fim'] ?? '1970-01-01')
@@ -489,7 +489,7 @@ class CustomerKYTService
     
         $this->createAlert(
             $customer,
-            'Trocas Frequentes de Apólices',
+            'Substituição Rápida de Apólice',
             $description,
             'Médio',
             20
