@@ -742,17 +742,11 @@ class CustomerKYTService
     Apesar de variação percentual moderada, o valor absoluto envolvido é significativo,
     o que pode indicar:
     
-    - Reestruturação de capital sem justificação económica clara
-    - Ajuste de exposição ao risco em curto prazo
-    - Possível tentativa de fragmentação ou otimização de cobertura
-    
-    CONCLUSÃO
-    Operação requer revisão reforçada no contexto de perfil do cliente e histórico de alterações.
-    ";
+  ";
     
             $this->createAlert(
                 $customer,
-                "Alteração relevante de capital em apólice",
+                "Aumento elevado de capital na apólice",
                 $description,
                 $riskLevel,
                 $score
