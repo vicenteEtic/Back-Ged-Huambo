@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
+
 class CustomerKYTService
 {
     public $timeout = 100;
@@ -59,6 +60,13 @@ class CustomerKYTService
             'customer' => $customer->customer_number,
             'policies' => count($policies)
         ]);
+
+        $policies = array_map(fn($p) => $this->toArray($p), $policies);
+        $changes = array_map(fn($c) => $this->toArray($c), $changes);
+        $refunds = array_map(fn($r) => $this->toArray($r), $refunds);
+        $receipts = array_map(fn($r) => $this->toArray($r), $receipts);
+        $beneficiaries = array_map(fn($b) => $this->toArray($b), $beneficiaries);
+
 
         if (empty($policies)) return;
 
@@ -1243,6 +1251,16 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
 
         return strtoupper(trim($country));
     }
+    private function toArray($data): array
+{
+    if (is_array($data)) return $data;
+
+    if (is_object($data)) {
+        return json_decode(json_encode($data), true);
+    }
+
+    return [];
+}
     private function parseDate(?string $date): ?string
     {
         if (!$date) return null;
