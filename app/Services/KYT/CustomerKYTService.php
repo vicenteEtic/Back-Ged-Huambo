@@ -62,14 +62,14 @@ class CustomerKYTService
 
         if (empty($policies)) return;
 
-      //  $this->checkFrequentBeneficiaryChanges($customer, $beneficiaries);
+        //  $this->checkFrequentBeneficiaryChanges($customer, $beneficiaries);
 
-      $this->checkHighRiskGeography(
-        $customer,
-        $policies,
-        $receipts,
-        $beneficiaries
-    );
+        $this->checkHighRiskGeography(
+            $customer,
+            $policies,
+            $receipts,
+            $beneficiaries
+        );
 
         Log::info("🏁 KYT FINISHED", [
             'customer' => $customer->customer_number
@@ -306,7 +306,7 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
         Log::info('🏁 KYT PRODUCT BENEFICIARY ANALYSIS FINISHED');
     }
 
-    
+
     private function checkHighRiskGeography(
         Entities $customer,
         array $policies,
@@ -318,57 +318,75 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
             'customer' => $customer->customer_number
         ]);
     
-        // 🔥 Lista base (podes mover para BD depois)
+        /* =========================
+           LISTA DE PAÍSES DE RISCO
+        ========================== */
+    
         $highRiskCountries = [
-            'Angola',
-            'ANGOLA',
+            'IRAN',
             'COREIA DO NORTE',
             'AFEGANISTAO',
             'SIRIA',
             'MIANMAR'
         ];
     
+        /* =========================
+           NORMALIZAÇÃO (CRÍTICO)
+        ========================== */
+    
+        $beneficiaries = collect($beneficiaries)
+            ->map(fn($b) => (array) $b);
+    
+        $receipts = collect($receipts)
+            ->map(fn($r) => (array) $r);
+    
+        /* =========================
+           LOOP PRINCIPAL
+        ========================== */
+    
         foreach ($policies as $policy) {
     
-            $apolice = $policy['numero_apolice'];
+            $apolice = $policy['numero_apolice'] ?? null;
     
-            /* =========================
-               1. BENEFICIÁRIOS
-            ========================== */
-    
-            $beneficiariosApolice = collect($beneficiaries)
-                ->where('numero_apolice', $apolice);
-    
-            /* =========================
-               2. RECIBOS (PAGAMENTOS)
-            ========================== */
-    
-            $recibosApolice = collect($receipts)
-                ->where('numero_apolice', $apolice);
-    
-            /* =========================
-               3. DETECTAR PAÍSES
-            ========================== */
+            if (!$apolice) continue;
     
             $countriesDetected = [];
     
-            // 🔹 Beneficiários
+            /* =========================
+               BENEFICIÁRIOS
+            ========================== */
+    
+            $beneficiariosApolice = $beneficiaries
+                ->where('numero_apolice', $apolice);
+    
             foreach ($beneficiariosApolice as $b) {
     
-                $pais = strtoupper(trim($b['pais_residencia_beneficiario'] ?? ''));
+                $pais = $this->normalizeCountry($b['pais_residencia_beneficiario'] ?? null);
     
                 if ($pais) {
                     $countriesDetected[] = $pais;
                 }
             }
     
-            // 🔹 IBAN (recibos)
+            /* =========================
+               RECIBOS (IBAN / PAGAMENTOS)
+            ========================== */
+    
+            $recibosApolice = $receipts
+                ->where('numero_apolice', $apolice);
+    
             foreach ($recibosApolice as $r) {
     
-                $paisIBAN = strtoupper(trim($r['pais_iban_origem'] ?? ''));
+                // 1. Usa campo direto
+                $pais = $this->normalizeCountry($r['pais_iban_origem'] ?? null);
     
-                if ($paisIBAN) {
-                    $countriesDetected[] = $paisIBAN;
+                // 2. Fallback: extrair do IBAN
+                if (!$pais && !empty($r['iban_origem'])) {
+                    $pais = $this->extractCountryFromIBAN($r['iban_origem']);
+                }
+    
+                if ($pais) {
+                    $countriesDetected[] = $pais;
                 }
             }
     
@@ -377,18 +395,18 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
             if (empty($countriesDetected)) continue;
     
             /* =========================
-               4. VERIFICAR RISCO
+               DETECÇÃO DE RISCO
             ========================== */
     
-            $riskCountriesFound = array_intersect($countriesDetected, $highRiskCountries);
+            $riskCountries = array_intersect($countriesDetected, $highRiskCountries);
     
-            if (empty($riskCountriesFound)) continue;
+            if (empty($riskCountries)) continue;
     
             /* =========================
-               5. SCORE DINÂMICO
+               SCORE DINÂMICO
             ========================== */
     
-            $indicator =IndicatorType::where('description', 'like', '%pais%')->first();
+            $indicator = IndicatorType::where('description', 'like', '%pais%')->first();
     
             $score = 25;
     
@@ -397,7 +415,7 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
             }
     
             /* =========================
-               6. DESCRIÇÃO COMPLETA (AUDITÁVEL)
+               DESCRIÇÃO (AUDITÁVEL)
             ========================== */
     
             $description = sprintf(
@@ -406,19 +424,19 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
                 "Apólice: %s\n\n" .
                 "🌍 Países detectados: %s\n" .
                 "⚠️ Países de risco: %s\n\n" .
-                "📊 Análise:\n" .
-                "- Foram identificadas ligações geográficas a jurisdições de alto risco\n" .
-                "- Fluxos financeiros ou beneficiários associados a países com controlos fracos AML\n\n" .
-                "⚠️ Risco:\n" .
-                "Possível tentativa de integração de fundos ilícitos via pagamentos internacionais ou beneficiários externos.",
+                "📊 Fonte:\n" .
+                "- Beneficiários e/ou pagamentos internacionais\n\n" .
+                "⚠️ Análise AML:\n" .
+                "Ligação a jurisdições de alto risco sem justificação aparente.\n" .
+                "Possível tentativa de integração de fundos via reembolsos internacionais.",
                 $customer->customer_number,
                 $apolice,
                 implode(', ', $countriesDetected),
-                implode(', ', $riskCountriesFound)
+                implode(', ', $riskCountries)
             );
     
             /* =========================
-               7. ALERTA
+               ALERTA
             ========================== */
     
             $this->createAlert(
@@ -437,10 +455,24 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
     /* =========================
        ALERT CREATION
     ========================== */
+    private function extractCountryFromIBAN(string $iban): ?string
+{
+    $iban = strtoupper(trim($iban));
+
+    if (strlen($iban) < 2) return null;
+
+    return substr($iban, 0, 2); // ex: AO, PT, GB
+}
     private function formatMoney($value): string
     {
         return number_format((float)$value, 2, '.', ' ');
     }
+    private function normalizeCountry(?string $country): ?string
+{
+    if (!$country) return null;
+
+    return strtoupper(trim($country));
+}
     private function createAlert(
         Entities $customer,
         string $type,
