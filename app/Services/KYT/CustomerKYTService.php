@@ -485,85 +485,76 @@ class CustomerKYTService
     private function checkMultipleShortPolicies(Entities $customer, array $policies): void
     {
         $valid = [];
-
+    
         foreach ($policies as $p) {
-
-            $start = $this->safeDate($p['data_inicio'] ?? null);
-            $end   = $this->safeDate($p['data_fim'] ?? null);
-
+    
+            // 🔥 SEMPRE usar safeDate para cálculos
+            $start = $this->safeDate($this->get($p, 'data_inicio'));
+            $end   = $this->safeDate($this->get($p, 'data_fim'));
+    
             if (!$start || !$end) continue;
-
+    
             $days = $start->diffInDays($end);
-
-            if ($days >= 90 && $days <= 180 && ($p['premium_total'] ?? 0) > 0) {
+    
+            if ($days >= 90 && $days <= 180 && ($this->get($p, 'premium_total', 0) > 0)) {
                 $valid[] = $p;
             }
         }
-
+    
         if (count($valid) < 3) return;
-
+    
+        // 🔥 ordenar com safeDate (não strtotime)
         usort(
             $valid,
             fn($a, $b) =>
-            strtotime($a['data_inicio']) <=> strtotime($b['data_inicio'])
+            ($this->safeDate($this->get($a, 'data_inicio'))?->timestamp ?? 0)
+            <=>
+            ($this->safeDate($this->get($b, 'data_inicio'))?->timestamp ?? 0)
         );
-
+    
         $window = [];
         $totalPremium = 0;
         $earlyCancels = 0;
-
         $seen = [];
-
+    
         foreach ($valid as $p) {
-
-            $key = $p['numero_apolice'] ?? null;
-
+    
+            $key = $this->get($p, 'numero_apolice');
+    
             if (!$key || in_array($key, $seen)) {
                 continue;
             }
-
+    
             $seen[] = $key;
-
             $window[] = $p;
-            $totalPremium += $p['premium_total'];
-
-            $start = $this->safeDate($p['data_inicio']);
-            $end   = $this->safeDate($p['data_fim']);
-
+    
+            $totalPremium += (float) $this->get($p, 'premium_total', 0);
+    
+            // 🔥 safeDate obrigatório
+            $start = $this->safeDate($this->get($p, 'data_inicio'));
+            $end   = $this->safeDate($this->get($p, 'data_fim'));
+    
             if ($start && $end && $start->diffInDays($end) < 180) {
                 $earlyCancels++;
             }
         }
-
-        // 🔥 VALIDAÇÃO CRÍTICA (evita erro)
+    
         if (count($window) < 3 || $totalPremium < 300000) return;
-
-        if (empty($window)) return;
-
-        /* =========================
-           APÓLICES ÚNICAS
-        ========================== */
-
-        $apolices = array_unique(array_column($window, 'numero_apolice'));
-
-        /* =========================
-           PERÍODO SEGURO
-        ========================== */
-
-        $periodStart = $window[0]['data_inicio'] ?? 'N/A';
-        $last = end($window);
-        $periodEnd = $last['data_inicio'] ?? 'N/A';
-
-        /* =========================
-           DESCRIÇÃO MELHORADA
-        ========================== */
-
+    
+        $apolices = array_unique(array_map(fn($p) => $this->get($p, 'numero_apolice'), $window));
+    
+        $first = $this->safeDate($this->get($window[0], 'data_inicio'));
+        $last  = $this->safeDate($this->get(end($window), 'data_inicio'));
+    
+        $periodStart = $first?->format('Y-m-d') ?? 'N/A';
+        $periodEnd   = $last?->format('Y-m-d') ?? 'N/A';
+    
         $description =
             "RELATÓRIO KYT - MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO
     
     Cliente: {$customer->customer_number}
     
-    🔍 Resumo:
+    Resumo:
     - Apólices analisadas: " . count($window) . "
     - Apólices únicas: " . implode(', ', $apolices) . "
     - Prémio total: " . $this->formatMoney($totalPremium) . "
@@ -572,29 +563,20 @@ class CustomerKYTService
     Período:
     {$periodStart} → {$periodEnd}
     
-     Interpretação AML:
+    Interpretação AML:
     Padrão consistente de contratação de apólices de curta duração com possível fragmentação de valores.
     
     Comportamento compatível com:
-    - Smurfing (divisão de montantes)
-    - Layering (dispersão para ocultação)
+    - Smurfing
+    - Layering
+    ";
     
-  ";
-
-        /* =========================
-           SCORE
-        ========================== */
-
         $score = 15;
-
+    
         if ($totalPremium >= 500000) $score += 5;
         if (count($window) >= 5) $score += 5;
         if ($earlyCancels >= 2) $score += 5;
-
-        /* =========================
-           ALERTA
-        ========================== */
-
+    
         $this->createAlert(
             $customer,
             'Churn de apólices (trocas frequentes)',
@@ -728,86 +710,75 @@ class CustomerKYTService
     private function checkEarlyRedemption(Entities $customer, array $policies, array $refunds = []): void
     {
         foreach ($policies as $p) {
-
-            // 🔒 Apenas apólices canceladas
-            if (!in_array($p['estado_apolice'], ['cancelled', 'terminated'])) {
+    
+            $estado = $this->get($p, 'estado_apolice');
+    
+            if (!in_array($estado, ['cancelled', 'terminated'])) {
                 continue;
             }
-
+    
             // 🔒 Datas
-            $dataInicio = $this->parseDate($p['data_inicio']);
-            $dataCancelamentoRaw = $p['data_anulacao'] ?? $p['data_fim'];
-
+            $dataInicio = $this->parseDate($this->get($p, 'data_inicio'));
+            $dataCancelamentoRaw = $this->get($p, 'data_anulacao') ?? $this->get($p, 'data_fim');
+    
             if ($dataCancelamentoRaw === '1900-01-01 00:00:00') {
                 $dataCancelamentoRaw = null;
             }
-
+    
             $dataCancelamento = $this->parseDate($dataCancelamentoRaw);
-
+    
             if (!$dataInicio || !$dataCancelamento) continue;
-
+    
             try {
                 $inicio = Carbon::parse($dataInicio);
                 $fim = Carbon::parse($dataCancelamento);
             } catch (\Exception $e) {
                 continue;
             }
-
+    
             if ($fim->lt($inicio)) continue;
-
+    
             $dias = $inicio->diffInDays($fim);
-
-            // 🔥 REGRA PRINCIPAL (menos de 12 meses)
+    
             if ($dias >= 365 || $dias <= 0) continue;
-
-            // 🔥 Valor pago REAL
-            $valorPago = (float)($p['premium_total'] > 0
-                ? $p['premium_total']
-                : ($p['premio_simples'] ?? 0)
+    
+            $valorPago = (float)($this->get($p, 'premium_total')
+                ?: $this->get($p, 'premio_simples', 0)
             );
-
+    
             if ($valorPago <= 0) continue;
-
-            // 🚫 Não temos estorno real → assumir 0 ou integrar depois
+    
             $valorRecebido = 0;
-
             $perda = $valorPago - $valorRecebido;
-
+    
             if ($perda <= 0) continue;
-
-            // 🔥 Percentagem de perda (CRÍTICO AML)
+    
             $percentualPerda = $perda / $valorPago;
-
-            // 🔥 FILTRO AML (10% - 20%)
+    
             if ($percentualPerda < 0.10) continue;
-
-            // 🔥 FILTRO PRODUTO (opcional mas recomendado)
-            $produto = strtoupper($p['descricao_produto'] ?? '');
-            $isProdutoSensivel = str_contains($produto, 'VIDA') || str_contains($produto, 'POUP');
-
-            // Score dinâmico
+    
+            $produto = strtoupper($this->get($p, 'descricao_produto', ''));
+    
+            $isProdutoSensivel =
+                str_contains($produto, 'VIDA') ||
+                str_contains($produto, 'POUP');
+    
             $score = 20;
-
+    
             if ($percentualPerda >= 0.20) $score += 5;
             if ($dias < 180) $score += 5;
             if ($isProdutoSensivel) $score += 5;
-
+    
             $description = sprintf(
-                "KYT EARLY REDEMPTION\n" .
-                    "Produto: %s | Apólice: %s\n" .
-                    "Duração: %d dias (<365)\n" .
-                    "Financeiro: Pago [%s] | Recebido [%s] | Perda [%s] (%.2f%%)\n" .
-                    "Motivo: %s",
+                "KYT EARLY REDEMPTION\nProduto: %s | Apólice: %s\nDuração: %d dias\nPerda: %s (%.2f%%)\nMotivo: %s",
                 $produto,
-                $p['numero_apolice'],
+                $this->get($p, 'numero_apolice'),
                 $dias,
-                $this->formatMoney($valorPago),
-                $this->formatMoney($valorRecebido),
                 $this->formatMoney($perda),
                 $percentualPerda * 100,
-                $p['motivo_anulacao'] ?? 'N/A'
+                $this->get($p, 'motivo_anulacao', 'N/A')
             );
-
+    
             $this->createAlert(
                 $customer,
                 'Resgate Antecipado de apólice',
@@ -1275,6 +1246,20 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
         }
     }
 
+    private function get($array, string $key, $default = null)
+{
+    return $array[$key] ?? $default;
+}
+
+private function safeDays(?string $start, ?string $end): ?int
+{
+    try {
+        if (!$start || !$end) return null;
+        return Carbon::parse($start)->diffInDays(Carbon::parse($end));
+    } catch (\Exception $e) {
+        return null;
+    }
+}
     private function createAlert(
         Entities $customer,
         string $type,
