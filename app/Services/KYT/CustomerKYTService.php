@@ -319,30 +319,24 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
         ]);
     
         /* =========================
-           LISTA DE PAÍSES DE RISCO
+           NORMALIZAÇÃO GLOBAL 🔥
+        ========================== */
+    
+        $policies = collect($policies)->map(fn($p) => (array) $p);
+        $beneficiaries = collect($beneficiaries)->map(fn($b) => (array) $b);
+        $receipts = collect($receipts)->map(fn($r) => (array) $r);
+    
+        /* =========================
+           LISTA DE RISCO
         ========================== */
     
         $highRiskCountries = [
             'IRAN',
-            'COREIA DO NORTE',
+            'KP', // Coreia do Norte (ISO)
             'AFEGANISTAO',
-            'SIRIA',
-            'MIANMAR'
+            'SY', // Síria
+            'MM'  // Myanmar
         ];
-    
-        /* =========================
-           NORMALIZAÇÃO (CRÍTICO)
-        ========================== */
-    
-        $beneficiaries = collect($beneficiaries)
-            ->map(fn($b) => (array) $b);
-    
-        $receipts = collect($receipts)
-            ->map(fn($r) => (array) $r);
-    
-        /* =========================
-           LOOP PRINCIPAL
-        ========================== */
     
         foreach ($policies as $policy) {
     
@@ -369,7 +363,7 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
             }
     
             /* =========================
-               RECIBOS (IBAN / PAGAMENTOS)
+               RECIBOS
             ========================== */
     
             $recibosApolice = $receipts
@@ -377,10 +371,10 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
     
             foreach ($recibosApolice as $r) {
     
-                // 1. Usa campo direto
+                // direto
                 $pais = $this->normalizeCountry($r['pais_iban_origem'] ?? null);
     
-                // 2. Fallback: extrair do IBAN
+                // fallback IBAN
                 if (!$pais && !empty($r['iban_origem'])) {
                     $pais = $this->extractCountryFromIBAN($r['iban_origem']);
                 }
@@ -395,7 +389,7 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
             if (empty($countriesDetected)) continue;
     
             /* =========================
-               DETECÇÃO DE RISCO
+               DETECÇÃO
             ========================== */
     
             $riskCountries = array_intersect($countriesDetected, $highRiskCountries);
@@ -415,7 +409,7 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
             }
     
             /* =========================
-               DESCRIÇÃO (AUDITÁVEL)
+               DESCRIÇÃO
             ========================== */
     
             $description = sprintf(
@@ -435,10 +429,6 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
                 implode(', ', $riskCountries)
             );
     
-            /* =========================
-               ALERTA
-            ========================== */
-    
             $this->createAlert(
                 $customer,
                 'KYT_HIGH_RISK_GEOGRAPHY',
@@ -451,28 +441,27 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
         Log::info('🏁 KYT HIGH RISK GEOGRAPHY FINISHED');
     }
 
-
     /* =========================
        ALERT CREATION
     ========================== */
     private function extractCountryFromIBAN(string $iban): ?string
-{
-    $iban = strtoupper(trim($iban));
+    {
+        $iban = strtoupper(trim($iban));
 
-    if (strlen($iban) < 2) return null;
+        if (strlen($iban) < 2) return null;
 
-    return substr($iban, 0, 2); // ex: AO, PT, GB
-}
+        return substr($iban, 0, 2); // ex: AO, PT, GB
+    }
     private function formatMoney($value): string
     {
         return number_format((float)$value, 2, '.', ' ');
     }
     private function normalizeCountry(?string $country): ?string
-{
-    if (!$country) return null;
+    {
+        if (!$country) return null;
 
-    return strtoupper(trim($country));
-}
+        return strtoupper(trim($country));
+    }
     private function createAlert(
         Entities $customer,
         string $type,
