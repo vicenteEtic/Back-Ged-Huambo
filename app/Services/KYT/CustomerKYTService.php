@@ -487,36 +487,57 @@ class CustomerKYTService
         );
     }
 
-   private function checkMultipleShortPolicies(Entities $customer, array $policies): void
+    private function checkMultipleShortPolicies(Entities $customer, array $policies): void
 {
+    Log::info('🚀 KYT MULTIPLE SHORT POLICIES START', [
+        'customer' => $customer->customer_number,
+        'total_policies' => count($policies)
+    ]);
+
     $valid = [];
 
-    foreach ($policies as $p) {
+    foreach ($policies as $index => $p) {
 
         $start = $this->safeDate($this->get($p, 'data_inicio'));
 
-        // 🔥 USAR data_anulacao PRIMEIRO
         $end = $this->safeDate(
             $this->get($p, 'data_anulacao') ?? $this->get($p, 'data_fim')
         );
 
-        if (!$start || !$end) continue;
+        if (!$start || !$end) {
+            Log::debug('⛔ INVALID DATES', [
+                'index' => $index,
+                'policy' => $p
+            ]);
+            continue;
+        }
 
         $days = $start->diffInDays($end);
 
-        // 🔥 FLEXIBILIZAR (30 a 180 dias)
+        Log::debug('📊 POLICY DURATION', [
+            'apolice' => $p['numero_apolice'] ?? null,
+            'days' => $days
+        ]);
+
         if ($days >= 10 && $days <= 180) {
             $valid[] = $p;
         }
     }
 
-    if (count($valid) < 3) return;
+    Log::info('📦 VALID POLICIES FILTERED', [
+        'count' => count($valid)
+    ]);
 
-    // 🔥 ordenar
-    usort($valid, fn($a, $b) =>
-        ($this->safeDate($a['data_inicio'])?->timestamp ?? 0)
-        <=>
-        ($this->safeDate($b['data_inicio'])?->timestamp ?? 0)
+    if (count($valid) < 3) {
+        Log::warning('⛔ EXIT: NOT ENOUGH VALID POLICIES');
+        return;
+    }
+
+    usort(
+        $valid,
+        fn($a, $b) => ($this->safeDate($a['data_inicio'])?->timestamp ?? 0)
+            <=>
+            ($this->safeDate($b['data_inicio'])?->timestamp ?? 0)
     );
 
     $window = [];
@@ -524,24 +545,54 @@ class CustomerKYTService
 
     foreach ($valid as $p) {
         $window[] = $p;
-        $totalPremium += (float) ($p['premium_total'] ?? 0);
+        $premium = (float) ($p['premium_total'] ?? 0);
+        $totalPremium += $premium;
+
+        Log::debug('💰 PREMIUM ADD', [
+            'apolice' => $p['numero_apolice'] ?? null,
+            'premium' => $premium,
+            'running_total' => $totalPremium
+        ]);
     }
 
-    // 🔥 NOVA REGRA AML → janela temporal (90 dias)
     $first = $this->safeDate($window[0]['data_inicio']);
     $last  = $this->safeDate(end($window)['data_inicio']);
 
-    if (!$first || !$last) return;
+    if (!$first || !$last) {
+        Log::warning('⛔ EXIT: INVALID WINDOW DATES');
+        return;
+    }
 
     $periodDays = $first->diffInDays($last);
 
-    // 🔥 CRÍTICO → comportamento concentrado
-    if ($periodDays > 90) return;
+    Log::info('📅 WINDOW ANALYSIS', [
+        'start' => $first->format('Y-m-d'),
+        'end' => $last->format('Y-m-d'),
+        'days' => $periodDays
+    ]);
 
-    // 🔥 LIMIAR MAIS REALISTA
-    if ($totalPremium < 200000) return;
+    if ($periodDays > 90) {
+        Log::warning('⛔ EXIT: PERIOD TOO LARGE', [
+            'period_days' => $periodDays
+        ]);
+        return;
+    }
+
+    if ($totalPremium < 200000) {
+        Log::warning('⛔ EXIT: PREMIUM BELOW THRESHOLD', [
+            'totalPremium' => $totalPremium
+        ]);
+        return;
+    }
 
     $apolices = array_column($window, 'numero_apolice');
+
+    Log::warning('🚨 KYT ALERT TRIGGERED', [
+        'customer' => $customer->customer_number,
+        'policies' => $apolices,
+        'totalPremium' => $totalPremium,
+        'periodDays' => $periodDays
+    ]);
 
     $description = "
 KYT - MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO
@@ -553,10 +604,6 @@ Resumo:
 - Apólices: " . implode(', ', $apolices) . "
 - Prémio total: " . $this->formatMoney($totalPremium) . "
 - Período: {$first->format('Y-m-d')} → {$last->format('Y-m-d')} ({$periodDays} dias)
-
-AML:
-Padrão de fragmentação de contratos (smurfing), com múltiplas apólices
-em curto espaço temporal, potencialmente para ocultação de origem de fundos.
 ";
 
     $score = 20;
@@ -571,6 +618,8 @@ em curto espaço temporal, potencialmente para ocultação de origem de fundos.
         'Alto',
         $score
     );
+
+    Log::info('🏁 KYT MULTIPLE SHORT POLICIES FINISHED');
 }
     private function checkHighPremium(Entities $customer, array $policies): void
     {
