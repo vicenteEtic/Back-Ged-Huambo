@@ -657,7 +657,7 @@ class CustomerKYTService
 
                 $this->createAlert(
                     $customer,
-                    "Prémio elevado com risco baixo",
+                    "Prémio elevado incompatível com o risco segurado",
                     $description,
                     'Alto',
                     25
@@ -756,7 +756,7 @@ class CustomerKYTService
 
             $this->createAlert(
                 $customer,
-                "Prémio elevado incompatível com o risco segurado",
+                "Aumento abrupto e injustificado do capital seguro entre apólices",
                 $description,
                 $riskLevel,
                 $score
