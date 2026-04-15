@@ -487,128 +487,85 @@ class CustomerKYTService
         );
     }
 
-    private function checkMultipleShortPolicies(Entities $customer, array $policies): void
+   private function checkMultipleShortPolicies(Entities $customer, array $policies): void
 {
-    Log::info('🚀 KYT MULTIPLE SHORT POLICIES START', [
+    Log::info('🚀 KYT BULK POLICY DETECTION START', [
         'customer' => $customer->customer_number,
         'total_policies' => count($policies)
     ]);
 
     $valid = [];
 
-    foreach ($policies as $index => $p) {
+    foreach ($policies as $p) {
 
-        $start = $this->safeDate($this->get($p, 'data_inicio'));
+        $start = $this->safeDate($p['data_inicio'] ?? null);
+        if (!$start) continue;
 
-        $end = $this->safeDate(
-            $this->get($p, 'data_anulacao') ?? $this->get($p, 'data_fim')
-        );
+        // 🔥 últimos 6 meses
+        if ($start->lt(now()->subMonths(6))) continue;
 
-        if (!$start || !$end) {
-            Log::debug('⛔ INVALID DATES', [
-                'index' => $index,
-                'policy' => $p
-            ]);
-            continue;
-        }
-
-        $days = $start->diffInDays($end);
-
-        Log::debug('📊 POLICY DURATION', [
-            'apolice' => $p['numero_apolice'] ?? null,
-            'days' => $days
-        ]);
-
-        if ($days >= 2 && $days <= 180) {
-            $valid[] = $p;
-        }
+        $valid[] = [
+            'numero_apolice' => $p['numero_apolice'] ?? null,
+            'start' => $start,
+            'premium' => (float) ($p['premium_total'] ?? 0)
+        ];
     }
 
-    Log::info('📦 VALID POLICIES FILTERED', [
-        'count' => count($valid)
-    ]);
+    Log::info('📦 RECENT POLICIES', ['count' => count($valid)]);
 
     if (count($valid) < 3) {
-        Log::warning('⛔ EXIT: NOT ENOUGH VALID POLICIES');
+        Log::warning('⛔ EXIT: NOT ENOUGH RECENT POLICIES');
         return;
     }
 
-    usort(
-        $valid,
-        fn($a, $b) => ($this->safeDate($a['data_inicio'])?->timestamp ?? 0)
-            <=>
-            ($this->safeDate($b['data_inicio'])?->timestamp ?? 0)
-    );
+    usort($valid, fn($a, $b) => $a['start']->timestamp <=> $b['start']->timestamp);
 
-    $window = [];
-    $totalPremium = 0;
-
-    foreach ($valid as $p) {
-        $window[] = $p;
-        $premium = (float) ($p['premium_total'] ?? 0);
-        $totalPremium += $premium;
-
-        Log::debug('💰 PREMIUM ADD', [
-            'apolice' => $p['numero_apolice'] ?? null,
-            'premium' => $premium,
-            'running_total' => $totalPremium
-        ]);
-    }
-
-    $first = $this->safeDate($window[0]['data_inicio']);
-    $last  = $this->safeDate(end($window)['data_inicio']);
-
-    if (!$first || !$last) {
-        Log::warning('⛔ EXIT: INVALID WINDOW DATES');
-        return;
-    }
+    $first = $valid[0]['start'];
+    $last  = end($valid)['start'];
 
     $periodDays = $first->diffInDays($last);
 
-    Log::info('📅 WINDOW ANALYSIS', [
-        'start' => $first->format('Y-m-d'),
-        'end' => $last->format('Y-m-d'),
+    Log::info('📅 TIME WINDOW', [
         'days' => $periodDays
     ]);
 
-    if ($periodDays > 90) {
-        Log::warning('⛔ EXIT: PERIOD TOO LARGE', [
-            'period_days' => $periodDays
-        ]);
+    // 🔥 criação concentrada (30 dias)
+    if ($periodDays > 30) {
+        Log::warning('⛔ EXIT: NOT CONCENTRATED');
         return;
     }
 
-    if ($totalPremium < 200000) {
-        Log::warning('⛔ EXIT: PREMIUM BELOW THRESHOLD', [
-            'totalPremium' => $totalPremium
-        ]);
-        return;
-    }
+    $totalPremium = array_sum(array_column($valid, 'premium'));
 
-    $apolices = array_column($window, 'numero_apolice');
+    $apolices = array_column($valid, 'numero_apolice');
 
-    Log::warning('🚨 KYT ALERT TRIGGERED', [
-        'customer' => $customer->customer_number,
-        'policies' => $apolices,
-        'totalPremium' => $totalPremium,
-        'periodDays' => $periodDays
+    Log::warning('🚨 BULK POLICY ALERT', [
+        'count' => count($valid),
+        'totalPremium' => $totalPremium
     ]);
 
     $description = "
-KYT - MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO
+KYT - CRIAÇÃO MASSIVA DE APÓLICES
 
 Cliente: {$customer->customer_number}
 
 Resumo:
-- Nº Apólices: " . count($window) . "
+- Nº Apólices: " . count($valid) . "
 - Apólices: " . implode(', ', $apolices) . "
-- Prémio total: " . $this->formatMoney($totalPremium) . "
 - Período: {$first->format('Y-m-d')} → {$last->format('Y-m-d')} ({$periodDays} dias)
+- Prémio total: " . $this->formatMoney($totalPremium) . "
+
+AML:
+Criação massiva de apólices em curto período temporal.
+Padrão compatível com:
+- Smurfing
+- Estruturação de valores
+- Teste de sistema para movimentação futura
 ";
 
-    $score = 20;
+    $score = 25;
 
-    if (count($window) >= 5) $score += 10;
+    if (count($valid) >= 5) $score += 10;
     if ($totalPremium >= 500000) $score += 10;
 
     $this->createAlert(
@@ -618,8 +575,6 @@ Resumo:
         'Alto',
         $score
     );
-
-    Log::info('🏁 KYT MULTIPLE SHORT POLICIES FINISHED');
 }
     private function checkHighPremium(Entities $customer, array $policies): void
     {
