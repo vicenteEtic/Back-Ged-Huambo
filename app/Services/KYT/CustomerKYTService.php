@@ -531,7 +531,7 @@ class CustomerKYTService
     ]);
 
     // 🔥 criação concentrada (30 dias)
-    if ($periodDays > 30) {
+    if ($periodDays > 5) {
         Log::warning('⛔ EXIT: NOT CONCENTRATED');
         return;
     }
@@ -546,7 +546,7 @@ class CustomerKYTService
     ]);
 
     $description = "
-KYT - CRIAÇÃO MASSIVA DE APÓLICES
+
 
 Cliente: {$customer->customer_number}
 
