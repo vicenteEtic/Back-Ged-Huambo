@@ -86,8 +86,10 @@ class CustomerKYTService
 
         //4. KYT_MULTIPLE_SHORT_POLICIES
         $this->checkMultipleShortPolicies($customer, $policies);
+
         //5. KYT_POLICY_CHURNING
         $this->checkPolicyChurning($customer, $policies);
+
         //6. KYT_RAPID_POLICY_REPLACEMENT
         $this->checkRapidReplacement($customer, $policies);
 
@@ -221,8 +223,6 @@ class CustomerKYTService
     - Extração de fundos com aparência legítima via reembolso
     - Uso de terceiros para ocultação de origem (layering)
     
-    Indicador regulatório:
-    Tipologia reconhecida pelo GAFI e ARSEG como operação suspeita.
     ";
 
                 /* =========================
@@ -236,7 +236,7 @@ class CustomerKYTService
 
                 $this->createAlert(
                     $customer,
-                    'Sobrepagamento seguido de reembolso a terceiros',
+                    'Sobrepagamento de prémios seguido de pedido de reembolso para terceiros',
                     $description,
                     'Alto',
                     $score
@@ -281,7 +281,7 @@ class CustomerKYTService
 
                 $this->createAlert(
                     $customer,
-                    'Pagamentos de prémios por terceiros',
+                    ' Pagamentos de prémios por terceiros sem relação clara com o segurados',
                     $description,
                     'Alto',         // nível de risco
                     25
@@ -394,7 +394,7 @@ class CustomerKYTService
         if (empty($pairs)) return;
 
         $description =
-            "RELATÓRIO KYT - SUBSTITUIÇÃO RÁPIDA DE APÓLICES
+            "
     
     Cliente: {$customer->customer_number}
     
@@ -420,7 +420,7 @@ class CustomerKYTService
 
         $this->createAlert(
             $customer,
-            'Substituição ou Cancelamento Repetido',
+            'Substituição rápida de apólices',
             $description,
             'Alto',
             $score
@@ -470,7 +470,7 @@ class CustomerKYTService
         $apolices = array_column($latest, 'numero_apolice');
 
         $description =
-            "🚨 KYT POLICY CHURNING
+            "
     
     Cliente: {$customer->customer_number}
     
@@ -481,7 +481,7 @@ class CustomerKYTService
     Apólices:
     " . implode(', ', $apolices) . "
     
-    ßAML INTERPRETAÇÃO:
+    AML INTERPRETAÇÃO:
     Padrão de cancelamentos repetidos em curto espaço de tempo,
     indicando possível:
     - reestruturação artificial de contratos
@@ -490,7 +490,7 @@ class CustomerKYTService
 
         $this->createAlert(
             $customer,
-            'Substituição Rápida de Apólice',
+            'Cancelamentos frequentes de Apólices num curto Período',
             $description,
             'Médio',
             20
@@ -592,7 +592,7 @@ class CustomerKYTService
 
         $this->createAlert(
             $customer,
-            'Churn de apólices (trocas frequentes)',
+            'Subscrição de múltiplas apólices de curta duração',
             $description,
             'Médio',
             $score
@@ -729,7 +729,7 @@ class CustomerKYTService
 
             // 🔥 DESCRIÇÃO MELHORADA (nível auditoria bancária)
             $description = "
-    KYT - VARIAÇÃO DE CAPITAL EM APÓLICE
+   
     
     IDENTIFICAÇÃO
     - Cliente: {$customer->customer_number}
@@ -756,7 +756,7 @@ class CustomerKYTService
 
             $this->createAlert(
                 $customer,
-                "Aumento elevado de capital na apólice",
+                "Prémio elevado incompatível com o risco segurado",
                 $description,
                 $riskLevel,
                 $score
@@ -842,7 +842,7 @@ class CustomerKYTService
 
             $this->createAlert(
                 $customer,
-                'Resgate Antecipado de apólice',
+                'Resgate ou cancelamento da apólice antes de 12 meses',
                 $description,
                 'Alto',
                 $score
@@ -996,13 +996,6 @@ class CustomerKYTService
             }
 
 
-
-
-
-
-
-
-
             /* =========================
                SCORE KYT
             ========================== */
@@ -1061,7 +1054,7 @@ Produto: {$produto}
  BENEFICIÁRIOS IDENTIFICADOS:
 {$beneficiaryList}
 
-⚠️ ANÁLISE DE RISCO:
+ANÁLISE DE RISCO:
 Foi identificado um padrão de alterações de beneficiários distribuído por múltiplas apólices do mesmo produto.
 Este comportamento pode indicar reorganização de beneficiários ou tentativa de diluição de beneficiário final (UBO).
 
@@ -1069,7 +1062,7 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
 
             $this->createAlert(
                 $customer,
-                'Alterações frequentes de beneficiários',
+                'Mudanças frequentes de beneficiários sem justificação aparente',
                 $description,
                 'Alto',
                 $score
@@ -1247,7 +1240,7 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
 
             $this->createAlert(
                 $customer,
-                'Ligação a jurisdições de alto risco',
+                'Apólices com beneficiários ou pagamentos de jurisdições de alto risco',
                 $description,
                 'Alto',
                 $score

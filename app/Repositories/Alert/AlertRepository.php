@@ -133,7 +133,7 @@ class AlertRepository extends AbstractRepository
     }
 
 
-     public function coletiveEntityTransation(array $data = []): array
+    public function coletiveEntityTransation(array $data = []): array
     {
         $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'])->startOfDay() : null;
         $endDate = !empty($data['endDate']) ? Carbon::parse($data['endDate'])->endOfDay() : null;
@@ -157,7 +157,7 @@ class AlertRepository extends AbstractRepository
         return ['total' => $totalAlertas, 'byLevel' => $alertasPorNivel->toArray()];
     }
 
-   
+
 
     public function coletiveEntity(array $data = []): array
     {
@@ -237,79 +237,79 @@ class AlertRepository extends AbstractRepository
         return $alert;
     }
 
-public function getTotalAlerts(array $data): array
-{
-    // Função auxiliar para aplicar filtros de data
-    $applyDateFilter = function ($query) use ($data) {
-        if (!empty($data['startDate']) && !empty($data['endDate'])) {
-            $query->whereBetween('created_at', [
-                Carbon::parse($data['startDate'])->startOfDay(),
-                Carbon::parse($data['endDate'])->endOfDay(),
-            ]);
-        } elseif (!empty($data['startDate'])) {
-            $query->where('created_at', '>=', Carbon::parse($data['startDate'])->startOfDay());
-        } elseif (!empty($data['endDate'])) {
-            $query->where('created_at', '<=', Carbon::parse($data['endDate'])->endOfDay());
-        }
-        return $query;
-    };
+    public function getTotalAlerts(array $data): array
+    {
+        // Função auxiliar para aplicar filtros de data
+        $applyDateFilter = function ($query) use ($data) {
+            if (!empty($data['startDate']) && !empty($data['endDate'])) {
+                $query->whereBetween('created_at', [
+                    Carbon::parse($data['startDate'])->startOfDay(),
+                    Carbon::parse($data['endDate'])->endOfDay(),
+                ]);
+            } elseif (!empty($data['startDate'])) {
+                $query->where('created_at', '>=', Carbon::parse($data['startDate'])->startOfDay());
+            } elseif (!empty($data['endDate'])) {
+                $query->where('created_at', '<=', Carbon::parse($data['endDate'])->endOfDay());
+            }
+            return $query;
+        };
 
-    // Total geral de alertas
-    $totalAlertsQuery = $applyDateFilter($this->model->newQuery());
-    $total = $totalAlertsQuery->count();
+        // Total geral de alertas
+        $totalAlertsQuery = $applyDateFilter($this->model->newQuery());
+        $total = $totalAlertsQuery->count();
 
-    // Contagem por tipos principais
-    $transation = [
-        "particularEntity" => $this->particularEntityTransation($data),
-        "coletiveEntity" => $this->coletiveEntityTransation($data),
-        'by_type' => $this->countByField('type', [
-            "Substituição rápida de apólice" => 'QuickPolicyReplacementDetected',
-            "Resgate antecipado de apólice" => 'EarlyRedemptionDetected',
-            "Prémio elevado com risco baixo" => 'HighPremiumLowRisk',
-            "Substituição ou cancelamento repetido" => 'RepeatedReplacementOrCancellation',
-            "Churn de apólices (trocas frequentes)" => 'PolicyChurn',
-            "Aumento elevado de capital na apólice" => 'HighCapitalIncrease',
-            "Pagamentos por terceiros sem relação clara" => 'ThirdPartyPayments',
-            "Alterações frequentes de beneficiários" => 'FrequentBeneficiaryChanges',
-            "Ligação a jurisdições de alto risco" => 'HighRiskGeography',
-            "Sobrepagamento seguido de reembolso a terceiros" => 'OverpaymentRefund',
-        ], $data),
-    ];
+        // Contagem por tipos principais
+        $transation = [
+            "particularEntity" => $this->particularEntityTransation($data),
+            "coletiveEntity" => $this->coletiveEntityTransation($data),
+            'by_type' => $this->countByField('type', [
+                "Aumento abrupto e injustificado do capital seguro entre apólices" => 'HighCapitalIncrease',
+                "Resgate ou cancelamento da apólice antes de 12 meses" => 'EarlyRedemptionDetected',
+                "Prémio elevado incompatível com o risco segurado" => 'HighPremiumLowRisk',
+                "Subscrição de múltiplas apólices de curta duração" => 'PolicyChurn',
+                "Cancelamentos frequentes de Apólices num curto Período" => 'RepeatedReplacementOrCancellation',
+                "Substituição rápida de apólices" => 'QuickPolicyReplacementDetected',
+                "Pagamentos de prémios por terceiros sem relação clara com o segurado" => 'ThirdPartyPayments',
+                "Mudanças frequentes de beneficiários sem justificação aparente" => 'FrequentBeneficiaryChanges',
+                "Apólices com beneficiários ou pagamentos de jurisdições de alto risco" => 'HighRiskGeography',
+                "Sobrepagamento de prémios seguido de pedido de reembolso para terceiros" => 'OverpaymentRefund',
+            ], $data),
+        ];
 
-    // Totais por tipo específico
-    $pep = $applyDateFilter($this->model->newQuery())->where('type', 'PEP')->count();
-    $sanction = $applyDateFilter($this->model->newQuery())->where('type', 'SANCTIONS')->count();
-    $aml = $applyDateFilter($this->model->newQuery())->where('type', 'AML')->count();
-    return [
-        'total' => $total,
-        'transation' => $transation,
-        'ParticularEntity' => $this->particularEntity($data),
-        'coletiveEntity' => $this->coletiveEntity($data),
-        'by_status' => $this->countByField('is_active', [
-            1 => 'new',
-            2 => 'validation',
-            3 => 'supervision',
-            0 => 'closed',
-        ], $data),
-        'by_sanctioned' => $this->countByField('is_sanctioned', [
-            1 => 'with_communication',
-            0 => 'without_communication',
-        ], $data),
-        'by_communication' => $this->countByField('is_reported', [
-            1 => 'with_communication',
-            0 => 'without_communication',
-        ], $data),
-        'pep' => $pep,
-        'sanction' => $sanction,
-        'AML' => $aml,
-        'by_type' => $this->countByCategory($data),
-        'by_level' => $this->countByLevel('level', [
-            "Alto" => 'Alto',
-            "Médio" => 'Médio',
-            "Baixo" => 'Baixo',
-        ], $data),
-        'users' => $this->getAllUsersAlertSummary($data),
-        'by_month' => $this->getTotalAlertsByMonth($data),
-    ];
-}
+        // Totais por tipo específico
+        $pep = $applyDateFilter($this->model->newQuery())->where('type', 'PEP')->count();
+        $sanction = $applyDateFilter($this->model->newQuery())->where('type', 'SANCTIONS')->count();
+        $aml = $applyDateFilter($this->model->newQuery())->where('type', 'AML')->count();
+        return [
+            'total' => $total,
+            'transation' => $transation,
+            'ParticularEntity' => $this->particularEntity($data),
+            'coletiveEntity' => $this->coletiveEntity($data),
+            'by_status' => $this->countByField('is_active', [
+                1 => 'new',
+                2 => 'validation',
+                3 => 'supervision',
+                0 => 'closed',
+            ], $data),
+            'by_sanctioned' => $this->countByField('is_sanctioned', [
+                1 => 'with_communication',
+                0 => 'without_communication',
+            ], $data),
+            'by_communication' => $this->countByField('is_reported', [
+                1 => 'with_communication',
+                0 => 'without_communication',
+            ], $data),
+            'pep' => $pep,
+            'sanction' => $sanction,
+            'AML' => $aml,
+            'by_type' => $this->countByCategory($data),
+            'by_level' => $this->countByLevel('level', [
+                "Alto" => 'Alto',
+                "Médio" => 'Médio',
+                "Baixo" => 'Baixo',
+            ], $data),
+            'users' => $this->getAllUsersAlertSummary($data),
+            'by_month' => $this->getTotalAlertsByMonth($data),
+        ];
+    }
 }
