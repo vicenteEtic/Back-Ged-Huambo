@@ -71,39 +71,40 @@ class CustomerKYTService
         if (empty($policies)) return;
 
         //1. KYT_HIGH_CAPITAL_INCREASE
-        //  $this->checkHighCapitalIncrease($customer, $changes);
+         $this->checkHighCapitalIncrease($customer, $changes);
 
         //2. KYT_EARLY_REDEMPTION
-        //  $this->checkEarlyRedemption(    $customer,  $policies, $receipts, $refunds  );
+      $this->checkEarlyRedemption(    $customer,  $policies, $receipts, $refunds  );
 
         //3. KYT_HIGH_PREMIUM_LOW_RISK
-        //   $this->checkHighPremium($customer, $policies);
+          $this->checkHighPremium($customer, $policies);
 
         //4. KYT_MULTIPLE_SHORT_POLICIES
         $this->checkMultipleShortPolicies($customer, $policies);
 
         //5. KYT_POLICY_CHURNING
-        //  $this->checkPolicyChurning($customer, $policies);
+          $this->checkPolicyChurning($customer, $policies);
 
         //6. KYT_RAPID_POLICY_REPLACEMENT
-        //  $this->checkRapidReplacement($customer, $policies);
+          $this->checkRapidReplacement($customer, $policies);
 
         //7. KYT_THIRD_PARTY_PAYMENTS
 
-        //    $this->checkThirdPartyPayments($customer, $policies);
+           $this->checkThirdPartyPayments($customer, $policies);
 
 
         //7. KYT_THIRD_PARTY_PAYMENTS
 
-        //  $this->checkThirdPartyPayments($customer, $policies);
+         $this->checkThirdPartyPayments($customer, $policies);
 
         //8. KYT_FREQUENT_BENEFICIARY_CHANGES
-        //   $this->checkFrequentBeneficiaryChanges($customer, $beneficiaries);
+          $this->checkFrequentBeneficiaryChanges($customer, $beneficiaries);
 
         //9. KYT_HIGH_RISK_GEOGRAPHY
-        //$this->checkHighRiskGeography(  $customer, $policies,  $receipts, $beneficiaries );
+        $this->checkHighRiskGeography(  $customer, $policies,  $receipts, $beneficiaries );
+       
         //10. KYT_OVERPAYMENT_REFUND
-        // $this->checkOverpaymentRefund($customer, $policies, $receipts, $refunds);
+        $this->checkOverpaymentRefund($customer, $policies, $receipts, $refunds);
 
 
         Log::info("🏁 KYT FINISHED", [
