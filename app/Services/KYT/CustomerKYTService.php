@@ -71,39 +71,39 @@ class CustomerKYTService
         if (empty($policies)) return;
 
         //1. KYT_HIGH_CAPITAL_INCREASE
-      //  $this->checkHighCapitalIncrease($customer, $changes);
+        //  $this->checkHighCapitalIncrease($customer, $changes);
 
         //2. KYT_EARLY_REDEMPTION
-      //  $this->checkEarlyRedemption(    $customer,  $policies, $receipts, $refunds  );
+        //  $this->checkEarlyRedemption(    $customer,  $policies, $receipts, $refunds  );
 
         //3. KYT_HIGH_PREMIUM_LOW_RISK
-     //   $this->checkHighPremium($customer, $policies);
+        //   $this->checkHighPremium($customer, $policies);
 
         //4. KYT_MULTIPLE_SHORT_POLICIES
         $this->checkMultipleShortPolicies($customer, $policies);
 
         //5. KYT_POLICY_CHURNING
-      //  $this->checkPolicyChurning($customer, $policies);
+        //  $this->checkPolicyChurning($customer, $policies);
 
         //6. KYT_RAPID_POLICY_REPLACEMENT
-      //  $this->checkRapidReplacement($customer, $policies);
+        //  $this->checkRapidReplacement($customer, $policies);
 
         //7. KYT_THIRD_PARTY_PAYMENTS
 
-    //    $this->checkThirdPartyPayments($customer, $policies);
+        //    $this->checkThirdPartyPayments($customer, $policies);
 
 
         //7. KYT_THIRD_PARTY_PAYMENTS
 
-      //  $this->checkThirdPartyPayments($customer, $policies);
+        //  $this->checkThirdPartyPayments($customer, $policies);
 
         //8. KYT_FREQUENT_BENEFICIARY_CHANGES
-     //   $this->checkFrequentBeneficiaryChanges($customer, $beneficiaries);
+        //   $this->checkFrequentBeneficiaryChanges($customer, $beneficiaries);
 
         //9. KYT_HIGH_RISK_GEOGRAPHY
         //$this->checkHighRiskGeography(  $customer, $policies,  $receipts, $beneficiaries );
         //10. KYT_OVERPAYMENT_REFUND
-       // $this->checkOverpaymentRefund($customer, $policies, $receipts, $refunds);
+        // $this->checkOverpaymentRefund($customer, $policies, $receipts, $refunds);
 
 
         Log::info("🏁 KYT FINISHED", [
@@ -486,108 +486,92 @@ class CustomerKYTService
             20
         );
     }
-    private function checkMultipleShortPolicies(Entities $customer, array $policies): void
-    {
-        $valid = [];
 
-        foreach ($policies as $p) {
+   private function checkMultipleShortPolicies(Entities $customer, array $policies): void
+{
+    $valid = [];
 
-            // 🔥 SEMPRE usar safeDate para cálculos
-            $start = $this->safeDate($this->get($p, 'data_inicio'));
-            $end   = $this->safeDate($this->get($p, 'data_fim'));
+    foreach ($policies as $p) {
 
-            if (!$start || !$end) continue;
+        $start = $this->safeDate($this->get($p, 'data_inicio'));
 
-            $days = $start->diffInDays($end);
-
-            if ($days >= 90 && $days <= 180 && ($this->get($p, 'premium_total', 0) > 0)) {
-                $valid[] = $p;
-            }
-        }
-
-        if (count($valid) < 3) return;
-
-        // 🔥 ordenar com safeDate (não strtotime)
-        usort(
-            $valid,
-            fn($a, $b) => ($this->safeDate($this->get($a, 'data_inicio'))?->timestamp ?? 0)
-                <=>
-                ($this->safeDate($this->get($b, 'data_inicio'))?->timestamp ?? 0)
+        // 🔥 USAR data_anulacao PRIMEIRO
+        $end = $this->safeDate(
+            $this->get($p, 'data_anulacao') ?? $this->get($p, 'data_fim')
         );
 
-        $window = [];
-        $totalPremium = 0;
-        $earlyCancels = 0;
-        $seen = [];
+        if (!$start || !$end) continue;
 
-        foreach ($valid as $p) {
+        $days = $start->diffInDays($end);
 
-            $key = $this->get($p, 'numero_apolice');
-
-            if (!$key || in_array($key, $seen)) {
-                continue;
-            }
-
-            $seen[] = $key;
-            $window[] = $p;
-
-            $totalPremium += (float) $this->get($p, 'premium_total', 0);
-
-            // 🔥 safeDate obrigatório
-            $start = $this->safeDate($this->get($p, 'data_inicio'));
-            $end   = $this->safeDate($this->get($p, 'data_fim'));
-
-            if ($start && $end && $start->diffInDays($end) < 180) {
-                $earlyCancels++;
-            }
+        // 🔥 FLEXIBILIZAR (30 a 180 dias)
+        if ($days >= 30 && $days <= 180) {
+            $valid[] = $p;
         }
-
-        if (count($window) < 3 || $totalPremium < 300000) return;
-
-        $apolices = array_unique(array_map(fn($p) => $this->get($p, 'numero_apolice'), $window));
-
-        $first = $this->safeDate($this->get($window[0], 'data_inicio'));
-        $last  = $this->safeDate($this->get(end($window), 'data_inicio'));
-
-        $periodStart = $first?->format('Y-m-d') ?? 'N/A';
-        $periodEnd   = $last?->format('Y-m-d') ?? 'N/A';
-
-        $description =
-            "RELATÓRIO KYT - MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO
-    
-    Cliente: {$customer->customer_number}
-    
-    Resumo:
-    - Apólices analisadas: " . count($window) . "
-    - Apólices únicas: " . implode(', ', $apolices) . "
-    - Prémio total: " . $this->formatMoney($totalPremium) . "
-    - Cancelamentos < 180 dias: {$earlyCancels}
-    
-    Período:
-    {$periodStart} → {$periodEnd}
-    
-    Interpretação AML:
-    Padrão consistente de contratação de apólices de curta duração com possível fragmentação de valores.
-    
-    Comportamento compatível com:
-    - Smurfing
-    - Layering
-    ";
-
-        $score = 15;
-
-        if ($totalPremium >= 500000) $score += 5;
-        if (count($window) >= 5) $score += 5;
-        if ($earlyCancels >= 2) $score += 5;
-
-        $this->createAlert(
-            $customer,
-            'Subscrição de múltiplas apólices de curta duração',
-            $description,
-            'Médio',
-            $score
-        );
     }
+
+    if (count($valid) < 3) return;
+
+    // 🔥 ordenar
+    usort($valid, fn($a, $b) =>
+        ($this->safeDate($a['data_inicio'])?->timestamp ?? 0)
+        <=>
+        ($this->safeDate($b['data_inicio'])?->timestamp ?? 0)
+    );
+
+    $window = [];
+    $totalPremium = 0;
+
+    foreach ($valid as $p) {
+        $window[] = $p;
+        $totalPremium += (float) ($p['premium_total'] ?? 0);
+    }
+
+    // 🔥 NOVA REGRA AML → janela temporal (90 dias)
+    $first = $this->safeDate($window[0]['data_inicio']);
+    $last  = $this->safeDate(end($window)['data_inicio']);
+
+    if (!$first || !$last) return;
+
+    $periodDays = $first->diffInDays($last);
+
+    // 🔥 CRÍTICO → comportamento concentrado
+    if ($periodDays > 90) return;
+
+    // 🔥 LIMIAR MAIS REALISTA
+    if ($totalPremium < 200000) return;
+
+    $apolices = array_column($window, 'numero_apolice');
+
+    $description = "
+KYT - MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO
+
+Cliente: {$customer->customer_number}
+
+Resumo:
+- Nº Apólices: " . count($window) . "
+- Apólices: " . implode(', ', $apolices) . "
+- Prémio total: " . $this->formatMoney($totalPremium) . "
+- Período: {$first->format('Y-m-d')} → {$last->format('Y-m-d')} ({$periodDays} dias)
+
+AML:
+Padrão de fragmentação de contratos (smurfing), com múltiplas apólices
+em curto espaço temporal, potencialmente para ocultação de origem de fundos.
+";
+
+    $score = 20;
+
+    if (count($window) >= 5) $score += 10;
+    if ($totalPremium >= 500000) $score += 10;
+
+    $this->createAlert(
+        $customer,
+        'Subscrição de múltiplas apólices de curta duração',
+        $description,
+        'Alto',
+        $score
+    );
+}
     private function checkHighPremium(Entities $customer, array $policies): void
     {
         // 🔹 Agrupa por produto
