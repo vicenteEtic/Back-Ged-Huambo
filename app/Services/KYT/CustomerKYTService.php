@@ -505,7 +505,7 @@ class CustomerKYTService
         $days = $start->diffInDays($end);
 
         // 🔥 FLEXIBILIZAR (30 a 180 dias)
-        if ($days >= 30 && $days <= 180) {
+        if ($days >= 10 && $days <= 180) {
             $valid[] = $p;
         }
     }
