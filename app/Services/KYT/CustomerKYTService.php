@@ -519,7 +519,7 @@ class CustomerKYTService
             'days' => $days
         ]);
 
-        if ($days >= 10 && $days <= 180) {
+        if ($days >= 2 && $days <= 180) {
             $valid[] = $p;
         }
     }
