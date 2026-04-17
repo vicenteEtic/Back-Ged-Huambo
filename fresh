@@ -1,29 +1,99 @@
 
-   INFO  Running migrations.  
+   INFO  Nothing to migrate.  
 
-  2025_12_17_082938_create_aml_alerts_table ...................... 2.91ms FAIL
+   INFO  Seeding database.  
 
-   Illuminate\Database\QueryException 
+  Database\Seeders\KytRulesSeeder .................................... RUNNING  
+  Database\Seeders\KytRulesSeeder ................................. 22 ms DONE  
 
-  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'aml_alerts' already exists (Connection: mysql, SQL: create table `aml_alerts` (`id` bigint unsigned not null auto_increment primary key, `created_at` timestamp null, `updated_at` timestamp null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
-
-  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:825
-    821▕                     $this->getName(), $query, $this->prepareBindings($bindings), $e
-    822▕                 );
-    823▕             }
-    824▕ 
-  ➜ 825▕             throw new QueryException(
-    826▕                 $this->getName(), $query, $this->prepareBindings($bindings), $e
-    827▕             );
-    828▕         }
-    829▕     }
-
-      [2m+9 vendor frames [22m
-
-  10  database/migrations/2025_12_17_082938_create_aml_alerts_table.php:14
-      Illuminate\Support\Facades\Facade::__callStatic("create")
-      [2m+26 vendor frames [22m
-
-  37  artisan:13
-      Illuminate\Foundation\Application::handleCommand(Object(Symfony\Component\Console\Input\ArgvInput))
-
+  Database\Seeders\PermissionSeed .................................... RUNNING  
+Permissão usuario-show criada ou atualizada.
+Permissão usuario-create criada ou atualizada.
+Permissão usuario-edit criada ou atualizada.
+Permissão usuario-Export criada ou atualizada.
+Permissão regra-show criada ou atualizada.
+Permissão regra-create criada ou atualizada.
+Permissão regra-edit criada ou atualizada.
+Permissão regra-Export criada ou atualizada.
+Permissão entidades-show criada ou atualizada.
+Permissão entidades-create criada ou atualizada.
+Permissão entidades-edit criada ou atualizada.
+Permissão entidades-Export criada ou atualizada.
+Permissão avaliacoes-show criada ou atualizada.
+Permissão avaliacoes-create criada ou atualizada.
+Permissão avaliacoes-edit criada ou atualizada.
+Permissão avaliacoes-Export criada ou atualizada.
+Permissão importar-avaliacoes-show criada ou atualizada.
+Permissão importar-avaliacoes-create criada ou atualizada.
+Permissão importar-avaliacoes-Export criada ou atualizada.
+Permissão canais-show criada ou atualizada.
+Permissão canais-create criada ou atualizada.
+Permissão canais-edit criada ou atualizada.
+Permissão canais-Export criada ou atualizada.
+Permissão paises-show criada ou atualizada.
+Permissão paises-create criada ou atualizada.
+Permissão paises-edit criada ou atualizada.
+Permissão paises-Export criada ou atualizada.
+Permissão riscos-de-produtos-show criada ou atualizada.
+Permissão riscos-de-produtos-create criada ou atualizada.
+Permissão riscos-de-produtos-edit criada ou atualizada.
+Permissão riscos-de-produtos-Export criada ou atualizada.
+Permissão diligencias-show criada ou atualizada.
+Permissão diligencias-create criada ou atualizada.
+Permissão diligencias-edit criada ou atualizada.
+Permissão diligencias-Export criada ou atualizada.
+Permissão profissoes-show criada ou atualizada.
+Permissão profissoes-create criada ou atualizada.
+Permissão profissoes-edit criada ou atualizada.
+Permissão profissoes-Export criada ou atualizada.
+Permissão cae-show criada ou atualizada.
+Permissão cae-create criada ou atualizada.
+Permissão cae-edit criada ou atualizada.
+Permissão cae-Export criada ou atualizada.
+Permissão perfil-show criada ou atualizada.
+Permissão perfil-edit criada ou atualizada.
+Permissão perfil-Export criada ou atualizada.
+Permissão receptores-de-alertas-show criada ou atualizada.
+Permissão receptores-de-alertas-create criada ou atualizada.
+Permissão receptores-de-alertas-edit criada ou atualizada.
+Permissão receptores-de-alertas-Export criada ou atualizada.
+Permissão compliance-officer-show criada ou atualizada.
+Permissão peps-internos-show criada ou atualizada.
+Permissão peps-internos-create criada ou atualizada.
+Permissão peps-internos-edit criada ou atualizada.
+Permissão peps-internos-Export criada ou atualizada.
+Permissão peps-externos-show criada ou atualizada.
+Permissão sancoes-show criada ou atualizada.
+Permissão transacoes-show criada ou atualizada.
+Permissão transacoes-create criada ou atualizada.
+Permissão transacoes-Export criada ou atualizada.
+Permissão capacidades-de-identificacao-show criada ou atualizada.
+Permissão capacidades-de-identificacao-create criada ou atualizada.
+Permissão capacidades-de-identificacao-edit criada ou atualizada.
+Permissão capacidades-de-identificacao-Export criada ou atualizada.
+Permissão formas-juridicas-show criada ou atualizada.
+Permissão formas-juridicas-create criada ou atualizada.
+Permissão formas-juridicas-edit criada ou atualizada.
+Permissão formas-juridicas-Export criada ou atualizada.
+Permissão historico-geral-show criada ou atualizada.
+Permissão historico-geral-Export criada ou atualizada.
+Permissão alertas-show criada ou atualizada.
+Permissão alertas-Export criada ou atualizada.
+Permissão ponderadores-show criada ou atualizada.
+Permissão ponderadores-edit criada ou atualizada.
+Permissão ponderadores-Export criada ou atualizada.
+Permissão regras--permissoes-show criada ou atualizada.
+Permissão regras--permissoes-create criada ou atualizada.
+Permissão regras--permissoes-edit criada ou atualizada.
+Permissão regras--permissoes-Export criada ou atualizada.
+Permissão perfil-utilizador-show criada ou atualizada.
+Permissão perfil-utilizador-edit criada ou atualizada.
+Permissão painel-show criada ou atualizada.
+Permissão tratar-alerta-show criada ou atualizada.
+Permissão estatistica-show criada ou atualizada.
+Permissão estatistica-Export criada ou atualizada.
+Permissão perfis-de-risco-show criada ou atualizada.
+Permissão perfis-de-risco-Export criada ou atualizada.
+Permissão configuracoes-de-transacoes-show criada ou atualizada.
+Permissão configuracoes-de-transacoes-edit criada ou atualizada.
+Permissão configuracoes-de-transacoes-Export criada ou atualizada.
