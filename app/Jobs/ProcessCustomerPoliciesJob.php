@@ -19,10 +19,10 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
     public $timeout = 600;
     public $tries = 3;
 
-    private int $customerId;
-    private array $policyNumbers;
+    public int $customerId;
+    public array $policyNumbers = []; // 🔥 default evita erro
 
-    public function __construct(int $customerId, array $policyNumbers)
+    public function __construct(int $customerId, array $policyNumbers = [])
     {
         $this->customerId = $customerId;
         $this->policyNumbers = $policyNumbers;
@@ -30,6 +30,14 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
 
     public function handle(CustomerKYTService $kytService)
     {
+        // 🔥 proteção extra (nunca confiar no payload do queue)
+        if (empty($this->policyNumbers)) {
+            Log::warning("⚠️ Job sem policies", [
+                'customer_id' => $this->customerId
+            ]);
+            return;
+        }
+
         Log::info("🚀 Processando policies", [
             'customer_id' => $this->customerId,
             'count' => count($this->policyNumbers)
@@ -79,7 +87,7 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
             ->toArray();
 
         /**
-         * 🚀 Executa KYT
+         * 🚀 KYT
          */
         $kytService->runAllChecksMemory(
             $customer,
