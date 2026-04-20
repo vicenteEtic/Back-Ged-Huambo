@@ -23,22 +23,20 @@ class DispatchCustomerJobsJob implements ShouldQueue
 
         try {
 
-            DB::table('policies_staging')
-                ->select('numero_cliente')
-                ->distinct()
-                ->orderBy('numero_cliente')
-                ->chunk(200, function ($clientes) {
+           DB::table('policies_staging')
+    ->select('numero_cliente')
+    ->distinct()
+    ->orderBy('numero_cliente')
+    ->chunk(200, function ($clientes) {
 
-                    foreach ($clientes as $cliente) {
+        foreach ($clientes as $cliente) {
 
-                        if (!empty($cliente->numero_cliente)) {
-                            ProcessCustomerDataJob::dispatch($cliente->numero_cliente)
-                                ->onQueue('cliente');
-                        } else {
-                            Log::warning("⚠️ Cliente vazio encontrado no staging");
-                        }
-                    }
-                });
+            if (!empty($cliente->numero_cliente)) {
+                ProcessCustomerDataJob::dispatch($cliente->numero_cliente)
+                    ->onQueue('cliente');
+            }
+        }
+    });
 
             Log::info("✅ Todos os clientes foram enfileirados com sucesso.");
 
