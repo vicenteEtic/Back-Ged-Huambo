@@ -71,41 +71,40 @@ class CustomerKYTService
         if (empty($policies)) return;
 
         //1. KYT_HIGH_CAPITAL_INCREASE
-         $this->checkHighCapitalIncrease($customer, $changes);
+        $this->checkHighCapitalIncrease($customer, $changes);
 
         //2. KYT_EARLY_REDEMPTION
-      $this->checkEarlyRedemption(    $customer,  $policies, $receipts, $refunds  );
+        $this->checkEarlyRedemption($customer,  $policies, $receipts, $refunds);
 
         //3. KYT_HIGH_PREMIUM_LOW_RISK
-          $this->checkHighPremium($customer, $policies);
+        $this->checkHighPremium($customer, $policies);
 
         //4. KYT_MULTIPLE_SHORT_POLICIES
         $this->checkMultipleShortPolicies($customer, $policies);
 
         //5. KYT_POLICY_CHURNING
-          $this->checkPolicyChurning($customer, $policies);
+        $this->checkPolicyChurning($customer, $policies);
 
         //6. KYT_RAPID_POLICY_REPLACEMENT
-          $this->checkRapidReplacement($customer, $policies);
+        $this->checkRapidReplacement($customer, $policies);
 
         //7. KYT_THIRD_PARTY_PAYMENTS
 
-           $this->checkThirdPartyPayments($customer, $policies);
+        $this->checkThirdPartyPayments($customer, $policies);
 
 
         //7. KYT_THIRD_PARTY_PAYMENTS
 
-         $this->checkThirdPartyPayments($customer, $policies);
+        $this->checkThirdPartyPayments($customer, $policies);
 
         //8. KYT_FREQUENT_BENEFICIARY_CHANGES
-          $this->checkFrequentBeneficiaryChanges($customer, $beneficiaries);
+        $this->checkFrequentBeneficiaryChanges($customer, $beneficiaries);
 
         //9. KYT_HIGH_RISK_GEOGRAPHY
-        $this->checkHighRiskGeography(  $customer, $policies,  $receipts, $beneficiaries );
-       
+        $this->checkHighRiskGeography($customer, $policies,  $receipts, $beneficiaries);
+
         //10. KYT_OVERPAYMENT_REFUND
         $this->checkOverpaymentRefund($customer, $policies, $receipts, $refunds);
-
 
         Log::info("🏁 KYT FINISHED", [
             'customer' => $customer->customer_number
@@ -488,64 +487,64 @@ class CustomerKYTService
         );
     }
 
-   private function checkMultipleShortPolicies(Entities $customer, array $policies): void
-{
-    Log::info('🚀 KYT BULK POLICY DETECTION START', [
-        'customer' => $customer->customer_number,
-        'total_policies' => count($policies)
-    ]);
+    private function checkMultipleShortPolicies(Entities $customer, array $policies): void
+    {
+        Log::info('🚀 KYT BULK POLICY DETECTION START', [
+            'customer' => $customer->customer_number,
+            'total_policies' => count($policies)
+        ]);
 
-    $valid = [];
+        $valid = [];
 
-    foreach ($policies as $p) {
+        foreach ($policies as $p) {
 
-        $start = $this->safeDate($p['data_inicio'] ?? null);
-        if (!$start) continue;
+            $start = $this->safeDate($p['data_inicio'] ?? null);
+            if (!$start) continue;
 
-        // 🔥 últimos 6 meses
-        if ($start->lt(now()->subMonths(6))) continue;
+            // 🔥 últimos 6 meses
+            if ($start->lt(now()->subMonths(6))) continue;
 
-        $valid[] = [
-            'numero_apolice' => $p['numero_apolice'] ?? null,
-            'start' => $start,
-            'premium' => (float) ($p['premium_total'] ?? 0)
-        ];
-    }
+            $valid[] = [
+                'numero_apolice' => $p['numero_apolice'] ?? null,
+                'start' => $start,
+                'premium' => (float) ($p['premium_total'] ?? 0)
+            ];
+        }
 
-    Log::info('📦 RECENT POLICIES', ['count' => count($valid)]);
+        Log::info('📦 RECENT POLICIES', ['count' => count($valid)]);
 
-    if (count($valid) < 3) {
-        Log::warning('⛔ EXIT: NOT ENOUGH RECENT POLICIES');
-        return;
-    }
+        if (count($valid) < 3) {
+            Log::warning('⛔ EXIT: NOT ENOUGH RECENT POLICIES');
+            return;
+        }
 
-    usort($valid, fn($a, $b) => $a['start']->timestamp <=> $b['start']->timestamp);
+        usort($valid, fn($a, $b) => $a['start']->timestamp <=> $b['start']->timestamp);
 
-    $first = $valid[0]['start'];
-    $last  = end($valid)['start'];
+        $first = $valid[0]['start'];
+        $last  = end($valid)['start'];
 
-    $periodDays = $first->diffInDays($last);
+        $periodDays = $first->diffInDays($last);
 
-    Log::info('📅 TIME WINDOW', [
-        'days' => $periodDays
-    ]);
+        Log::info('📅 TIME WINDOW', [
+            'days' => $periodDays
+        ]);
 
-    // 🔥 criação concentrada (30 dias)
-    if ($periodDays > 5) {
-        Log::warning('⛔ EXIT: NOT CONCENTRATED');
-        return;
-    }
+        // 🔥 criação concentrada (30 dias)
+        if ($periodDays > 5) {
+            Log::warning('⛔ EXIT: NOT CONCENTRATED');
+            return;
+        }
 
-    $totalPremium = array_sum(array_column($valid, 'premium'));
+        $totalPremium = array_sum(array_column($valid, 'premium'));
 
-    $apolices = array_column($valid, 'numero_apolice');
+        $apolices = array_column($valid, 'numero_apolice');
 
-    Log::warning('🚨 BULK POLICY ALERT', [
-        'count' => count($valid),
-        'totalPremium' => $totalPremium
-    ]);
+        Log::warning('🚨 BULK POLICY ALERT', [
+            'count' => count($valid),
+            'totalPremium' => $totalPremium
+        ]);
 
-    $description = "
+        $description = "
 
 
 Cliente: {$customer->customer_number}
@@ -564,19 +563,19 @@ Padrão compatível com:
 - Teste de sistema para movimentação futura
 ";
 
-    $score = 25;
+        $score = 25;
 
-    if (count($valid) >= 5) $score += 10;
-    if ($totalPremium >= 500000) $score += 10;
+        if (count($valid) >= 5) $score += 10;
+        if ($totalPremium >= 500000) $score += 10;
 
-    $this->createAlert(
-        $customer,
-        'Subscrição de múltiplas apólices de curta duração',
-        $description,
-        'Alto',
-        $score
-    );
-}
+        $this->createAlert(
+            $customer,
+            'Subscrição de múltiplas apólices de curta duração',
+            $description,
+            'Alto',
+            $score
+        );
+    }
     private function checkHighPremium(Entities $customer, array $policies): void
     {
         // 🔹 Agrupa por produto
