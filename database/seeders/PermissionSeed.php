@@ -169,6 +169,10 @@ class PermissionSeed extends Seeder
                 'name' => 'Perfis de Risco',
                 'operations' => ['show', 'Export']
             ],
+              [
+                'name' => 'Configurações de Transações',
+                'operations' => ['show','edit', 'Export']
+            ],
 
         ];
 
