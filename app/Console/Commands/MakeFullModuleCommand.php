@@ -162,7 +162,8 @@ class {$filename}Service extends AbstractService
     use App\Http\Controllers\AbstractController;
     use App\Services\\{$namespacePath}\\{$filename}Service;
     use App\Http\Requests\\{$namespacePath}\\{$filename}Request;
-    use Exception;
+    use Exception; 
+use Illuminate\Support\Facades\Log;
     use Illuminate\Database\Eloquent\ModelNotFoundException;
     use Illuminate\Http\Response;
     

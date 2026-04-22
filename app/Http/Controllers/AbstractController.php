@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use Exception;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use App\Services\AbstractService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Auth;
+
 
 /**
  * Ao usar o AbstractController é necessário criar manualmente os métodos store e update.
@@ -23,7 +25,7 @@ abstract class AbstractController extends Controller
 
     public function __construct(AbstractService $service)
     {
-        $this->service = $service;       
+        $this->service = $service;
     }
 
     /**
@@ -48,7 +50,14 @@ abstract class AbstractController extends Controller
             if ($this->logRequest) {
                 $this->logRequest($e);
             }
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -87,7 +96,14 @@ abstract class AbstractController extends Controller
             if ($this->logRequest) {
                 $this->logRequest($e);
             }
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -126,7 +142,14 @@ abstract class AbstractController extends Controller
             if ($this->logRequest) {
                 $this->logRequest($e);
             }
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -141,7 +164,14 @@ abstract class AbstractController extends Controller
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

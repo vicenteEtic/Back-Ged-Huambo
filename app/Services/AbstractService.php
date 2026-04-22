@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Repositories\AbstractRepository;
+use Mews\Purifier\Facades\Purifier;
 
 abstract class AbstractService
 {
@@ -13,55 +14,47 @@ abstract class AbstractService
         $this->repository = $repository;
     }
 
-    /**
-     * Display a listing of the resource.
-     */
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
     {
         return $this->repository->index($paginate, $filterParams, $orderByParams, $relationships);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(array $data)
     {
-        return $this->repository->store($data);
+        $data = $this->clean($data);
+
+        $model = $this->repository->store($data);
+
+        return $model->fresh(); // ✔ garante dados atualizados
     }
 
     public function storeOrUpdate(array $attributes, array $values = [])
     {
-        return $this->repository->storeOrUpdate($attributes, $values);
+        $values = $this->clean($values);
+        $attributes = $this->clean($attributes);
+
+        $model = $this->repository->storeOrUpdate($attributes, $values);
+
+        return $model->fresh();
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(int|string $id)
     {
         return $this->repository->show($id);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(array $data, int $id)
     {
-        
+        $data = $this->clean($data);
+
         return $this->repository->update($data, $id);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(int $id)
     {
         $this->repository->destroy($id);
     }
 
-    /**
-     * Restore the specified resource from storage.
-     */
     public function restore(int $id)
     {
         return $this->repository->restore($id);
@@ -70,5 +63,17 @@ abstract class AbstractService
     public function findOneBy(array $criteria)
     {
         return $this->repository->findOneBy($criteria);
+    }
+
+    protected function clean(array $data): array
+    {
+        array_walk_recursive($data, function (&$value) {
+            if (is_string($value)) {
+                $value = strip_tags($value);
+                $value = trim($value);
+            }
+        });
+
+        return $data;
     }
 }

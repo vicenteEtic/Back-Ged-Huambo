@@ -5,7 +5,8 @@ namespace App\Http\Controllers\Alert\GrupoType;
 use App\Http\Controllers\AbstractController;
 use App\Services\Alert\GrupoType\GrupoTypeService;
 use App\Http\Requests\Alert\GrupoType\GrupoTypeRequest;
-use Exception;
+use Exception; 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 
@@ -24,7 +25,14 @@ class GrupoTypeController extends AbstractController
             return response()->json($grupoType, Response::HTTP_CREATED);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function store(GrupoTypeRequest $request)
@@ -35,7 +43,14 @@ class GrupoTypeController extends AbstractController
             return response()->json($grupoType, Response::HTTP_CREATED);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -53,7 +68,14 @@ class GrupoTypeController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

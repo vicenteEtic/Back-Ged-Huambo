@@ -8,7 +8,8 @@ use App\Http\Requests\Alert\AlertDocumentRequest;
 use App\Http\Requests\Alert\AlertUpdateStatusRequest;
 use App\Http\Requests\Entities\RiskAssessmentFindDateRequest;
 use App\Services\Alert\AlertUser\AlertUserService;
-use Exception;
+use Exception; 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 
@@ -38,7 +39,14 @@ class AlertController extends AbstractController
             if ($this->logRequest) {
                 $this->logRequest($e);
             }
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -82,7 +90,14 @@ class AlertController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -97,7 +112,14 @@ class AlertController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

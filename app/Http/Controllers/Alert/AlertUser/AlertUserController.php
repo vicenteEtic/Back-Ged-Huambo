@@ -5,11 +5,15 @@ namespace App\Http\Controllers\Alert\AlertUser;
 use App\Http\Controllers\AbstractController;
 use App\Services\Alert\AlertUser\AlertUserService;
 use App\Http\Requests\Alert\AlertUser\AlertUserRequest;
-use Exception;
+use Exception; 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+
+
+
 
 use function PHPUnit\Framework\returnSelf;
 
@@ -26,7 +30,7 @@ class AlertUserController extends AbstractController
         try {
             if ($this->logRequest) {
                 $this->logRequest();
-                $this->logToDatabase(
+                $this->logToDatabase( 
                     type: $this->logType,
                     level: 'info',
                     customMessage: "O utilizador " . Auth::user()->first_name . " Visualizou todos os registros no módulo {$this->nameEntity}",
@@ -41,7 +45,14 @@ class AlertUserController extends AbstractController
             if ($this->logRequest) {
                 $this->logRequest($e);
             }
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     
@@ -67,7 +78,14 @@ class AlertUserController extends AbstractController
             if ($this->logRequest) {
                 $this->logRequest($e);
             }
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -80,7 +98,14 @@ class AlertUserController extends AbstractController
             return response()->json($alertUser, Response::HTTP_CREATED);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -93,7 +118,14 @@ class AlertUserController extends AbstractController
          try {
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -113,7 +145,14 @@ class AlertUserController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

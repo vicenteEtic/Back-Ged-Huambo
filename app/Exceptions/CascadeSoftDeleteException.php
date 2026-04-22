@@ -2,7 +2,8 @@
 
 namespace App\Exceptions;
 use Illuminate\Support\Str;
-use Exception;
+use Exception; 
+use Illuminate\Support\Facades\Log;
 
 class CascadeSoftDeleteException extends Exception
 {

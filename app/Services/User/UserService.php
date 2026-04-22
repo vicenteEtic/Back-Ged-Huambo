@@ -9,7 +9,9 @@ use App\Services\AbstractService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Repositories\User\UserRepository;
-use Exception;
+use Exception; 
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -43,23 +45,53 @@ class UserService extends AbstractService
             'email' => 'required|email',
             'password' => 'required'
         ]);
-
-        $user = User::where('email', $request->email)->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Email ou senha incorretos'], 401);
+    
+        $email = $request->email;
+        $ip = $request->ip();
+    
+        // 🔐 Keys de segurança
+        $attemptKey = "login_attempts_{$email}_{$ip}";
+        $lockKey = "login_lock_{$email}_{$ip}";
+    
+        // ⛔ Verifica bloqueio temporário
+        if (Cache::has($lockKey)) {
+            return response()->json([
+                'message' => 'Número máximo de tentativas atingido. Tente novamente mais tarde.'
+            ], 423);
         }
-
-        // Gera código 2FA
+    
+        $user = User::where('email', $email)->first();
+    
+        // ❌ Falha de autenticação
+        if (!$user || !Hash::check($request->password, $user->password)) {
+    
+            $attempts = Cache::get($attemptKey, 0);
+            $attempts++;
+    
+            Cache::put($attemptKey, $attempts, now()->addMinutes(10));
+    
+            // 🔴 Bloqueia após 5 tentativas
+            if ($attempts >= 5) {
+                Cache::put($lockKey, true, now()->addMinutes(15));
+            }
+    
+            return response()->json([
+                'message' => 'Email ou senha incorretos'
+            ], 401);
+        }
+    
+        // 🔁 Sucesso → limpa tentativas
+        Cache::forget($attemptKey);
+        Cache::forget($lockKey);
+    
+        // 🔐 Gera código 2FA
         $user->generateTwoFactorCode();
-
-        // Envia email
+    
+        // 📧 Envia email
         Mail::to($user->email)->send(new \App\Mail\TwoFactorCodeMail($user));
-        $token = $user->createToken("NOSSA_SEGUROS")->plainTextToken;
-
-        //return $token;
+    
         return response()->json([
-            'message' => 'Código 2FA enviado para seu email',
+            'message' => 'Código 2FA enviado para o seu email',
             'user_id' => $user->id,
             'email' => $user->email,
         ]);
@@ -103,40 +135,69 @@ class UserService extends AbstractService
             throw new Exception(trans($status));
         }
     }
-    // Valida o código
+ 
+
     public function verify2fa(array $request)
     {
-        $code = $request['code'] ?? null; // <- pega o campo do array
+        $code = trim((string) ($request['code'] ?? null));
         $email = $request['email'] ?? null;
-
-        $user = User::where('email', $email)
-            ->where('two_factor_code', $code)
-            ->first();
-
+    
+        $user = User::where('email', $email)->first();
+    
         if (!$user) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Código ou email inválido.'
-            ], 401);
+                'message' => 'Usuário não encontrado.'
+            ], 404);
         }
-
+    
+        $attemptKey = "2fa_attempts_{$user->id}";
+        $lockKey = "2fa_lock_{$user->id}";
+    
+        if (Cache::has($lockKey)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Muitas tentativas inválidas. Tente novamente mais tarde.'
+            ], 423);
+        }
+    
+        // ⏱️ VERIFICAR EXPIRAÇÃO PRIMEIRO
         if ($user->two_factor_expires_at->lt(now())) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'O código expirou, solicite um novo.'
             ], 401);
         }
-
+    
+        // ❌ CÓDIGO ERRADO
+        if ($user->two_factor_code !== $code) {
+    
+            $attempts = Cache::get($attemptKey, 0) + 1;
+    
+            Cache::put($attemptKey, $attempts, now()->addMinutes(10));
+    
+            if ($attempts >= 3) {
+                Cache::put($lockKey, true, now()->addMinutes(15));
+            }
+    
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Código inválido.'
+            ], 401);
+        }
+    
+        Cache::forget($attemptKey);
+        Cache::forget($lockKey);
+    
         $user->resetTwoFactorCode();
-
+    
         $token = $user->createToken("NOSSA_SEGUROS")->plainTextToken;
-
-        return [
+    
+        return response()->json([
             'status' => 'success',
             'message' => 'Autenticação 2FA validada com sucesso.',
             'token' => $token,
-            // 'user'  => $user
-        ];
+        ]);
     }
 
     public function changePassword(array $data, $id)
