@@ -183,7 +183,7 @@ class UserService extends AbstractService
     
             return response()->json([
                 'status' => 'error',
-                'message' => 'Código inválido.'
+                'message' => 'Autenticação 2FA validada com sucesso.'
             ], 401);
         }
     
