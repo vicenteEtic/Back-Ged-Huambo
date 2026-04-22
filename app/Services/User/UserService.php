@@ -192,7 +192,7 @@ class UserService extends AbstractService
     
         $user->resetTwoFactorCode();
     
-        $token = $user->createToken("NOSSA_SEGUROS")->plainTextToken;
+        $token = $user->createToken("keepComply")->plainTextToken;
     
         return response()->json([
             'status' => 'success',
