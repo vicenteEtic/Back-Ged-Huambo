@@ -36,7 +36,7 @@ class EntitiesController extends AbstractController
                 level: 'info',
                 customMessage: "O usuário " . Auth::user()->first_name . " criou a entidade {$entities->social_denomination} com sucesso.",
                 idEntity: $entities->id
-            );
+            );*
 
 
             return response()->json($entities, Response::HTTP_CREATED);
