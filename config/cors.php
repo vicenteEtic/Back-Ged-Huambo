@@ -25,6 +25,7 @@ return [
         'https://172.18.100.20',
         'https://172.18.100.21',
         'http://172.17.100.11',
+        'http://172.17.100.12'
     ],
 
     'allowed_origins_patterns' => [],
