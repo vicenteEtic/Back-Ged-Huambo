@@ -26,6 +26,7 @@ return [
         'https://172.18.100.21:1025',
         'http://172.17.100.11:1025',
         'http://172.17.100.12:8081',
+        'localhost:5173'
     ],
 
     'allowed_origins_patterns' => [],
