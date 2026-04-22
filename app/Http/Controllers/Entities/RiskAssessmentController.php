@@ -1,25 +1,21 @@
 <?php
-
 namespace App\Http\Controllers\Entities;
 
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\Entities\RiskAssessmentFindDateRequest;
-use App\Services\Entities\RiskAssessmentService;
 use App\Http\Requests\Entities\RiskAssessmentRequest;
-use App\Jobs\GenerateAlertsJob;
+use App\Services\Entities\RiskAssessmentService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
-use PhpParser\Node\Stmt\Return_;
-
-use function PHPUnit\Framework\returnSelf;
+use Illuminate\Support\Facades\Log;
 
 class RiskAssessmentController extends AbstractController
 {
-    protected ?string $logType = 'entity';
+    protected ?string $logType    = 'entity';
     protected ?string $nameEntity = "Avaliação de Risco";
-    protected ?string $fieldName = "entity?->social_denomination";
+    protected ?string $fieldName  = "entity?->social_denomination";
 
     public function __construct(RiskAssessmentService $service)
     {
@@ -32,52 +28,59 @@ class RiskAssessmentController extends AbstractController
     public function store(RiskAssessmentRequest $request)
     {
         try {
-    
+
             DB::beginTransaction();
-    
+
             $data = $request->validated();
-    
+
             $data['professionP'] = $data['profession'] ?? null;
-            $data['categoryP'] = $data['category'] ?? null;
-    
+            $data['categoryP']   = $data['category'] ?? null;
+
             $this->logRequest();
-    
+
             $riskAssessment = $this->service->store($data);
-    
+
             $this->logToDatabase(
                 type: 'entity',
                 level: 'info',
                 customMessage: "{$riskAssessment?->entity?->social_denomination} Foi realizada uma avaliação que resultou em uma pontuação de {$riskAssessment->score} com um nível de risco {$riskAssessment->risk_level} e o tipo de diligência {$riskAssessment->diligence}.",
                 idEntity: $riskAssessment->entity_id
             );
-    
+
             $userName = auth()->user()?->first_name ?? 'Usuário desconhecido';
-    
+
             $this->logToDatabase(
                 type: 'user',
                 level: 'info',
                 customMessage: "{$userName} realizou uma avaliação na entidade {$riskAssessment?->entity?->social_denomination} que resultou em uma pontuação de {$riskAssessment->score} com um nível de risco {$riskAssessment->risk_level} e o tipo de diligência {$riskAssessment->diligence}.",
                 idEntity: null
             );
-    
+
             DB::commit();
-    
+
             return response()->json($riskAssessment, Response::HTTP_CREATED);
-    
+
         } catch (Exception $e) {
-    
+
             DB::rollBack();
-    
+
             $this->logRequest($e);
-    
+
             $this->logToDatabase(
                 type: 'entity',
                 level: 'error',
                 customMessage: "O usuário " . auth()->user()->first_name . " tentou criar uma avaliação de risco, mas ocorreu um erro.",
                 idEntity: $request->entity_id
             );
-    
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -92,7 +95,14 @@ class RiskAssessmentController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -107,7 +117,14 @@ class RiskAssessmentController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -122,7 +139,14 @@ class RiskAssessmentController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -137,7 +161,14 @@ class RiskAssessmentController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -152,7 +183,14 @@ class RiskAssessmentController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -167,7 +205,14 @@ class RiskAssessmentController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -182,7 +227,14 @@ class RiskAssessmentController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -190,21 +242,28 @@ class RiskAssessmentController extends AbstractController
     {
         try {
             $this->logRequest();
-    
+
             $data = $request->validated();
-    
+
             // Se ano vier no $request, substitui o parâmetro $year
             $year = $year ?? ($data['year'] ?? null);
-    
+
             $result = $this->service->getHeatMap($year, $data);
-    
+
             return response()->json($result, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

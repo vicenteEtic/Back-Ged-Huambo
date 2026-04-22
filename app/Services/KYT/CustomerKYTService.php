@@ -106,7 +106,6 @@ class CustomerKYTService
         //10. KYT_OVERPAYMENT_REFUND
         $this->checkOverpaymentRefund($customer, $policies, $receipts, $refunds);
 
-
         Log::info("🏁 KYT FINISHED", [
             'customer' => $customer->customer_number
         ]);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Entities;
 
 use Exception;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use App\Services\Entities\EntitiesService;
@@ -29,7 +30,7 @@ class EntitiesController extends AbstractController
     {
         try {
             $this->logRequest();
-            $entities = $this->service->store($request->validated());
+            return $entities = $this->service->store($request->validated());
             $this->logToDatabase(
                 type: 'entity',
                 level: 'info',
@@ -37,7 +38,7 @@ class EntitiesController extends AbstractController
                 idEntity: $entities->id
             );
 
-          
+
             return response()->json($entities, Response::HTTP_CREATED);
         } catch (Exception $e) {
             $this->logRequest($e);
@@ -46,7 +47,14 @@ class EntitiesController extends AbstractController
                 level: 'error',
                 customMessage: "Erro ao criar entidade.",
             );
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     /**
@@ -79,13 +87,20 @@ class EntitiesController extends AbstractController
                 level: 'error',
                 customMessage: "Erro ao atualizar entidade.",
             );
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     public function storeImportData(ImportDataRequest $request)
     {
-       
+
 
         try {
             $this->logRequest();
@@ -104,7 +119,14 @@ class EntitiesController extends AbstractController
                 level: 'error',
                 customMessage: "Erro ao iniciar importação de entidades."
             );
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function getProfileSegmentation()
@@ -128,7 +150,14 @@ class EntitiesController extends AbstractController
                 level: 'error',
                 customMessage: "Erro ao segmentar perfil da entidade.",
             );
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-}
+    }
 }

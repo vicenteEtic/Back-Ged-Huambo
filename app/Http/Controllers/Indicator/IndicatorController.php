@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers\Indicator;
 
-use Exception;
+use Exception; 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use App\Services\Log\LogService;
@@ -32,7 +33,14 @@ class IndicatorController extends AbstractController
             return response()->json($indicator, Response::HTTP_CREATED);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -45,7 +53,14 @@ class IndicatorController extends AbstractController
             return response()->json($indicator, Response::HTTP_CREATED);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -70,7 +85,14 @@ class IndicatorController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

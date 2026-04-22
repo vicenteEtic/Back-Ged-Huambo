@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers\Dashboard;
 
-use Exception;
+use Exception; 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use App\Http\Controllers\Controller;
@@ -33,7 +34,14 @@ class DashboardController extends Controller
             return response()->json($data, Response::HTTP_OK);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\AbstractController;
 use App\Services\Permission\RoleService;
 use App\Http\Requests\Permission\RoleRequest;
 use Exception;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,14 @@ class RoleController extends AbstractController
                 level: 'error',
                 customMessage: "Erro ao criar perfil.",
             );
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -81,7 +89,14 @@ class RoleController extends AbstractController
                 level: 'error',
                 customMessage: "O usuário " . auth()->user()->first_name . " tentou atualizar o perfil {$id}, mas ocorreu um erro."
             );
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

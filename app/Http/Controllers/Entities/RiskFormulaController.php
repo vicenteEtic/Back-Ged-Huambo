@@ -5,7 +5,8 @@
     use App\Http\Controllers\AbstractController;
     use App\Services\Entities\RiskFormulaService;
     use App\Http\Requests\Entities\RiskFormulaRequest;
-    use Exception;
+    use Exception; 
+use Illuminate\Support\Facades\Log;
     use Illuminate\Database\Eloquent\ModelNotFoundException;
     use Illuminate\Http\Response;
     
@@ -27,7 +28,14 @@
                 return response()->json($riskFormula, Response::HTTP_CREATED);
             } catch (Exception $e) {
                 $this->logRequest($e);
-                return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+                 Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
         }
     
@@ -45,7 +53,14 @@
                 return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
             } catch (Exception $e) {
                 $this->logRequest($e);
-                return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+                 Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
         }
     }

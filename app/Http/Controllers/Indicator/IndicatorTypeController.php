@@ -7,6 +7,7 @@ use App\Http\Controllers\AbstractController;
 use App\Http\Requests\Indicator\IndicatorTypeRequest;
 use App\Services\Indicator\IndicatorTypeService;
 use Exception;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 
@@ -45,7 +46,14 @@ class IndicatorTypeController extends AbstractController
                 level: 'error',
                 customMessage: "O usuário " . auth()->user()->first_name . " tentou criar um tipo de indicador, mas ocorreu um erro: "
             );
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -53,11 +61,11 @@ class IndicatorTypeController extends AbstractController
      * Update the specified resource in storage.
      */
 
-    
- 
+
+
     public function update(IndicatorTypeRequest $request, $id)
     {
-        
+
         try {
             $this->logRequest();
             $indicatorTypeStore = $this->service->update($request->validated(), $id);
@@ -72,7 +80,14 @@ class IndicatorTypeController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -162,9 +177,7 @@ class IndicatorTypeController extends AbstractController
     public function getIndicatorsByFk()
     {
         $typeIndicator = $this->getIndicatorsByFk();
-       
+
         return $typeIndicator;
     }
-
-    
 }

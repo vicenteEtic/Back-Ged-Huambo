@@ -5,7 +5,8 @@ namespace App\Http\Controllers\Entities;
 use App\Http\Controllers\AbstractController;
 use App\Services\Entities\ProductRiskService;
 use App\Http\Requests\Entities\ProductRiskRequest;
-use Exception;
+use Exception; 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 
@@ -42,7 +43,14 @@ class ProductRiskController extends AbstractController
                 level: 'error',
                 customMessage: "Erro ao criar produto de risco.",
             );
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -76,7 +84,14 @@ class ProductRiskController extends AbstractController
                 level: 'error',
                 customMessage: "O usuário " . auth()->user()->first_name . " tentou atualizar o produto de risco {$id}, mas ocorreu um erro."
             );
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

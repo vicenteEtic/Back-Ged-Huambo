@@ -6,7 +6,8 @@ use App\Http\Controllers\AbstractController;
 use App\Http\Requests\Transation\Policies\PoliciesRequest;
 use App\Services\Transation\TransactionService;
 use App\Http\Requests\Transation\TransactionRequest;
-use Exception;
+use Exception; 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -72,7 +73,14 @@ class TransactionController extends AbstractController
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            return response()->json($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+             Log::error('Erro interno', [
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+
+    return response()->json([
+        'error' => 'Erro interno no servidor.'
+    ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }
