@@ -114,8 +114,6 @@ class RiskAssessmentService extends AbstractService
                 $data['identification_capacity'] ?? null,
             ];
 
-
-
             $data['user_id'] = Auth::id() ?? $data['user_id'];
             Log::info('RISK STORE: User ID definido', ['user_id' => $data['user_id']]);
 
@@ -190,7 +188,7 @@ class RiskAssessmentService extends AbstractService
     private function handleBeneficialOwners(array $data, $riskAssessment, $entity_id): void
     {
         if (isset($data['beneficial_owners'])) {
-            $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id,   $entity_id );
+            $this->beneficialOwnerService->createBeneficialOwner($data, $riskAssessment->id,   $entity_id);
         }
         if (isset($data['beneficial'])) {
             $this->beneficialService->createBeneficial($data, $riskAssessment->id);
@@ -380,13 +378,13 @@ class RiskAssessmentService extends AbstractService
     {
         // Se for enviado o ano no array, usa, senão pega o ano atual
         $year = !empty($year) ? (int) $year : (int) date('Y');
-    
+
         // Chama o método já preparado para aceitar intervalos ou ano
-        $monthlyData = $this->repository->getMonthlyData($year,$data);
-    
+        $monthlyData = $this->repository->getMonthlyData($year, $data);
+
         // Recupera os anos distintos para filtro/legenda
         $years = $this->repository->getDistinctYears();
-    
+
         return $this->formatResults($year, $monthlyData, $years);
     }
 
@@ -577,7 +575,7 @@ class RiskAssessmentService extends AbstractService
         }
 
         $data['entity_id'] = $alert->entity_id;
-       
+
 
         $data['risk_assessment'] = $lastAssessment->risk_assessment;
         if ($lastAssessment) {

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AlertAttachment\AlertAttachmentController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\User\UserController;
+
 Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(function () {
     Route::prefix('entities')->group(base_path('routes/entities/entities.php'));
     Route::prefix('diligence')->group(base_path('routes/diligence/diligence.php'));
@@ -16,7 +17,7 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
     Route::prefix('alert')->group(base_path('routes/alert/alert.php'));
     Route::prefix('logs')->group(base_path('routes/logs/logs.php'));
     Route::prefix('dashboard')->group(base_path('routes/entities/dashboard.php'));
-        Route::prefix('transations')->group(base_path('routes/transation/transation.php'));
+    Route::prefix('transations')->group(base_path('routes/transation/transation.php'));
 });
 Route::post('/auth/login', [UserController::class, 'login']);
 Route::prefix('auth')->middleware('guest')->group(base_path('routes/user/auth.php'));

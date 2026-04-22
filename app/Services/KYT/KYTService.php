@@ -67,15 +67,14 @@ class CustomerKYTService
 
 
 
-    
+
     public function runAllChecksMemory(
         Entities $customer,
         array $policies,
         array $changes = [],
         array $refunds = [],
         array $receipts = [] // 👈 ADICIONAR
-    ): void
-    {
+    ): void {
         $policies = $this->normalizePolicies($policies);
 
         Log::info("🔍 KYT START", [
@@ -85,24 +84,24 @@ class CustomerKYTService
 
         if (empty($policies)) return;
 
-       $this->checkHighCapitalIncrease($customer, $changes);
-      // 🔥 Agora passa os dados de estorno reais para a detecção de Early Redemption
-    $this->checkEarlyRedemption($customer, $policies, $refunds);
-     
-    $this->checkHighPremium($customer, $policies);
-     $this->checkMultipleShortPolicies($customer, $policies);
+        $this->checkHighCapitalIncrease($customer, $changes);
+        // 🔥 Agora passa os dados de estorno reais para a detecção de Early Redemption
+        $this->checkEarlyRedemption($customer, $policies, $refunds);
 
-     $this->checkPolicyChurning($customer, $policies);
-     $this->checkRapidReplacement($customer, $policies);
+        $this->checkHighPremium($customer, $policies);
+        $this->checkMultipleShortPolicies($customer, $policies);
 
-     $this->checkRapidReplacement($customer, $policies);
+        $this->checkPolicyChurning($customer, $policies);
+        $this->checkRapidReplacement($customer, $policies);
 
-      $this->checkThirdPartyPayments($customer, $policies);
+        $this->checkRapidReplacement($customer, $policies);
+
+        $this->checkThirdPartyPayments($customer, $policies);
 
 
-      //cenario 10
-       $this->checkOverpaymentRefund($customer, $policies, $receipts, $refunds);
-   
+        //cenario 10
+        $this->checkOverpaymentRefund($customer, $policies, $receipts, $refunds);
+
 
         Log::info("✅ KYT FINISHED ", ['customer' => $customer->customer_number]);
     }
@@ -178,152 +177,152 @@ class CustomerKYTService
 
 
     private function checkHighCapitalIncrease(Entities $customer, array $changes): void
-{
-    foreach ($changes as $change) {
+    {
+        foreach ($changes as $change) {
 
-        $tipo = strtoupper(trim($change->tipo_alteracao ?? ''));
+            $tipo = strtoupper(trim($change->tipo_alteracao ?? ''));
 
-        // 🔥 Só capital (ajusta conforme teus dados)
-        if (!str_contains($tipo, 'ALTER')) continue;
+            // 🔥 Só capital (ajusta conforme teus dados)
+            if (!str_contains($tipo, 'ALTER')) continue;
 
-        $old = (float) $change->valor_anterior;
-        $new = (float) $change->novo_valor;
+            $old = (float) $change->valor_anterior;
+            $new = (float) $change->novo_valor;
 
-        if ($old <= 0) continue;
+            if ($old <= 0) continue;
 
-        $increaseRate = ($new - $old) / $old;
+            $increaseRate = ($new - $old) / $old;
 
-        // 🔥 REGRA AML
-        if ($increaseRate < 0.30) continue;
+            // 🔥 REGRA AML
+            if ($increaseRate < 0.30) continue;
 
-        $motivo = strtolower(trim($change->motivo_alteracao ?? ''));
+            $motivo = strtolower(trim($change->motivo_alteracao ?? ''));
 
-        $motivoValido = in_array($motivo, [
-            'herança',
-            'mudança de emprego',
-            'promoção'
-        ]);
+            $motivoValido = in_array($motivo, [
+                'herança',
+                'mudança de emprego',
+                'promoção'
+            ]);
 
-        $score = 10;
+            $score = 10;
 
-        if ($increaseRate >= 0.50) $score += 10;
-        if (!$motivoValido) $score += 10;
+            if ($increaseRate >= 0.50) $score += 10;
+            if (!$motivoValido) $score += 10;
 
-        // 🔥 SE FOR > 80% → ALERTA FORTE
-        if ($increaseRate >= 0.80) $score += 10;
+            // 🔥 SE FOR > 80% → ALERTA FORTE
+            if ($increaseRate >= 0.80) $score += 10;
 
-        $description = sprintf(
-            "Apólice: %s | Tipo: %s | Capital: %s → %s | Aumento: %.2f%% | Motivo: %s",
-            $change->numero_apolice,
-            $tipo,
-            $this->formatMoney($old),
-            $this->formatMoney($new),
-            $increaseRate * 100,
-            $change->motivo_alteracao ?? 'Não informado'
-        );
+            $description = sprintf(
+                "Apólice: %s | Tipo: %s | Capital: %s → %s | Aumento: %.2f%% | Motivo: %s",
+                $change->numero_apolice,
+                $tipo,
+                $this->formatMoney($old),
+                $this->formatMoney($new),
+                $increaseRate * 100,
+                $change->motivo_alteracao ?? 'Não informado'
+            );
 
-        $this->createAlert(
-            $customer,
-            "Aumento elevado de capital na apólice",
-            $description,
-            'Alto',
-            $score
-        );
+            $this->createAlert(
+                $customer,
+                "Aumento elevado de capital na apólice",
+                $description,
+                'Alto',
+                $score
+            );
+        }
     }
-}
-   
-private function checkEarlyRedemption(Entities $customer, array $policies, array $refunds = []): void
-{
-    foreach ($policies as $p) {
 
-        // 🔒 Apenas apólices canceladas
-        if (!in_array($p['estado_apolice'], ['cancelled', 'terminated'])) {
-            continue;
+    private function checkEarlyRedemption(Entities $customer, array $policies, array $refunds = []): void
+    {
+        foreach ($policies as $p) {
+
+            // 🔒 Apenas apólices canceladas
+            if (!in_array($p['estado_apolice'], ['cancelled', 'terminated'])) {
+                continue;
+            }
+
+            // 🔒 Datas
+            $dataInicio = $this->parseDate($p['data_inicio']);
+            $dataCancelamentoRaw = $p['data_anulacao'] ?? $p['data_fim'];
+
+            if ($dataCancelamentoRaw === '1900-01-01 00:00:00') {
+                $dataCancelamentoRaw = null;
+            }
+
+            $dataCancelamento = $this->parseDate($dataCancelamentoRaw);
+
+            if (!$dataInicio || !$dataCancelamento) continue;
+
+            try {
+                $inicio = Carbon::parse($dataInicio);
+                $fim = Carbon::parse($dataCancelamento);
+            } catch (\Exception $e) {
+                continue;
+            }
+
+            if ($fim->lt($inicio)) continue;
+
+            $dias = $inicio->diffInDays($fim);
+
+            // 🔥 REGRA PRINCIPAL (menos de 12 meses)
+            if ($dias >= 365 || $dias <= 0) continue;
+
+            // 🔥 Valor pago REAL
+            $valorPago = (float)($p['premium_total'] > 0
+                ? $p['premium_total']
+                : ($p['premio_simples'] ?? 0)
+            );
+
+            if ($valorPago <= 0) continue;
+
+            // 🚫 Não temos estorno real → assumir 0 ou integrar depois
+            $valorRecebido = 0;
+
+            $perda = $valorPago - $valorRecebido;
+
+            if ($perda <= 0) continue;
+
+            // 🔥 Percentagem de perda (CRÍTICO AML)
+            $percentualPerda = $perda / $valorPago;
+
+            // 🔥 FILTRO AML (10% - 20%)
+            if ($percentualPerda < 0.10) continue;
+
+            // 🔥 FILTRO PRODUTO (opcional mas recomendado)
+            $produto = strtoupper($p['descricao_produto'] ?? '');
+            $isProdutoSensivel = str_contains($produto, 'VIDA') || str_contains($produto, 'POUP');
+
+            // Score dinâmico
+            $score = 20;
+
+            if ($percentualPerda >= 0.20) $score += 5;
+            if ($dias < 180) $score += 5;
+            if ($isProdutoSensivel) $score += 5;
+
+            $description = sprintf(
+                "KYT EARLY REDEMPTION\n" .
+                    "Produto: %s | Apólice: %s\n" .
+                    "Duração: %d dias (<365)\n" .
+                    "Financeiro: Pago [%s] | Recebido [%s] | Perda [%s] (%.2f%%)\n" .
+                    "Motivo: %s",
+                $produto,
+                $p['numero_apolice'],
+                $dias,
+                $this->formatMoney($valorPago),
+                $this->formatMoney($valorRecebido),
+                $this->formatMoney($perda),
+                $percentualPerda * 100,
+                $p['motivo_anulacao'] ?? 'N/A'
+            );
+
+            $this->createAlert(
+                $customer,
+                'Resgate Antecipado de apólice',
+                $description,
+                'Alto',
+                $score
+            );
         }
-
-        // 🔒 Datas
-        $dataInicio = $this->parseDate($p['data_inicio']);
-        $dataCancelamentoRaw = $p['data_anulacao'] ?? $p['data_fim'];
-
-        if ($dataCancelamentoRaw === '1900-01-01 00:00:00') {
-            $dataCancelamentoRaw = null;
-        }
-
-        $dataCancelamento = $this->parseDate($dataCancelamentoRaw);
-
-        if (!$dataInicio || !$dataCancelamento) continue;
-
-        try {
-            $inicio = Carbon::parse($dataInicio);
-            $fim = Carbon::parse($dataCancelamento);
-        } catch (\Exception $e) {
-            continue;
-        }
-
-        if ($fim->lt($inicio)) continue;
-
-        $dias = $inicio->diffInDays($fim);
-
-        // 🔥 REGRA PRINCIPAL (menos de 12 meses)
-        if ($dias >= 365 || $dias <= 0) continue;
-
-        // 🔥 Valor pago REAL
-        $valorPago = (float)($p['premium_total'] > 0 
-            ? $p['premium_total'] 
-            : ($p['premio_simples'] ?? 0)
-        );
-
-        if ($valorPago <= 0) continue;
-
-        // 🚫 Não temos estorno real → assumir 0 ou integrar depois
-        $valorRecebido = 0;
-
-        $perda = $valorPago - $valorRecebido;
-
-        if ($perda <= 0) continue;
-
-        // 🔥 Percentagem de perda (CRÍTICO AML)
-        $percentualPerda = $perda / $valorPago;
-
-        // 🔥 FILTRO AML (10% - 20%)
-        if ($percentualPerda < 0.10) continue;
-
-        // 🔥 FILTRO PRODUTO (opcional mas recomendado)
-        $produto = strtoupper($p['descricao_produto'] ?? '');
-        $isProdutoSensivel = str_contains($produto, 'VIDA') || str_contains($produto, 'POUP');
-
-        // Score dinâmico
-        $score = 20;
-
-        if ($percentualPerda >= 0.20) $score += 5;
-        if ($dias < 180) $score += 5;
-        if ($isProdutoSensivel) $score += 5;
-
-        $description = sprintf(
-            "KYT EARLY REDEMPTION\n" .
-            "Produto: %s | Apólice: %s\n" .
-            "Duração: %d dias (<365)\n" .
-            "Financeiro: Pago [%s] | Recebido [%s] | Perda [%s] (%.2f%%)\n" .
-            "Motivo: %s",
-            $produto,
-            $p['numero_apolice'],
-            $dias,
-            $this->formatMoney($valorPago),
-            $this->formatMoney($valorRecebido),
-            $this->formatMoney($perda),
-            $percentualPerda * 100,
-            $p['motivo_anulacao'] ?? 'N/A'
-        );
-
-        $this->createAlert(
-            $customer,
-            'Resgate Antecipado de apólice',
-            $description,
-            'Alto',
-            $score
-        );
     }
-}
     private function checkHighPremium(Entities $customer, array $policies): void
     {
         // 🔹 Agrupa por produto
@@ -396,79 +395,81 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     private function checkMultipleShortPolicies(Entities $customer, array $policies): void
     {
         $valid = [];
-    
+
         foreach ($policies as $p) {
-    
+
             $start = $this->safeDate($p['data_inicio'] ?? null);
             $end   = $this->safeDate($p['data_fim'] ?? null);
-    
+
             if (!$start || !$end) continue;
-    
+
             $days = $start->diffInDays($end);
-    
+
             if ($days >= 90 && $days <= 180 && ($p['premium_total'] ?? 0) > 0) {
                 $valid[] = $p;
             }
         }
-    
+
         if (count($valid) < 3) return;
-    
-        usort($valid, fn($a, $b) =>
+
+        usort(
+            $valid,
+            fn($a, $b) =>
             strtotime($a['data_inicio']) <=> strtotime($b['data_inicio'])
         );
-    
+
         $window = [];
         $totalPremium = 0;
         $earlyCancels = 0;
-    
+
         $seen = [];
-    
+
         foreach ($valid as $p) {
-    
+
             $key = $p['numero_apolice'] ?? null;
-    
+
             if (!$key || in_array($key, $seen)) {
                 continue;
             }
-    
+
             $seen[] = $key;
-    
+
             $window[] = $p;
             $totalPremium += $p['premium_total'];
-    
+
             $start = $this->safeDate($p['data_inicio']);
             $end   = $this->safeDate($p['data_fim']);
-    
+
             if ($start && $end && $start->diffInDays($end) < 180) {
                 $earlyCancels++;
             }
         }
-    
+
         // 🔥 VALIDAÇÃO CRÍTICA (evita erro)
         if (count($window) < 3 || $totalPremium < 300000) return;
-    
+
         if (empty($window)) return;
-    
+
         /* =========================
            APÓLICES ÚNICAS
         ========================== */
-    
+
         $apolices = array_unique(array_column($window, 'numero_apolice'));
-    
+
         /* =========================
            PERÍODO SEGURO
         ========================== */
-    
+
         $periodStart = $window[0]['data_inicio'] ?? 'N/A';
         $last = end($window);
         $periodEnd = $last['data_inicio'] ?? 'N/A';
-    
+
         /* =========================
            DESCRIÇÃO MELHORADA
         ========================== */
-    
+
         $description =
-    "RELATÓRIO KYT - MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO
+            "RELATÓRIO KYT - MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO
     
     Cliente: {$customer->customer_number}
     
@@ -489,21 +490,21 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     - Layering (dispersão para ocultação)
     
     Risco: Médio-Alto";
-    
+
         /* =========================
            SCORE
         ========================== */
-    
+
         $score = 15;
-    
+
         if ($totalPremium >= 500000) $score += 5;
         if (count($window) >= 5) $score += 5;
         if ($earlyCancels >= 2) $score += 5;
-    
+
         /* =========================
            ALERTA
         ========================== */
-    
+
         $this->createAlert(
             $customer,
             'Churn de apólices (trocas frequentes)',
@@ -513,7 +514,7 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
         );
     }
 
-  
+
 
 
     private function checkPolicyChurning(Entities $customer, array $policies): void
@@ -580,40 +581,41 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
 
     private function checkRapidReplacement(Entities $customer, array $policies): void
     {
-        usort($policies, fn($a, $b) =>
+        usort(
+            $policies,
+            fn($a, $b) =>
             strtotime($a['data_inicio'] ?? '1970') <=> strtotime($b['data_inicio'] ?? '1970')
         );
-    
+
         $chains = [];
         $current = [];
-    
+
         for ($i = 1; $i < count($policies); $i++) {
-    
+
             $prev = $policies[$i - 1];
             $curr = $policies[$i];
-    
+
             $cancelDate = $this->safeDate($prev['data_anulacao'] ?? $prev['data_fim'] ?? null);
             $currStart  = $this->safeDate($curr['data_inicio'] ?? null);
             $startPrev  = $this->safeDate($prev['data_inicio'] ?? null);
-    
+
             if (!$cancelDate || !$currStart || !$startPrev) continue;
-    
+
             $duration = $startPrev->diffInDays($cancelDate);
-    
+
             if ($duration > 30) continue;
-    
+
             $gap = $cancelDate->diffInDays($currStart);
-    
+
             if ($gap <= 7) {
-    
+
                 if (empty($current) || end($current)['numero_apolice'] !== $prev['numero_apolice']) {
                     $current[] = $prev;
                 }
-    
+
                 if (end($current)['numero_apolice'] !== $curr['numero_apolice']) {
                     $current[] = $curr;
                 }
-    
             } else {
                 if (count($current) >= 3) {
                     $chains[] = $current;
@@ -621,51 +623,51 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
                 $current = [];
             }
         }
-    
+
         if (count($current) >= 3) {
             $chains[] = $current;
         }
-    
+
         if (empty($chains)) return;
-    
+
         usort($chains, fn($a, $b) => count($b) <=> count($a));
         $chain = $chains[0] ?? [];
-    
+
         if (empty($chain)) return;
-    
+
         // 🔥 últimos 12 meses
         $chain = array_values(array_filter($chain, function ($p) {
             return isset($p['data_inicio']) &&
                 Carbon::parse($p['data_inicio'])->gte(now()->subYear());
         }));
-    
+
         if (count($chain) < 3) return;
-    
+
         // 🔥 LIMITAR A 20 (AQUI)
         $chain = array_slice($chain, -20);
-    
+
         $pairs = [];
         $timeline = [];
         $early = 0;
-    
+
         for ($i = 1; $i < count($chain); $i++) {
-    
+
             $prev = $chain[$i - 1];
             $curr = $chain[$i];
-    
+
             $cancelDate = $this->safeDate($prev['data_anulacao'] ?? $prev['data_fim']);
             $currStart  = $this->safeDate($curr['data_inicio']);
-    
+
             if (!$cancelDate || !$currStart) continue;
-    
+
             $gap = $cancelDate->diffInDays($currStart);
-    
+
             $pair = $prev['numero_apolice'] . " → " . $curr['numero_apolice'];
-    
+
             if (!in_array($pair, $pairs)) {
                 $pairs[] = $pair;
             }
-    
+
             $timeline[] = sprintf(
                 "%s (%s → %s = %d dias)",
                 $prev['numero_apolice'],
@@ -673,14 +675,14 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
                 $currStart->format('Y-m-d'),
                 $gap
             );
-    
+
             if ($gap <= 7) $early++;
         }
-    
+
         if (empty($pairs)) return;
-    
+
         $description =
-    "RELATÓRIO KYT - SUBSTITUIÇÃO RÁPIDA DE APÓLICES
+            "RELATÓRIO KYT - SUBSTITUIÇÃO RÁPIDA DE APÓLICES
     
     Cliente: {$customer->customer_number}
     
@@ -699,12 +701,12 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     indicando possível layering e ocultação de fluxos financeiros.
     
     Risco: Alto";
-    
+
         $score = 15;
-    
+
         if ($early >= 2) $score += 5;
         if (count($chain) >= 5) $score += 5;
-    
+
         $this->createAlert(
             $customer,
             'Substituição ou cancelamento repetido',
@@ -714,7 +716,7 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
         );
     }
 
-  
+
     private function checkThirdPartyPayments(Entities $customer, array $policies): void
     {
         foreach ($policies as $policy) {
@@ -767,78 +769,77 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
         array $policies,
         array $receipts = [],
         array $refunds = []
-    ): void
-    {
+    ): void {
         if (empty($receipts) || empty($refunds)) return;
-    
+
         $alerts = [];
-    
+
         foreach ($receipts as $receipt) {
-    
+
             $policyNumber = $receipt['Numero_Apolice'] ?? null;
             if (!$policyNumber) continue;
-    
+
             // 🔥 valor pago
             $paidAmount = (float) ($receipt['Valor_Pago'] ?? 0);
             if ($paidAmount <= 0) continue;
-    
+
             // 🔥 buscar apólice
             $policy = collect($policies)->firstWhere('numero_apolice', $policyNumber);
             if (!$policy) continue;
-    
+
             $expectedPremium = (float) ($policy['premium_total'] ?? 0);
             if ($expectedPremium <= 0) continue;
-    
+
             // 🔥 REGRA PRINCIPAL → SOBRE PAGAMENTO >=150%
             $ratio = $paidAmount / $expectedPremium;
-    
+
             if ($ratio < 1.5) continue;
-    
+
             // 🔥 PAGADOR ORIGINAL
             $originalPayer = $receipt['Nome_Pagador'] ?? null;
-    
+
             // 🔥 DATA PAGAMENTO
             $paymentDate = $this->safeDate($receipt['Data_Pagamento'] ?? null);
             if (!$paymentDate) continue;
-    
+
             foreach ($refunds as $refund) {
-    
+
                 $refundPolicy = $refund['Numero_Apolice'] ?? null;
-    
+
                 if ($refundPolicy !== $policyNumber) continue;
-    
+
                 $refundAmount = (float) ($refund['Valor_Estorno'] ?? 0);
                 if ($refundAmount <= 0) continue;
-    
+
                 $refundDate = $this->safeDate($refund['Data_Estorno'] ?? null);
                 if (!$refundDate) continue;
-    
+
                 // 🔥 intervalo curto (<=30 dias)
                 $days = $paymentDate->diffInDays($refundDate);
-    
+
                 if ($days > 30) continue;
-    
+
                 // 🔥 DESTINO DO REEMBOLSO
                 $refundReceiver = $refund['Nome_Beneficiario'] ?? null;
-    
+
                 // 🔥 TERCEIRO (CRÍTICO AML)
                 $isThirdParty = $refundReceiver && $originalPayer &&
                     trim(strtolower($refundReceiver)) !== trim(strtolower($originalPayer));
-    
+
                 if (!$isThirdParty) continue;
-    
+
                 // 🔥 evitar duplicados
                 $key = $policyNumber . '_' . $paymentDate->format('Ymd');
                 if (in_array($key, $alerts)) continue;
-    
+
                 $alerts[] = $key;
-    
+
                 /* =========================
                    DESCRIÇÃO (NÍVEL AUDITORIA)
                 ========================== */
-    
+
                 $description =
-    "RELATÓRIO KYT - SOBREPAGAMENTO COM REEMBOLSO A TERCEIROS
+                    "RELATÓRIO KYT - SOBREPAGAMENTO COM REEMBOLSO A TERCEIROS
     
     Cliente: {$customer->customer_number}
     
@@ -865,16 +866,16 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
     Indicador regulatório:
     Tipologia reconhecida pelo GAFI e ARSEG como operação suspeita.
     ";
-    
+
                 /* =========================
                    SCORE AML
                 ========================== */
-    
+
                 $score = 20;
-    
+
                 if ($ratio >= 2) $score += 5;
                 if ($days <= 7) $score += 5;
-    
+
                 $this->createAlert(
                     $customer,
                     'Sobrepagamento seguido de reembolso a terceiros',
@@ -886,16 +887,52 @@ private function checkEarlyRedemption(Entities $customer, array $policies, array
         }
     }
     private function safeDate($date)
-{
-    try {
-        if (!$date) return null;
-        if ($date === '0000-00-00' || $date === '1900-01-01') return null;
+    {
+        try {
+            if (!$date) return null;
+            if ($date === '0000-00-00' || $date === '1900-01-01') return null;
 
-        return Carbon::parse($date);
-    } catch (\Exception $e) {
-        return null;
+            return Carbon::parse($date);
+        } catch (\Exception $e) {
+            return null;
+        }
     }
-}
+
+
+    private function getPolicyAmount(array $policy): float
+    {
+        return (float) (
+            $policy['premium_total']
+            ?? $policy['Premio_Total']
+            ?? $policy['premio_simples']
+            ?? 0
+        );
+    }
+    private function money(float $value): string
+    {
+        return number_format($value, 2, ',', ' ') . ' Kz';
+    }
+    private function formatPolicyContext(array $policy): string
+    {
+        $produto = $policy['descricao_produto'] ?? 'N/A';
+        $apolice = $policy['numero_apolice'] ?? 'N/A';
+
+        $premium = $this->money($this->getPolicyAmount($policy));
+        $capital = $this->money((float) ($policy['capital'] ?? 0));
+
+        $inicio = $policy['data_inicio'] ?? 'N/A';
+        $fim = $policy['data_fim'] ?? 'N/A';
+
+        return "
+Produto: {$produto}
+Prémio pago: {$premium}
+Capital segurado: {$capital}
+Data início: {$inicio}
+Data fim: {$fim}
+";
+    }
+
+
     /* =========================
        ALERTAS
     ========================== */
