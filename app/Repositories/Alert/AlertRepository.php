@@ -318,15 +318,15 @@ class AlertRepository extends AbstractRepository
                 1 => 'with_communication',
                 0 => 'without_communication',
             ], $data),
-            'by_communication' => $this->countByField(
-                'is_sanctioned',
-                [
-                    1 => 'with_communication',
-                    0 => 'without_communication',
-                ],
-                $data,
-                ['is_active' => 0] // 👈 filtro extra
-            ),
+         'by_communication' => $this->countByField(
+    'is_reported', // ✅ campo certo
+    [
+        1 => 'with_communication',
+        0 => 'without_communication',
+    ],
+    $data,
+    ['is_active' => 0]
+),
             'pep' => $pep,
             'sanction' => $sanction,
             'AML' => $aml,
