@@ -295,22 +295,25 @@ class AlertRepository extends AbstractRepository
         $transation = [
             "particularEntity" => $this->particularEntityTransation($data),
             "coletiveEntity" => $this->coletiveEntityTransation($data),
-            'by_type' => $this->countByField('type', [
-                "Aumento abrupto e injustificado do capital seguro entre apólices" => 'HighCapitalIncrease',
-                "Resgate ou cancelamento da apólice antes de 12 meses" => 'EarlyRedemptionDetected',
-                "Prémio elevado incompatível com o risco segurado" => 'HighPremiumLowRisk',
-                "Subscrição de múltiplas apólices de curta duração" => 'PolicyChurn',
-                "Cancelamentos frequentes de Apólices num curto Período" => 'RepeatedReplacementOrCancellation',
-                "Substituição rápida de apólices" => 'QuickPolicyReplacementDetected',
-                "Pagamentos de prémios por terceiros sem relação clara com o segurado" => 'ThirdPartyPayments',
-                "Mudanças frequentes de beneficiários sem justificação aparente" => 'FrequentBeneficiaryChanges',
-                "Apólices com beneficiários ou pagamentos de jurisdições de alto risco" => 'HighRiskGeography',
-                "Sobrepagamento de prémios seguido de pedido de reembolso para terceiros" => 'OverpaymentRefund',
-            ],  $data,
-        [],   // 👈 sem filtros
-        false // 👈 não aplica filtros adicionais),
-       ),
-];
+            'by_type' => $this->countByField(
+                'type',
+                [
+                    "Aumento abrupto e injustificado do capital seguro entre apólices" => 'HighCapitalIncrease',
+                    "Resgate ou cancelamento da apólice antes de 12 meses" => 'EarlyRedemptionDetected',
+                    "Prémio elevado incompatível com o risco segurado" => 'HighPremiumLowRisk',
+                    "Subscrição de múltiplas apólices de curta duração" => 'PolicyChurn',
+                    "Cancelamentos frequentes de Apólices num curto Período" => 'RepeatedReplacementOrCancellation',
+                    "Substituição rápida de apólices" => 'QuickPolicyReplacementDetected',
+                    "Pagamentos de prémios por terceiros sem relação clara com o segurado" => 'ThirdPartyPayments',
+                    "Mudanças frequentes de beneficiários sem justificação aparente" => 'FrequentBeneficiaryChanges',
+                    "Apólices com beneficiários ou pagamentos de jurisdições de alto risco" => 'HighRiskGeography',
+                    "Sobrepagamento de prémios seguido de pedido de reembolso para terceiros" => 'OverpaymentRefund',
+                ],
+                $data,
+                [],   // 👈 sem filtros
+                false // 👈 não aplica filtros adicionais),
+            ),
+        ];
 
         // Totais por tipo específico
         $pep = $applyDateFilter($this->model->newQuery())->where('type', 'PEP')->count();
@@ -321,22 +324,28 @@ class AlertRepository extends AbstractRepository
             'transation' => $transation,
             'ParticularEntity' => $this->particularEntity($data),
             'coletiveEntity' => $this->coletiveEntity($data),
-            'by_status' => $this->countByField('is_active', [
-                1 => 'new',
-                2 => 'validation',
-                3 => 'supervision',
-                0 => 'closed',
-            ],  $data,
-    [],
-    false // 👈 importante
-),
-            'by_sanctioned' => $this->countByField('is_sanctioned', [
-                1 => 'with_communication',
-                0 => 'without_communication',
-            ], $data,
-    [],
-    false // 👈 importante
-),
+            'by_status' => $this->countByField(
+                'is_active',
+                [
+                    1 => 'new',
+                    2 => 'validation',
+                    3 => 'supervision',
+                    0 => 'closed',
+                ],
+                $data,
+                [],
+                false // 👈 importante
+            ),
+            'by_sanctioned' => $this->countByField(
+                'is_sanctioned',
+                [
+                    1 => 'with_communication',
+                    0 => 'without_communication',
+                ],
+                $data,
+                [],
+                false // 👈 importante
+            ),
             'by_communication' => $this->countByField(
                 'is_reported', // ✅ campo certo
                 [
