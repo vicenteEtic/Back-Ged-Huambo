@@ -186,7 +186,8 @@ class AlertRepository extends AbstractRepository
         string $field,
         array $map,
         array $data = [],
-        array $filters = [] // 👈 novo parâmetro opcional
+        array $filters = [],
+        bool $applyFilters = true
     ): array {
         $startDate = !empty($data['startDate'])
             ? Carbon::parse($data['startDate'])->startOfDay()
@@ -198,7 +199,7 @@ class AlertRepository extends AbstractRepository
 
         $query = $this->model->newQuery();
 
-        // 📅 Filtro por data
+        // 📅 Filtro de datas
         if ($startDate && $endDate) {
             $query->whereBetween('created_at', [$startDate, $endDate]);
         } elseif ($startDate) {
@@ -207,20 +208,29 @@ class AlertRepository extends AbstractRepository
             $query->where('created_at', '<=', $endDate);
         }
 
-        // 🔎 Filtros opcionais (ex: is_active)
-        foreach ($filters as $column => $value) {
-            if ($value !== null) {
-                $query->where($column, $value);
+        // 🔎 Filtros opcionais
+        if ($applyFilters) {
+            foreach ($filters as $column => $value) {
+                if ($value !== null) {
+                    $query->where($column, $value);
+                }
             }
         }
 
-        $counts = $query->select($field, DB::raw('COUNT(*) as total'))
+        // 📊 Agrupamento e contagem
+        $counts = $query->select(
+            $field,
+            DB::raw('COUNT(*) as total')
+        )
             ->groupBy($field)
             ->pluck('total', $field)
             ->toArray();
 
+        // 🧩 Mapeamento final
         return collect($map)->mapWithKeys(
-            fn($label, $value) => [$label => $counts[(int)$value] ?? 0]
+            fn($label, $value) => [
+                $label => $counts[$value] ?? 0
+            ]
         )->toArray();
     }
 
@@ -296,8 +306,11 @@ class AlertRepository extends AbstractRepository
                 "Mudanças frequentes de beneficiários sem justificação aparente" => 'FrequentBeneficiaryChanges',
                 "Apólices com beneficiários ou pagamentos de jurisdições de alto risco" => 'HighRiskGeography',
                 "Sobrepagamento de prémios seguido de pedido de reembolso para terceiros" => 'OverpaymentRefund',
-            ], $data),
-        ];
+            ],  $data,
+        [],   // 👈 sem filtros
+        false // 👈 não aplica filtros adicionais),
+       ),
+];
 
         // Totais por tipo específico
         $pep = $applyDateFilter($this->model->newQuery())->where('type', 'PEP')->count();
@@ -313,20 +326,27 @@ class AlertRepository extends AbstractRepository
                 2 => 'validation',
                 3 => 'supervision',
                 0 => 'closed',
-            ], $data),
+            ],  $data,
+    [],
+    false // 👈 importante
+),
             'by_sanctioned' => $this->countByField('is_sanctioned', [
                 1 => 'with_communication',
                 0 => 'without_communication',
-            ], $data),
-         'by_communication' => $this->countByField(
-    'is_reported', // ✅ campo certo
-    [
-        1 => 'with_communication',
-        0 => 'without_communication',
-    ],
-    $data,
-    ['is_active' => 0]
+            ], $data,
+    [],
+    false // 👈 importante
 ),
+            'by_communication' => $this->countByField(
+                'is_reported', // ✅ campo certo
+                [
+                    1 => 'with_communication',
+                    0 => 'without_communication',
+                ],
+                $data,
+                ['is_active' => 0],
+                true
+            ),
             'pep' => $pep,
             'sanction' => $sanction,
             'AML' => $aml,
