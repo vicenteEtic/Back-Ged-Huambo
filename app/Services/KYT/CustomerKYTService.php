@@ -271,7 +271,7 @@ class CustomerKYTService
 
                 $this->createAlert(
                     $customer,
-                    ' Pagamentos de prémios por terceiros sem relação clara com o segurados',
+                    'Pagamentos de prémios por terceiros sem relação clara com o segurados',
                     $description,
                     'Alto',         // nível de risco
                     25

@@ -182,23 +182,46 @@ class AlertRepository extends AbstractRepository
         return ['total' => $totalAlertas, 'byLevel' => $alertasPorNivel->toArray()];
     }
 
-    private function countByField(string $field, array $map, array $data = []): array
-    {
-        $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'])->startOfDay() : null;
-        $endDate = !empty($data['endDate']) ? Carbon::parse($data['endDate'])->endOfDay() : null;
+    private function countByField(
+        string $field,
+        array $map,
+        array $data = [],
+        array $filters = [] // 👈 novo parâmetro opcional
+    ): array {
+        $startDate = !empty($data['startDate'])
+            ? Carbon::parse($data['startDate'])->startOfDay()
+            : null;
+
+        $endDate = !empty($data['endDate'])
+            ? Carbon::parse($data['endDate'])->endOfDay()
+            : null;
 
         $query = $this->model->newQuery();
 
-        if ($startDate && $endDate) $query->whereBetween('created_at', [$startDate, $endDate]);
-        elseif ($startDate) $query->where('created_at', '>=', $startDate);
-        elseif ($endDate) $query->where('created_at', '<=', $endDate);
+        // 📅 Filtro por data
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            $query->where('created_at', '>=', $startDate);
+        } elseif ($endDate) {
+            $query->where('created_at', '<=', $endDate);
+        }
+
+        // 🔎 Filtros opcionais (ex: is_active)
+        foreach ($filters as $column => $value) {
+            if ($value !== null) {
+                $query->where($column, $value);
+            }
+        }
 
         $counts = $query->select($field, DB::raw('COUNT(*) as total'))
             ->groupBy($field)
             ->pluck('total', $field)
             ->toArray();
 
-        return collect($map)->mapWithKeys(fn($label, $value) => [$label => $counts[$value] ?? 0])->toArray();
+        return collect($map)->mapWithKeys(
+            fn($label, $value) => [$label => $counts[(int)$value] ?? 0]
+        )->toArray();
     }
 
     private function countByLevel(string $field, array $map, array $data = []): array
@@ -295,10 +318,15 @@ class AlertRepository extends AbstractRepository
                 1 => 'with_communication',
                 0 => 'without_communication',
             ], $data),
-            'by_communication' => $this->countByField('is_reported', [
-                1 => 'with_communication',
-                0 => 'without_communication',
-            ], $data),
+            'by_communication' => $this->countByField(
+                'is_sanctioned',
+                [
+                    1 => 'with_communication',
+                    0 => 'without_communication',
+                ],
+                $data,
+                ['is_active' => 0] // 👈 filtro extra
+            ),
             'pep' => $pep,
             'sanction' => $sanction,
             'AML' => $aml,
