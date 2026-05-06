@@ -113,7 +113,7 @@
             @elseif(Str::contains($currentHost, ['fortaleza.keepcomply.co.ao', '102.219.127.167']))
                 Fortaleza Seguros — Todos os direitos reservados.
             @else
-                AML — Todos os direitos reservados.
+                Keepcomply — Todos os direitos reservados.
             @endif
             </p>
         </div>
