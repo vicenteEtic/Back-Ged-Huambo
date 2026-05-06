@@ -105,7 +105,7 @@
         <div class="footer">
             <p>&copy; {{ date('Y') }}
             @if(in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
-               Keepcomply— Todos os direitos reservados.
+               Keepcomply — Todos os direitos reservados.
             @elseif(Str::contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
                 Nossa Seguros — Todos os direitos reservados.
             @elseif(Str::contains($currentHost, ['globalseguros.keepcomply.co.ao', '172.17.100.14', '172.17.100.14:8083']))
@@ -113,7 +113,7 @@
             @elseif(Str::contains($currentHost, ['fortaleza.keepcomply.co.ao', '102.219.127.167']))
                 Fortaleza Seguros — Todos os direitos reservados.
             @else
-                Sistema — Todos os direitos reservados.
+                AML — Todos os direitos reservados.
             @endif
             </p>
         </div>
