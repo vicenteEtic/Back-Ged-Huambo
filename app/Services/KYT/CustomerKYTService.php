@@ -271,7 +271,7 @@ class CustomerKYTService
 
                 $this->createAlert(
                     $customer,
-                    ' Pagamentos de prémios por terceiros sem relação clara com o segurados',
+                    'Pagamentos de prémios por terceiros sem relação clara com o segurados',
                     $description,
                     'Alto',         // nível de risco
                     25
@@ -1291,6 +1291,28 @@ Este comportamento pode indicar reorganização de beneficiários ou tentativa d
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+
+
+    private function formatPolicyContext(array $policy): string
+    {
+        $produto = $policy['descricao_produto'] ?? 'N/A';
+        $apolice = $policy['numero_apolice'] ?? 'N/A';
+
+        $premium = $this->money($this->getPolicyAmount($policy));
+        $capital = $this->money((float) ($policy['capital'] ?? 0));
+
+        $inicio = $policy['data_inicio'] ?? 'N/A';
+        $fim = $policy['data_fim'] ?? 'N/A';
+
+        return "
+Produto: {$produto}
+Prémio pago: {$premium}
+Capital segurado: {$capital}
+Data início: {$inicio}
+Data fim: {$fim}
+";
     }
     private function createAlert(
         Entities $customer,

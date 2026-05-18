@@ -90,11 +90,12 @@ class UserService extends AbstractService
         // 📧 Envia email
         Mail::to($user->email)->send(new \App\Mail\TwoFactorCodeMail($user));
     
-        return response()->json([
-            'message' => 'Código 2FA enviado para o seu email',
-            'user_id' => $user->id,
-            'email' => $user->email,
+      return response()->json([
+            'message' => 'Código 2FA enviado para seu email',
+            'user_id' => $user->id ,
+             'email' => $user->email,
         ]);
+        
     }
 
 
@@ -191,7 +192,7 @@ class UserService extends AbstractService
     
         $user->resetTwoFactorCode();
     
-        $token = $user->createToken("NOSSA_SEGUROS")->plainTextToken;
+        $token = $user->createToken("keepComply")->plainTextToken;
     
         return response()->json([
             'status' => 'success',

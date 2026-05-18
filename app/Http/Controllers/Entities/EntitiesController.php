@@ -38,7 +38,6 @@ class EntitiesController extends AbstractController
                 idEntity: $entities->id
             );
 
-
             return response()->json($entities, Response::HTTP_CREATED);
         } catch (Exception $e) {
             $this->logRequest($e);

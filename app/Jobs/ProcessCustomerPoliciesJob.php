@@ -17,7 +17,7 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $timeout = 600;
-    public $tries = 3;
+    public $tries = 20;
 
     public int $customerId;
     public array $policyNumbers = []; // 🔥 default evita erro
