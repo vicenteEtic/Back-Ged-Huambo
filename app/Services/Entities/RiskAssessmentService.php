@@ -576,7 +576,7 @@ class RiskAssessmentService extends AbstractService
 
         $data['entity_id'] = $alert->entity_id;
 
-        $data['type_assessment']=4;
+        $data['type_assessment'] = 4;
         $data['risk_assessment'] = $lastAssessment->risk_assessment;
         if ($lastAssessment) {
             // Copia os dados do último assessment e sobrescreve com os novos dados
