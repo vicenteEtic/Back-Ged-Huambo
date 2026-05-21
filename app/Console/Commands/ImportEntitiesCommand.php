@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Jobs\ImportEntitiesJob;
+use App\Jobs\ImportEntitiesSolJob;
 
 class ImportEntitiesCommand extends Command
 {
@@ -13,7 +13,7 @@ class ImportEntitiesCommand extends Command
     {
         $this->info('Iniciando importação...');
         // Substitua dispatch_now por dispatch_sync
-        dispatch_sync(new ImportEntitiesJob());
+        dispatch_sync(new ImportEntitiesSolJob());
 
         $this->info('Importação finalizada.');
     }
