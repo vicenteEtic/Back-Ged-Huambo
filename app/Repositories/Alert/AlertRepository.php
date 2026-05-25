@@ -32,8 +32,8 @@ class AlertRepository extends AbstractRepository
 
     public function getTotalAlertsByMonth(array $data = []): array
     {
-        $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'])->startOfDay() : null;
-        $endDate = !empty($data['endDate']) ? Carbon::parse($data['endDate'])->endOfDay() : null;
+        $startDate = !empty($data['started']) ? Carbon::parse($data['started'])->startOfDay() : null;
+        $endDate = !empty($data['ended']) ? Carbon::parse($data['ended'])->endOfDay() : null;
 
         $months = collect(range(0, 11))
             ->map(fn($i) => Carbon::now()->subMonths($i)->startOfMonth())
@@ -60,8 +60,8 @@ class AlertRepository extends AbstractRepository
 
     public function getAllUsersAlertSummary(array $data = [])
     {
-        $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'])->startOfDay() : null;
-        $endDate = !empty($data['endDate']) ? Carbon::parse($data['endDate'])->endOfDay() : null;
+        $startDate = !empty($data['started']) ? Carbon::parse($data['started'])->startOfDay() : null;
+        $endDate = !empty($data['ended']) ? Carbon::parse($data['ended'])->endOfDay() : null;
 
         $userIds = $this->alertUserRepository->getUsersWithAlerts($startDate, $endDate);
 
@@ -81,15 +81,15 @@ class AlertRepository extends AbstractRepository
                 'new' => $summary['new'] ?? 0,
                 'validation' => $summary['validation'] ?? 0,
                 'supervision' => $summary['supervision'] ?? 0,
-                'total' => $summary['validation']+$summary['new']+$summary['supervision']+$summary['closed']??0,
+                'total' => $summary['validation'] + $summary['new'] + $summary['supervision'] + $summary['closed'] ?? 0,
             ];
         })->filter()->values();
     }
 
     public function particularEntity(array $data = []): array
     {
-        $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'])->startOfDay() : null;
-        $endDate = !empty($data['endDate']) ? Carbon::parse($data['endDate'])->endOfDay() : null;
+        $startDate = !empty($data['started']) ? Carbon::parse($data['started'])->startOfDay() : null;
+        $endDate = !empty($data['ended']) ? Carbon::parse($data['ended'])->endOfDay() : null;
 
         $baseQuery = DB::table('alert')
             ->join('entities', 'alert.entity_id', '=', 'entities.id')
@@ -111,8 +111,8 @@ class AlertRepository extends AbstractRepository
 
     public function particularEntityTransation(array $data = []): array
     {
-        $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'])->startOfDay() : null;
-        $endDate = !empty($data['endDate']) ? Carbon::parse($data['endDate'])->endOfDay() : null;
+        $startDate = !empty($data['started']) ? Carbon::parse($data['started'])->startOfDay() : null;
+        $endDate = !empty($data['ended']) ? Carbon::parse($data['ended'])->endOfDay() : null;
 
         $baseQuery = DB::table('alert')
             ->join('entities', 'alert.entity_id', '=', 'entities.id')
@@ -136,8 +136,8 @@ class AlertRepository extends AbstractRepository
 
     public function coletiveEntityTransation(array $data = []): array
     {
-        $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'])->startOfDay() : null;
-        $endDate = !empty($data['endDate']) ? Carbon::parse($data['endDate'])->endOfDay() : null;
+        $startDate = !empty($data['started']) ? Carbon::parse($data['started'])->startOfDay() : null;
+        $endDate = !empty($data['ended']) ? Carbon::parse($data['ended'])->endOfDay() : null;
 
         $baseQuery = DB::table('alert')
             ->join('entities', 'alert.entity_id', '=', 'entities.id')
@@ -162,8 +162,8 @@ class AlertRepository extends AbstractRepository
 
     public function coletiveEntity(array $data = []): array
     {
-        $startDate = !empty($data['startDate']) ? Carbon::parse($data['startDate'])->startOfDay() : null;
-        $endDate = !empty($data['endDate']) ? Carbon::parse($data['endDate'])->endOfDay() : null;
+        $startDate = !empty($data['started']) ? Carbon::parse($data['started'])->startOfDay() : null;
+        $endDate = !empty($data['ended']) ? Carbon::parse($data['ended'])->endOfDay() : null;
 
         $baseQuery = DB::table('alert')
             ->join('entities', 'alert.entity_id', '=', 'entities.id')
@@ -191,7 +191,7 @@ class AlertRepository extends AbstractRepository
         bool $applyFilters = true
     ): array {
         $query = $this->applyDateFilter($this->model->newQuery(), $data);
-    
+
         if ($applyFilters) {
             foreach ($filters as $column => $value) {
                 if ($value !== null) {
@@ -199,12 +199,12 @@ class AlertRepository extends AbstractRepository
                 }
             }
         }
-    
+
         $counts = $query->select($field, DB::raw('COUNT(*) as total'))
             ->groupBy($field)
             ->pluck('total', $field)
             ->toArray();
-    
+
         return collect($map)->mapWithKeys(
             fn($label, $value) => [
                 $label => $counts[$value] ?? 0
@@ -220,7 +220,7 @@ class AlertRepository extends AbstractRepository
     private function countByCategory(array $data = []): array
     {
         $query = $this->applyDateFilter($this->model->newQuery(), $data);
-    
+
         return $query->select('category', DB::raw('COUNT(*) as total'))
             ->groupBy('category')
             ->pluck('total', 'category')
@@ -242,117 +242,117 @@ class AlertRepository extends AbstractRepository
     }
 
     private function applyDateFilter($query, array $data)
-{
-    $startDate = !empty($data['startDate'])
-        ? Carbon::parse($data['startDate'])->startOfDay()
-        : null;
+    {
+        $startDate = !empty($data['started'])
+            ? Carbon::parse($data['started'])->startOfDay()
+            : null;
 
-    $endDate = !empty($data['endDate'])
-        ? Carbon::parse($data['endDate'])->endOfDay()
-        : null;
+        $endDate = !empty($data['ended'])
+            ? Carbon::parse($data['ended'])->endOfDay()
+            : null;
 
-    return $query
-        ->when($startDate && $endDate, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
-        ->when($startDate && !$endDate, fn($q) => $q->where('created_at', '>=', $startDate))
-        ->when(!$startDate && $endDate, fn($q) => $q->where('created_at', '<=', $endDate));
-}
-public function getTotalAlerts(array $data): array
-{
-    $total = $this->applyDateFilter(
-        $this->model->newQuery(),
-        $data
-    )->count();
+        return $query
+            ->when($startDate && $endDate, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
+            ->when($startDate && !$endDate, fn($q) => $q->where('created_at', '>=', $startDate))
+            ->when(!$startDate && $endDate, fn($q) => $q->where('created_at', '<=', $endDate));
+    }
+    public function getTotalAlerts(array $data): array
+    {
+        $total = $this->applyDateFilter(
+            $this->model->newQuery(),
+            $data
+        )->count();
 
-    $transation = [
-        "particularEntity" => $this->particularEntityTransation($data),
-        "coletiveEntity" => $this->coletiveEntityTransation($data),
+        $transation = [
+            "particularEntity" => $this->particularEntityTransation($data),
+            "coletiveEntity" => $this->coletiveEntityTransation($data),
 
-        'by_type' => $this->countByField(
-            'type',
-            [
-                "Aumento abrupto e injustificado do capital seguro entre apólices" => 'HighCapitalIncrease',
-                "Resgate ou cancelamento da apólice antes de 12 meses" => 'EarlyRedemptionDetected',
-                "Prémio elevado incompatível com o risco segurado" => 'HighPremiumLowRisk',
-                "Subscrição de múltiplas apólices de curta duração" => 'PolicyChurn',
-                "Cancelamentos frequentes de Apólices num curto Período" => 'RepeatedReplacementOrCancellation',
-                "Substituição rápida de apólices" => 'QuickPolicyReplacementDetected',
-                "Pagamentos de prémios por terceiros sem relação clara com o segurado" => 'ThirdPartyPayments',
-                "Mudanças frequentes de beneficiários sem justificação aparente" => 'FrequentBeneficiaryChanges',
-                "Apólices com beneficiários ou pagamentos de jurisdições de alto risco" => 'HighRiskGeography',
-                "Sobrepagamento de prémios seguido de pedido de reembolso para terceiros" => 'OverpaymentRefund',
-            ],
-            $data,
-            [],
-            false
-        ),
-    ];
+            'by_type' => $this->countByField(
+                'type',
+                [
+                    "Aumento abrupto e injustificado do capital seguro entre apólices" => 'HighCapitalIncrease',
+                    "Resgate ou cancelamento da apólice antes de 12 meses" => 'EarlyRedemptionDetected',
+                    "Prémio elevado incompatível com o risco segurado" => 'HighPremiumLowRisk',
+                    "Subscrição de múltiplas apólices de curta duração" => 'PolicyChurn',
+                    "Cancelamentos frequentes de Apólices num curto Período" => 'RepeatedReplacementOrCancellation',
+                    "Substituição rápida de apólices" => 'QuickPolicyReplacementDetected',
+                    "Pagamentos de prémios por terceiros sem relação clara com o segurado" => 'ThirdPartyPayments',
+                    "Mudanças frequentes de beneficiários sem justificação aparente" => 'FrequentBeneficiaryChanges',
+                    "Apólices com beneficiários ou pagamentos de jurisdições de alto risco" => 'HighRiskGeography',
+                    "Sobrepagamento de prémios seguido de pedido de reembolso para terceiros" => 'OverpaymentRefund',
+                ],
+                $data,
+                [],
+                false
+            ),
+        ];
 
-    $pep = $this->applyDateFilter($this->model->newQuery(), $data)
-        ->where('type', 'PEP')
-        ->count();
+        $pep = $this->applyDateFilter($this->model->newQuery(), $data)
+            ->where('type', 'PEP')
+            ->count();
 
-    $sanction = $this->applyDateFilter($this->model->newQuery(), $data)
-        ->where('type', 'SANCTIONS')
-        ->count();
+        $sanction = $this->applyDateFilter($this->model->newQuery(), $data)
+            ->where('type', 'SANCTIONS')
+            ->count();
 
-    $aml = $this->applyDateFilter($this->model->newQuery(), $data)
-        ->where('type', 'AML')
-        ->count();
+        $aml = $this->applyDateFilter($this->model->newQuery(), $data)
+            ->where('type', 'AML')
+            ->count();
 
-    return [
-        'total' => $total,
-        'transation' => $transation,
-        'ParticularEntity' => $this->particularEntity($data),
-        'coletiveEntity' => $this->coletiveEntity($data),
+        return [
+            'total' => $total,
+            'transation' => $transation,
+            'ParticularEntity' => $this->particularEntity($data),
+            'coletiveEntity' => $this->coletiveEntity($data),
 
-        'by_status' => $this->countByField(
-            'is_active',
-            [
-                1 => 'new',
-                2 => 'validation',
-                3 => 'supervision',
-                0 => 'closed',
-            ],
-            $data,
-            [],
-            false
-        ),
+            'by_status' => $this->countByField(
+                'is_active',
+                [
+                    1 => 'new',
+                    2 => 'validation',
+                    3 => 'supervision',
+                    0 => 'closed',
+                ],
+                $data,
+                [],
+                false
+            ),
 
-        'by_sanctioned' => $this->countByField(
-            'is_sanctioned',
-            [
-                1 => 'with_communication',
-                0 => 'without_communication',
-            ],
-            $data,
-            [],
-            false
-        ),
+            'by_sanctioned' => $this->countByField(
+                'is_sanctioned',
+                [
+                    1 => 'with_communication',
+                    0 => 'without_communication',
+                ],
+                $data,
+                [],
+                false
+            ),
 
-        'by_communication' => $this->countByField(
-            'is_reported',
-            [
-                1 => 'with_communication',
-                0 => 'without_communication',
-            ],
-            $data,
-            ['is_active' => 0],
-            true
-        ),
+            'by_communication' => $this->countByField(
+                'is_reported',
+                [
+                    1 => 'with_communication',
+                    0 => 'without_communication',
+                ],
+                $data,
+                ['is_active' => 0],
+                true
+            ),
 
-        'pep' => $pep,
-        'sanction' => $sanction,
-        'AML' => $aml,
+            'pep' => $pep,
+            'sanction' => $sanction,
+            'AML' => $aml,
 
-        'by_category' => $this->countByCategory($data),
-        'by_level' => $this->countByLevel('level', [
-            "Alto" => 'Alto',
-            "Médio" => 'Médio',
-            "Baixo" => 'Baixo',
-        ], $data),
+            'by_category' => $this->countByCategory($data),
+            'by_level' => $this->countByLevel('level', [
+                "Alto" => 'Alto',
+                "Médio" => 'Médio',
+                "Baixo" => 'Baixo',
+            ], $data),
 
-        'users' => $this->getAllUsersAlertSummary($data),
-        'by_month' => $this->getTotalAlertsByMonth($data),
-    ];
-}
+            'users' => $this->getAllUsersAlertSummary($data),
+            'by_month' => $this->getTotalAlertsByMonth($data),
+        ];
+    }
 }
