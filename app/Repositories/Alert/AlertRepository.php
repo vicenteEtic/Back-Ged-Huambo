@@ -38,20 +38,22 @@ class AlertRepository extends AbstractRepository
     private function applyDateFilter($query, array $data = [], string $column = 'created_at')
     {
         $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'])->startOfDay()
-            : null;
-    
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'])->endOfDay()
-            : null;
-    
-        if ($startDate && $endDate) {
-            $query->whereBetween($column, [$startDate, $endDate]);
-        } elseif ($startDate) {
-            $query->where($column, '>=', $startDate);
-        } elseif ($endDate) {
-            $query->where($column, '<=', $endDate);
-        }
+        ? Carbon::parse($data['startDate'], 'America/Sao_Paulo')->setTimezone('UTC')->startOfDay()
+        : null;
+
+    $endDate = !empty($data['endDate'])
+        ? Carbon::parse($data['endDate'], 'America/Sao_Paulo')->setTimezone('UTC')->endOfDay()
+        : null;
+
+        $query = $this->model->newQuery(); 
+
+    if ($startDate && $endDate) {
+        $query->whereBetween('created_at', [$startDate, $endDate]);
+    } elseif ($startDate) {
+        $query->where('created_at', '>=', $startDate);
+    } elseif ($endDate) {
+        $query->where('created_at', '<=', $endDate);
+    }
     
         return $query;
     }
