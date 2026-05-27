@@ -106,8 +106,6 @@ class AlertRepository extends AbstractRepository
                 'id' => $user->id,
                 'name' => $user->first_name . ' ' . $user->last_name,
                 'email' => $user->email,
-
-                'inactive_alerts' => $summary['closed'] ?? 0,
                 'new' => $summary['new'] ?? 0,
                 'validation' => $summary['validation'] ?? 0,
                 'supervision' => $summary['supervision'] ?? 0,
