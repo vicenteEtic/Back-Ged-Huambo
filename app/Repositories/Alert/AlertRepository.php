@@ -31,21 +31,24 @@ class AlertRepository extends AbstractRepository
 
     /**
      * ============================================
-     * DATE NORMALIZER (SEM ALTERAR LÓGICA)
+     * DATE NORMALIZER
      * ============================================
      */
     private function normalizeDate(?string $date, bool $end = false): ?Carbon
     {
-        if (!$date) return null;
+        if (empty($date)) return null;
 
-        return Carbon::parse($date)
-            ->when($end, fn($c) => $c->endOfDay(), fn($c) => $c->startOfDay())
-            ->utc();
+        try {
+            $date = Carbon::parse($date);
+            return $end ? $date->endOfDay() : $date->startOfDay();
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
      * ============================================
-     * DATE FILTER (FIX REAL)
+     * DATE FILTER (GLOBAL FIX)
      * ============================================
      */
     private function applyDateFilter($query, array $data = [], string $column = 'created_at')
@@ -66,7 +69,11 @@ class AlertRepository extends AbstractRepository
 
     private function baseQuery(array $data = [])
     {
-        return $this->applyDateFilter($this->model->newQuery(), $data);
+        return $this->applyDateFilter(
+            $this->model->newQuery(),
+            $data,
+            'created_at'
+        );
     }
 
     /**
@@ -132,10 +139,10 @@ class AlertRepository extends AbstractRepository
                     'supervision' => $summary['supervision'] ?? 0,
 
                     'total' =>
-                        ($summary['validation'] ?? 0) +
+                        ($summary['closed'] ?? 0) +
                         ($summary['new'] ?? 0) +
-                        ($summary['supervision'] ?? 0) +
-                        ($summary['closed'] ?? 0),
+                        ($summary['validation'] ?? 0) +
+                        ($summary['supervision'] ?? 0),
                 ];
             })
             ->filter()
@@ -144,7 +151,7 @@ class AlertRepository extends AbstractRepository
 
     /**
      * ============================================
-     * ENTITY BASE (SEM MEXER NA LÓGICA)
+     * ENTITY SUMMARY
      * ============================================
      */
     private function entitySummary(int $entityType, array $data = [], ?string $category = null)
@@ -194,16 +201,11 @@ class AlertRepository extends AbstractRepository
 
     /**
      * ============================================
-     * COUNT BY FIELD (CORRIGIDO)
+     * COUNT BY FIELD
      * ============================================
      */
-    private function countByField(
-        string $field,
-        array $map,
-        array $data = [],
-        array $filters = []
-    ): array {
-
+    private function countByField(string $field, array $map, array $data = [], array $filters = [])
+    {
         $query = $this->baseQuery($data);
 
         foreach ($filters as $column => $value) {
@@ -250,16 +252,16 @@ class AlertRepository extends AbstractRepository
                 'coletiveEntity' => $this->coletiveEntityTransation($data),
 
                 'by_type' => $this->countByField('type', [
-                    "HighCapitalIncrease" => "Aumento abrupto e injustificado do capital seguro entre apólices",
-                    "EarlyRedemptionDetected" => "Resgate ou cancelamento da apólice antes de 12 meses",
-                    "HighPremiumLowRisk" => "Prémio elevado incompatível com o risco segurado",
-                    "PolicyChurn" => "Subscrição de múltiplas apólices de curta duração",
-                    "RepeatedReplacementOrCancellation" => "Cancelamentos frequentes",
-                    "QuickPolicyReplacementDetected" => "Substituição rápida de apólices",
-                    "ThirdPartyPayments" => "Pagamentos por terceiros",
-                    "FrequentBeneficiaryChanges" => "Mudanças frequentes de beneficiários",
-                    "HighRiskGeography" => "Jurisdições de alto risco",
-                    "OverpaymentRefund" => "Sobrepagamento seguido de reembolso",
+                    "HighCapitalIncrease" => "Aumento abrupto",
+                    "EarlyRedemptionDetected" => "Resgate precoce",
+                    "HighPremiumLowRisk" => "Prémio incompatível",
+                    "PolicyChurn" => "Churn",
+                    "RepeatedReplacementOrCancellation" => "Cancelamentos",
+                    "QuickPolicyReplacementDetected" => "Substituição rápida",
+                    "ThirdPartyPayments" => "Pagamentos terceiros",
+                    "FrequentBeneficiaryChanges" => "Beneficiários",
+                    "HighRiskGeography" => "Risco geográfico",
+                    "OverpaymentRefund" => "Reembolso",
                 ], $data),
             ],
 
@@ -293,7 +295,6 @@ class AlertRepository extends AbstractRepository
             'AML' => (clone $baseQuery)->where('type', 'AML')->count(),
 
             'by_category' => $this->countByCategory($data),
-
             'by_level' => $this->countByField('level', [
                 "Alto" => "Alto",
                 "Médio" => "Médio",
