@@ -72,6 +72,10 @@ class AlertUserRepository extends AbstractRepository
         $base = clone $query;
 
         return [
+            'total_active' => (clone $base)
+                ->where('a.is_active', self::STATUS_NEW)
+                ->count(),
+
             'closed' => (clone $base)
                 ->where('a.is_active', self::STATUS_CLOSED)
                 ->count(),
