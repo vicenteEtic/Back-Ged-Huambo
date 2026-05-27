@@ -31,7 +31,7 @@ class AlertRepository extends AbstractRepository
 
     /**
      * ============================================
-     * DATE NORMALIZER (PADRÃO ÚNICO)
+     * DATE NORMALIZER (PADRÃO GLOBAL)
      * ============================================
      */
     private function normalizeDate(?string $date, bool $end = false): ?Carbon
@@ -45,7 +45,17 @@ class AlertRepository extends AbstractRepository
 
     /**
      * ============================================
-     * DATE FILTER (FIX FINAL)
+     * BASE QUERY (ÚNICA FONTE DE VERDADE)
+     * ============================================
+     */
+    private function baseQuery(array $data = [])
+    {
+        return $this->applyDateFilter($this->model->newQuery(), $data);
+    }
+
+    /**
+     * ============================================
+     * DATE FILTER (CONSISTENTE)
      * ============================================
      */
     private function applyDateFilter($query, array $data = [], string $column = 'created_at')
@@ -64,11 +74,6 @@ class AlertRepository extends AbstractRepository
         return $query;
     }
 
-    private function baseQuery(array $data = [])
-    {
-        return $this->applyDateFilter($this->model->newQuery(), $data);
-    }
-
     /**
      * ============================================
      * MONTHLY
@@ -76,7 +81,7 @@ class AlertRepository extends AbstractRepository
      */
     public function getTotalAlertsByMonth(array $data = []): array
     {
-        $query = $this->applyDateFilter($this->model->newQuery(), $data);
+        $query = $this->baseQuery($data);
 
         $alertsByMonth = $query
             ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month")
@@ -144,24 +149,24 @@ class AlertRepository extends AbstractRepository
 
     /**
      * ============================================
-     * ENTITY BASE
+     * ENTITY BASE (CORRIGIDO COM ALIAS)
      * ============================================
      */
     private function entitySummary(int $entityType, array $data = [], ?string $category = null)
     {
-        $query = DB::table('alert')
-            ->join('entities', 'alert.entity_id', '=', 'entities.id')
-            ->where('entities.entity_type', $entityType);
+        $query = DB::table('alert as a')
+            ->join('entities as e', 'a.entity_id', '=', 'e.id')
+            ->where('e.entity_type', $entityType);
 
         if ($category) {
-            $query->where('alert.category', $category);
+            $query->where('a.category', $category);
         }
 
-        $query = $this->applyDateFilter($query, $data, 'alert.created_at');
+        $query = $this->applyDateFilter($query, $data, 'a.created_at');
 
         $grouped = (clone $query)
-            ->select('alert.level', DB::raw('COUNT(*) as total'))
-            ->groupBy('alert.level')
+            ->select('a.level', DB::raw('COUNT(*) as total'))
+            ->groupBy('a.level')
             ->get();
 
         $total = (clone $query)->count();
@@ -204,7 +209,7 @@ class AlertRepository extends AbstractRepository
         array $filters = []
     ): array {
 
-        $query = $this->applyDateFilter($this->model->newQuery(), $data);
+        $query = $this->baseQuery($data);
 
         foreach ($filters as $column => $value) {
             $query->where($column, $value);
@@ -223,7 +228,7 @@ class AlertRepository extends AbstractRepository
 
     private function countByCategory(array $data = [])
     {
-        $query = $this->applyDateFilter($this->model->newQuery(), $data);
+        $query = $this->baseQuery($data);
 
         return $query
             ->select('category', DB::raw('COUNT(*) as total'))
@@ -240,7 +245,7 @@ class AlertRepository extends AbstractRepository
      */
     public function getTotalAlerts(array $data): array
     {
-        $baseQuery = $this->applyDateFilter($this->model->newQuery(), $data);
+        $baseQuery = $this->baseQuery($data);
 
         return [
             'total' => (clone $baseQuery)->count(),
@@ -249,22 +254,18 @@ class AlertRepository extends AbstractRepository
                 'particularEntity' => $this->particularEntityTransation($data),
                 'coletiveEntity' => $this->coletiveEntityTransation($data),
 
-                'by_type' => $this->countByField(
-                    'type',
-                    [
-                        "HighCapitalIncrease" => "Aumento abrupto e injustificado",
-                        "EarlyRedemptionDetected" => "Resgate antes de 12 meses",
-                        "HighPremiumLowRisk" => "Prémio incompatível",
-                        "PolicyChurn" => "Múltiplas apólices curtas",
-                        "RepeatedReplacementOrCancellation" => "Cancelamentos frequentes",
-                        "QuickPolicyReplacementDetected" => "Substituição rápida",
-                        "ThirdPartyPayments" => "Pagamentos por terceiros",
-                        "FrequentBeneficiaryChanges" => "Mudanças de beneficiários",
-                        "HighRiskGeography" => "Regiões de alto risco",
-                        "OverpaymentRefund" => "Reembolso após sobrepagamento",
-                    ],
-                    $data
-                ),
+                'by_type' => $this->countByField('type', [
+                    "HighCapitalIncrease" => "Aumento abrupto",
+                    "EarlyRedemptionDetected" => "Resgate precoce",
+                    "HighPremiumLowRisk" => "Prémio incompatível",
+                    "PolicyChurn" => "Churn",
+                    "RepeatedReplacementOrCancellation" => "Cancelamentos",
+                    "QuickPolicyReplacementDetected" => "Substituição rápida",
+                    "ThirdPartyPayments" => "Pagamentos terceiros",
+                    "FrequentBeneficiaryChanges" => "Beneficiários",
+                    "HighRiskGeography" => "Risco geográfico",
+                    "OverpaymentRefund" => "Reembolso",
+                ], $data),
             ],
 
             'ParticularEntity' => $this->particularEntity($data),
