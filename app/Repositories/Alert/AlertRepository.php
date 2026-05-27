@@ -31,7 +31,7 @@ class AlertRepository extends AbstractRepository
 
     /**
      * ============================================
-     * DATE NORMALIZER (PADRÃO GLOBAL)
+     * DATE NORMALIZER (SEM ALTERAR LÓGICA)
      * ============================================
      */
     private function normalizeDate(?string $date, bool $end = false): ?Carbon
@@ -45,17 +45,7 @@ class AlertRepository extends AbstractRepository
 
     /**
      * ============================================
-     * BASE QUERY (ÚNICA FONTE DE VERDADE)
-     * ============================================
-     */
-    private function baseQuery(array $data = [])
-    {
-        return $this->applyDateFilter($this->model->newQuery(), $data);
-    }
-
-    /**
-     * ============================================
-     * DATE FILTER (CONSISTENTE)
+     * DATE FILTER (FIX REAL)
      * ============================================
      */
     private function applyDateFilter($query, array $data = [], string $column = 'created_at')
@@ -72,6 +62,11 @@ class AlertRepository extends AbstractRepository
         }
 
         return $query;
+    }
+
+    private function baseQuery(array $data = [])
+    {
+        return $this->applyDateFilter($this->model->newQuery(), $data);
     }
 
     /**
@@ -149,7 +144,7 @@ class AlertRepository extends AbstractRepository
 
     /**
      * ============================================
-     * ENTITY BASE (CORRIGIDO COM ALIAS)
+     * ENTITY BASE (SEM MEXER NA LÓGICA)
      * ============================================
      */
     private function entitySummary(int $entityType, array $data = [], ?string $category = null)
@@ -199,7 +194,7 @@ class AlertRepository extends AbstractRepository
 
     /**
      * ============================================
-     * COUNT BY FIELD
+     * COUNT BY FIELD (CORRIGIDO)
      * ============================================
      */
     private function countByField(
@@ -255,16 +250,16 @@ class AlertRepository extends AbstractRepository
                 'coletiveEntity' => $this->coletiveEntityTransation($data),
 
                 'by_type' => $this->countByField('type', [
-                    "HighCapitalIncrease" => "Aumento abrupto",
-                    "EarlyRedemptionDetected" => "Resgate precoce",
-                    "HighPremiumLowRisk" => "Prémio incompatível",
-                    "PolicyChurn" => "Churn",
-                    "RepeatedReplacementOrCancellation" => "Cancelamentos",
-                    "QuickPolicyReplacementDetected" => "Substituição rápida",
-                    "ThirdPartyPayments" => "Pagamentos terceiros",
-                    "FrequentBeneficiaryChanges" => "Beneficiários",
-                    "HighRiskGeography" => "Risco geográfico",
-                    "OverpaymentRefund" => "Reembolso",
+                    "HighCapitalIncrease" => "Aumento abrupto e injustificado do capital seguro entre apólices",
+                    "EarlyRedemptionDetected" => "Resgate ou cancelamento da apólice antes de 12 meses",
+                    "HighPremiumLowRisk" => "Prémio elevado incompatível com o risco segurado",
+                    "PolicyChurn" => "Subscrição de múltiplas apólices de curta duração",
+                    "RepeatedReplacementOrCancellation" => "Cancelamentos frequentes",
+                    "QuickPolicyReplacementDetected" => "Substituição rápida de apólices",
+                    "ThirdPartyPayments" => "Pagamentos por terceiros",
+                    "FrequentBeneficiaryChanges" => "Mudanças frequentes de beneficiários",
+                    "HighRiskGeography" => "Jurisdições de alto risco",
+                    "OverpaymentRefund" => "Sobrepagamento seguido de reembolso",
                 ], $data),
             ],
 
