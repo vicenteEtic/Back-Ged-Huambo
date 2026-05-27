@@ -32,21 +32,28 @@ class AlertController extends AbstractController
     public function getTotalAlerts(RiskAssessmentFindDateRequest $request)
     {
         try {
-
-
-            return $this->service->getTotalAlerts($request->validated());
+    
+            $data = $request->validated();
+    
+            $data['startDate'] = $data['startDate'] ?? $request->get('started');
+            $data['endDate']   = $data['endDate'] ?? $request->get('ended');
+    
+            return $data;
+            return $this->service->getTotalAlerts($data);
+    
         } catch (Exception $e) {
             if ($this->logRequest) {
                 $this->logRequest($e);
             }
-             Log::error('Erro interno', [
-        'message' => $e->getMessage(),
-        'trace' => $e->getTraceAsString(),
-    ]);
-
-    return response()->json([
-        'error' => 'Erro interno no servidor.'
-    ], Response::HTTP_INTERNAL_SERVER_ERROR);
+    
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+    
+            return response()->json([
+                'error' => 'Erro interno no servidor.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
