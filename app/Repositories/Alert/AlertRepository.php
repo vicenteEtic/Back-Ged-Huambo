@@ -8,7 +8,6 @@ use App\Repositories\Alert\AlertUser\AlertUserRepository;
 use App\Services\Log\LogService;
 use App\Services\User\UserService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class AlertRepository extends AbstractRepository
@@ -32,18 +31,27 @@ class AlertRepository extends AbstractRepository
 
     /**
      * ============================================
-     * DATE FILTER (CORRIGIDO)
+     * DATE NORMALIZER (PADRÃO ÚNICO)
+     * ============================================
+     */
+    private function normalizeDate(?string $date, bool $end = false): ?Carbon
+    {
+        if (!$date) return null;
+
+        return Carbon::parse($date)
+            ->when($end, fn($c) => $c->endOfDay(), fn($c) => $c->startOfDay())
+            ->utc();
+    }
+
+    /**
+     * ============================================
+     * DATE FILTER (FIX FINAL)
      * ============================================
      */
     private function applyDateFilter($query, array $data = [], string $column = 'created_at')
     {
-        $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'])->startOfDay()
-            : null;
-
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'])->endOfDay()
-            : null;
+        $startDate = $this->normalizeDate($data['startDate'] ?? null, false);
+        $endDate   = $this->normalizeDate($data['endDate'] ?? null, true);
 
         if ($startDate && $endDate) {
             $query->whereBetween($column, [$startDate, $endDate]);
@@ -56,6 +64,11 @@ class AlertRepository extends AbstractRepository
         return $query;
     }
 
+    private function baseQuery(array $data = [])
+    {
+        return $this->applyDateFilter($this->model->newQuery(), $data);
+    }
+
     /**
      * ============================================
      * MONTHLY
@@ -63,10 +76,7 @@ class AlertRepository extends AbstractRepository
      */
     public function getTotalAlertsByMonth(array $data = []): array
     {
-        $query = $this->applyDateFilter(
-            $this->model->newQuery(),
-            $data
-        );
+        $query = $this->applyDateFilter($this->model->newQuery(), $data);
 
         $alertsByMonth = $query
             ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month")
@@ -92,53 +102,49 @@ class AlertRepository extends AbstractRepository
      */
     public function getAllUsersAlertSummary(array $data = [])
     {
-        $startDate = !empty($data['startDate'])
-            ? Carbon::parse($data['startDate'])->startOfDay()
-            : null;
-
-        $endDate = !empty($data['endDate'])
-            ? Carbon::parse($data['endDate'])->endOfDay()
-            : null;
+        $startDate = $this->normalizeDate($data['startDate'] ?? null, false);
+        $endDate   = $this->normalizeDate($data['endDate'] ?? null, true);
 
         $userIds = $this->alertUserRepository->getUsersWithAlerts($startDate, $endDate);
 
         $users = \App\Models\User::whereIn('id', $userIds)->get()->keyBy('id');
 
-        return collect($userIds)->map(function ($userId) use ($users, $startDate, $endDate) {
+        return collect($userIds)
+            ->map(function ($userId) use ($users, $startDate, $endDate) {
 
-            $user = $users[$userId] ?? null;
-            if (!$user) return null;
+                $user = $users[$userId] ?? null;
+                if (!$user) return null;
 
-            $summary = $this->alertUserRepository->countAlertsByUserGrouped(
-                $userId,
-                $startDate,
-                $endDate
-            );
+                $summary = $this->alertUserRepository->countAlertsByUserGrouped(
+                    $userId,
+                    $startDate,
+                    $endDate
+                );
 
-            return [
-                'id' => $user->id,
-                'name' => $user->first_name . ' ' . $user->last_name,
-                'email' => $user->email,
+                return [
+                    'id' => $user->id,
+                    'name' => $user->first_name . ' ' . $user->last_name,
+                    'email' => $user->email,
 
-                'inactive_alerts' => $summary['closed'] ?? 0,
-                'new' => $summary['new'] ?? 0,
-                'validation' => $summary['validation'] ?? 0,
-                'supervision' => $summary['supervision'] ?? 0,
+                    'inactive_alerts' => $summary['closed'] ?? 0,
+                    'new' => $summary['new'] ?? 0,
+                    'validation' => $summary['validation'] ?? 0,
+                    'supervision' => $summary['supervision'] ?? 0,
 
-                'total' =>
-                    ($summary['validation'] ?? 0) +
-                    ($summary['new'] ?? 0) +
-                    ($summary['supervision'] ?? 0) +
-                    ($summary['closed'] ?? 0),
-            ];
-        })
-        ->filter()
-        ->values();
+                    'total' =>
+                        ($summary['validation'] ?? 0) +
+                        ($summary['new'] ?? 0) +
+                        ($summary['supervision'] ?? 0) +
+                        ($summary['closed'] ?? 0),
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     /**
      * ============================================
-     * ENTITY BASE (REUTILIZÁVEL)
+     * ENTITY BASE
      * ============================================
      */
     private function entitySummary(int $entityType, array $data = [], ?string $category = null)
@@ -198,10 +204,7 @@ class AlertRepository extends AbstractRepository
         array $filters = []
     ): array {
 
-        $query = $this->applyDateFilter(
-            $this->model->newQuery(),
-            $data
-        );
+        $query = $this->applyDateFilter($this->model->newQuery(), $data);
 
         foreach ($filters as $column => $value) {
             $query->where($column, $value);
@@ -239,14 +242,8 @@ class AlertRepository extends AbstractRepository
     {
         $baseQuery = $this->applyDateFilter($this->model->newQuery(), $data);
 
-        $total = (clone $baseQuery)->count();
-
-        $pep = (clone $baseQuery)->where('type', 'PEP')->count();
-        $sanction = (clone $baseQuery)->where('type', 'SANCTIONS')->count();
-        $aml = (clone $baseQuery)->where('type', 'AML')->count();
-
         return [
-            'total' => $total,
+            'total' => (clone $baseQuery)->count(),
 
             'transation' => [
                 'particularEntity' => $this->particularEntityTransation($data),
@@ -255,16 +252,16 @@ class AlertRepository extends AbstractRepository
                 'by_type' => $this->countByField(
                     'type',
                     [
-                        "HighCapitalIncrease" => "Aumento abrupto e injustificado do capital seguro entre apólices",
-                        "EarlyRedemptionDetected" => "Resgate ou cancelamento da apólice antes de 12 meses",
-                        "HighPremiumLowRisk" => "Prémio elevado incompatível com o risco segurado",
-                        "PolicyChurn" => "Subscrição de múltiplas apólices de curta duração",
+                        "HighCapitalIncrease" => "Aumento abrupto e injustificado",
+                        "EarlyRedemptionDetected" => "Resgate antes de 12 meses",
+                        "HighPremiumLowRisk" => "Prémio incompatível",
+                        "PolicyChurn" => "Múltiplas apólices curtas",
                         "RepeatedReplacementOrCancellation" => "Cancelamentos frequentes",
-                        "QuickPolicyReplacementDetected" => "Substituição rápida de apólices",
+                        "QuickPolicyReplacementDetected" => "Substituição rápida",
                         "ThirdPartyPayments" => "Pagamentos por terceiros",
-                        "FrequentBeneficiaryChanges" => "Mudanças frequentes de beneficiários",
-                        "HighRiskGeography" => "Jurisdições de alto risco",
-                        "OverpaymentRefund" => "Sobrepagamento seguido de reembolso",
+                        "FrequentBeneficiaryChanges" => "Mudanças de beneficiários",
+                        "HighRiskGeography" => "Regiões de alto risco",
+                        "OverpaymentRefund" => "Reembolso após sobrepagamento",
                     ],
                     $data
                 ),
@@ -295,9 +292,9 @@ class AlertRepository extends AbstractRepository
                 ['is_active' => 0]
             ),
 
-            'pep' => $pep,
-            'sanction' => $sanction,
-            'AML' => $aml,
+            'pep' => (clone $baseQuery)->where('type', 'PEP')->count(),
+            'sanction' => (clone $baseQuery)->where('type', 'SANCTIONS')->count(),
+            'AML' => (clone $baseQuery)->where('type', 'AML')->count(),
 
             'by_category' => $this->countByCategory($data),
 
