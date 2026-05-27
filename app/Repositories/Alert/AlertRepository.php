@@ -29,39 +29,33 @@ class AlertRepository extends AbstractRepository
         $this->alertUserRepository = $alertUserRepository;
     }
 
-    /**
-     * ============================================
-     * DATE NORMALIZER
-     * ============================================
-     */
-    private function normalizeDate(?string $date, bool $end = false): ?Carbon
+    // ============================================
+    // DATE HANDLER (ONLY created_at)
+    // ============================================
+    private function parseDate(?string $date, bool $end = false): ?Carbon
     {
-        if (empty($date)) return null;
+        if (!$date) return null;
 
-        try {
-            $date = Carbon::parse($date);
-            return $end ? $date->endOfDay() : $date->startOfDay();
-        } catch (\Exception $e) {
-            return null;
-        }
+        $d = Carbon::parse($date);
+
+        return $end ? $d->endOfDay() : $d->startOfDay();
     }
 
-    /**
-     * ============================================
-     * DATE FILTER (GLOBAL FIX)
-     * ============================================
-     */
     private function applyDateFilter($query, array $data = [], string $column = 'created_at')
     {
-        $startDate = $this->normalizeDate($data['startDate'] ?? null, false);
-        $endDate   = $this->normalizeDate($data['endDate'] ?? null, true);
+        $start = $this->parseDate($data['startDate'] ?? null, false);
+        $end   = $this->parseDate($data['endDate'] ?? null, true);
 
-        if ($startDate && $endDate) {
-            $query->whereBetween($column, [$startDate, $endDate]);
-        } elseif ($startDate) {
-            $query->where($column, '>=', $startDate);
-        } elseif ($endDate) {
-            $query->where($column, '<=', $endDate);
+        if ($start && $end) {
+            return $query->whereBetween($column, [$start, $end]);
+        }
+
+        if ($start) {
+            return $query->where($column, '>=', $start);
+        }
+
+        if ($end) {
+            return $query->where($column, '<=', $end);
         }
 
         return $query;
@@ -76,16 +70,14 @@ class AlertRepository extends AbstractRepository
         );
     }
 
-    /**
-     * ============================================
-     * MONTHLY
-     * ============================================
-     */
+    // ============================================
+    // MONTHS
+    // ============================================
     public function getTotalAlertsByMonth(array $data = []): array
     {
         $query = $this->baseQuery($data);
 
-        $alertsByMonth = $query
+        $result = $query
             ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month")
             ->selectRaw("COUNT(*) as total")
             ->groupBy(DB::raw("DATE_FORMAT(created_at, '%Y-%m')"))
@@ -94,71 +86,60 @@ class AlertRepository extends AbstractRepository
         return collect(range(0, 11))
             ->map(fn($i) => Carbon::now()->subMonths($i)->startOfMonth())
             ->reverse()
-            ->map(fn(Carbon $month) => [
-                'month' => $month->format('F'),
-                'total' => $alertsByMonth[$month->format('Y-m')] ?? 0,
+            ->map(fn($m) => [
+                'month' => $m->format('F'),
+                'total' => $result[$m->format('Y-m')] ?? 0,
             ])
             ->values()
             ->toArray();
     }
 
-    /**
-     * ============================================
-     * USERS SUMMARY
-     * ============================================
-     */
+    // ============================================
+    // USERS SUMMARY
+    // ============================================
     public function getAllUsersAlertSummary(array $data = [])
     {
-        $startDate = $this->normalizeDate($data['startDate'] ?? null, false);
-        $endDate   = $this->normalizeDate($data['endDate'] ?? null, true);
+        $start = $this->parseDate($data['startDate'] ?? null, false);
+        $end   = $this->parseDate($data['endDate'] ?? null, true);
 
-        $userIds = $this->alertUserRepository->getUsersWithAlerts($startDate, $endDate);
+        $userIds = $this->alertUserRepository->getUsersWithAlerts($start, $end);
 
         $users = \App\Models\User::whereIn('id', $userIds)->get()->keyBy('id');
 
-        return collect($userIds)
-            ->map(function ($userId) use ($users, $startDate, $endDate) {
+        return collect($userIds)->map(function ($id) use ($users, $start, $end) {
 
-                $user = $users[$userId] ?? null;
-                if (!$user) return null;
+            $user = $users[$id] ?? null;
+            if (!$user) return null;
 
-                $summary = $this->alertUserRepository->countAlertsByUserGrouped(
-                    $userId,
-                    $startDate,
-                    $endDate
-                );
+            $summary = $this->alertUserRepository->countAlertsByUserGrouped($id, $start, $end);
 
-                return [
-                    'id' => $user->id,
-                    'name' => $user->first_name . ' ' . $user->last_name,
-                    'email' => $user->email,
+            return [
+                'id' => $user->id,
+                'name' => $user->first_name . ' ' . $user->last_name,
+                'email' => $user->email,
 
-                    'inactive_alerts' => $summary['closed'] ?? 0,
-                    'new' => $summary['new'] ?? 0,
-                    'validation' => $summary['validation'] ?? 0,
-                    'supervision' => $summary['supervision'] ?? 0,
+                'inactive_alerts' => $summary['closed'] ?? 0,
+                'new' => $summary['new'] ?? 0,
+                'validation' => $summary['validation'] ?? 0,
+                'supervision' => $summary['supervision'] ?? 0,
 
-                    'total' =>
-                        ($summary['closed'] ?? 0) +
-                        ($summary['new'] ?? 0) +
-                        ($summary['validation'] ?? 0) +
-                        ($summary['supervision'] ?? 0),
-                ];
-            })
-            ->filter()
-            ->values();
+                'total' =>
+                    ($summary['closed'] ?? 0) +
+                    ($summary['new'] ?? 0) +
+                    ($summary['validation'] ?? 0) +
+                    ($summary['supervision'] ?? 0),
+            ];
+        })->filter()->values();
     }
 
-    /**
-     * ============================================
-     * ENTITY SUMMARY
-     * ============================================
-     */
-    private function entitySummary(int $entityType, array $data = [], ?string $category = null)
+    // ============================================
+    // ENTITY (DB RAW FIXED)
+    // ============================================
+    private function entitySummary(int $type, array $data = [], ?string $category = null)
     {
         $query = DB::table('alert as a')
             ->join('entities as e', 'a.entity_id', '=', 'e.id')
-            ->where('e.entity_type', $entityType);
+            ->where('e.entity_type', $type);
 
         if ($category) {
             $query->where('a.category', $category);
@@ -166,50 +147,31 @@ class AlertRepository extends AbstractRepository
 
         $query = $this->applyDateFilter($query, $data, 'a.created_at');
 
-        $grouped = (clone $query)
+        $group = (clone $query)
             ->select('a.level', DB::raw('COUNT(*) as total'))
             ->groupBy('a.level')
             ->get();
 
-        $total = (clone $query)->count();
-
         return [
-            'total' => $total,
-            'byLevel' => $grouped->toArray(),
+            'total' => (clone $query)->count(),
+            'byLevel' => $group->toArray(),
         ];
     }
 
-    public function particularEntity(array $data = [])
-    {
-        return $this->entitySummary(2, $data);
-    }
+    public function particularEntity(array $data = []) { return $this->entitySummary(2, $data); }
+    public function coletiveEntity(array $data = []) { return $this->entitySummary(1, $data); }
+    public function particularEntityTransation(array $data = []) { return $this->entitySummary(2, $data, 'KYT'); }
+    public function coletiveEntityTransation(array $data = []) { return $this->entitySummary(1, $data, 'KYT'); }
 
-    public function coletiveEntity(array $data = [])
-    {
-        return $this->entitySummary(1, $data);
-    }
-
-    public function particularEntityTransation(array $data = [])
-    {
-        return $this->entitySummary(2, $data, 'KYT');
-    }
-
-    public function coletiveEntityTransation(array $data = [])
-    {
-        return $this->entitySummary(1, $data, 'KYT');
-    }
-
-    /**
-     * ============================================
-     * COUNT BY FIELD
-     * ============================================
-     */
+    // ============================================
+    // COUNT GENERIC
+    // ============================================
     private function countByField(string $field, array $map, array $data = [], array $filters = [])
     {
         $query = $this->baseQuery($data);
 
-        foreach ($filters as $column => $value) {
-            $query->where($column, $value);
+        foreach ($filters as $col => $val) {
+            $query->where($col, $val);
         }
 
         $counts = $query
@@ -218,8 +180,8 @@ class AlertRepository extends AbstractRepository
             ->pluck('total', $field)
             ->toArray();
 
-        return collect($map)->mapWithKeys(fn($label, $value) => [
-            $label => $counts[$value] ?? 0,
+        return collect($map)->mapWithKeys(fn($label, $key) => [
+            $label => $counts[$key] ?? 0,
         ])->toArray();
     }
 
@@ -235,17 +197,15 @@ class AlertRepository extends AbstractRepository
             ->toArray();
     }
 
-    /**
-     * ============================================
-     * MAIN DASHBOARD
-     * ============================================
-     */
+    // ============================================
+    // MAIN DASHBOARD
+    // ============================================
     public function getTotalAlerts(array $data): array
     {
-        $baseQuery = $this->baseQuery($data);
+        $base = $this->baseQuery($data);
 
         return [
-            'total' => (clone $baseQuery)->count(),
+            'total' => (clone $base)->count(),
 
             'transation' => [
                 'particularEntity' => $this->particularEntityTransation($data),
@@ -282,17 +242,14 @@ class AlertRepository extends AbstractRepository
 
             'by_communication' => $this->countByField(
                 'is_reported',
-                [
-                    1 => 'with_communication',
-                    0 => 'without_communication',
-                ],
+                [1 => 'with_communication', 0 => 'without_communication'],
                 $data,
                 ['is_active' => 0]
             ),
 
-            'pep' => (clone $baseQuery)->where('type', 'PEP')->count(),
-            'sanction' => (clone $baseQuery)->where('type', 'SANCTIONS')->count(),
-            'AML' => (clone $baseQuery)->where('type', 'AML')->count(),
+            'pep' => (clone $base)->where('type', 'PEP')->count(),
+            'sanction' => (clone $base)->where('type', 'SANCTIONS')->count(),
+            'AML' => (clone $base)->where('type', 'AML')->count(),
 
             'by_category' => $this->countByCategory($data),
             'by_level' => $this->countByField('level', [
