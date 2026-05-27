@@ -8,8 +8,7 @@ use App\Repositories\Alert\AlertRepository;
 use App\Services\Log\LogService;
 use App\Services\User\UserService;
 use Illuminate\Http\JsonResponse;
-
-
+use Illuminate\Support\Carbon;
 
 class AlertUserRepository extends AbstractRepository
 {
@@ -45,16 +44,28 @@ class AlertUserRepository extends AbstractRepository
     }
 
 
-    public function countAlertsByUserGrouped(int $userId): array
-    {
-        return [
-            'total_active' => $this->countAlertUser($userId, self::STATUS_NEW),
-            'closed'       =>  $this->countAlertUser($userId, self::STATUS_CLOSED),
-            'new'          =>  $this->countAlertUser($userId, self::STATUS_NEW),
-            'validation'   =>  $this->countAlertUser($userId, self::STATUS_VALIDATION),
-            'supervision'  =>  $this->countAlertUser($userId, self::STATUS_SUPERVISION),
-        ];
+    public function countAlertsByUserGrouped(int $userId, ?Carbon $start = null, ?Carbon $end = null): array
+{
+    $query = DB::table('alert_user as au')
+        ->join('alert as a', 'a.id', '=', 'au.alert_id')
+        ->where('au.user_id', $userId);
+
+    if ($start && $end) {
+        $query->whereBetween('a.created_at', [$start, $end]);
+    } elseif ($start) {
+        $query->where('a.created_at', '>=', $start);
+    } elseif ($end) {
+        $query->where('a.created_at', '<=', $end);
     }
+
+    return [
+        'total_active' => (clone $query)->where('a.is_active', self::STATUS_NEW)->count(),
+        'closed'       => (clone $query)->where('a.is_active', self::STATUS_CLOSED)->count(),
+        'new'          => (clone $query)->where('a.is_active', self::STATUS_NEW)->count(),
+        'validation'   => (clone $query)->where('a.is_active', self::STATUS_VALIDATION)->count(),
+        'supervision'  => (clone $query)->where('a.is_active', self::STATUS_SUPERVISION)->count(),
+    ];
+}
 
     public function getUsersWithAlerts()
     {
