@@ -111,12 +111,7 @@ class AlertRepository extends AbstractRepository
                 'new' => $summary['new'] ?? 0,
                 'validation' => $summary['validation'] ?? 0,
                 'supervision' => $summary['supervision'] ?? 0,
-
-                'total' =>
-                    ($summary['closed'] ?? 0) +
-                    ($summary['new'] ?? 0) +
-                    ($summary['validation'] ?? 0) +
-                    ($summary['supervision'] ?? 0),
+                    'total' => array_sum($summary),
             ];
         })->filter()->values();
     }
@@ -210,16 +205,16 @@ class AlertRepository extends AbstractRepository
                 'coletiveEntity' => $this->coletiveEntityTransation($data),
 
                 'by_type' => $this->countByField('type', [
-                    "HighCapitalIncrease" => "Aumento abrupto",
-                    "EarlyRedemptionDetected" => "Resgate precoce",
-                    "HighPremiumLowRisk" => "Prémio incompatível",
-                    "PolicyChurn" => "Churn",
-                    "RepeatedReplacementOrCancellation" => "Cancelamentos",
-                    "QuickPolicyReplacementDetected" => "Substituição rápida",
-                    "ThirdPartyPayments" => "Pagamentos terceiros",
-                    "FrequentBeneficiaryChanges" => "Beneficiários",
-                    "HighRiskGeography" => "Risco geográfico",
-                    "OverpaymentRefund" => "Reembolso",
+                   "Aumento abrupto e injustificado do capital seguro entre apólices" => 'HighCapitalIncrease',
+                    "Resgate ou cancelamento da apólice antes de 12 meses" => 'EarlyRedemptionDetected',
+                    "Prémio elevado incompatível com o risco segurado" => 'HighPremiumLowRisk',
+                    "Subscrição de múltiplas apólices de curta duração" => 'PolicyChurn',
+                    "Cancelamentos frequentes de Apólices num curto Período" => 'RepeatedReplacementOrCancellation',
+                    "Substituição rápida de apólices" => 'QuickPolicyReplacementDetected',
+                    "Pagamentos de prémios por terceiros sem relação clara com o segurado" => 'ThirdPartyPayments',
+                    "Mudanças frequentes de beneficiários sem justificação aparente" => 'FrequentBeneficiaryChanges',
+                    "Apólices com beneficiários ou pagamentos de jurisdições de alto risco" => 'HighRiskGeography',
+                    "Sobrepagamento de prémios seguido de pedido de reembolso para terceiros" => 'OverpaymentRefund',
                 ], $data),
             ],
 
