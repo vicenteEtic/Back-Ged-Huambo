@@ -38,7 +38,7 @@ class AlertController extends AbstractController
             $data['startDate'] = $data['startDate'] ?? $request->get('started');
             $data['endDate']   = $data['endDate'] ?? $request->get('ended');
     
-            return $data;
+            
             return $this->service->getTotalAlerts($data);
     
         } catch (Exception $e) {
