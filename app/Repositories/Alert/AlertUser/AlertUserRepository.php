@@ -80,7 +80,9 @@ class AlertUserRepository extends AbstractRepository
                 ->where('a.is_active', self::STATUS_CLOSED)
                 ->count(),
 
-           
+            'new' => (clone $base)
+                ->where('a.is_active', self::STATUS_NEW)
+                ->count(),
 
             'validation' => (clone $base)
                 ->where('a.is_active', self::STATUS_VALIDATION)

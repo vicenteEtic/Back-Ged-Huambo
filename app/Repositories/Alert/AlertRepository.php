@@ -108,10 +108,10 @@ class AlertRepository extends AbstractRepository
                 'email' => $user->email,
 
                 'inactive_alerts' => $summary['closed'] ?? 0,
-                
+                'new' => $summary['new'] ?? 0,
                 'validation' => $summary['validation'] ?? 0,
                 'supervision' => $summary['supervision'] ?? 0,
-                    'total' => array_sum($summary)?? 0,
+                    'total' => $summary['closed']+($summary['new'] ?? 0)+($summary['validation'] ?? 0)+($summary['supervision'] ?? 0),
             ];
         })->filter()->values();
     }
