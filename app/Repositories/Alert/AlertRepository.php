@@ -30,7 +30,7 @@ class AlertRepository extends AbstractRepository
     }
 
     // ============================================
-    // DATE HANDLER (ONLY created_at)
+    // DATE HANDLER (UNIFICADO E SEGURO)
     // ============================================
     private function parseDate(?string $date, bool $end = false): ?Carbon
     {
@@ -41,33 +41,22 @@ class AlertRepository extends AbstractRepository
         return $end ? $d->endOfDay() : $d->startOfDay();
     }
 
-    private function applyDateFilter($query, array $data = [], string $column = 'created_at')
+    private function baseQuery(array $data = [])
     {
+        $query = $this->model->newQuery();
+
         $start = $this->parseDate($data['startDate'] ?? null, false);
         $end   = $this->parseDate($data['endDate'] ?? null, true);
 
         if ($start && $end) {
-            return $query->whereBetween($column, [$start, $end]);
-        }
-
-        if ($start) {
-            return $query->where($column, '>=', $start);
-        }
-
-        if ($end) {
-            return $query->where($column, '<=', $end);
+            $query->whereBetween('created_at', [$start, $end]);
+        } elseif ($start) {
+            $query->where('created_at', '>=', $start);
+        } elseif ($end) {
+            $query->where('created_at', '<=', $end);
         }
 
         return $query;
-    }
-
-    private function baseQuery(array $data = [])
-    {
-        return $this->applyDateFilter(
-            $this->model->newQuery(),
-            $data,
-            'created_at'
-        );
     }
 
     // ============================================
@@ -133,7 +122,7 @@ class AlertRepository extends AbstractRepository
     }
 
     // ============================================
-    // ENTITY (DB RAW FIXED)
+    // ENTITY
     // ============================================
     private function entitySummary(int $type, array $data = [], ?string $category = null)
     {
@@ -145,7 +134,16 @@ class AlertRepository extends AbstractRepository
             $query->where('a.category', $category);
         }
 
-        $query = $this->applyDateFilter($query, $data, 'a.created_at');
+        $start = $this->parseDate($data['startDate'] ?? null, false);
+        $end   = $this->parseDate($data['endDate'] ?? null, true);
+
+        if ($start && $end) {
+            $query->whereBetween('a.created_at', [$start, $end]);
+        } elseif ($start) {
+            $query->where('a.created_at', '>=', $start);
+        } elseif ($end) {
+            $query->where('a.created_at', '<=', $end);
+        }
 
         $group = (clone $query)
             ->select('a.level', DB::raw('COUNT(*) as total'))
@@ -164,7 +162,7 @@ class AlertRepository extends AbstractRepository
     public function coletiveEntityTransation(array $data = []) { return $this->entitySummary(1, $data, 'KYT'); }
 
     // ============================================
-    // COUNT GENERIC
+    // COUNT FIELD
     // ============================================
     private function countByField(string $field, array $map, array $data = [], array $filters = [])
     {
