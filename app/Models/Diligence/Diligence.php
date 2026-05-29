@@ -23,4 +23,8 @@ class Diligence extends Model
         'updated_at',
         'reassessmentPeriod'
     ];
+    protected $casts = [
+        'min' => 'float',
+        'max' => 'float',
+    ];
 }

@@ -18,15 +18,14 @@ class UserCreatedMail extends Mailable
         $this->user = $user;
         $this->password = $password;
     }
-public function build()
-{
-    return $this
-        ->subject('Seu código de autenticação')
-        ->view('emails.user_created')
-        ->with([
-            'user' => $this->user,
-            'password' => $this->password,
-        ]);
-}
-
+    public function build()
+    {
+        return $this
+            ->subject('Seu código de autenticação')
+            ->view('emails.user_created')
+            ->with([
+                'user' => $this->user,
+                'password' => $this->password,
+            ]);
+    }
 }

@@ -17,10 +17,10 @@ class DatabaseSeeder extends Seeder
 
           $this->call(KytRulesSeeder::class);
            User::factory(2)->create();
+           //    $this->call(NossaSegurosSeeder::class);
            $this->call(PermissionSeed::class);
-           $this->call(NossaSegurosSeeder::class);
+           $this->call(SolSeguros::class);
 
-     
          $this->call(RiskFormulaSeed::class);
     }
 }

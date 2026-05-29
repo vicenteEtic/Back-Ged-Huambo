@@ -44,6 +44,11 @@ class AlertService extends AbstractService
 
             return  $this->riskAssessmentService->is_pep($data, $id);
         }
+
+        if (!empty($data['is_reported']) && $data['is_reported'] == true) {
+            return  $this->riskAssessmentService->is_pep($data, $id);
+        }
+        
         if (!empty($data['comment'])) {
             $commentData = [
                 "alert_id" => $id,
