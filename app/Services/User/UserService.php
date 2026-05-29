@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use TwoFactorCodeMail;
+use Illuminate\Support\Facades\Log;
+use function Illuminate\Log\log;
 
 class UserService extends AbstractService
 {
@@ -33,8 +35,19 @@ class UserService extends AbstractService
     // 2. Salvar o usuário no repositório
     $user = $this->repository->store($data);
 
-    // 3. Enviar a senha por email para o usuário
-    Mail::to($data['email'])->send(new \App\Mail\UserCreatedMail($user, $password));
+try {
+    Mail::to($data['email'])->send(
+        new \App\Mail\UserCreatedMail($user, $password)
+    );
+} catch (\Throwable $th) {
+    Log::error('Erro ao enviar email UserCreatedMail', [
+        'message' => $th->getMessage(),
+        'file' => $th->getFile(),
+        'line' => $th->getLine(),
+        'trace' => $th->getTraceAsString(),
+        'email' => $data['email'] ?? null,
+    ]);
+}
 
     return $user;
     }
