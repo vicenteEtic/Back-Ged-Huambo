@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use TwoFactorCodeMail;
-use Illuminate\Support\Facades\Log;
 use function Illuminate\Log\log;
 
 class UserService extends AbstractService
