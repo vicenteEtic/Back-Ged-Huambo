@@ -101,10 +101,10 @@
             </div>
         @endif
 
-        <h2>Bem-vindo ao Portal de Reclamações</h2>
+        <h2>Bem-vindo ao Portal do Keepcomply</h2>
 
           <p>Olá <span class="highlight">{{ $user->first_name }}</span>,</p>
-        <p>Sua conta no  Portal de Reclamações foi criada com sucesso.</p>
+        <p>Sua conta no  Portal do Keepcomply foi criada com sucesso.</p>
 
         <p>Use os dados abaixo para fazer login:</p>
 
