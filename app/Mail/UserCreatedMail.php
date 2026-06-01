@@ -21,7 +21,7 @@ class UserCreatedMail extends Mailable
     public function build()
     {
         return $this
-            ->subject('Seu código de autenticação')
+            ->subject('Criação de conta - Keepcomply')
             ->view('emails.user_created')
             ->with([
                 'user' => $this->user,
