@@ -258,7 +258,6 @@ class CustomerKYTService
                 $limiarDesc,
                 'Nenhuma'
             );
-
             $this->createAlert(
                 $customer,
                 'Aumento abrupto de capital entre apólices',
