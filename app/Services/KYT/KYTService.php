@@ -99,7 +99,6 @@ class CustomerKYTService
             ];
         }, $policies);
     }
-
     private function toFloat($value): float
     {
         return is_numeric($value) ? (float)$value : 0.0;
