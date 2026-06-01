@@ -333,25 +333,75 @@ class CustomerKYTDataMocker
      */
     public static function scenarioPolicyFragmenting(Entities $customer): array
     {
-        $baseDate = now()->subDays(3);
-        $produtosParticular = [
-            'SEGURO DE POUPANCA VIDA (SPV) INDIVIDUAL',
-            'SEGURO DE POUPANCA VIDA (SPV) INDIVIDUAL TEMPORARIO',
+        $isCollective = false;
+        if (defined('\App\Enum\TypeEntity::COLECTIVA')) {
+            $isCollective = (int)($customer->entity_type ?? 0) === \App\Enum\TypeEntity::COLECTIVA->value;
+        }
+
+        if ($isCollective) {
+            $produtos = [
+                'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO',
+                'GRUPO-CAPITAL P/ADERENTE',
+                'GRUPO-CAPITAL PESSOAS DIVERSAS',
+                'PRÉMIO FIXO',
+                'PRÉMIO VARIÁVEL',
+                'FUNDO DE PENSÕES BAI',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+            $baseDate = now()->subDays(5);
+            $policies = [];
+            $changes = [];
+            $refunds = [];
+            $i = 1;
+            foreach ($produtos as $produto) {
+                $polNum = "POL-FRAG-COL-{$i}";
+                $start = (clone $baseDate)->addHours($i * 8);
+                $end = (clone $start)->addDays(60);
+                $policies[] = [
+                    'numero_apolice' => $polNum,
+                    'premium_total' => 1500000.00,
+                    'capital' => 30000000.00,
+                    'data_inicio' => $start->format('Y-m-d H:i:s'),
+                    'data_fim' => $end->format('Y-m-d'),
+                    'estado_apolice' => 'Anulada',
+                    'descricao_produto' => $produto,
+                ];
+                $changes[] = [
+                    'numero_apolice' => $polNum,
+                    'tipo_alteracao' => 'CANCELAMENTO COM SUBSTITUICAO',
+                    'valor_anterior' => 30000000.00,
+                    'novo_valor' => 0.00,
+                    'motivo_alteracao' => 'Substituição de apólice por novo contrato',
+                ];
+                $refunds[] = [
+                    'Numero_Apolice' => $polNum,
+                    'Valor_Estorno' => 1400000.00,
+                    'Data_Estorno' => $end->format('Y-m-d'),
+                    'Nome_Beneficiario' => $customer->social_denomination,
+                ];
+                $i++;
+            }
+            return [
+                'policies' => $policies,
+                'changes' => $changes,
+                'refunds' => $refunds,
+                'receipts' => [],
+            ];
+        }
+
+        $produtos = [
+            'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL',
+            'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL TEMPORARIO',
             'SEGURO BAI VIDA',
         ];
-        $produtosColetiva = [
-            'SEGURO VIDA-FIXE',
-            'PREMIO FIXO',
-            'PREMIO VARIAVEL',
-            'FUNDO DE PENSOES ABERTO - NOSSA REFORMA',
-        ];
 
+        $baseDate = now()->subDays(3);
         $policies = [];
         $changes = [];
         $refunds = [];
 
         $i = 1;
-        foreach ($produtosParticular as $produto) {
+        foreach ($produtos as $produto) {
             $polNum = "POL-FRAG-PART-{$i}";
             $start = (clone $baseDate)->addHours($i * 6);
             $end = (clone $start)->addDays(45);
@@ -374,35 +424,6 @@ class CustomerKYTDataMocker
             $refunds[] = [
                 'Numero_Apolice' => $polNum,
                 'Valor_Estorno' => 330000.00,
-                'Data_Estorno' => $end->format('Y-m-d'),
-                'Nome_Beneficiario' => $customer->social_denomination,
-            ];
-            $i++;
-        }
-
-        foreach ($produtosColetiva as $produto) {
-            $polNum = "POL-FRAG-COL-{$i}";
-            $start = (clone $baseDate)->addHours($i * 4);
-            $end = (clone $start)->addDays(60);
-            $policies[] = [
-                'numero_apolice' => $polNum,
-                'premium_total' => 2600000.00,
-                'capital' => 52000000.00,
-                'data_inicio' => $start->format('Y-m-d H:i:s'),
-                'data_fim' => $end->format('Y-m-d'),
-                'estado_apolice' => 'Anulada',
-                'descricao_produto' => $produto,
-            ];
-            $changes[] = [
-                'numero_apolice' => $polNum,
-                'tipo_alteracao' => 'CANCELAMENTO COM SUBSTITUICAO',
-                'valor_anterior' => 52000000.00,
-                'novo_valor' => 0.00,
-                'motivo_alteracao' => 'Substituição de apólice por novo contrato',
-            ];
-            $refunds[] = [
-                'Numero_Apolice' => $polNum,
-                'Valor_Estorno' => 2500000.00,
                 'Data_Estorno' => $end->format('Y-m-d'),
                 'Nome_Beneficiario' => $customer->social_denomination,
             ];

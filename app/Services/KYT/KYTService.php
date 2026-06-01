@@ -75,6 +75,7 @@ class CustomerKYTService
         if (empty($policies)) return;
 
         $this->checkAbruptCapitalIncrease($customer, $policies, $changes);
+        $this->checkPolicyLifecycleAbuse($customer, $policies, $changes, $refunds);
 
         Log::info("KYT FINISHED", ['customer' => $customer->customer_number]);
     }
@@ -150,20 +151,31 @@ class CustomerKYTService
 
     private function checkAbruptCapitalIncrease(Entities $customer, array $policies, array $changes = []): void
     {
-        $relevantProducts = [
-            'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL',
-            'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL TEMPORARIO',
-            'SEGURO BAI VIDA',
-            'SEGURO VIDA-FIXE',
-            'PRÉMIO FIXO',
-            'PRÉMIO VARIÁVEL',
-            'SEGURO VIDA CRÉDITO',
-            'SEGURO VIDA CRÉDITO (AKZ)',
-            'SEG. VIDA CRÉDITO PENSIONISTA',
-            'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
-        ];
-
         $isCollective = (int)($customer->entity_type ?? 0) === TypeEntity::COLECTIVA->value;
+
+        $relevantProducts = $isCollective
+            ? [
+                'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO',
+                'VIDA RISCO GRUPO',
+                'GRUPO-CAPITAL P/ADERENTE',
+                'GRUPO-CAPITAL PESSOAS DIVERSAS',
+                'PRÉMIO FIXO',
+                'PRÉMIO VARIÁVEL',
+                'FUNDO DE PENSÕES BAI',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ]
+            : [
+                'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL',
+                'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL TEMPORARIO',
+                'SEGURO BAI VIDA',
+                'SEGURO VIDA-FIXE',
+                'PRÉMIO FIXO',
+                'PRÉMIO VARIÁVEL',
+                'SEGURO VIDA CRÉDITO',
+                'SEGURO VIDA CRÉDITO (AKZ)',
+                'SEG. VIDA CRÉDITO PENSIONISTA',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
 
         $threshold30 = $isCollective ? 0.60 : 0.40;
         $threshold90 = $isCollective ? 1.00 : 0.70;
@@ -267,6 +279,124 @@ class CustomerKYTService
         }
     }
 
+    /* =========================
+       REGRA KYT - ABUSO DO CICLO DE VIDA DAS APÓLICES (2,5,6)
+    ========================== */
+
+    private function checkPolicyLifecycleAbuse(
+        Entities $customer,
+        array $policies,
+        array $changes = [],
+        array $refunds = []
+    ): void {
+        $isCollective = (int)($customer->entity_type ?? 0) === TypeEntity::COLECTIVA->value;
+
+        $relevantProducts = $isCollective
+            ? [
+                'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO',
+                'GRUPO-CAPITAL P/ADERENTE',
+                'GRUPO-CAPITAL PESSOAS DIVERSAS',
+                'PRÉMIO FIXO',
+                'PRÉMIO VARIÁVEL',
+                'FUNDO DE PENSÕES BAI',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ]
+            : [
+                'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL',
+                'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL TEMPORARIO',
+                'SEGURO BAI VIDA',
+                'SEGURO VIDA-FIXE',
+                'PRÉMIO FIXO',
+                'PRÉMIO VARIÁVEL',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+
+        $minEvents = $isCollective ? 3 : 2;
+        $maxDays = $isCollective ? 90 : 60;
+        $minPremium = $isCollective ? 10000000.00 : 1000000.00;
+
+        $filtered = array_values(array_filter($policies, function ($p) use ($relevantProducts) {
+            return in_array(strtoupper(trim($p['descricao_produto'] ?? '')), $relevantProducts)
+                && ($p['premium_total'] ?? 0) > 0;
+        }));
+
+        if (count($filtered) < $minEvents) return;
+
+        usort($filtered, fn($a, $b) =>
+            strtotime($a['data_inicio'] ?? '1970') <=> strtotime($b['data_inicio'] ?? '1970')
+        );
+
+        $events = [];
+        foreach ($filtered as $p) {
+            $inicio = $this->safeDate($p['data_inicio'] ?? null);
+            $fim = $this->safeDate($p['data_fim'] ?? null);
+            if (!$inicio || !$fim) continue;
+
+            $estado = $p['estado_apolice'] ?? '';
+            $isCancelled = in_array($estado, ['cancelled', 'terminated']);
+
+            $temResgate = false;
+            foreach ($refunds as $r) {
+                if (($r['Numero_Apolice'] ?? null) === $p['numero_apolice']) {
+                    $temResgate = true;
+                    break;
+                }
+            }
+
+            if (!$isCancelled && !$temResgate) continue;
+
+            $events[] = $p;
+        }
+
+        if (count($events) < $minEvents) return;
+
+        $windowStart = $this->safeDate($events[0]['data_inicio']);
+        $windowEnd = $this->safeDate($events[count($events) - 1]['data_inicio']);
+        if (!$windowStart || !$windowEnd) return;
+
+        $windowDays = $windowStart->diffInDays($windowEnd);
+        if ($windowDays > $maxDays) return;
+
+        $totalPremium = array_sum(array_column($events, 'premium_total'));
+        if ($totalPremium < $minPremium) return;
+
+        $apolices = array_column($events, 'numero_apolice');
+        $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
+
+        $description = sprintf(
+            "ABUSO DO CICLO DE VIDA DAS APÓLICES\n" .
+            "Cliente: %s | Tipo: %s\n\n" .
+            "Eventos detetados: %d\n" .
+            "Janela temporal: %d dias (limiar: %d dias)\n" .
+            "Prémio total: %s (limiar: %s)\n" .
+            "Apólices: %s\n\n" .
+            "Interpretação AML:\n" .
+            "Cancelamentos, resgates ou substituições reiterados em curto período,\n" .
+            "compatível com fragmentação de valores e reciclagem financeira.",
+            $customer->customer_number,
+            $entityLabel,
+            count($events),
+            $windowDays,
+            $maxDays,
+            $this->formatMoney($totalPremium),
+            $this->formatMoney($minPremium),
+            implode(', ', $apolices)
+        );
+
+        $score = 15;
+        if ($totalPremium >= $minPremium * 2) $score += 5;
+        if (count($events) >= $minEvents + 1) $score += 5;
+        if ($windowDays <= $maxDays / 2) $score += 5;
+
+        $this->createAlert(
+            $customer,
+            'Abuso do ciclo de vida das apólices',
+            $description,
+            'Alto',
+            $score
+        );
+    }
+
     /**
      * 2º Cenário: Subscrição de múltiplas apólices de curta duração para fragmentar valores elevados.
      *
@@ -285,25 +415,72 @@ class CustomerKYTService
      */
     public static function scenarioPolicyFragmenting(Entities $customer): array
     {
-        $baseDate = now()->subDays(3);
-        $produtosParticular = [
-            'SEGURO DE POUPANCA VIDA (SPV) INDIVIDUAL',
-            'SEGURO DE POUPANCA VIDA (SPV) INDIVIDUAL TEMPORARIO',
+        $isCollective = (int)($customer->entity_type ?? 0) === \App\Enum\TypeEntity::COLECTIVA->value;
+
+        if ($isCollective) {
+            $produtos = [
+                'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO',
+                'GRUPO-CAPITAL P/ADERENTE',
+                'GRUPO-CAPITAL PESSOAS DIVERSAS',
+                'PRÉMIO FIXO',
+                'PRÉMIO VARIÁVEL',
+                'FUNDO DE PENSÕES BAI',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+            $baseDate = now()->subDays(5);
+            $policies = [];
+            $changes = [];
+            $refunds = [];
+            $i = 1;
+            foreach ($produtos as $produto) {
+                $polNum = "POL-FRAG-COL-{$i}";
+                $start = (clone $baseDate)->addHours($i * 8);
+                $end = (clone $start)->addDays(60);
+                $policies[] = [
+                    'numero_apolice' => $polNum,
+                    'premium_total' => 1500000.00,
+                    'capital' => 30000000.00,
+                    'data_inicio' => $start->format('Y-m-d H:i:s'),
+                    'data_fim' => $end->format('Y-m-d'),
+                    'estado_apolice' => 'Anulada',
+                    'descricao_produto' => $produto,
+                ];
+                $changes[] = [
+                    'numero_apolice' => $polNum,
+                    'tipo_alteracao' => 'CANCELAMENTO COM SUBSTITUICAO',
+                    'valor_anterior' => 30000000.00,
+                    'novo_valor' => 0.00,
+                    'motivo_alteracao' => 'Substituição de apólice por novo contrato',
+                ];
+                $refunds[] = [
+                    'Numero_Apolice' => $polNum,
+                    'Valor_Estorno' => 1400000.00,
+                    'Data_Estorno' => $end->format('Y-m-d'),
+                    'Nome_Beneficiario' => $customer->social_denomination,
+                ];
+                $i++;
+            }
+            return [
+                'policies' => $policies,
+                'changes' => $changes,
+                'refunds' => $refunds,
+                'receipts' => [],
+            ];
+        }
+
+        $produtos = [
+            'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL',
+            'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL TEMPORARIO',
             'SEGURO BAI VIDA',
         ];
-        $produtosColetiva = [
-            'SEGURO VIDA-FIXE',
-            'PREMIO FIXO',
-            'PREMIO VARIAVEL',
-            'FUNDO DE PENSOES ABERTO - NOSSA REFORMA',
-        ];
 
+        $baseDate = now()->subDays(3);
         $policies = [];
         $changes = [];
         $refunds = [];
 
         $i = 1;
-        foreach ($produtosParticular as $produto) {
+        foreach ($produtos as $produto) {
             $polNum = "POL-FRAG-PART-{$i}";
             $start = (clone $baseDate)->addHours($i * 6);
             $end = (clone $start)->addDays(45);
@@ -326,35 +503,6 @@ class CustomerKYTService
             $refunds[] = [
                 'Numero_Apolice' => $polNum,
                 'Valor_Estorno' => 330000.00,
-                'Data_Estorno' => $end->format('Y-m-d'),
-                'Nome_Beneficiario' => $customer->social_denomination,
-            ];
-            $i++;
-        }
-
-        foreach ($produtosColetiva as $produto) {
-            $polNum = "POL-FRAG-COL-{$i}";
-            $start = (clone $baseDate)->addHours($i * 4);
-            $end = (clone $start)->addDays(60);
-            $policies[] = [
-                'numero_apolice' => $polNum,
-                'premium_total' => 2600000.00,
-                'capital' => 52000000.00,
-                'data_inicio' => $start->format('Y-m-d H:i:s'),
-                'data_fim' => $end->format('Y-m-d'),
-                'estado_apolice' => 'Anulada',
-                'descricao_produto' => $produto,
-            ];
-            $changes[] = [
-                'numero_apolice' => $polNum,
-                'tipo_alteracao' => 'CANCELAMENTO COM SUBSTITUICAO',
-                'valor_anterior' => 52000000.00,
-                'novo_valor' => 0.00,
-                'motivo_alteracao' => 'Substituição de apólice por novo contrato',
-            ];
-            $refunds[] = [
-                'Numero_Apolice' => $polNum,
-                'Valor_Estorno' => 2500000.00,
                 'Data_Estorno' => $end->format('Y-m-d'),
                 'Nome_Beneficiario' => $customer->social_denomination,
             ];
