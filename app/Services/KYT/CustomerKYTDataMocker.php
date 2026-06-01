@@ -314,4 +314,106 @@ class CustomerKYTDataMocker
             'changes' => []
         ];
     }
+
+    /**
+     * 2º Cenário: Subscrição de múltiplas apólices de curta duração para fragmentar valores elevados.
+     *
+     * Particulares: ≥2 eventos (60 dias); ≥ AOA 1.000.000,00
+     * Coletivas: ≥3 eventos (90 dias); ≥ AOA 10.000.000,00
+     * Múltiplos resgates ou cancelamentos com substituição reiterados.
+     *
+     * Produtos:
+     * - Seguro de Poupança Vida (SPV) INDIVIDUAL
+     * - Seguro de Poupança Vida (SPV) INDIVIDUAL TEMPORARIO
+     * - Seguro BAI Vida
+     * - Seguro Vida-Fixe
+     * - PRÉMIO FIXO
+     * - PRÉMIO VARIÁVEL
+     * - FUNDO DE PENSÕES ABERTO - NOSSA Reforma
+     */
+    public static function scenarioPolicyFragmenting(Entities $customer): array
+    {
+        $baseDate = now()->subDays(3);
+        $produtosParticular = [
+            'SEGURO DE POUPANCA VIDA (SPV) INDIVIDUAL',
+            'SEGURO DE POUPANCA VIDA (SPV) INDIVIDUAL TEMPORARIO',
+            'SEGURO BAI VIDA',
+        ];
+        $produtosColetiva = [
+            'SEGURO VIDA-FIXE',
+            'PREMIO FIXO',
+            'PREMIO VARIAVEL',
+            'FUNDO DE PENSOES ABERTO - NOSSA REFORMA',
+        ];
+
+        $policies = [];
+        $changes = [];
+        $refunds = [];
+
+        $i = 1;
+        foreach ($produtosParticular as $produto) {
+            $polNum = "POL-FRAG-PART-{$i}";
+            $start = (clone $baseDate)->addHours($i * 6);
+            $end = (clone $start)->addDays(45);
+            $policies[] = [
+                'numero_apolice' => $polNum,
+                'premium_total' => 350000.00,
+                'capital' => 7000000.00,
+                'data_inicio' => $start->format('Y-m-d H:i:s'),
+                'data_fim' => $end->format('Y-m-d'),
+                'estado_apolice' => 'Anulada',
+                'descricao_produto' => $produto,
+            ];
+            $changes[] = [
+                'numero_apolice' => $polNum,
+                'tipo_alteracao' => 'RESGATE ANTECIPADO',
+                'valor_anterior' => 7000000.00,
+                'novo_valor' => 0.00,
+                'motivo_alteracao' => 'Resgate total antes da maturidade',
+            ];
+            $refunds[] = [
+                'Numero_Apolice' => $polNum,
+                'Valor_Estorno' => 330000.00,
+                'Data_Estorno' => $end->format('Y-m-d'),
+                'Nome_Beneficiario' => $customer->social_denomination,
+            ];
+            $i++;
+        }
+
+        foreach ($produtosColetiva as $produto) {
+            $polNum = "POL-FRAG-COL-{$i}";
+            $start = (clone $baseDate)->addHours($i * 4);
+            $end = (clone $start)->addDays(60);
+            $policies[] = [
+                'numero_apolice' => $polNum,
+                'premium_total' => 2600000.00,
+                'capital' => 52000000.00,
+                'data_inicio' => $start->format('Y-m-d H:i:s'),
+                'data_fim' => $end->format('Y-m-d'),
+                'estado_apolice' => 'Anulada',
+                'descricao_produto' => $produto,
+            ];
+            $changes[] = [
+                'numero_apolice' => $polNum,
+                'tipo_alteracao' => 'CANCELAMENTO COM SUBSTITUICAO',
+                'valor_anterior' => 52000000.00,
+                'novo_valor' => 0.00,
+                'motivo_alteracao' => 'Substituição de apólice por novo contrato',
+            ];
+            $refunds[] = [
+                'Numero_Apolice' => $polNum,
+                'Valor_Estorno' => 2500000.00,
+                'Data_Estorno' => $end->format('Y-m-d'),
+                'Nome_Beneficiario' => $customer->social_denomination,
+            ];
+            $i++;
+        }
+
+        return [
+            'policies' => $policies,
+            'changes' => $changes,
+            'refunds' => $refunds,
+            'receipts' => [],
+        ];
+    }
 }

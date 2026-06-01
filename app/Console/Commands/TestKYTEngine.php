@@ -45,6 +45,7 @@ class TestKYTEngine extends Command
                 'Regra 8: Troca de Beneficiários'         => 'scenarioFrequentBeneficiaryChanges',
                 'Regra 9: Geografia de Alto Risco'        => 'scenarioHighRiskGeography',
                 'Regra 10: Sobrepagamento com Reembolso'  => 'scenarioOverpayment',
+                'Regra 11: Fragmentação de Valores (2º Cenário)' => 'scenarioPolicyFragmenting',
             ];
 
             foreach ($scenarios as $label => $method) {
