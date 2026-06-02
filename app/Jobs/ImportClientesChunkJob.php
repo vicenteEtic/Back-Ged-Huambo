@@ -62,8 +62,8 @@ class ImportClientesChunkJob implements ShouldQueue
             try {
                 Entities::upsert(
                     $dataToUpsert,
-                    ['customer_number'], // chave única
-                    ['social_denomination','entity_type','nif','updated_at'] // campos a atualizar
+                    ['customer_number'],
+                    ['social_denomination','entity_type','nif','updated_at']
                 );
                 Log::info("Chunk processado com sucesso: " . count($dataToUpsert) . " registros.");
             } catch (\Exception $e) {

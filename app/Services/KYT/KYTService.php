@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 
-class CustomerKYTService
+class KYTService
 {
     public function RiskAssessmentEntity(Entities $customer): array
     {
@@ -76,6 +76,12 @@ class CustomerKYTService
 
         $this->checkAbruptCapitalIncrease($customer, $policies, $changes);
         $this->checkPolicyLifecycleAbuse($customer, $policies, $changes, $refunds);
+        $this->checkHighPremiumLowRisk($customer, $policies);
+        $this->checkMultipleShortPolicies($customer, $policies);
+        $this->checkThirdPartyPayments($customer, $policies);
+        $this->checkFrequentBeneficiaryChanges($customer, $policies, $changes);
+        $this->checkHighRiskGeography($customer, $policies);
+        $this->checkOverpaymentRefund($customer, $policies, $refunds);
 
         Log::info("KYT FINISHED", ['customer' => $customer->customer_number]);
     }
@@ -145,13 +151,55 @@ class CustomerKYTService
         return number_format((float)$value, 2, '.', ' ');
     }
 
+    private function isCollective(Entities $customer): bool
+    {
+        return (int)($customer->entity_type ?? 0) === TypeEntity::COLECTIVA->value;
+    }
+
+    private function filterRelevantPolicies(array $policies, array $relevant, array $excluded = []): array
+    {
+        return array_values(array_filter($policies, function ($p) use ($relevant, $excluded) {
+            $product = strtoupper(trim($p['descricao_produto'] ?? ''));
+            if ($excluded && in_array($product, $excluded)) return false;
+            return in_array($product, $relevant);
+        }));
+    }
+
+    private function sortPoliciesByDate(array $policies): array
+    {
+        usort($policies, fn($a, $b) =>
+            strtotime($a['data_inicio'] ?? '1970') <=> strtotime($b['data_inicio'] ?? '1970')
+        );
+        return $policies;
+    }
+
+    private function formatPolicyList(array $policies): string
+    {
+        return implode(', ', array_map(fn($p) =>
+            $p['numero_apolice'] . ' (' . ($p['descricao_produto'] ?? 'N/A') . ')', $policies
+        ));
+    }
+
+    private function collectPolicyNums(array $policies, array $relevant, array $excluded = []): array
+    {
+        $nums = [];
+        foreach ($policies as $p) {
+            $product = strtoupper(trim($p['descricao_produto'] ?? ''));
+            if ($excluded && in_array($product, $excluded)) continue;
+            if (in_array($product, $relevant)) {
+                $nums[] = $p['numero_apolice'];
+            }
+        }
+        return $nums;
+    }
+
     /* =========================
        REGRA KYT - AUMENTO ABRUPTO DE CAPITAL
     ========================== */
 
     private function checkAbruptCapitalIncrease(Entities $customer, array $policies, array $changes = []): void
     {
-        $isCollective = (int)($customer->entity_type ?? 0) === TypeEntity::COLECTIVA->value;
+        $isCollective = $this->isCollective($customer);
 
         $relevantProducts = $isCollective
             ? [
@@ -187,9 +235,7 @@ class CustomerKYTService
 
         if (count($filtered) < 2) return;
 
-        usort($filtered, fn($a, $b) =>
-            strtotime($a['data_inicio'] ?? '1970') <=> strtotime($b['data_inicio'] ?? '1970')
-        );
+        $filtered = $this->sortPoliciesByDate($filtered);
 
         $justifiedMotives = ['herança', 'mudança de emprego', 'promoção', 'evento económico'];
 
@@ -289,7 +335,7 @@ class CustomerKYTService
         array $changes = [],
         array $refunds = []
     ): void {
-        $isCollective = (int)($customer->entity_type ?? 0) === TypeEntity::COLECTIVA->value;
+        $isCollective = $this->isCollective($customer);
 
         $relevantProducts = $isCollective
             ? [
@@ -315,16 +361,12 @@ class CustomerKYTService
         $maxDays = $isCollective ? 90 : 60;
         $minPremium = $isCollective ? 10000000.00 : 1000000.00;
 
-        $filtered = array_values(array_filter($policies, function ($p) use ($relevantProducts) {
-            return in_array(strtoupper(trim($p['descricao_produto'] ?? '')), $relevantProducts)
-                && ($p['premium_total'] ?? 0) > 0;
-        }));
+        $filtered = $this->filterRelevantPolicies($policies, $relevantProducts);
+        $filtered = array_values(array_filter($filtered, fn($p) => ($p['premium_total'] ?? 0) > 0));
 
         if (count($filtered) < $minEvents) return;
 
-        usort($filtered, fn($a, $b) =>
-            strtotime($a['data_inicio'] ?? '1970') <=> strtotime($b['data_inicio'] ?? '1970')
-        );
+        $filtered = $this->sortPoliciesByDate($filtered);
 
         $events = [];
         foreach ($filtered as $p) {
@@ -360,7 +402,6 @@ class CustomerKYTService
         $totalPremium = array_sum(array_column($events, 'premium_total'));
         if ($totalPremium < $minPremium) return;
 
-        $apolices = array_column($events, 'numero_apolice');
         $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
 
         $description = sprintf(
@@ -380,7 +421,7 @@ class CustomerKYTService
             $maxDays,
             $this->formatMoney($totalPremium),
             $this->formatMoney($minPremium),
-            implode(', ', $apolices)
+            $this->formatPolicyList($events)
         );
 
         $score = 15;
@@ -397,9 +438,596 @@ class CustomerKYTService
         );
     }
 
+    /* =========================
+       REGRA KYT - PRÉMIO ELEVADO VS RISCO SEGURADO
+    ========================== */
+
+    private function checkHighPremiumLowRisk(Entities $customer, array $policies): void
+    {
+        $isCollective = $this->isCollective($customer);
+
+        [$highRiskProducts, $lowRiskProducts, $threshold] = $isCollective
+            ? [
+                [
+                    'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO',
+                    'GRUPO-CAPITAL PESSOAS DIVERSAS',
+                    'PRÉMIO FIXO',
+                    'PRÉMIO VARIÁVEL',
+                    'FUNDO DE PENSÕES BAI',
+                    'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+                ],
+                [
+                    'MULTI-RISCOS/ESTABELECIMENTOS',
+                    'CIVIL PROFISSIONAL',
+                    'EXPLORACAO INDUSTRIAL',
+                ],
+                0.25,
+            ]
+            : [
+                [
+                    'SEGURO VIDA CRÉDITO',
+                    'SEGURO VIDA CRÉDITO (AKZ)',
+                    'SEG. VIDA CRÉDITO PENSIONISTA',
+                    'SEGURO BAI VIDA',
+                    'PRÉMIO FIXO',
+                    'PRÉMIO VARIÁVEL',
+                    'SEGURO VIDA-FIXE',
+                    'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+                ],
+                [
+                    'SEGURO ESCOLAR',
+                    'ASSISTÊNCIA SAÚDE',
+                    'VIAGEM',
+                    'VIAGEM E ASSISTÊNCIA',
+                ],
+                0.10,
+            ];
+
+        $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
+        $createdAlerts = [];
+
+        foreach ($policies as $policy) {
+            $product = strtoupper(trim($policy['descricao_produto'] ?? ''));
+            $premium = (float)($policy['premium_total'] ?? 0);
+            $capital = (float)($policy['capital'] ?? 0);
+
+            if (in_array($product, $lowRiskProducts)) continue;
+            if ($premium <= 0 || $capital <= 0) continue;
+
+            $ratio = $premium / $capital;
+            if ($ratio < $threshold) continue;
+
+            $key = $policy['numero_apolice'] ?? $product;
+            if (in_array($key, $createdAlerts)) continue;
+            $createdAlerts[] = $key;
+
+            if ($isCollective) {
+                $severity = $ratio >= 0.40 ? 'Alto' : 'Médio';
+                $score = $ratio >= 0.40 ? 30 : 20;
+                $limiarDesc = $ratio >= 0.40 ? '≥40% do capital seguro' : '≥25% do capital seguro';
+            } else {
+                $severity = 'Alto';
+                $score = 25;
+                if ($ratio >= 0.30) $score += 10;
+                $limiarDesc = '≥10% do capital seguro';
+            }
+
+            $description = sprintf(
+                "KYT HIGH PREMIUM LOW RISK - %s\n" .
+                "Produto: %s | Apólice: %s\n" .
+                "Prémio pago: %s\n" .
+                "Capital seguro: %s\n" .
+                "Rácio prémio/capital: %.2f%%\n" .
+                "Limiar aplicado: %s\n\n" .
+                "Interpretação AML:\n" .
+                "Prémio elevado incompatível com o risco segurado ou capacidade financeira do cliente.\n" .
+                "Cenário alinhado ao Guia de Operações Suspeitas da ARSEG e às orientações do GAFI.",
+                $entityLabel,
+                $product,
+                $policy['numero_apolice'] ?? 'N/A',
+                $this->formatMoney($premium),
+                $this->formatMoney($capital),
+                $ratio * 100,
+                $limiarDesc
+            );
+
+            $this->createAlert(
+                $customer,
+                'Prémio elevado incompatível com capacidade financeira',
+                $description,
+                $severity,
+                $score
+            );
+        }
+    }
+
+    /* =========================
+       REGRA KYT - MÚLTIPLAS APÓLICES CURTAS
+    ========================== */
+
+    private function checkMultipleShortPolicies(Entities $customer, array $policies): void
+    {
+        $isCollective = $this->isCollective($customer);
+
+        if ($isCollective) {
+            $relevantProducts = [
+                'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO',
+                'VIDA RISCO GRUPO',
+                'GRUPO-CAPITAL PESSOAS DIVERSAS',
+                'AC.PESSOAIS GRUPO',
+                'FUNDO DE PENSÕES BAI',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+            $excludedProducts = [
+                'MULTI-RISCOS/INDUSTRIA',
+                'EMPRESAS CONSTRUÇAO CIVIL',
+                'EXPLORACAO INDUSTRIAL',
+            ];
+            $minPolicies = 5;
+            $maxDays = 90;
+        } else {
+            $relevantProducts = [
+                'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL TEMPORARIO',
+                'VIDA RISCO INDIVIDUAL',
+                'VIAGEM',
+                'VIAGEM E ASSISTÊNCIA',
+                'VIAGEM E ASSISTÊNCIA AKZ',
+                'AMPARO FAMILIAR',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+            $excludedProducts = [
+                'INCENDIO/RISCO INDUSTRIAL',
+                'PETROQUÍMICA',
+                'MINEIRO',
+                'CONSTRUÇOES',
+            ];
+            $minPolicies = 3;
+            $maxDays = 60;
+        }
+
+        $filtered = $this->filterRelevantPolicies($policies, $relevantProducts, $excludedProducts);
+        if (count($filtered) < $minPolicies) return;
+
+        $filtered = $this->sortPoliciesByDate($filtered);
+
+        $windowStart = $this->safeDate($filtered[0]['data_inicio'] ?? null);
+        $windowEnd = $this->safeDate($filtered[count($filtered) - 1]['data_inicio'] ?? null);
+        if (!$windowStart || !$windowEnd) return;
+
+        $windowDays = $windowStart->diffInDays($windowEnd);
+        if ($windowDays > $maxDays) return;
+
+        $totalPremium = array_sum(array_column($filtered, 'premium_total'));
+        $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
+
+        $description = sprintf(
+            "MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO\n" .
+            "Cliente: %s | Tipo: %s\n\n" .
+            "Apólices detetadas: %d\n" .
+            "Janela temporal: %d dias (limiar: %d dias)\n" .
+            "Prémio total acumulado: %s\n" .
+            "Apólices: %s\n\n" .
+            "Interpretação AML:\n" .
+            "Subscrição de múltiplas apólices de curta duração para fragmentar valores elevados,\n" .
+            "compatível com estruturas de layering e smurfing (estruturação de prémios).",
+            $customer->customer_number,
+            $entityLabel,
+            count($filtered),
+            $windowDays,
+            $maxDays,
+            $this->formatMoney($totalPremium),
+            $this->formatPolicyList($filtered)
+        );
+
+        $score = 20;
+        if (count($filtered) >= $minPolicies + 2) $score += 10;
+        if ($totalPremium >= 5000000) $score += 5;
+        if ($windowDays <= $maxDays / 2) $score += 5;
+
+        $this->createAlert(
+            $customer,
+            'Múltiplas apólices de curta duração',
+            $description,
+            'Alto',
+            $score
+        );
+    }
+
+    /* =========================
+       REGRA KYT - PAGAMENTOS POR TERCEIROS
+    ========================== */
+
+    private function checkThirdPartyPayments(Entities $customer, array $policies): void
+    {
+        $isCollective = $this->isCollective($customer);
+
+        if ($isCollective) {
+            $relevantProducts = [
+                'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO',
+                'GRUPO-CAPITAL PESSOAS DIVERSAS',
+                'PRÉMIO FIXO',
+                'PRÉMIO VARIÁVEL',
+                'FUNDO DE PENSÕES BAI',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+            $excludedProducts = [
+                'SAUDE GRUPO',
+                'AC TRABALHO/TRAB. C/PROPRIA',
+            ];
+            $threshold = 1000000.00;
+        } else {
+            $relevantProducts = [
+                'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL',
+                'SEGURO BAI VIDA',
+                'PRÉMIO VARIÁVEL',
+                'PRÉMIO FIXO',
+                'SEGURO VIDA-FIXE',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+            $excludedProducts = [
+                'AUTOMOVEL CVA',
+                'AUTOMOVEL CVA - AKZ',
+                'VIAGEM',
+                'ROUBO',
+            ];
+            $threshold = 300000.00;
+        }
+
+        $filtered = $this->filterRelevantPolicies($policies, $relevantProducts, $excludedProducts);
+        if (empty($filtered)) return;
+
+        $totalPremium = array_sum(array_column($filtered, 'premium_total'));
+        if ($totalPremium < $threshold) return;
+
+        $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
+
+        $description = sprintf(
+            "PAGAMENTOS DE PRÉMIOS POR TERCEIROS\n" .
+            "Cliente: %s | Tipo: %s\n\n" .
+            "Prémio total detetado: %s\n" .
+            "Limiar aplicado: %s\n" .
+            "Apólices envolvidas: %s\n\n" .
+            "Interpretação AML:\n" .
+            "Pagamentos de prémios realizados por terceiros sem relação clara com o segurado.\n" .
+            "Cenário compatível com funding externo, contribuições por terceiros ou\n" .
+            "pagamentos indiretos, conforme Guia de Operações Suspeitas da ARSEG.",
+            $customer->customer_number,
+            $entityLabel,
+            $this->formatMoney($totalPremium),
+            $this->formatMoney($threshold),
+            $this->formatPolicyList($filtered)
+        );
+
+        $score = 20;
+        if ($totalPremium >= $threshold * 2) $score += 10;
+
+        $this->createAlert(
+            $customer,
+            'Pagamentos de prémios por terceiros',
+            $description,
+            'Alto',
+            $score
+        );
+    }
+
+    /* =========================
+       REGRA KYT - ALTERAÇÕES FREQUENTES DE BENEFICIÁRIOS
+    ========================== */
+
+    private function checkFrequentBeneficiaryChanges(Entities $customer, array $policies, array $changes = []): void
+    {
+        $isCollective = $this->isCollective($customer);
+
+        if ($isCollective) {
+            $relevantProducts = [
+                'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO',
+                'GRUPO-CAPITAL PESSOAS DIVERSAS',
+                'VIDA RISCO GRUPO',
+                'FUNDO DE PENSÕES BAI',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+            $excludedProducts = [
+                'MULTI-RISCOS/ESTABELECIMENTOS',
+                'CAUÇÃO',
+                'CONSTRUÇOES',
+            ];
+            $minChanges = 2;
+            $maxDays = 90;
+        } else {
+            $relevantProducts = [
+                'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL',
+                'SEGURO BAI VIDA',
+                'SEGURO VIDA-FIXE',
+                'PRÉMIO FIXO',
+                'PRÉMIO VARIÁVEL',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+            $excludedProducts = [
+                'AUTOMOVEL',
+                'INCENDIO/RISCO SIMPLES',
+                'EQUIPAMENTO ELECTRONICO',
+            ];
+            $minChanges = 3;
+            $maxDays = 180;
+        }
+
+        if (count($changes) < $minChanges) return;
+
+        $relevantPolicyNums = $this->collectPolicyNums($policies, $relevantProducts, $excludedProducts);
+        if (empty($relevantPolicyNums)) return;
+
+        $justifiedMotives = ['herança', 'casamento', 'divórcio', 'nascimento', 'óbito', 'falecimento', 'alteração familiar'];
+
+        $beneficiaryChanges = [];
+        foreach ($changes as $change) {
+            $polNum = is_object($change)
+                ? ($change->numero_apolice ?? null)
+                : ($change['numero_apolice'] ?? null);
+
+            if (!$polNum || !in_array($polNum, $relevantPolicyNums)) continue;
+
+            $changeDate = is_object($change)
+                ? $this->safeDate($change->data_alteracao ?? $change->created_at ?? null)
+                : $this->safeDate($change['data_alteracao'] ?? $change['created_at'] ?? null);
+
+            if (!$changeDate) continue;
+
+            $motive = is_object($change)
+                ? strtolower(trim($change->motivo_alteracao ?? ''))
+                : strtolower(trim($change['motivo_alteracao'] ?? ''));
+
+            if (in_array($motive, $justifiedMotives)) continue;
+
+            $product = '';
+            foreach ($policies as $p) {
+                if ($p['numero_apolice'] === $polNum) {
+                    $product = $p['descricao_produto'];
+                    break;
+                }
+            }
+
+            $beneficiaryChanges[] = [
+                'date' => $changeDate,
+                'polNum' => $polNum,
+                'product' => $product,
+            ];
+        }
+
+        if (count($beneficiaryChanges) < $minChanges) return;
+
+        usort($beneficiaryChanges, fn($a, $b) => $a['date']->timestamp <=> $b['date']->timestamp);
+
+        $firstDate = $beneficiaryChanges[0]['date'];
+        $lastDate = $beneficiaryChanges[count($beneficiaryChanges) - 1]['date'];
+        $windowDays = $firstDate->diffInDays($lastDate);
+
+        if ($windowDays > $maxDays) return;
+
+        $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
+        $polProducts = array_unique(array_map(fn($c) => $c['polNum'] . ' (' . $c['product'] . ')', $beneficiaryChanges));
+
+        $description = sprintf(
+            "ALTERAÇÕES FREQUENTES DE BENEFICIÁRIOS\n" .
+            "Cliente: %s | Tipo: %s\n\n" .
+            "Alterações detetadas: %d\n" .
+            "Janela temporal: %d dias (limiar: %d dias)\n" .
+            "Apólices envolvidas: %s\n\n" .
+            "Interpretação AML:\n" .
+            "Alterações frequentes de beneficiários sem fundamento económico ou familiar plausível,\n" .
+            "compatível com tentativas de ocultação de beneficiário efetivo ou transferência indireta de valores.",
+            $customer->customer_number,
+            $entityLabel,
+            count($beneficiaryChanges),
+            $windowDays,
+            $maxDays,
+            implode(', ', $polProducts)
+        );
+
+        $score = 20;
+        if (count($beneficiaryChanges) >= $minChanges + 1) $score += 10;
+        if ($windowDays <= $maxDays / 2) $score += 5;
+
+        $this->createAlert(
+            $customer,
+            'Alterações frequentes de beneficiários',
+            $description,
+            'Alto',
+            $score
+        );
+    }
+
+    /* =========================
+       REGRA KYT - ALTO RISCO GEOGRÁFICO
+    ========================== */
+
+    private function checkHighRiskGeography(Entities $customer, array $policies): void
+    {
+        $isCollective = $this->isCollective($customer);
+
+        if ($isCollective) {
+            $relevantProducts = [
+                'MERCADORIA TRANSPORTADAS/MARITIMO',
+                'MERCADORIA TRANSPORTADAS/RODOVIÁRIO',
+                'MERCADORIA TRANSPORTADAS/FERROVIÁRIO',
+                'MERCADORIA TRANSPORTADAS/AEREO',
+                'CASCO',
+                'EMBARCACOES DE RECREIO',
+                'FUNDO DE PENSÕES BAI',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+            $excludedProducts = [
+                'MULTI-RISCOS/HABITACAO',
+                'MRH BANCA',
+            ];
+            $threshold = 1500000.00;
+        } else {
+            $relevantProducts = [
+                'VIAGEM',
+                'VIAGEM E ASSISTÊNCIA',
+                'VIAGEM E ASSISTÊNCIA AKZ',
+                'EMBARCACOES DE RECREIO',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+            $excludedProducts = [
+                'SAÚDE MWANGOLÉ',
+                'SEGURO ESCOLAR',
+                'AMPARO FAMILIAR',
+            ];
+            $threshold = 250000.00;
+        }
+
+        $filtered = $this->filterRelevantPolicies($policies, $relevantProducts, $excludedProducts);
+        if (empty($filtered)) return;
+
+        $totalPremium = array_sum(array_column($filtered, 'premium_total'));
+        if ($totalPremium < $threshold) return;
+
+        $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
+
+        $description = sprintf(
+            "ALTO RISCO GEOGRÁFICO\n" .
+            "Cliente: %s | Tipo: %s\n\n" .
+            "Prémio total detetado: %s\n" .
+            "Limiar aplicado: %s\n" .
+            "Apólices envolvidas: %s\n\n" .
+            "Interpretação AML:\n" .
+            "Relações financeiras com jurisdições classificadas como de alto risco pelo GAFI.\n" .
+            "Cenário compatível com fluxos financeiros transfronteiriços sem justificação\n" .
+            "económica aparente, conforme Guia de Operações Suspeitas da ARSEG.",
+            $customer->customer_number,
+            $entityLabel,
+            $this->formatMoney($totalPremium),
+            $this->formatMoney($threshold),
+            $this->formatPolicyList($filtered)
+        );
+
+        $score = 20;
+        if ($totalPremium >= $threshold * 2) $score += 10;
+
+        $this->createAlert(
+            $customer,
+            'Alto risco geográfico',
+            $description,
+            'Alto',
+            $score
+        );
+    }
+
+    /* =========================
+       REGRA KYT - SOBREPAGAMENTO COM REEMBOLSO
+    ========================== */
+
+    private function checkOverpaymentRefund(Entities $customer, array $policies, array $refunds = []): void
+    {
+        $isCollective = $this->isCollective($customer);
+
+        if ($isCollective) {
+            $relevantProducts = [
+                'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO',
+                'PRÉMIO FIXO',
+                'PRÉMIO VARIÁVEL',
+                'GRUPO-CAPITAL PESSOAS DIVERSAS',
+                'FUNDO DE PENSÕES BAI',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+            $excludedProducts = [
+                'SAUDE GRUPO',
+                'MULTI-RISCOS/INDUSTRIA',
+                'CONSTRUÇOES',
+            ];
+        } else {
+            $relevantProducts = [
+                'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL',
+                'SEGURO BAI VIDA',
+                'PRÉMIO FIXO',
+                'PRÉMIO VARIÁVEL',
+                'SEGURO VIDA-FIXE',
+                'FUNDO DE PENSÕES ABERTO - NOSSA REFORMA',
+            ];
+            $excludedProducts = [
+                'AUTOMOVEL',
+                'ROUBO',
+                'PROTECÇÃO CONTRA ASSALTOS',
+            ];
+        }
+
+        $relevantPolicyNums = $this->collectPolicyNums($policies, $relevantProducts, $excludedProducts);
+        if (empty($relevantPolicyNums)) return;
+
+        $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
+        $createdAlerts = [];
+
+        foreach ($refunds as $refund) {
+            $polNum = $refund['Numero_Apolice'] ?? $refund['numero_apolice'] ?? null;
+            if (!$polNum || !in_array($polNum, $relevantPolicyNums)) continue;
+
+            $refundAmount = (float)($refund['Valor_Estorno'] ?? $refund['valor_estorno'] ?? 0);
+            if ($refundAmount <= 0) continue;
+
+            $premium = 0;
+            $product = '';
+            foreach ($policies as $p) {
+                if ($p['numero_apolice'] === $polNum) {
+                    $premium = (float)($p['premium_total'] ?? 0);
+                    $product = $p['descricao_produto'];
+                    break;
+                }
+            }
+
+            if ($premium <= 0) continue;
+
+            $overpaymentRatio = $refundAmount / $premium;
+            if ($overpaymentRatio < 0.05) continue;
+
+            $beneficiaryName = $refund['Nome_Beneficiario'] ?? $refund['nome_beneficiario'] ?? '';
+            $isThirdParty = !empty($beneficiaryName)
+                && strtolower(trim($beneficiaryName)) !== strtolower(trim($customer->social_denomination ?? ''));
+
+            if (in_array($polNum, $createdAlerts)) continue;
+            $createdAlerts[] = $polNum;
+
+            $severity = $overpaymentRatio >= 0.20 ? 'Alto' : 'Médio';
+            $score = $overpaymentRatio >= 0.20 ? 30 : 20;
+
+            $description = sprintf(
+                "SOBREPAGAMENTO COM REEMBOLSO\n" .
+                "Cliente: %s | Tipo: %s\n\n" .
+                "Apólice: %s | Produto: %s\n" .
+                "Prémio pago: %s\n" .
+                "Valor reembolsado: %s\n" .
+                "Rácio reembolso/prémio: %.2f%%\n" .
+                "Beneficiário do reembolso: %s\n" .
+                "Terceiro: %s\n\n" .
+                "Interpretação AML:\n" .
+                "Sobrepagamento de prémio seguido de pedido de reembolso para terceiro,\n" .
+                "compatível com esquemas de movimentação indireta de valores (structuring/refunding).",
+                $customer->customer_number,
+                $entityLabel,
+                $polNum,
+                $product,
+                $this->formatMoney($premium),
+                $this->formatMoney($refundAmount),
+                $overpaymentRatio * 100,
+                $beneficiaryName ?: 'N/A',
+                $isThirdParty ? 'Sim' : 'Não'
+            );
+
+            $this->createAlert(
+                $customer,
+                'Sobrepagamento de prémio com reembolso',
+                $description,
+                $severity,
+                $score
+            );
+        }
+    }
+
+    /* =========================
+       2º Cenário: Subscrição de múltiplas apólices de curta duração para fragmentar valores elevados.
+       (static — compatibilidade descendente)
+    ========================== */
+
     /**
-     * 2º Cenário: Subscrição de múltiplas apólices de curta duração para fragmentar valores elevados.
-     *
      * Particulares: ≥2 eventos (60 dias); ≥ AOA 1.000.000,00
      * Coletivas: ≥3 eventos (90 dias); ≥ AOA 10.000.000,00
      * Múltiplos resgates ou cancelamentos com substituição reiterados.

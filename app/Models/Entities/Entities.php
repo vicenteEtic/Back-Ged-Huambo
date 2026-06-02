@@ -25,7 +25,7 @@ class Entities extends Model
         'updated_at',
         'nif',
         'reassessmentPeriod'
-      
+       
     ];
 
     public function riskAssessments()
