@@ -10,6 +10,7 @@ use App\Enum\TypeEntity;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class KYTService
 {
@@ -63,7 +64,8 @@ class KYTService
         array $policies,
         array $changes = [],
         array $refunds = [],
-        array $receipts = []
+        array $receipts = [],
+        array $beneficiaries = []
     ): void {
         $policies = $this->normalizePolicies($policies);
 
@@ -84,6 +86,53 @@ class KYTService
         $this->checkOverpaymentRefund($customer, $policies, $refunds);
 
         Log::info("KYT FINISHED", ['customer' => $customer->customer_number]);
+    }
+
+    public function runAllChecks(Entities $customer): void
+    {
+        $policyNumbers = DB::table('policies_staging')
+            ->where('numero_cliente', $customer->customer_number)
+            ->pluck('numero_apolice')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($policyNumbers)) {
+            Log::info("KYT sem apólices para {$customer->customer_number}");
+            return;
+        }
+
+        $policies = DB::table('policies_staging')
+            ->whereIn('numero_apolice', $policyNumbers)
+            ->get()
+            ->toArray();
+
+        $changes = DB::table('policy_changes_staging')
+            ->whereIn('numero_apolice', $policyNumbers)
+            ->get()
+            ->toArray();
+
+        $refunds = DB::table('apol_anulada_estorno')
+            ->whereIn('n_apolice', $policyNumbers)
+            ->get()
+            ->toArray();
+
+        $receipts = DB::table('recibos_cobrados')
+            ->whereIn('numero_apolice', $policyNumbers)
+            ->get()
+            ->toArray();
+
+        $this->runAllChecksMemory(
+            $customer,
+            $policies,
+            $changes,
+            $refunds,
+            $receipts
+        );
+
+        unset($policies, $changes, $refunds, $receipts);
+        gc_collect_cycles();
     }
 
     /* =========================

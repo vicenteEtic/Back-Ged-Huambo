@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Entities\Entities;
-use App\Services\KYT\CustomerKYTService;
+use App\Services\KYT\KYTService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -28,7 +28,7 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
         $this->policyNumbers = $policyNumbers;
     }
 
-    public function handle(CustomerKYTService $kytService)
+    public function handle(KYTService $kytService)
     {
         // 🔥 proteção extra (nunca confiar no payload do queue)
         if (empty($this->policyNumbers)) {

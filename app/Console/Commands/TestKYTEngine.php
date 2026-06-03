@@ -4,7 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\Entities\Entities;
-use App\Services\KYT\CustomerKYTService;
+use App\Services\KYT\KYTService;
 use App\Services\KYT\CustomerKYTDataMocker;
 
 class TestKYTEngine extends Command
@@ -12,7 +12,7 @@ class TestKYTEngine extends Command
     protected $signature = 'kyt:test-random';
     protected $description = 'Injeta dados simulados completos para validar as 10 regras do motor KYT em 10 clientes aleatórios';
 
-    public function handle(CustomerKYTService $kytService)
+    public function handle(KYTService $kytService)
     {
         // 1. Procura 10 entidades aleatórias no banco de dados
         $customers = Entities::inRandomOrder()->limit(10)->get();
