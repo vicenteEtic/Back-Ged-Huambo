@@ -10,6 +10,9 @@ class KytRuleSeeder extends Seeder
 {
     public function run(): void
     {
+        KytRuleProduct::query()->delete();
+        KytRule::query()->delete();
+
         $rules = $this->rules();
 
         foreach ($rules as $data) {
