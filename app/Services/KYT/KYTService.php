@@ -229,17 +229,7 @@ class KYTService
         $threshold30 = $isCollective ? 0.60 : 0.40;
         $threshold90 = $isCollective ? 1.00 : 0.70;
 
-        $filtered = array_values(array_filter($policies, function ($p) use ($relevantProducts) {
-            return in_array(strtoupper(trim($p['descricao_produto'] ?? '')), $relevantProducts)
-                && ($p['capital'] ?? 0) > 0;
-        }));
-
-        if (count($filtered) < 2) return;
-
-        $filtered = $this->sortPoliciesByDate($filtered);
-
         $justifiedMotives = ['herança', 'mudança de emprego', 'promoção', 'evento económico'];
-
         foreach ($changes as $change) {
             $motivo = strtolower(trim($change->motivo_alteracao ?? ''));
             if (in_array($motivo, $justifiedMotives)) {
@@ -248,80 +238,88 @@ class KYTService
             }
         }
 
-        $first = $filtered[0];
-        $firstCapital = (float)($first['capital'] ?? 0);
-        $firstDate = $this->safeDate($first['data_inicio']);
+        $grouped = [];
+        foreach ($policies as $p) {
+            $product = strtoupper(trim($p['descricao_produto'] ?? ''));
+            if (!in_array($product, $relevantProducts)) continue;
+            if (($p['capital'] ?? 0) <= 0) continue;
+            $grouped[$product][] = $p;
+        }
 
-        if ($firstCapital <= 0 || !$firstDate) return;
+        foreach ($grouped as $product => $group) {
+            if (count($group) < 2) continue;
 
-        $createdAlerts = [];
+            $group = $this->sortPoliciesByDate($group);
 
-        for ($i = 1; $i < count($filtered); $i++) {
-            $curr = $filtered[$i];
-            $currCapital = (float)($curr['capital'] ?? 0);
-            $currDate = $this->safeDate($curr['data_inicio']);
+            $first = $group[0];
+            $firstCapital = (float)($first['capital'] ?? 0);
+            $firstDate = $this->safeDate($first['data_inicio']);
+            if ($firstCapital <= 0 || !$firstDate) continue;
 
-            if ($currCapital <= 0 || !$currDate) continue;
+            $pairs = [];
 
-            $increaseRate = ($currCapital - $firstCapital) / $firstCapital;
-            if ($increaseRate <= 0) continue;
+            for ($i = 1; $i < count($group); $i++) {
+                $curr = $group[$i];
+                $currCapital = (float)($curr['capital'] ?? 0);
+                $currDate = $this->safeDate($curr['data_inicio']);
+                if ($currCapital <= 0 || !$currDate) continue;
 
-            $daysDiff = $firstDate->diffInDays($currDate);
+                $increaseRate = ($currCapital - $firstCapital) / $firstCapital;
+                if ($increaseRate <= 0) continue;
 
-            $isTrigger = ($daysDiff <= 30 && $increaseRate >= $threshold30)
-                      || ($daysDiff <= 90 && $increaseRate >= $threshold90);
+                $daysDiff = $firstDate->diffInDays($currDate);
 
-            if (!$isTrigger) continue;
+                $isTrigger = ($daysDiff <= 30 && $increaseRate >= $threshold30)
+                          || ($daysDiff <= 90 && $increaseRate >= $threshold90);
 
-            $key = $curr['numero_apolice'] ?? "policy_{$i}";
-            if (in_array($key, $createdAlerts)) continue;
-            $createdAlerts[] = $key;
+                if (!$isTrigger) continue;
 
-            $score = 20;
-            if ($increaseRate >= 1.0) $score += 10;
-            if ($daysDiff <= 30) $score += 5;
+                $pairs[] = [
+                    'policy' => $curr['numero_apolice'],
+                    'capital' => $currCapital,
+                    'data' => $curr['data_inicio'],
+                    'increase' => $increaseRate * 100,
+                    'days' => $daysDiff,
+                ];
+            }
+
+            if (empty($pairs)) continue;
 
             $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
-            $limiarDesc = $daysDiff <= 30
-                ? "≥" . ($isCollective ? '60' : '40') . "% em 30 dias"
-                : "≥" . ($isCollective ? '100' : '70') . "% em 90 dias";
+
+            $policiesList = implode("\n", array_map(fn($pair) => sprintf(
+                "  - %s | Capital: %s | +%.2f%% em %d dias",
+                $pair['policy'],
+                $this->formatMoney($pair['capital']),
+                $pair['increase'],
+                $pair['days']
+            ), $pairs));
 
             $description = sprintf(
-                "AUMENTO ABRUPTO DE CAPITAL ENTRE APÓLICES\n" .
-                "Cliente: %s | Tipo: %s\n\n" .
-                "Apólice de referência (1.ª):\n" .
-                "  N.º: %s | Produto: %s\n" .
-                "  Capital: %s | Início: %s\n\n" .
-                "Nova apólice:\n" .
-                "  N.º: %s | Produto: %s\n" .
-                "  Capital: %s | Início: %s\n\n" .
-                "Variação: +%.2f%% em %d dias\n" .
-                "Limiar aplicado: %s\n" .
-                "Justificação: %s\n\n" .
+                "AUMENTO ABRUPTO DE CAPITAL - %s\n" .
+                "Cliente: %s\n" .
+                "Produto: %s\n\n" .
+                "Apólice de referência:\n" .
+                "  N.º: %s | Capital: %s | Início: %s\n\n" .
+                "Apólices com aumento detetado:\n%s\n\n" .
                 "Interpretação AML:\n" .
                 "Aumento significativo de capital sem justificação económica\n" .
                 "compatível com perfil de risco elevado (layering/estruturação).",
-                $customer->customer_number,
                 $entityLabel,
+                $customer->customer_number,
+                $product,
                 $first['numero_apolice'],
-                $first['descricao_produto'],
                 $this->formatMoney($firstCapital),
                 $first['data_inicio'],
-                $curr['numero_apolice'],
-                $curr['descricao_produto'],
-                $this->formatMoney($currCapital),
-                $curr['data_inicio'],
-                $increaseRate * 100,
-                $daysDiff,
-                $limiarDesc,
-                'Nenhuma'
+                $policiesList
             );
+
             $this->createAlert(
                 $customer,
                 'Aumento abrupto de capital entre apólices',
                 $description,
                 'Alto',
-                $score
+                25
             );
         }
     }
@@ -485,51 +483,55 @@ class KYTService
             ];
 
         $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
-        $createdAlerts = [];
 
+        $grouped = [];
         foreach ($policies as $policy) {
             $product = strtoupper(trim($policy['descricao_produto'] ?? ''));
-            $premium = (float)($policy['premium_total'] ?? 0);
-            $capital = (float)($policy['capital'] ?? 0);
-
             if (in_array($product, $lowRiskProducts)) continue;
-            if ($premium <= 0 || $capital <= 0) continue;
+            $grouped[$product][] = $policy;
+        }
 
-            $ratio = $premium / $capital;
-            if ($ratio < $threshold) continue;
+        foreach ($grouped as $product => $group) {
+            $triggering = array_filter($group, function ($p) use ($threshold) {
+                $premium = (float)($p['premium_total'] ?? 0);
+                $capital = (float)($p['capital'] ?? 0);
+                if ($premium <= 0 || $capital <= 0) return false;
+                return ($premium / $capital) >= $threshold;
+            });
 
-            $key = $policy['numero_apolice'] ?? $product;
-            if (in_array($key, $createdAlerts)) continue;
-            $createdAlerts[] = $key;
+            if (empty($triggering)) continue;
+
+            $totalPremium = array_sum(array_column($triggering, 'premium_total'));
+            $totalCapital = array_sum(array_column($triggering, 'capital'));
+            $avgRatio = $totalCapital > 0 ? $totalPremium / $totalCapital : 0;
+            $maxRatio = max(array_map(fn($p) => ($p['premium_total'] ?? 0) / max(($p['capital'] ?? 1), 1), $triggering));
+            $policyList = implode(', ', array_map(fn($p) => $p['numero_apolice'], $triggering));
 
             if ($isCollective) {
-                $severity = $ratio >= 0.40 ? 'Alto' : 'Médio';
-                $score = $ratio >= 0.40 ? 30 : 20;
-                $limiarDesc = $ratio >= 0.40 ? '≥40% do capital seguro' : '≥25% do capital seguro';
+                $severity = $maxRatio >= 0.40 ? 'Alto' : 'Médio';
+                $score = $maxRatio >= 0.40 ? 30 : 20;
             } else {
                 $severity = 'Alto';
                 $score = 25;
-                if ($ratio >= 0.30) $score += 10;
-                $limiarDesc = '≥10% do capital seguro';
+                if ($maxRatio >= 0.30) $score += 10;
             }
 
             $description = sprintf(
                 "KYT HIGH PREMIUM LOW RISK - %s\n" .
-                "Produto: %s | Apólice: %s\n" .
-                "Prémio pago: %s\n" .
-                "Capital seguro: %s\n" .
-                "Rácio prémio/capital: %.2f%%\n" .
-                "Limiar aplicado: %s\n\n" .
+                "Produto: %s\n" .
+                "Apólices: %s\n" .
+                "Prémio total: %s\n" .
+                "Capital total: %s\n" .
+                "Rácio médio prémio/capital: %.2f%%\n\n" .
                 "Interpretação AML:\n" .
                 "Prémio elevado incompatível com o risco segurado ou capacidade financeira do cliente.\n" .
                 "Cenário alinhado ao Guia de Operações Suspeitas da ARSEG e às orientações do GAFI.",
                 $entityLabel,
                 $product,
-                $policy['numero_apolice'] ?? 'N/A',
-                $this->formatMoney($premium),
-                $this->formatMoney($capital),
-                $ratio * 100,
-                $limiarDesc
+                $policyList,
+                $this->formatMoney($totalPremium),
+                $this->formatMoney($totalCapital),
+                $avgRatio * 100
             );
 
             $this->createAlert(
@@ -956,26 +958,26 @@ class KYTService
         if (empty($relevantPolicyNums)) return;
 
         $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
-        $createdAlerts = [];
 
+        $policyMap = [];
+        foreach ($policies as $p) {
+            $policyMap[$p['numero_apolice']] = $p;
+        }
+
+        $grouped = [];
         foreach ($refunds as $refund) {
             $polNum = $refund['Numero_Apolice'] ?? $refund['numero_apolice'] ?? null;
             if (!$polNum || !in_array($polNum, $relevantPolicyNums)) continue;
 
+            $policy = $policyMap[$polNum] ?? null;
+            if (!$policy) continue;
+
+            $product = strtoupper(trim($policy['descricao_produto'] ?? ''));
+            $premium = (float)($policy['premium_total'] ?? 0);
+            if ($premium <= 0) continue;
+
             $refundAmount = (float)($refund['Valor_Estorno'] ?? $refund['valor_estorno'] ?? 0);
             if ($refundAmount <= 0) continue;
-
-            $premium = 0;
-            $product = '';
-            foreach ($policies as $p) {
-                if ($p['numero_apolice'] === $polNum) {
-                    $premium = (float)($p['premium_total'] ?? 0);
-                    $product = $p['descricao_produto'];
-                    break;
-                }
-            }
-
-            if ($premium <= 0) continue;
 
             $overpaymentRatio = $refundAmount / $premium;
             if ($overpaymentRatio < 0.05) continue;
@@ -984,33 +986,45 @@ class KYTService
             $isThirdParty = !empty($beneficiaryName)
                 && strtolower(trim($beneficiaryName)) !== strtolower(trim($customer->social_denomination ?? ''));
 
-            if (in_array($polNum, $createdAlerts)) continue;
-            $createdAlerts[] = $polNum;
+            $grouped[$product][] = [
+                'polNum' => $polNum,
+                'premium' => $premium,
+                'refundAmount' => $refundAmount,
+                'ratio' => $overpaymentRatio,
+                'beneficiary' => $beneficiaryName,
+                'isThirdParty' => $isThirdParty,
+            ];
+        }
 
-            $severity = $overpaymentRatio >= 0.20 ? 'Alto' : 'Médio';
-            $score = $overpaymentRatio >= 0.20 ? 30 : 20;
+        foreach ($grouped as $product => $items) {
+            $totalPremium = array_sum(array_column($items, 'premium'));
+            $totalRefund = array_sum(array_column($items, 'refundAmount'));
+            $maxRatio = max(array_column($items, 'ratio'));
+            $hasThirdParty = collect($items)->contains('isThirdParty', true);
+
+            $policyList = implode(', ', array_map(fn($i) => $i['polNum'], $items));
+
+            $severity = $maxRatio >= 0.20 ? 'Alto' : 'Médio';
+            $score = $maxRatio >= 0.20 ? 30 : 20;
 
             $description = sprintf(
-                "SOBREPAGAMENTO COM REEMBOLSO\n" .
-                "Cliente: %s | Tipo: %s\n\n" .
-                "Apólice: %s | Produto: %s\n" .
-                "Prémio pago: %s\n" .
-                "Valor reembolsado: %s\n" .
-                "Rácio reembolso/prémio: %.2f%%\n" .
-                "Beneficiário do reembolso: %s\n" .
-                "Terceiro: %s\n\n" .
+                "SOBREPAGAMENTO COM REEMBOLSO - %s\n" .
+                "Produto: %s\n" .
+                "Apólices: %s\n" .
+                "Prémio total: %s\n" .
+                "Valor total reembolsado: %s\n" .
+                "Rácio máximo reembolso/prémio: %.2f%%\n" .
+                "Envolve terceiros: %s\n\n" .
                 "Interpretação AML:\n" .
-                "Sobrepagamento de prémio seguido de pedido de reembolso para terceiro,\n" .
+                "Sobrepagamento de prémio seguido de pedido de reembolso,\n" .
                 "compatível com esquemas de movimentação indireta de valores (structuring/refunding).",
-                $customer->customer_number,
                 $entityLabel,
-                $polNum,
                 $product,
-                $this->formatMoney($premium),
-                $this->formatMoney($refundAmount),
-                $overpaymentRatio * 100,
-                $beneficiaryName ?: 'N/A',
-                $isThirdParty ? 'Sim' : 'Não'
+                $policyList,
+                $this->formatMoney($totalPremium),
+                $this->formatMoney($totalRefund),
+                $maxRatio * 100,
+                $hasThirdParty ? 'Sim' : 'Não'
             );
 
             $this->createAlert(
