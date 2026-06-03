@@ -729,6 +729,10 @@ Padrão compatível com:
     Foi identificado um movimento de capital relevante associado a alteração contratual.
     Apesar de variação percentual moderada, o valor absoluto envolvido é significativo,
     o que pode indicar:
+    - Potencial ocultação de fundos via aumento de capital
+    - Tentativa de legitimação de ativos não declarados
+    - Estruturação de património para evasão fiscal
+    - Indícios de overinsurance (capital desproporcional ao perfil)
     
   ";
 
