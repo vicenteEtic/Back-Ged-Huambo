@@ -845,6 +845,16 @@ class KYTService
 
             $bNames = array_unique($beneficiaryMap[$polNum] ?? []);
 
+            if (empty($bNames)) {
+                $rawMotive = is_object($change)
+                    ? ($change->motivo_alteracao ?? '')
+                    : ($change['motivo_alteracao'] ?? '');
+                $extracted = $this->extractBeneficiaryNames($rawMotive);
+                if (!empty($extracted)) {
+                    $bNames = $extracted;
+                }
+            }
+
             $beneficiaryChanges[] = [
                 'date' => $changeDate,
                 'polNum' => $polNum,
@@ -1309,6 +1319,45 @@ class KYTService
     private function money(float $value): string
     {
         return number_format($value, 2, ',', ' ') . ' Kz';
+    }
+
+    private function extractBeneficiaryNames(string $motive): array
+    {
+        if (empty($motive)) return [];
+
+        $upper = strtoupper(trim($motive));
+
+        // "ALTERAÇÃO DE BENEFICIÁRIO DE X PARA Y"
+        if (preg_match('/PARA\s+(.+?)$/u', $upper, $m)) {
+            $name = trim($m[1]);
+            $name = preg_replace('/[\.\s]+$/', '', $name);
+            return [$name];
+        }
+
+        // "NOVO BENEFICIÁRIO: X"
+        if (preg_match('/NOVO\s+BENEFICI[ÁA]RIO:?\s+(.+?)$/u', $upper, $m)) {
+            $name = trim($m[1]);
+            $name = preg_replace('/[\.\s]+$/', '', $name);
+            return [$name];
+        }
+
+        // "INCLUSÃO DE BENEFICIÁRIO X"
+        if (preg_match('/INCLUS[ÃA]O\s+(?:DE\s+)?BENEFICI[ÁA]RIO:?\s+(.+?)$/u', $upper, $m)) {
+            $name = trim($m[1]);
+            $name = preg_replace('/[\.\s]+$/', '', $name);
+            return [$name];
+        }
+
+        // "BENEFICIÁRIO: X"
+        if (preg_match('/BENEFICI[ÁA]RIO:?\s+(.+?)$/u', $upper, $m)) {
+            $name = trim($m[1]);
+            $name = preg_replace('/[\.\s]+$/', '', $name);
+            if (strlen($name) > 3 && !in_array(strtolower($name), ['alterado', 'incluido', 'removido'])) {
+                return [$name];
+            }
+        }
+
+        return [];
     }
 
     private function formatPolicyContext(array $policy): string
