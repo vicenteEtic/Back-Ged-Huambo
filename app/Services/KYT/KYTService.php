@@ -63,7 +63,8 @@ class KYTService
         array $policies,
         array $changes = [],
         array $refunds = [],
-        array $receipts = []
+        array $receipts = [],
+        array $beneficiaries = []
     ): void {
         $policies = $this->normalizePolicies($policies);
 
@@ -78,10 +79,10 @@ class KYTService
         $this->checkPolicyLifecycleAbuse($customer, $policies, $changes, $refunds);
         $this->checkHighPremiumLowRisk($customer, $policies);
         $this->checkMultipleShortPolicies($customer, $policies);
-        $this->checkThirdPartyPayments($customer, $policies);
-        $this->checkFrequentBeneficiaryChanges($customer, $policies, $changes);
-        $this->checkHighRiskGeography($customer, $policies);
-        $this->checkOverpaymentRefund($customer, $policies, $refunds);
+        $this->checkThirdPartyPayments($customer, $policies, $receipts);
+        $this->checkFrequentBeneficiaryChanges($customer, $policies, $changes, $beneficiaries);
+        $this->checkHighRiskGeography($customer, $policies, $receipts);
+        $this->checkOverpaymentRefund($customer, $policies, $refunds, $receipts);
 
         Log::info("KYT FINISHED", ['customer' => $customer->customer_number]);
     }
@@ -640,7 +641,7 @@ class KYTService
        REGRA KYT - PAGAMENTOS POR TERCEIROS
     ========================== */
 
-    private function checkThirdPartyPayments(Entities $customer, array $policies): void
+    private function checkThirdPartyPayments(Entities $customer, array $policies, array $receipts = []): void
     {
         $isCollective = $this->isCollective($customer);
 
@@ -679,16 +680,54 @@ class KYTService
         $filtered = $this->filterRelevantPolicies($policies, $relevantProducts, $excludedProducts);
         if (empty($filtered)) return;
 
+        $relevantPolicyNums = array_map(fn($p) => $p['numero_apolice'], $filtered);
+
+        $thirdPartyReceipts = [];
+        foreach ($receipts as $r) {
+            $polNum = is_object($r)
+                ? ($r->numero_apolice ?? null)
+                : ($r['numero_apolice'] ?? null);
+            if (!$polNum || !in_array($polNum, $relevantPolicyNums)) continue;
+
+            $indicator = is_object($r)
+                ? strtolower(trim($r->indicador_pagamento_terceiro ?? ''))
+                : strtolower(trim($r['indicador_pagamento_terceiro'] ?? ''));
+            $payerName = is_object($r)
+                ? ($r->nome_pagador ?? '')
+                : ($r['nome_pagador'] ?? '');
+            $payerNif = is_object($r)
+                ? ($r->nif_pagador ?? '')
+                : ($r['nif_pagador'] ?? '');
+
+            if ($indicator === 'sim' && $payerName) {
+                $thirdPartyReceipts[$polNum][] = [
+                    'payer' => $payerName,
+                    'nif' => $payerNif,
+                ];
+            }
+        }
+
         $totalPremium = array_sum(array_column($filtered, 'premium_total'));
-        if ($totalPremium < $threshold) return;
+        if ($totalPremium < $threshold && empty($thirdPartyReceipts)) return;
 
         $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
+
+        $thirdPartyDetails = '';
+        if (!empty($thirdPartyReceipts)) {
+            $lines = [];
+            foreach ($thirdPartyReceipts as $polNum => $payers) {
+                $uniquePayers = array_unique(array_map(fn($t) => $t['payer'], $payers));
+                $lines[] = $polNum . ' → ' . implode(', ', $uniquePayers);
+            }
+            $thirdPartyDetails = "\nPagadores identificados:\n" . implode("\n", $lines) . "\n";
+        }
 
         $description = sprintf(
             "PAGAMENTOS DE PRÉMIOS POR TERCEIROS\n" .
             "Cliente: %s | Tipo: %s\n\n" .
             "Prémio total detetado: %s\n" .
             "Limiar aplicado: %s\n" .
+            "%s" .
             "Apólices envolvidas: %s\n\n" .
             "Interpretação AML:\n" .
             "Pagamentos de prémios realizados por terceiros sem relação clara com o segurado.\n" .
@@ -698,11 +737,13 @@ class KYTService
             $entityLabel,
             $this->formatMoney($totalPremium),
             $this->formatMoney($threshold),
+            $thirdPartyDetails,
             $this->formatPolicyList($filtered)
         );
 
         $score = 20;
         if ($totalPremium >= $threshold * 2) $score += 10;
+        if (!empty($thirdPartyReceipts)) $score += 10;
 
         $this->createAlert(
             $customer,
@@ -717,7 +758,7 @@ class KYTService
        REGRA KYT - ALTERAÇÕES FREQUENTES DE BENEFICIÁRIOS
     ========================== */
 
-    private function checkFrequentBeneficiaryChanges(Entities $customer, array $policies, array $changes = []): void
+    private function checkFrequentBeneficiaryChanges(Entities $customer, array $policies, array $changes = [], array $beneficiaries = []): void
     {
         $isCollective = $this->isCollective($customer);
 
@@ -761,6 +802,19 @@ class KYTService
 
         $justifiedMotives = ['herança', 'casamento', 'divórcio', 'nascimento', 'óbito', 'falecimento', 'alteração familiar'];
 
+        $beneficiaryMap = [];
+        foreach ($beneficiaries as $b) {
+            $bPolNum = is_object($b)
+                ? ($b->numero_apolice ?? null)
+                : ($b['numero_apolice'] ?? null);
+            $bName = is_object($b)
+                ? ($b->nome_beneficiario ?? '')
+                : ($b['nome_beneficiario'] ?? '');
+            if ($bPolNum && $bName) {
+                $beneficiaryMap[$bPolNum][] = $bName;
+            }
+        }
+
         $beneficiaryChanges = [];
         foreach ($changes as $change) {
             $polNum = is_object($change)
@@ -789,10 +843,13 @@ class KYTService
                 }
             }
 
+            $bNames = array_unique($beneficiaryMap[$polNum] ?? []);
+
             $beneficiaryChanges[] = [
                 'date' => $changeDate,
                 'polNum' => $polNum,
                 'product' => $product,
+                'beneficiaries' => $bNames,
             ];
         }
 
@@ -807,14 +864,23 @@ class KYTService
         if ($windowDays > $maxDays) return;
 
         $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
-        $polProducts = array_unique(array_map(fn($c) => $c['polNum'] . ' (' . $c['product'] . ')', $beneficiaryChanges));
+
+        $polDetails = [];
+        foreach ($beneficiaryChanges as $c) {
+            $detail = $c['polNum'] . ' (' . $c['product'] . ')';
+            if (!empty($c['beneficiaries'])) {
+                $detail .= ' [Beneficiários: ' . implode(', ', $c['beneficiaries']) . ']';
+            }
+            $polDetails[] = $detail;
+        }
+        $polDetails = array_unique($polDetails);
 
         $description = sprintf(
             "ALTERAÇÕES FREQUENTES DE BENEFICIÁRIOS\n" .
             "Cliente: %s | Tipo: %s\n\n" .
             "Alterações detetadas: %d\n" .
             "Janela temporal: %d dias (limiar: %d dias)\n" .
-            "Apólices envolvidas: %s\n\n" .
+            "Apólices envolvidas:\n%s\n\n" .
             "Interpretação AML:\n" .
             "Alterações frequentes de beneficiários sem fundamento económico ou familiar plausível,\n" .
             "compatível com tentativas de ocultação de beneficiário efetivo ou transferência indireta de valores.",
@@ -823,7 +889,7 @@ class KYTService
             count($beneficiaryChanges),
             $windowDays,
             $maxDays,
-            implode(', ', $polProducts)
+            implode("\n", $polDetails)
         );
 
         $score = 20;
@@ -843,7 +909,7 @@ class KYTService
        REGRA KYT - ALTO RISCO GEOGRÁFICO
     ========================== */
 
-    private function checkHighRiskGeography(Entities $customer, array $policies): void
+    private function checkHighRiskGeography(Entities $customer, array $policies, array $receipts = []): void
     {
         $isCollective = $this->isCollective($customer);
 
@@ -885,13 +951,40 @@ class KYTService
         $totalPremium = array_sum(array_column($filtered, 'premium_total'));
         if ($totalPremium < $threshold) return;
 
+        $relevantPolicyNums = array_map(fn($p) => $p['numero_apolice'], $filtered);
+
+        $countries = [];
+        foreach ($receipts as $r) {
+            $polNum = is_object($r)
+                ? ($r->numero_apolice ?? null)
+                : ($r['numero_apolice'] ?? null);
+            if (!$polNum || !in_array($polNum, $relevantPolicyNums)) continue;
+
+            $pais = is_object($r)
+                ? ($r->pais_iban_origem ?? '')
+                : ($r['pais_iban_origem'] ?? '');
+            if ($pais) {
+                $countries[$polNum] = strtoupper(trim($pais));
+            }
+        }
+
         $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
+
+        $geoDetails = '';
+        if (!empty($countries)) {
+            $lines = [];
+            foreach ($countries as $polNum => $pais) {
+                $lines[] = $polNum . ' → ' . $pais;
+            }
+            $geoDetails = "\nPaíses de origem dos pagamentos:\n" . implode("\n", $lines) . "\n";
+        }
 
         $description = sprintf(
             "ALTO RISCO GEOGRÁFICO\n" .
             "Cliente: %s | Tipo: %s\n\n" .
             "Prémio total detetado: %s\n" .
             "Limiar aplicado: %s\n" .
+            "%s" .
             "Apólices envolvidas: %s\n\n" .
             "Interpretação AML:\n" .
             "Relações financeiras com jurisdições classificadas como de alto risco pelo GAFI.\n" .
@@ -901,11 +994,13 @@ class KYTService
             $entityLabel,
             $this->formatMoney($totalPremium),
             $this->formatMoney($threshold),
+            $geoDetails,
             $this->formatPolicyList($filtered)
         );
 
         $score = 20;
         if ($totalPremium >= $threshold * 2) $score += 10;
+        if (!empty($countries)) $score += 5;
 
         $this->createAlert(
             $customer,
@@ -920,7 +1015,7 @@ class KYTService
        REGRA KYT - SOBREPAGAMENTO COM REEMBOLSO
     ========================== */
 
-    private function checkOverpaymentRefund(Entities $customer, array $policies, array $refunds = []): void
+    private function checkOverpaymentRefund(Entities $customer, array $policies, array $refunds = [], array $receipts = []): void
     {
         $isCollective = $this->isCollective($customer);
 
@@ -964,6 +1059,20 @@ class KYTService
             $policyMap[$p['numero_apolice']] = $p;
         }
 
+        $receiptMap = [];
+        foreach ($receipts as $r) {
+            $rPolNum = is_object($r)
+                ? ($r->numero_apolice ?? null)
+                : ($r['numero_apolice'] ?? null);
+            $rValor = (float)(is_object($r)
+                ? ($r->valor_pago ?? 0)
+                : ($r['valor_pago'] ?? 0));
+            if ($rPolNum && $rValor > 0) {
+                if (!isset($receiptMap[$rPolNum])) $receiptMap[$rPolNum] = 0;
+                $receiptMap[$rPolNum] += $rValor;
+            }
+        }
+
         $grouped = [];
         foreach ($refunds as $refund) {
             $polNum = $refund['Numero_Apolice'] ?? $refund['numero_apolice'] ?? null;
@@ -986,6 +1095,8 @@ class KYTService
             $isThirdParty = !empty($beneficiaryName)
                 && strtolower(trim($beneficiaryName)) !== strtolower(trim($customer->social_denomination ?? ''));
 
+            $actualPaid = $receiptMap[$polNum] ?? 0;
+
             $grouped[$product][] = [
                 'polNum' => $polNum,
                 'premium' => $premium,
@@ -993,6 +1104,7 @@ class KYTService
                 'ratio' => $overpaymentRatio,
                 'beneficiary' => $beneficiaryName,
                 'isThirdParty' => $isThirdParty,
+                'actualPaid' => $actualPaid,
             ];
         }
 
@@ -1001,17 +1113,24 @@ class KYTService
             $totalRefund = array_sum(array_column($items, 'refundAmount'));
             $maxRatio = max(array_column($items, 'ratio'));
             $hasThirdParty = collect($items)->contains('isThirdParty', true);
+            $totalActualPaid = array_sum(array_column($items, 'actualPaid'));
 
             $policyList = implode(', ', array_map(fn($i) => $i['polNum'], $items));
 
             $severity = $maxRatio >= 0.20 ? 'Alto' : 'Médio';
             $score = $maxRatio >= 0.20 ? 30 : 20;
+            if ($totalActualPaid > 0 && $totalActualPaid > $totalPremium) $score += 5;
+
+            $actualPaidLine = $totalActualPaid > 0
+                ? "\nValor total pago (recibos): {$this->formatMoney($totalActualPaid)}"
+                : '';
 
             $description = sprintf(
                 "SOBREPAGAMENTO COM REEMBOLSO - %s\n" .
                 "Produto: %s\n" .
                 "Apólices: %s\n" .
-                "Prémio total: %s\n" .
+                "Prémio total: %s" .
+                "%s\n" .
                 "Valor total reembolsado: %s\n" .
                 "Rácio máximo reembolso/prémio: %.2f%%\n" .
                 "Envolve terceiros: %s\n\n" .
@@ -1022,6 +1141,7 @@ class KYTService
                 $product,
                 $policyList,
                 $this->formatMoney($totalPremium),
+                $actualPaidLine,
                 $this->formatMoney($totalRefund),
                 $maxRatio * 100,
                 $hasThirdParty ? 'Sim' : 'Não'
