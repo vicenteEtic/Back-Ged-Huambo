@@ -36,7 +36,7 @@ return new class extends Migration
             $table->enum('type', ['relevant', 'excluded']);
             $table->timestamps();
 
-            $table->unique(['kyt_rule_definition_id', 'product_name', 'type']);
+            $table->unique(['kyt_rule_definition_id', 'product_name', 'type'], 'krdp_unique');
         });
     }
 
