@@ -8,6 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::dropIfExists('kyt_rule_definition_products');
+        Schema::dropIfExists('kyt_rule_definitions');
+
         Schema::create('kyt_rule_definitions', function (Blueprint $table) {
             $table->id();
             $table->string('slug')->index()->comment('ex: frequent_beneficiary_changes');
