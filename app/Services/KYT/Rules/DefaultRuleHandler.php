@@ -28,6 +28,9 @@ class DefaultRuleHandler implements RuleHandler
         if (empty($filtered)) return [];
 
         $thresholdField = $rule->threshold_field ?? 'premium_total';
+        $filtered = $this->filterZeroValues($filtered, $thresholdField);
+        if (empty($filtered)) return [];
+
         $totalValue = array_sum(array_column($filtered, $thresholdField));
 
         if ($totalValue < ($rule->threshold_value ?? 0)) return [];
@@ -43,6 +46,11 @@ class DefaultRuleHandler implements RuleHandler
             'severity' => $rule->severity ?? 'Alto',
             'score' => $score,
         ]];
+    }
+
+    protected function filterZeroValues(array $policies, string $field): array
+    {
+        return array_values(array_filter($policies, fn($p) => ((float)($p[$field] ?? 0)) > 0));
     }
 
     protected function filterProducts(array $policies, array $relevant, array $excluded): array
@@ -84,7 +92,9 @@ class DefaultRuleHandler implements RuleHandler
             '{products}' => $policyList,
             '{events}' => (string)count($filtered),
             '{min_events}' => (string)($rule->min_events ?? 0),
+            '{window_days}' => '',
             '{max_days}' => (string)($rule->max_days ?? 0),
+            '{interpretation}' => $rule->interpretation_aml,
         ];
 
         return strtr($rule->description_template, $replacements);

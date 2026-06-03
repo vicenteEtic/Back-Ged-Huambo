@@ -46,7 +46,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['above_double_threshold' => 10],
                 'severity' => 'Alto',
-                'description_template' => "AUMENTO ABRUPTO DE CAPITAL\nCliente: {total} | Tipo: {entity_type}\n\nVariação de capital detetada entre apólices.\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "AUMENTO ABRUPTO DE CAPITAL\nCliente: {customer} | Tipo: {entity_type}\n\nVariação de capital detetada entre apólices.\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Aumento abrupto e injustificado do capital seguro entre apólices, sem alteração no perfil financeiro do cliente.',
                 'extra_params' => [
                     'variation_threshold_30d' => 40,
@@ -87,7 +87,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['above_double_threshold' => 10],
                 'severity' => 'Alto',
-                'description_template' => "AUMENTO ABRUPTO DE CAPITAL\nCliente: {total} | Tipo: {entity_type}\n\nVariação de capital detetada entre apólices.\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "AUMENTO ABRUPTO DE CAPITAL\nCliente: {customer} | Tipo: {entity_type}\n\nVariação de capital detetada entre apólices.\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Aumento abrupto e injustificado do capital seguro entre apólices colectivas, sem suporte contabilístico ou expansão empresarial.',
                 'extra_params' => [
                     'variation_threshold_30d' => 60,
@@ -125,7 +125,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 15,
                 'score_increments' => ['above_double_threshold' => 5, 'events_above_min' => 5, 'half_window' => 5],
                 'severity' => 'Alto',
-                'description_template' => "ABUSO DO CICLO DE VIDA DAS APÓLICES\nCliente: {total} | Tipo: {entity_type}\n\nEventos detetados: {events}\nJanela temporal: {max_days} dias\nPrémio total: {total} (limiar: {threshold})\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "ABUSO DO CICLO DE VIDA DAS APÓLICES\nCliente: {customer} | Tipo: {entity_type}\n\nEventos detetados: {events}\nJanela temporal: {max_days} dias\nPrémio total: {total} (limiar: {threshold})\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Cancelamentos, resgates e substituição rápidos de apólices. Múltiplos resgates ou cancelamentos com substituição reiterados.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL', 'type' => 'relevant'],
@@ -153,7 +153,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 15,
                 'score_increments' => ['above_double_threshold' => 5, 'events_above_min' => 5, 'half_window' => 5],
                 'severity' => 'Alto',
-                'description_template' => "ABUSO DO CICLO DE VIDA DAS APÓLICES\nCliente: {total} | Tipo: {entity_type}\n\nEventos detetados: {events}\nJanela temporal: {max_days} dias\nPrémio total: {total} (limiar: {threshold})\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "ABUSO DO CICLO DE VIDA DAS APÓLICES\nCliente: {customer} | Tipo: {entity_type}\n\nEventos detetados: {events}\nJanela temporal: {max_days} dias\nPrémio total: {total} (limiar: {threshold})\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Cancelamentos, resgates e substituição rápidos de apólices colectivas. Múltiplos resgates ou cancelamentos com substituição reiterados.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO', 'type' => 'relevant'],
@@ -183,7 +183,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['above_double_threshold' => 10],
                 'severity' => 'Alto',
-                'description_template' => "PRÉMIO ELEVADO VS RISCO SEGURADO\nCliente: {total} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "PRÉMIO ELEVADO VS RISCO SEGURADO\nCliente: {customer} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Pagamento de prémio elevado incompatível com o risco segurado ou capacidade financeira do cliente.',
                 'extra_params' => [
                     'income_ratio_threshold' => 0.10,
@@ -214,7 +214,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['above_double_threshold' => 10],
                 'severity' => 'Alto',
-                'description_template' => "PRÉMIO ELEVADO VS RISCO SEGURADO\nCliente: {total} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "PRÉMIO ELEVADO VS RISCO SEGURADO\nCliente: {customer} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Pagamento de prémio elevado incompatível com o risco segurado ou capacidade financeira da empresa.',
                 'extra_params' => [
                     'revenue_ratio_threshold' => 0.25,
@@ -246,7 +246,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['events_above_min' => 10, 'half_window' => 5],
                 'severity' => 'Alto',
-                'description_template' => "MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO\nCliente: {total} | Tipo: {entity_type}\n\nApólices detetadas: {events} (limiar: {min_events})\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO\nCliente: {customer} | Tipo: {entity_type}\n\nApólices detetadas: {events} (limiar: {min_events})\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Subscrição de múltiplas apólices de curta duração para fragmentar valores elevados.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL TEMPORARIO', 'type' => 'relevant'],
@@ -273,7 +273,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['events_above_min' => 10, 'half_window' => 5],
                 'severity' => 'Alto',
-                'description_template' => "MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO\nCliente: {total} | Tipo: {entity_type}\n\nApólices detetadas: {events} (limiar: {min_events})\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO\nCliente: {customer} | Tipo: {entity_type}\n\nApólices detetadas: {events} (limiar: {min_events})\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Subscrição de múltiplas apólices colectivas de curta duração para fragmentar valores elevados.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO', 'type' => 'relevant'],
@@ -302,7 +302,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['above_double_threshold' => 10, 'has_receipts_third_party' => 10],
                 'severity' => 'Alto',
-                'description_template' => "PAGAMENTOS DE PRÉMIOS POR TERCEIROS\nCliente: {total} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nLimiar aplicado: {threshold}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "PAGAMENTOS DE PRÉMIOS POR TERCEIROS\nCliente: {customer} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nLimiar aplicado: {threshold}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Pagamentos de prémios realizados por terceiros sem relação clara com o segurado.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL', 'type' => 'relevant'],
@@ -328,7 +328,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['above_double_threshold' => 10, 'has_receipts_third_party' => 10],
                 'severity' => 'Alto',
-                'description_template' => "PAGAMENTOS DE PRÉMIOS POR TERCEIROS\nCliente: {total} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nLimiar aplicado: {threshold}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "PAGAMENTOS DE PRÉMIOS POR TERCEIROS\nCliente: {customer} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nLimiar aplicado: {threshold}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Pagamentos de prémios realizados por terceiros sem relação clara com a entidade.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO', 'type' => 'relevant'],
@@ -356,7 +356,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['events_above_min' => 10, 'half_window' => 5],
                 'severity' => 'Alto',
-                'description_template' => "ALTERAÇÕES FREQUENTES DE BENEFICIÁRIOS\nCliente: {total} | Tipo: {entity_type}\n\nAlterações detetadas: {events}\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "ALTERAÇÕES FREQUENTES DE BENEFICIÁRIOS\nCliente: {customer} | Tipo: {entity_type}\n\nAlterações detetadas: {events}\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Alterações frequentes de beneficiários sem fundamento económico ou familiar plausível.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL', 'type' => 'relevant'],
@@ -381,7 +381,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['events_above_min' => 10, 'half_window' => 5],
                 'severity' => 'Alto',
-                'description_template' => "ALTERAÇÕES FREQUENTES DE BENEFICIÁRIOS\nCliente: {total} | Tipo: {entity_type}\n\nAlterações detetadas: {events}\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "ALTERAÇÕES FREQUENTES DE BENEFICIÁRIOS\nCliente: {customer} | Tipo: {entity_type}\n\nAlterações detetadas: {events}\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Alterações frequentes de beneficiários sem fundamento económico ou societário plausível.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO', 'type' => 'relevant'],
@@ -409,7 +409,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['above_double_threshold' => 10, 'has_country_origin' => 5],
                 'severity' => 'Alto',
-                'description_template' => "ALTO RISCO GEOGRÁFICO\nCliente: {total} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nLimiar aplicado: {threshold}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "ALTO RISCO GEOGRÁFICO\nCliente: {customer} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nLimiar aplicado: {threshold}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Relações financeiras com jurisdições classificadas como de alto risco pelo GAFI.',
                 'products' => [
                     ['name' => 'VIAGEM', 'type' => 'relevant'],
@@ -433,7 +433,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['above_double_threshold' => 10, 'has_country_origin' => 5],
                 'severity' => 'Alto',
-                'description_template' => "ALTO RISCO GEOGRÁFICO\nCliente: {total} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nLimiar aplicado: {threshold}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "ALTO RISCO GEOGRÁFICO\nCliente: {customer} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nLimiar aplicado: {threshold}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Relações financeiras com jurisdições classificadas como de alto risco pelo GAFI.',
                 'products' => [
                     ['name' => 'MERCADORIA TRANSPORTADAS/MARITIMO', 'type' => 'relevant'],
