@@ -9,7 +9,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ProcessCustomerPoliciesJob implements ShouldQueue
@@ -20,17 +19,33 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
     public $tries = 20;
 
     public int $customerId;
-    public array $policyNumbers = []; // 🔥 default evita erro
+    public array $policyNumbers = [];
+    public array $policies = [];
+    public array $changes = [];
+    public array $refunds = [];
+    public array $receipts = [];
+    public array $beneficiaries = [];
 
-    public function __construct(int $customerId, array $policyNumbers = [])
-    {
+    public function __construct(
+        int $customerId,
+        array $policyNumbers = [],
+        array $policies = [],
+        array $changes = [],
+        array $refunds = [],
+        array $receipts = [],
+        array $beneficiaries = []
+    ) {
         $this->customerId = $customerId;
         $this->policyNumbers = $policyNumbers;
+        $this->policies = $policies;
+        $this->changes = $changes;
+        $this->refunds = $refunds;
+        $this->receipts = $receipts;
+        $this->beneficiaries = $beneficiaries;
     }
 
     public function handle(KYTService $kytService)
     {
-        // 🔥 proteção extra (nunca confiar no payload do queue)
         if (empty($this->policyNumbers)) {
             Log::warning("⚠️ Job sem policies", [
                 'customer_id' => $this->customerId
@@ -38,57 +53,27 @@ class ProcessCustomerPoliciesJob implements ShouldQueue
             return;
         }
 
-        Log::info("🚀 Processando policies", [
-            'customer_id' => $this->customerId,
-            'count' => count($this->policyNumbers)
-        ]);
-
         $customer = Entities::find($this->customerId);
         if (!$customer) return;
 
         /**
-         * 🔥 POLICIES
+         * 🔥 Usa dados pré-buscados (queries feitas no ProcessCustomerDataJob)
          */
-        $policies = DB::table('policies_staging')
-            ->whereIn('numero_apolice', $this->policyNumbers)
-            ->get()
-            ->toArray();
+        $policies = $this->policies ?: DB::table('policies_staging')
+            ->whereIn('numero_apolice', $this->policyNumbers)->get()->toArray();
 
-        /**
-         * 🔥 RECEIPTS
-         */
-        $receipts = DB::table('recibos_cobrados')
-            ->whereIn('numero_apolice', $this->policyNumbers)
-            ->get()
-            ->toArray();
+        $changes = $this->changes ?: DB::table('policy_changes_staging')
+            ->whereIn('numero_apolice', $this->policyNumbers)->get()->toArray();
 
-        /**
-         * 🔥 CHANGES
-         */
-        $changes = DB::table('policy_changes_staging')
-            ->whereIn('numero_apolice', $this->policyNumbers)
-            ->get()
-            ->toArray();
+        $refunds = $this->refunds ?: DB::table('apol_anulada_estorno')
+            ->whereIn('n_apolice', $this->policyNumbers)->get()->toArray();
 
-        /**
-         * 🔥 REFUNDS
-         */
-        $refunds = DB::table('apol_anulada_estorno')
-            ->whereIn('n_apolice', $this->policyNumbers)
-            ->get()
-            ->toArray();
+        $receipts = $this->receipts ?: DB::table('recibos_cobrados')
+            ->whereIn('numero_apolice', $this->policyNumbers)->get()->toArray();
 
-        /**
-         * 🔥 BENEFICIÁRIOS
-         */
-        $beneficiaries = DB::table('beneficiarios_staging')
-            ->whereIn('numero_apolice', $this->policyNumbers)
-            ->get()
-            ->toArray();
+        $beneficiaries = $this->beneficiaries ?: DB::table('beneficiarios_staging')
+            ->whereIn('numero_apolice', $this->policyNumbers)->get()->toArray();
 
-        /**
-         * 🚀 KYT
-         */
         $kytService->runAllChecksMemory(
             $customer,
             $policies,
