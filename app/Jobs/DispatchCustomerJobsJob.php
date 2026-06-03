@@ -26,7 +26,7 @@ class DispatchCustomerJobsJob implements ShouldQueue
         try {
             $jobs = [];
             $batch = [];
-            $batchSize = 50;
+            $batchSize = 10;
 
             DB::table('policies_staging')
                 ->select('numero_cliente')

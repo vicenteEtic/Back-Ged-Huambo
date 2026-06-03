@@ -43,7 +43,14 @@ class ProcessCustomerDataJob implements ShouldQueue
     {
         Log::info("🚀 Cliente: {$numeroCliente}");
 
-        $entity = Entities::where('customer_number', $numeroCliente)->first();
+        try {
+            $entity = Entities::where('customer_number', $numeroCliente)->first();
+        } catch (\Throwable $e) {
+            Log::error("❌ Erro ao buscar entidade para cliente {$numeroCliente}", [
+                'message' => $e->getMessage(),
+            ]);
+            return;
+        }
 
         if (!$entity) {
             Log::warning("⚠️ Cliente não encontrado: {$numeroCliente}");
@@ -52,58 +59,73 @@ class ProcessCustomerDataJob implements ShouldQueue
 
         $kytJobs = [];
 
-        /**
-         * 🔥 Buscar apólices com chunkById (evita OFFSET)
-         */
-        DB::table('policies_staging')
-            ->where('numero_cliente', $numeroCliente)
-            ->chunkById(500, function ($policies) use ($entity, &$kytJobs) {
+        try {
+            DB::table('policies_staging')
+                ->where('numero_cliente', $numeroCliente)
+                ->chunkById(500, function ($policies) use ($entity, &$kytJobs, $numeroCliente) {
 
-                $policyNumbers = $policies->pluck('numero_apolice')
-                    ->filter()
-                    ->unique()
-                    ->values()
-                    ->all();
+                    $policyNumbers = $policies->pluck('numero_apolice')
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all();
 
-                if (empty($policyNumbers)) return;
+                    if (empty($policyNumbers)) return;
 
-                /**
-                 * 🔥 Pré-busca dados relacionados (evita 5 queries no job seguinte)
-                 */
-                $changes = DB::table('policy_changes_staging')
-                    ->whereIn('numero_apolice', $policyNumbers)->get()->toArray();
-                $refunds = DB::table('apol_anulada_estorno')
-                    ->whereIn('n_apolice', $policyNumbers)->get()->toArray();
-                $receipts = DB::table('recibos_cobrados')
-                    ->whereIn('numero_apolice', $policyNumbers)->get()->toArray();
-                $beneficiaries = DB::table('beneficiarios_staging')
-                    ->whereIn('numero_apolice', $policyNumbers)->get()->toArray();
+                    try {
+                        $changes = DB::table('policy_changes_staging')
+                            ->whereIn('numero_apolice', $policyNumbers)->get()->toArray();
+                        $refunds = DB::table('apol_anulada_estorno')
+                            ->whereIn('n_apolice', $policyNumbers)->get()->toArray();
+                        $receipts = DB::table('recibos_cobrados')
+                            ->whereIn('numero_apolice', $policyNumbers)->get()->toArray();
+                        $beneficiaries = DB::table('beneficiarios_staging')
+                            ->whereIn('numero_apolice', $policyNumbers)->get()->toArray();
+                    } catch (\Throwable $e) {
+                        Log::error("❌ Erro na pré-busca de dados para cliente {$numeroCliente}", [
+                            'policies' => $policyNumbers,
+                            'message' => $e->getMessage(),
+                        ]);
+                        throw $e;
+                    }
 
-                $kytJobs[] = new ProcessCustomerPoliciesJob(
-                    $entity->id,
-                    $policyNumbers,
-                    $policies->toArray(),
-                    $changes,
-                    $refunds,
-                    $receipts,
-                    $beneficiaries
-                );
-            }, 'id');
+                    $kytJobs[] = new ProcessCustomerPoliciesJob(
+                        $entity->id,
+                        $policyNumbers,
+                        $policies->toArray(),
+                        $changes,
+                        $refunds,
+                        $receipts,
+                        $beneficiaries
+                    );
+                }, 'id');
+        } catch (\Throwable $e) {
+            Log::error("❌ Erro no chunkById para cliente {$numeroCliente}", [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
 
         if (!empty($kytJobs)) {
-            /**
-             * 🚀 Dispatch atómico — todos os KYT jobs do cliente vão para a queue de uma vez
-             */
-            Bus::batch($kytJobs)
-                ->onQueue('cliente')
-                ->allowFailures()
-                ->finally(function (Batch $batch) use ($numeroCliente) {
-                    Log::info("✅ KYT batch concluído para cliente {$numeroCliente}", [
-                        'total' => $batch->totalJobs,
-                        'failed' => $batch->failedJobs,
-                    ]);
-                })
-                ->dispatch();
+            try {
+                Bus::batch($kytJobs)
+                    ->onQueue('cliente')
+                    ->allowFailures()
+                    ->finally(function (Batch $batch) use ($numeroCliente) {
+                        Log::info("✅ KYT batch concluído para cliente {$numeroCliente}", [
+                            'total' => $batch->totalJobs,
+                            'failed' => $batch->failedJobs,
+                        ]);
+                    })
+                    ->dispatch();
+            } catch (\Throwable $e) {
+                Log::error("❌ Erro ao despachar batch KYT para cliente {$numeroCliente}", [
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                throw $e;
+            }
         } else {
             Log::warning("⚠️ Nenhum job KYT gerado para cliente {$numeroCliente}");
         }
