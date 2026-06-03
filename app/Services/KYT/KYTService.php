@@ -93,6 +93,7 @@ class KYTService
     private function normalizePolicies(array $policies): array
     {
         return array_map(function ($p) {
+            $p = (array) $p;
             return [
                 'numero_apolice' => $p['Numero_Apolice'] ?? $p['numero_apolice'] ?? null,
                 'numero_cliente' => $p['Numero_Cliente'] ?? $p['numero_cliente'] ?? null,
