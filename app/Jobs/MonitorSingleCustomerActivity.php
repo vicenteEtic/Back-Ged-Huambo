@@ -19,6 +19,7 @@ class MonitorSingleCustomerActivity implements ShouldQueue
     public int $tries = 5;
     public int $timeout = 300;
     public array $backoff = [60, 120, 300];
+    public string $queue = 'cliente';
 
     public function __construct(public int $entityId) {}
 
