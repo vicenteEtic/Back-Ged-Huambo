@@ -11,6 +11,7 @@ use App\Services\KYT\Rules\DefaultRuleHandler;
 use App\Models\Entities\RiskAssessment;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 class DynamicKYTService
 {
@@ -45,7 +46,7 @@ class DynamicKYTService
 
             $handler = $this->resolveHandler($rule);
 
-            $result = $handler->check(
+            $results = $handler->check(
                 $customer,
                 $rule,
                 $policies,
@@ -55,9 +56,9 @@ class DynamicKYTService
                 $beneficiaries,
             );
 
-            if ($result === null) continue;
-
-            $this->createAlert($customer, $result['name'], $result['description'], $result['severity'], $result['score']);
+            foreach ($results as $result) {
+                $this->createAlert($customer, $result['name'], $result['description'], $result['severity'], $result['score']);
+            }
         }
 
         Log::info("KYT (dynamic) FINISHED", ['customer' => $customer->customer_number]);
@@ -65,6 +66,10 @@ class DynamicKYTService
 
     private function loadActiveRules(): array
     {
+        if (!Schema::hasTable('kyt_rules')) {
+            return [];
+        }
+
         $cacheKey = 'kyt_active_rules';
 
         return Cache::remember($cacheKey, now()->addHour(), function () {

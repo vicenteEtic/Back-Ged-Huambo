@@ -10,12 +10,12 @@ interface RuleHandler
     /**
      * @param Entities $customer
      * @param KytRule $rule
-     * @param array $policies Array de policies normalizadas
+     * @param array $policies
      * @param array $changes
      * @param array $refunds
      * @param array $receipts
      * @param array $beneficiaries
-     * @return array|null Retorna dados do alerta [name, description, severity, score] ou null se nao aplicar
+     * @return array Lista de alertas. Cada alerta: ['name','description','severity','score']. Array vazio = sem alerta.
      */
     public function check(
         Entities $customer,
@@ -25,5 +25,5 @@ interface RuleHandler
         array $refunds = [],
         array $receipts = [],
         array $beneficiaries = []
-    ): ?array;
+    ): array;
 }

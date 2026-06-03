@@ -17,36 +17,39 @@ class DefaultRuleHandler implements RuleHandler
         array $refunds = [],
         array $receipts = [],
         array $beneficiaries = []
-    ): ?array
+    ): array
     {
+        $policies = $this->normalize($policies);
+
         $relevant = $rule->relevantProducts();
         $excluded = $rule->excludedProducts();
 
         $filtered = $this->filterProducts($policies, $relevant, $excluded);
-        if (empty($filtered)) return null;
+        if (empty($filtered)) return [];
 
         $thresholdField = $rule->threshold_field ?? 'premium_total';
         $totalValue = array_sum(array_column($filtered, $thresholdField));
 
-        if ($totalValue < ($rule->threshold_value ?? 0)) return null;
+        if ($totalValue < ($rule->threshold_value ?? 0)) return [];
 
         $entityLabel = $this->entityLabel($customer);
 
         $score = $rule->score_base;
         $description = $this->buildDescription($rule, $customer, $entityLabel, $totalValue, $filtered);
 
-        return [
+        return [[
             'name' => $rule->name,
             'description' => $description,
             'severity' => $rule->severity ?? 'Alto',
             'score' => $score,
-        ];
+        ]];
     }
 
     protected function filterProducts(array $policies, array $relevant, array $excluded): array
     {
         $result = [];
         foreach ($policies as $p) {
+            $p = is_object($p) ? (array) $p : $p;
             $product = strtoupper(trim($p['descricao_produto'] ?? ''));
             if (!empty($relevant) && !in_array($product, $relevant)) continue;
             if (!empty($excluded) && in_array($product, $excluded)) continue;
@@ -102,5 +105,10 @@ class DefaultRuleHandler implements RuleHandler
             $lines[] = "{$num} ({$prod}) - {$prem}";
         }
         return implode("\n", $lines);
+    }
+
+    protected function normalize(array $data): array
+    {
+        return array_map(fn($v) => is_object($v) ? (array) $v : $v, $data);
     }
 }

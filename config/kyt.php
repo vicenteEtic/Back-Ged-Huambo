@@ -12,9 +12,9 @@ return [
     |
     */
     'handlers' => [
-        // 'frequent_beneficiary_changes' => \App\Services\KYT\Rules\FrequentBeneficiaryChangesHandler::class,
-        // 'overpayment_refund'          => \App\Services\KYT\Rules\OverpaymentRefundHandler::class,
-        // 'high_capital_increase'        => \App\Services\KYT\Rules\HighCapitalIncreaseHandler::class,
-        // 'policy_lifecycle_abuse'       => \App\Services\KYT\Rules\PolicyLifecycleAbuseHandler::class,
+        'frequent_beneficiary_changes' => \App\Services\KYT\Rules\FrequentBeneficiaryChangesHandler::class,
+        'overpayment_refund'           => \App\Services\KYT\Rules\OverpaymentRefundHandler::class,
+        'high_capital_increase'        => \App\Services\KYT\Rules\HighCapitalIncreaseHandler::class,
+        'policy_lifecycle_abuse'       => \App\Services\KYT\Rules\PolicyLifecycleAbuseHandler::class,
     ],
 ];
