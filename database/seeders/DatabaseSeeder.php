@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
     {
 
           $this->call(KytRulesSeeder::class);
+          $this->call(KytRuleSeeder::class);
            User::factory(2)->create();
            //    $this->call(NossaSegurosSeeder::class);
            $this->call(PermissionSeed::class);
