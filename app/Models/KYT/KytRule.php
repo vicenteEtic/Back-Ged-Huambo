@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class KytRule extends Model
 {
-    protected $table = 'kyt_rules';
+    protected $table = 'kyt_rule_definitions';
 
     protected $fillable = [
         'slug',
@@ -37,7 +37,7 @@ class KytRule extends Model
 
     public function products()
     {
-        return $this->hasMany(KytRuleProduct::class);
+        return $this->hasMany(KytRuleProduct::class, 'kyt_rule_definition_id');
     }
 
     public function relevantProducts(): array

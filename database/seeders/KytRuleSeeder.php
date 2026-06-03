@@ -20,7 +20,7 @@ class KytRuleSeeder extends Seeder
 
             foreach ($products as $p) {
                 KytRuleProduct::create([
-                    'kyt_rule_id' => $rule->id,
+                    'kyt_rule_definition_id' => $rule->id,
                     'product_name' => strtoupper(trim($p['name'])),
                     'type' => $p['type'],
                 ]);

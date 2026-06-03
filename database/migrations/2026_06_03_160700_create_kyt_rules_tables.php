@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('kyt_rules', function (Blueprint $table) {
+        Schema::create('kyt_rule_definitions', function (Blueprint $table) {
             $table->id();
             $table->string('slug')->index()->comment('ex: frequent_beneficiary_changes');
             $table->string('name');
@@ -29,20 +29,20 @@ return new class extends Migration
             $table->unique(['slug', 'entity_type']);
         });
 
-        Schema::create('kyt_rule_products', function (Blueprint $table) {
+        Schema::create('kyt_rule_definition_products', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('kyt_rule_id')->constrained('kyt_rules')->cascadeOnDelete();
+            $table->foreignId('kyt_rule_definition_id')->constrained('kyt_rule_definitions')->cascadeOnDelete();
             $table->string('product_name');
             $table->enum('type', ['relevant', 'excluded']);
             $table->timestamps();
 
-            $table->unique(['kyt_rule_id', 'product_name', 'type']);
+            $table->unique(['kyt_rule_definition_id', 'product_name', 'type']);
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('kyt_rule_products');
-        Schema::dropIfExists('kyt_rules');
+        Schema::dropIfExists('kyt_rule_definition_products');
+        Schema::dropIfExists('kyt_rule_definitions');
     }
 };

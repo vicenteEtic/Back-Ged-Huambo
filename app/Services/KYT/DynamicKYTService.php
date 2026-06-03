@@ -66,11 +66,11 @@ class DynamicKYTService
 
     private function loadActiveRules(): array
     {
-        if (!Schema::hasTable('kyt_rules')) {
+        if (!Schema::hasTable('kyt_rule_definitions')) {
             return [];
         }
 
-        $cacheKey = 'kyt_active_rules';
+        $cacheKey = 'kyt_active_rule_definitions';
 
         return Cache::remember($cacheKey, now()->addHour(), function () {
             return KytRule::with('products')

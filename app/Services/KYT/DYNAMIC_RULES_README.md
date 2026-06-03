@@ -4,8 +4,8 @@
 
 ```
 database/migrations/2026_06_03_160700_create_kyt_rules_tables.php
-    ├── kyt_rules          ← Regras (slug, thresholds, template, etc)
-    └── kyt_rule_products  ← Produtos relevantes/excluídos por regra
+    ├── kyt_rule_definitions          ← Regras (slug, thresholds, template, etc)
+    └── kyt_rule_definition_products  ← Produtos relevantes/excluídos por regra
 
 app/Models/KYT/
     ├── KytRule.php        ← Model + relationships
