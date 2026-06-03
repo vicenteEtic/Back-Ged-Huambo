@@ -89,12 +89,6 @@ class CustomerKYTService
         $this->checkRapidReplacement($customer, $policies);
 
         //7. KYT_THIRD_PARTY_PAYMENTS
-
-        $this->checkThirdPartyPayments($customer, $policies);
-
-
-        //7. KYT_THIRD_PARTY_PAYMENTS
-
         $this->checkThirdPartyPayments($customer, $policies);
 
         //8. KYT_FREQUENT_BENEFICIARY_CHANGES

@@ -3,11 +3,13 @@
 namespace App\Jobs;
 
 use App\Models\Entities\Entities;
+use Illuminate\Bus\Batch;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -18,34 +20,46 @@ class ProcessCustomerDataJob implements ShouldQueue
     public $timeout = 600;
     public $tries = 3;
 
-    protected string $numeroCliente;
+    /** @var string|string[] */
+    protected array|string $numeroCliente;
 
-    public function __construct(string $numeroCliente)
+    public function __construct(array|string $numeroCliente)
     {
         $this->numeroCliente = $numeroCliente;
     }
 
     public function handle()
     {
-        Log::info("🚀 Cliente: {$this->numeroCliente}");
+        $clientes = is_array($this->numeroCliente)
+            ? $this->numeroCliente
+            : [$this->numeroCliente];
 
-        $entity = Entities::where('customer_number', $this->numeroCliente)->first();
+        foreach ($clientes as $numCliente) {
+            $this->processCliente($numCliente);
+        }
+    }
+
+    private function processCliente(string $numeroCliente): void
+    {
+        Log::info("🚀 Cliente: {$numeroCliente}");
+
+        $entity = Entities::where('customer_number', $numeroCliente)->first();
 
         if (!$entity) {
-            Log::warning("⚠️ Cliente não encontrado: {$this->numeroCliente}");
+            Log::warning("⚠️ Cliente não encontrado: {$numeroCliente}");
             return;
         }
 
+        $kytJobs = [];
+
         /**
-         * 🔥 Buscar apólices em chunks
+         * 🔥 Buscar apólices com chunkById (evita OFFSET)
          */
         DB::table('policies_staging')
-            ->where('numero_cliente', $this->numeroCliente)
-            ->orderBy('id')
-            ->chunk(500, function ($policies) use ($entity) {
+            ->where('numero_cliente', $numeroCliente)
+            ->chunkById(500, function ($policies) use ($entity, &$kytJobs) {
 
-                $policyNumbers = collect($policies)
-                    ->pluck('numero_apolice')
+                $policyNumbers = $policies->pluck('numero_apolice')
                     ->filter()
                     ->unique()
                     ->values()
@@ -54,12 +68,44 @@ class ProcessCustomerDataJob implements ShouldQueue
                 if (empty($policyNumbers)) return;
 
                 /**
-                 * 🚀 Dispatch apenas com IDs
+                 * 🔥 Pré-busca dados relacionados (evita 5 queries no job seguinte)
                  */
-                ProcessCustomerPoliciesJob::dispatch(
+                $changes = DB::table('policy_changes_staging')
+                    ->whereIn('numero_apolice', $policyNumbers)->get()->toArray();
+                $refunds = DB::table('apol_anulada_estorno')
+                    ->whereIn('n_apolice', $policyNumbers)->get()->toArray();
+                $receipts = DB::table('recibos_cobrados')
+                    ->whereIn('numero_apolice', $policyNumbers)->get()->toArray();
+                $beneficiaries = DB::table('beneficiarios_staging')
+                    ->whereIn('numero_apolice', $policyNumbers)->get()->toArray();
+
+                $kytJobs[] = new ProcessCustomerPoliciesJob(
                     $entity->id,
-                    $policyNumbers
-                )->onQueue('cliente');
-            });
+                    $policyNumbers,
+                    $policies->toArray(),
+                    $changes,
+                    $refunds,
+                    $receipts,
+                    $beneficiaries
+                );
+            }, 'id');
+
+        if (!empty($kytJobs)) {
+            /**
+             * 🚀 Dispatch atómico — todos os KYT jobs do cliente vão para a queue de uma vez
+             */
+            Bus::batch($kytJobs)
+                ->onQueue('cliente')
+                ->allowFailures()
+                ->finally(function (Batch $batch) use ($numeroCliente) {
+                    Log::info("✅ KYT batch concluído para cliente {$numeroCliente}", [
+                        'total' => $batch->totalJobs,
+                        'failed' => $batch->failedJobs,
+                    ]);
+                })
+                ->dispatch();
+        } else {
+            Log::warning("⚠️ Nenhum job KYT gerado para cliente {$numeroCliente}");
+        }
     }
 }
