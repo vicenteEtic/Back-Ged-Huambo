@@ -39,7 +39,7 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => 10800, // 3h — compatível com DispatchCustomerJobsJob (10800s)
+            'retry_after' => 0,
             'after_commit' => false,
         ],
 

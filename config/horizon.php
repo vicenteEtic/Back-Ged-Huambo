@@ -179,44 +179,18 @@ return [
     |
     */
 
-    /*
-    |--------------------------------------------------------------------------
-    | Queue Priority Architecture
-    |--------------------------------------------------------------------------
-    |
-    |   high     → Alertas críticos (email, notificações) — processado primeiro
-    |   cliente  → Pipeline KYT (dispatch, dados, checks) — processamento pesado
-    |   default  → Restante (baixa prioridade)
-    |
-    | Worker CLI (database driver): php artisan queue:work --queue=high,cliente,default
-    | Horizon (redis driver):       config abaixo
-    |
-    | TIMEOUTS:
-    |   DispatchCustomerJobsJob    → 10800s (coleta todos os clientes)
-    |   ProcessCustomerDataJob     → 600s   (chunk policies + pré-busca)
-    |   ProcessCustomerPoliciesJob → 600s   (KYT checks em memória)
-    |   MonitorSingleCustomerActivity → 300s
-    |
-    | Balance strategy 'auto': workers distribuem-se entre queues conforme
-    |   a carga. 'false' = workers fixos (round-robin).
-    |
-    | IMPORTANTE: Se QUEUE_CONNECTION=database no .env, o Horizon NÃO funciona.
-    |   É necessário usar php artisan queue:work ou queue:listen com --queue.
-    |
-    */
-
     'defaults' => [
         'supervisor-1' => [
             'connection' => 'redis',
-            'queue' => ['high', 'cliente', 'default'],
+            'queue' => ['default'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
-            'maxProcesses' => 5,
+            'maxProcesses' => 1,
             'maxTime' => 0,
             'maxJobs' => 0,
-            'memory' => 256,
-            'tries' => 3,
-            'timeout' => 600,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 60,
             'nice' => 0,
         ],
     ],
@@ -224,43 +198,16 @@ return [
     'environments' => [
         'production' => [
             'supervisor-1' => [
-                'maxProcesses' => 15,
-                'balanceMaxShift' => 2,
+                'maxProcesses' => 10,
+                'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
-                'queue' => ['high', 'cliente', 'import', 'default'],
             ],
         ],
 
         'local' => [
             'supervisor-1' => [
                 'maxProcesses' => 3,
-                'timeout' => 3600,
             ],
         ],
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Supervisor de Importação (dedicado, opcional)
-    |--------------------------------------------------------------------------
-    |
-    | Descomentar quando os imports de CSV forem reativados.
-    | Supervisor separado evita que imports bloqueiem o pipeline KYT.
-    |
-    | worker: php artisan queue:work --queue=import
-    |
-    */
-    // 'environments' => [
-    //     'production' => [
-    //         'supervisor-import' => [
-    //             'connection' => 'redis',
-    //             'queue' => ['import'],
-    //             'balance' => 'auto',
-    //             'maxProcesses' => 3,
-    //             'timeout' => 3600,
-    //             'tries' => 3,
-    //             'memory' => 512,
-    //         ],
-    //     ],
-    // ],
 ];
