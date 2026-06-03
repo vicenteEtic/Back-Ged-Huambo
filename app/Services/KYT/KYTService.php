@@ -68,6 +68,10 @@ class KYTService
         array $beneficiaries = []
     ): void {
         $policies = $this->normalizePolicies($policies);
+        $changes = array_map(fn($c) => (array) $c, $changes);
+        $refunds = array_map(fn($r) => (array) $r, $refunds);
+        $receipts = array_map(fn($r) => (array) $r, $receipts);
+        $beneficiaries = array_map(fn($b) => (array) $b, $beneficiaries);
 
         Log::info("KYT START", [
             'customer' => $customer->customer_number,
