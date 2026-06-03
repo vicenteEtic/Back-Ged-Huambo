@@ -184,31 +184,41 @@ return [
     | Queue Priority Architecture
     |--------------------------------------------------------------------------
     |
-    |   high     → Alertas críticos (email, notificações) — processado primeiro
-    |   cliente  → Pipeline KYT (dispatch, dados, checks) — processamento pesado
-    |   default  → Restante (baixa prioridade)
+    | Ordem de prioridade (1.ª = maior prioridade):
     |
-    | Worker CLI (database driver): php artisan queue:work --queue=high,cliente,default
-    | Horizon (redis driver):       config abaixo
+    |   1. cliente       → Pipeline KYT (dispatch, dados, checks) — processamento pesado
+    |   2. high          → Alertas críticos (email KYT, notificações)
+    |   3. default       → Restante (baixa prioridade)
+    |   4. import        → Importação CSV (quando reativado)
+    |   5. policyChanges → Importação de alterações (quando reativado)
+    |   6. policy        → Importação de apólices (quando reativado)
     |
-    | TIMEOUTS:
-    |   DispatchCustomerJobsJob    → 10800s (coleta todos os clientes)
-    |   ProcessCustomerDataJob     → 600s   (chunk policies + pré-busca)
-    |   ProcessCustomerPoliciesJob → 600s   (KYT checks em memória)
+    | Worker CLI (database driver — EM USO):
+    |   docker exec keepcomply-QA-php php /var/www/artisan queue:work \
+    |     --queue=cliente,high,default,import,policyChanges,policy \
+    |     --tries=20 --sleep=3 --timeout=600
+    |
+    | ⚠️  NÃO usar --timeout=0. Se um job pendurar (ex.: BD lento, API externa),
+    |    o worker fica bloqueado para sempre. --timeout=600 mata jobs após 10min.
+    |
+    | Horizon (redis driver — quando migrar):
+    |   config abaixo + QUEUE_CONNECTION=redis no .env
+    |
+    | TIMEOUTS das jobs:
+    |   DispatchCustomerJobsJob    → 10800s (coleta clientes)
+    |   ProcessCustomerDataJob     → 600s   (chunk + pré-busca)
+    |   ProcessCustomerPoliciesJob → 600s   (KYT checks)
     |   MonitorSingleCustomerActivity → 300s
     |
     | Balance strategy 'auto': workers distribuem-se entre queues conforme
     |   a carga. 'false' = workers fixos (round-robin).
-    |
-    | IMPORTANTE: Se QUEUE_CONNECTION=database no .env, o Horizon NÃO funciona.
-    |   É necessário usar php artisan queue:work ou queue:listen com --queue.
     |
     */
 
     'defaults' => [
         'supervisor-1' => [
             'connection' => 'redis',
-            'queue' => ['high', 'cliente', 'default'],
+            'queue' => ['cliente', 'high', 'default', 'import'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 5,
@@ -227,7 +237,7 @@ return [
                 'maxProcesses' => 15,
                 'balanceMaxShift' => 2,
                 'balanceCooldown' => 3,
-                'queue' => ['high', 'cliente', 'import', 'default'],
+                'queue' => ['cliente', 'high', 'default', 'import'],
             ],
         ],
 
