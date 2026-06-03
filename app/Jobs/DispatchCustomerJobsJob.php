@@ -22,21 +22,28 @@ class DispatchCustomerJobsJob implements ShouldQueue
         Log::info("🚀 Iniciando dispatch de jobs por cliente...");
 
         try {
+            $lastCliente = 0;
 
-           DB::table('policies_staging')
-    ->select('numero_cliente')
-    ->distinct()
-    ->orderBy('numero_cliente')
-    ->chunk(200, function ($clientes) {
+            do {
+                $clientes = DB::table('policies_staging')
+                    ->select('numero_cliente')
+                    ->where('numero_cliente', '>', $lastCliente)
+                    ->distinct()
+                    ->orderBy('numero_cliente')
+                    ->limit(200)
+                    ->get();
 
-        foreach ($clientes as $cliente) {
+                foreach ($clientes as $cliente) {
+                    if (!empty($cliente->numero_cliente)) {
+                        ProcessCustomerDataJob::dispatch($cliente->numero_cliente)
+                            ->onQueue('cliente');
+                    }
+                }
 
-            if (!empty($cliente->numero_cliente)) {
-                ProcessCustomerDataJob::dispatch($cliente->numero_cliente)
-                    ->onQueue('cliente');
-            }
-        }
-    });
+                $lastCliente = $clientes->isNotEmpty()
+                    ? (int) $clientes->last()->numero_cliente
+                    : 0;
+            } while ($clientes->count() > 0);
 
             Log::info("✅ Todos os clientes foram enfileirados com sucesso.");
 
