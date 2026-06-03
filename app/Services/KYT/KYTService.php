@@ -10,7 +10,6 @@ use App\Enum\TypeEntity;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 
 class KYTService
 {
@@ -64,14 +63,9 @@ class KYTService
         array $policies,
         array $changes = [],
         array $refunds = [],
-        array $receipts = [],
-        array $beneficiaries = []
+        array $receipts = []
     ): void {
         $policies = $this->normalizePolicies($policies);
-        $changes = array_map(fn($c) => (array) $c, $changes);
-        $refunds = array_map(fn($r) => (array) $r, $refunds);
-        $receipts = array_map(fn($r) => (array) $r, $receipts);
-        $beneficiaries = array_map(fn($b) => (array) $b, $beneficiaries);
 
         Log::info("KYT START", [
             'customer' => $customer->customer_number,
@@ -92,53 +86,6 @@ class KYTService
         Log::info("KYT FINISHED", ['customer' => $customer->customer_number]);
     }
 
-    public function runAllChecks(Entities $customer): void
-    {
-        $policyNumbers = DB::table('policies_staging')
-            ->where('numero_cliente', $customer->customer_number)
-            ->pluck('numero_apolice')
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        if (empty($policyNumbers)) {
-            Log::info("KYT sem apólices para {$customer->customer_number}");
-            return;
-        }
-
-        $policies = DB::table('policies_staging')
-            ->whereIn('numero_apolice', $policyNumbers)
-            ->get()
-            ->toArray();
-
-        $changes = DB::table('policy_changes_staging')
-            ->whereIn('numero_apolice', $policyNumbers)
-            ->get()
-            ->toArray();
-
-        $refunds = DB::table('apol_anulada_estorno')
-            ->whereIn('n_apolice', $policyNumbers)
-            ->get()
-            ->toArray();
-
-        $receipts = DB::table('recibos_cobrados')
-            ->whereIn('numero_apolice', $policyNumbers)
-            ->get()
-            ->toArray();
-
-        $this->runAllChecksMemory(
-            $customer,
-            $policies,
-            $changes,
-            $refunds,
-            $receipts
-        );
-
-        unset($policies, $changes, $refunds, $receipts);
-        gc_collect_cycles();
-    }
-
     /* =========================
        NORMALIZAÇÃO
     ========================== */
@@ -146,7 +93,6 @@ class KYTService
     private function normalizePolicies(array $policies): array
     {
         return array_map(function ($p) {
-            $p = (array) $p;
             return [
                 'numero_apolice' => $p['Numero_Apolice'] ?? $p['numero_apolice'] ?? null,
                 'numero_cliente' => $p['Numero_Cliente'] ?? $p['numero_cliente'] ?? null,
@@ -307,7 +253,7 @@ class KYTService
 
         if ($firstCapital <= 0 || !$firstDate) return;
 
-        $events = [];
+        $createdAlerts = [];
 
         for ($i = 1; $i < count($filtered); $i++) {
             $curr = $filtered[$i];
@@ -326,66 +272,57 @@ class KYTService
 
             if (!$isTrigger) continue;
 
-            $events[] = [
-                'polNum' => $curr['numero_apolice'] ?? "policy_{$i}",
-                'product' => $curr['descricao_produto'] ?? '',
-                'capital' => $currCapital,
-                'date' => $curr['data_inicio'],
-                'increaseRate' => $increaseRate,
-                'daysDiff' => $daysDiff,
-            ];
+            $key = $curr['numero_apolice'] ?? "policy_{$i}";
+            if (in_array($key, $createdAlerts)) continue;
+            $createdAlerts[] = $key;
+
+            $score = 20;
+            if ($increaseRate >= 1.0) $score += 10;
+            if ($daysDiff <= 30) $score += 5;
+
+            $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
+            $limiarDesc = $daysDiff <= 30
+                ? "≥" . ($isCollective ? '60' : '40') . "% em 30 dias"
+                : "≥" . ($isCollective ? '100' : '70') . "% em 90 dias";
+
+            $description = sprintf(
+                "AUMENTO ABRUPTO DE CAPITAL ENTRE APÓLICES\n" .
+                "Cliente: %s | Tipo: %s\n\n" .
+                "Apólice de referência (1.ª):\n" .
+                "  N.º: %s | Produto: %s\n" .
+                "  Capital: %s | Início: %s\n\n" .
+                "Nova apólice:\n" .
+                "  N.º: %s | Produto: %s\n" .
+                "  Capital: %s | Início: %s\n\n" .
+                "Variação: +%.2f%% em %d dias\n" .
+                "Limiar aplicado: %s\n" .
+                "Justificação: %s\n\n" .
+                "Interpretação AML:\n" .
+                "Aumento significativo de capital sem justificação económica\n" .
+                "compatível com perfil de risco elevado (layering/estruturação).",
+                $customer->customer_number,
+                $entityLabel,
+                $first['numero_apolice'],
+                $first['descricao_produto'],
+                $this->formatMoney($firstCapital),
+                $first['data_inicio'],
+                $curr['numero_apolice'],
+                $curr['descricao_produto'],
+                $this->formatMoney($currCapital),
+                $curr['data_inicio'],
+                $increaseRate * 100,
+                $daysDiff,
+                $limiarDesc,
+                'Nenhuma'
+            );
+            $this->createAlert(
+                $customer,
+                'Aumento abrupto de capital entre apólices',
+                $description,
+                'Alto',
+                $score
+            );
         }
-
-        if (empty($events)) return;
-
-        $maxEvent = $events[array_key_first($events)];
-        foreach ($events as $e) {
-            if ($e['increaseRate'] > $maxEvent['increaseRate']) $maxEvent = $e;
-        }
-
-        $score = 20;
-        if ($maxEvent['increaseRate'] >= 1.0) $score += 10;
-        if ($maxEvent['daysDiff'] <= 30) $score += 5;
-
-        $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
-
-        $increasesSummary = implode("\n", array_map(fn($e) => sprintf(
-            "  • Apólice: %s | Produto: %s | Capital: %s | %s | +%.2f%% em %d dias",
-            $e['polNum'],
-            $e['product'],
-            $this->formatMoney($e['capital']),
-            $e['date'],
-            $e['increaseRate'] * 100,
-            $e['daysDiff']
-        ), $events));
-
-        $description = sprintf(
-            "AUMENTO ABRUPTO DE CAPITAL ENTRE APÓLICES\n" .
-            "Cliente: %s | Tipo: %s\n\n" .
-            "Apólice de referência (1.ª):\n" .
-            "  N.º: %s | Produto: %s\n" .
-            "  Capital: %s | Início: %s\n\n" .
-            "Aumentos detetados (%d):\n%s\n\n" .
-            "Interpretação AML:\n" .
-            "Aumento significativo de capital sem justificação económica\n" .
-            "compatível com perfil de risco elevado (layering/estruturação).",
-            $customer->customer_number,
-            $entityLabel,
-            $first['numero_apolice'],
-            $first['descricao_produto'],
-            $this->formatMoney($firstCapital),
-            $first['data_inicio'],
-            count($events),
-            $increasesSummary
-        );
-
-        $this->createAlert(
-            $customer,
-            'Aumento abrupto de capital entre apólices',
-            $description,
-            'Alto',
-            $score
-        );
     }
 
     /* =========================
@@ -547,7 +484,7 @@ class KYTService
             ];
 
         $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
-        $triggeringPolicies = [];
+        $createdAlerts = [];
 
         foreach ($policies as $policy) {
             $product = strtoupper(trim($policy['descricao_produto'] ?? ''));
@@ -560,59 +497,48 @@ class KYTService
             $ratio = $premium / $capital;
             if ($ratio < $threshold) continue;
 
-            $triggeringPolicies[] = [
-                'product' => $product,
-                'policyNum' => $policy['numero_apolice'] ?? 'N/A',
-                'premium' => $premium,
-                'capital' => $capital,
-                'ratio' => $ratio,
-            ];
+            $key = $policy['numero_apolice'] ?? $product;
+            if (in_array($key, $createdAlerts)) continue;
+            $createdAlerts[] = $key;
+
+            if ($isCollective) {
+                $severity = $ratio >= 0.40 ? 'Alto' : 'Médio';
+                $score = $ratio >= 0.40 ? 30 : 20;
+                $limiarDesc = $ratio >= 0.40 ? '≥40% do capital seguro' : '≥25% do capital seguro';
+            } else {
+                $severity = 'Alto';
+                $score = 25;
+                if ($ratio >= 0.30) $score += 10;
+                $limiarDesc = '≥10% do capital seguro';
+            }
+
+            $description = sprintf(
+                "KYT HIGH PREMIUM LOW RISK - %s\n" .
+                "Produto: %s | Apólice: %s\n" .
+                "Prémio pago: %s\n" .
+                "Capital seguro: %s\n" .
+                "Rácio prémio/capital: %.2f%%\n" .
+                "Limiar aplicado: %s\n\n" .
+                "Interpretação AML:\n" .
+                "Prémio elevado incompatível com o risco segurado ou capacidade financeira do cliente.\n" .
+                "Cenário alinhado ao Guia de Operações Suspeitas da ARSEG e às orientações do GAFI.",
+                $entityLabel,
+                $product,
+                $policy['numero_apolice'] ?? 'N/A',
+                $this->formatMoney($premium),
+                $this->formatMoney($capital),
+                $ratio * 100,
+                $limiarDesc
+            );
+
+            $this->createAlert(
+                $customer,
+                'Prémio elevado incompatível com capacidade financeira',
+                $description,
+                $severity,
+                $score
+            );
         }
-
-        if (empty($triggeringPolicies)) return;
-
-        if ($isCollective) {
-            $maxRatio = max(array_column($triggeringPolicies, 'ratio'));
-            $severity = $maxRatio >= 0.40 ? 'Alto' : 'Médio';
-            $score = $maxRatio >= 0.40 ? 30 : 20;
-            $limiarDesc = $maxRatio >= 0.40 ? '≥40% do capital seguro' : '≥25% do capital seguro';
-        } else {
-            $severity = 'Alto';
-            $maxRatio = max(array_column($triggeringPolicies, 'ratio'));
-            $score = 25;
-            if ($maxRatio >= 0.30) $score += 10;
-            $limiarDesc = '≥10% do capital seguro';
-        }
-
-        $policiesSummary = implode("\n", array_map(fn($tp) => sprintf(
-            "  • %s | Apólice: %s | Prémio: %s | Capital: %s | Rácio: %.2f%%",
-            $tp['product'],
-            $tp['policyNum'],
-            $this->formatMoney($tp['premium']),
-            $this->formatMoney($tp['capital']),
-            $tp['ratio'] * 100
-        ), $triggeringPolicies));
-
-        $description = sprintf(
-            "KYT HIGH PREMIUM LOW RISK - %s\n\n" .
-            "Apólices com prémio desproporcional ao capital (%d detetada(s)):\n%s\n\n" .
-            "Limiar aplicado: %s\n\n" .
-            "Interpretação AML:\n" .
-            "Prémio elevado incompatível com o risco segurado ou capacidade financeira do cliente.\n" .
-            "Cenário alinhado ao Guia de Operações Suspeitas da ARSEG e às orientações do GAFI.",
-            $entityLabel,
-            count($triggeringPolicies),
-            $policiesSummary,
-            $limiarDesc
-        );
-
-        $this->createAlert(
-            $customer,
-            'Prémio elevado incompatível com capacidade financeira',
-            $description,
-            $severity,
-            $score
-        );
     }
 
     /* =========================
@@ -1029,7 +955,7 @@ class KYTService
         if (empty($relevantPolicyNums)) return;
 
         $entityLabel = $isCollective ? 'Coletiva' : 'Singular';
-        $events = [];
+        $createdAlerts = [];
 
         foreach ($refunds as $refund) {
             $polNum = $refund['Numero_Apolice'] ?? $refund['numero_apolice'] ?? null;
@@ -1057,54 +983,43 @@ class KYTService
             $isThirdParty = !empty($beneficiaryName)
                 && strtolower(trim($beneficiaryName)) !== strtolower(trim($customer->social_denomination ?? ''));
 
-            $events[] = [
-                'polNum' => $polNum,
-                'product' => $product,
-                'premium' => $premium,
-                'refundAmount' => $refundAmount,
-                'ratio' => $overpaymentRatio,
-                'beneficiaryName' => $beneficiaryName,
-                'isThirdParty' => $isThirdParty,
-            ];
+            if (in_array($polNum, $createdAlerts)) continue;
+            $createdAlerts[] = $polNum;
+
+            $severity = $overpaymentRatio >= 0.20 ? 'Alto' : 'Médio';
+            $score = $overpaymentRatio >= 0.20 ? 30 : 20;
+
+            $description = sprintf(
+                "SOBREPAGAMENTO COM REEMBOLSO\n" .
+                "Cliente: %s | Tipo: %s\n\n" .
+                "Apólice: %s | Produto: %s\n" .
+                "Prémio pago: %s\n" .
+                "Valor reembolsado: %s\n" .
+                "Rácio reembolso/prémio: %.2f%%\n" .
+                "Beneficiário do reembolso: %s\n" .
+                "Terceiro: %s\n\n" .
+                "Interpretação AML:\n" .
+                "Sobrepagamento de prémio seguido de pedido de reembolso para terceiro,\n" .
+                "compatível com esquemas de movimentação indireta de valores (structuring/refunding).",
+                $customer->customer_number,
+                $entityLabel,
+                $polNum,
+                $product,
+                $this->formatMoney($premium),
+                $this->formatMoney($refundAmount),
+                $overpaymentRatio * 100,
+                $beneficiaryName ?: 'N/A',
+                $isThirdParty ? 'Sim' : 'Não'
+            );
+
+            $this->createAlert(
+                $customer,
+                'Sobrepagamento de prémio com reembolso',
+                $description,
+                $severity,
+                $score
+            );
         }
-
-        if (empty($events)) return;
-
-        $maxRatio = max(array_column($events, 'ratio'));
-        $severity = $maxRatio >= 0.20 ? 'Alto' : 'Médio';
-        $score = $maxRatio >= 0.20 ? 30 : 20;
-        $hasThirdParty = count(array_filter($events, fn($e) => $e['isThirdParty'])) > 0;
-
-        $refundsSummary = implode("\n", array_map(fn($e) => sprintf(
-            "  • Apólice: %s | Produto: %s | Prémio: %s | Reembolso: %s | Rácio: %.2f%%%s",
-            $e['polNum'],
-            $e['product'],
-            $this->formatMoney($e['premium']),
-            $this->formatMoney($e['refundAmount']),
-            $e['ratio'] * 100,
-            $e['isThirdParty'] ? ' [Terceiro: ' . $e['beneficiaryName'] . ']' : ''
-        ), $events));
-
-        $description = sprintf(
-            "SOBREPAGAMENTO COM REEMBOLSO\n" .
-            "Cliente: %s | Tipo: %s\n\n" .
-            "Reembolsos detetados (%d):\n%s\n\n" .
-            "Interpretação AML:\n" .
-            "Sobrepagamento de prémio seguido de pedido de reembolso para terceiro,\n" .
-            "compatível com esquemas de movimentação indireta de valores (structuring/refunding).",
-            $customer->customer_number,
-            $entityLabel,
-            count($events),
-            $refundsSummary
-        );
-
-        $this->createAlert(
-            $customer,
-            'Sobrepagamento de prémio com reembolso',
-            $description,
-            $severity,
-            $score
-        );
     }
 
     /* =========================

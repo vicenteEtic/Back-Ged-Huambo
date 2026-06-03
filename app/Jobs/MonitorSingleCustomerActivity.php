@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Entities\Entities;
-use App\Services\KYT\KYTService;
+use App\Services\KYT\CustomerKYTService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -19,11 +19,10 @@ class MonitorSingleCustomerActivity implements ShouldQueue
     public int $tries = 5;
     public int $timeout = 300;
     public array $backoff = [60, 120, 300];
-    public string $queue = 'cliente';
 
     public function __construct(public int $entityId) {}
 
-    public function handle(KYTService $kyt): void
+    public function handle(CustomerKYTService $kyt): void
     {
         try {
             $customer = Entities::find($this->entityId);
