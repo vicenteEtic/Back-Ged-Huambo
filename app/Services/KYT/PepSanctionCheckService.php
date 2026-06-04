@@ -41,14 +41,21 @@ class PepSanctionCheckService
                 'sanction' => false,
                 'pep_score' => null,
                 'sanction_score' => null,
+                'pep_list_id' => null,
+                'sanction_list_id' => null,
+                'pep_datasets' => null,
+                'sanction_datasets' => null,
             ];
 
             try {
                 $pepData = PepExternalApi::getDataPepExternal($name);
                 if (!empty($pepData['data'])) {
+                    $first = $pepData['data'][0];
                     $result['found'] = true;
                     $result['pep'] = true;
-                    $result['pep_score'] = $pepData['data'][0]['score'] ?? null;
+                    $result['pep_score'] = $first['score'] ?? null;
+                    $result['pep_list_id'] = $first['id'] ?? null;
+                    $result['pep_datasets'] = $first['datasets'] ?? null;
                 }
             } catch (\Throwable $e) {
                 Log::warning("PEP API error for {$name}: " . $e->getMessage());
@@ -57,9 +64,12 @@ class PepSanctionCheckService
             try {
                 $sanctionData = SanctionExternalApi::getDataSanctionExternal($name);
                 if (!empty($sanctionData['data'])) {
+                    $first = $sanctionData['data'][0];
                     $result['found'] = true;
                     $result['sanction'] = true;
-                    $result['sanction_score'] = $sanctionData['data'][0]['score'] ?? null;
+                    $result['sanction_score'] = $first['score'] ?? null;
+                    $result['sanction_list_id'] = $first['id'] ?? null;
+                    $result['sanction_datasets'] = $first['datasets'] ?? null;
                 }
             } catch (\Throwable $e) {
                 Log::warning("Sanction API error for {$name}: " . $e->getMessage());
@@ -77,10 +87,24 @@ class PepSanctionCheckService
         foreach ($findings as $f) {
             $parts = [];
             if ($f['pep']) {
-                $parts[] = 'lista PEP';
+                $listInfo = 'lista PEP';
+                if ($f['pep_list_id']) {
+                    $listInfo .= ' (ID: ' . $f['pep_list_id'] . ')';
+                }
+                if ($f['pep_datasets']) {
+                    $listInfo .= ' [' . $f['pep_datasets'] . ']';
+                }
+                $parts[] = $listInfo;
             }
             if ($f['sanction']) {
-                $parts[] = 'lista de Sanções';
+                $listInfo = 'lista de Sanções';
+                if ($f['sanction_list_id']) {
+                    $listInfo .= ' (ID: ' . $f['sanction_list_id'] . ')';
+                }
+                if ($f['sanction_datasets']) {
+                    $listInfo .= ' [' . $f['sanction_datasets'] . ']';
+                }
+                $parts[] = $listInfo;
             }
             $lists = implode(' e ', $parts);
             $lines[] = "⚠️ \"{$f['name']}\" encontrado em {$lists}";
