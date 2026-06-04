@@ -36,6 +36,8 @@ class FrequentBeneficiaryChangesHandler implements RuleHandler
 
         $justifiedMotives = ['herança', 'casamento', 'divórcio', 'nascimento', 'óbito', 'falecimento', 'alteração familiar'];
 
+        $beneficiaryChangeTypes = ['ALTERAÇÃO DE BENEFICIÁRIO', 'ALTERACAO DE BENEFICIARIO', 'INCLUSÃO DE BENEFICIÁRIO', 'INCLUSAO DE BENEFICIARIO', 'EXCLUSÃO DE BENEFICIÁRIO', 'EXCLUSAO DE BENEFICIARIO', 'SUBSTITUIÇÃO DE BENEFICIÁRIO', 'SUBSTITUICAO DE BENEFICIARIO'];
+
         $beneficiaryMap = [];
         foreach ($beneficiaries as $b) {
             $bPolNum = $b['numero_apolice'] ?? null;
@@ -49,6 +51,9 @@ class FrequentBeneficiaryChangesHandler implements RuleHandler
         foreach ($changes as $change) {
             $polNum = $change['numero_apolice'] ?? null;
             if (!$polNum || !in_array($polNum, $relevantPolicyNums)) continue;
+
+            $changeType = strtoupper(trim($change['tipo_alteracao'] ?? ''));
+            if (!in_array($changeType, $beneficiaryChangeTypes)) continue;
 
             $changeDate = $this->safeDate($change['data_alteracao'] ?? $change['created_at'] ?? null);
             if (!$changeDate) continue;

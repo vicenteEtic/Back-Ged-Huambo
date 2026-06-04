@@ -511,6 +511,7 @@ class KYTE2ETest extends TestCase
         for ($i = 0; $i < 3; $i++) {
             $changes[] = [
                 'numero_apolice' => $polNum,
+                'tipo_alteracao' => 'ALTERAÇÃO DE BENEFICIÁRIO',
                 'motivo_alteracao' => 'Alteração de beneficiário sem justificação',
                 'data_alteracao' => (clone $baseDate)->addDays($i * 30)->format('Y-m-d'),
             ];
@@ -550,6 +551,7 @@ class KYTE2ETest extends TestCase
         for ($i = 0; $i < 2; $i++) {
             $changes[] = [
                 'numero_apolice' => $polNum,
+                'tipo_alteracao' => 'ALTERAÇÃO DE BENEFICIÁRIO',
                 'motivo_alteracao' => 'Alteração de beneficiário',
                 'data_alteracao' => (clone $baseDate)->addDays($i * 30)->format('Y-m-d'),
             ];
@@ -588,16 +590,19 @@ class KYTE2ETest extends TestCase
         $changes = [
             [
                 'numero_apolice' => $polNum,
+                'tipo_alteracao' => 'ALTERAÇÃO DE BENEFICIÁRIO',
                 'motivo_alteracao' => 'Casamento',
                 'data_alteracao' => (clone $baseDate)->addDays(10)->format('Y-m-d'),
             ],
             [
                 'numero_apolice' => $polNum,
+                'tipo_alteracao' => 'ALTERAÇÃO DE BENEFICIÁRIO',
                 'motivo_alteracao' => 'Nascimento',
                 'data_alteracao' => (clone $baseDate)->addDays(20)->format('Y-m-d'),
             ],
             [
                 'numero_apolice' => $polNum,
+                'tipo_alteracao' => 'ALTERAÇÃO DE BENEFICIÁRIO',
                 'motivo_alteracao' => 'Herança',
                 'data_alteracao' => (clone $baseDate)->addDays(30)->format('Y-m-d'),
             ],
