@@ -29,7 +29,7 @@ class RiskAssessmentRequest extends BaseFormRequest
     {
         return [
             'identification_capacity' => ['required', Rule::exists(IndicatorType::class, 'id')],
-            'form_establishment' => ['required', Rule::enum(FormEstablishment::class)],
+            // 'form_establishment' => ['required', Rule::enum(FormEstablishment::class)],
             'category' => ['nullable',Rule::exists(IndicatorType::class, 'id')],
             'status_residence' => ['required', Rule::enum(StatusResidence::class)],
             'profession' => ['required', Rule::exists(IndicatorType::class, 'id')],
@@ -67,7 +67,7 @@ class RiskAssessmentRequest extends BaseFormRequest
     {
         return [
             'identification_capacity' => 'Capacidade de Identificação',
-            'form_establishment' => 'Forma de Estabelecimento',
+            // 'form_establishment' => 'Forma de Estabelecimento',
             'category' => 'Categoria',
             'status_residence' => 'Status de Residência',
             'profession' => 'Profissão',

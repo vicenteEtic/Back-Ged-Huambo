@@ -20,7 +20,7 @@ class RiskAssessment extends Model
     protected $primaryKey = 'id';
     protected $fillable = [
         'identification_capacity',
-        'form_establishment',
+        // 'form_establishment',
         'categoryP',
         'status_residence',
         'professionP',
@@ -48,7 +48,7 @@ class RiskAssessment extends Model
 
 
     public $casts = [
-        'form_establishment' => FormEstablishment::class,
+        // 'form_establishment' => FormEstablishment::class,
         'status_residence' =>  StatusResidence::class,
         'santion' => 'boolean',
         'processesReportedAuthoritie' => 'boolean',

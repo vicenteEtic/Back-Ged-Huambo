@@ -131,11 +131,11 @@ public function getEntitiesByType(TypeEntity $type, array $data = []): int
     
             // Relacionamentos
             'identification_capacity' => $riskAssessment ? optional($riskAssessment->indetificationCapacity)->description : null,
-            'form_establishment' => $riskAssessment
-                ? ($riskAssessment->form_establishment instanceof \App\Enum\FormEstablishment
-                    ? $riskAssessment->form_establishment->value
-                    : ($riskAssessment->form_establishment == 0 ? 'Presencial' : 'Não Presencial'))
-                : null,
+            // 'form_establishment' => $riskAssessment
+            //     ? ($riskAssessment->form_establishment instanceof \App\Enum\FormEstablishment
+            //         ? $riskAssessment->form_establishment->value
+            //         : ($riskAssessment->form_establishment == 0 ? 'Presencial' : 'Não Presencial'))
+            //     : null,
             'category' => $riskAssessment ? optional($riskAssessment->category)->description : null,
             'status_residence' => $riskAssessment
                 ? ($riskAssessment->status_residence instanceof \App\Enum\StatusResidence

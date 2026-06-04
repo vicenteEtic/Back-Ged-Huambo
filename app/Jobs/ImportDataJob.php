@@ -208,7 +208,7 @@ class ImportDataJob implements ShouldQueue
             'product_risk' =>        $productRiskIds,
             'country_residence' => $this->indicatorService->getByDescription($record['country_residence'] ?? null),
             'nationality' => $this->indicatorService->getByDescription($record['nationality'] ?? null),
-            'form_establishment' => $this->normalizeBoolean($record['form_establishment'] ?? false),
+            // 'form_establishment' => $this->normalizeBoolean($record['form_establishment'] ?? false),
             'status_residence' => $this->normalizeBoolean($record['status_residence'] ?? false),
             'pep' => $record['pep'] ?? false,
             'santion' => $record['santion'] ?? false,

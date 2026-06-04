@@ -63,7 +63,7 @@ class RiskFormulaSeed extends Seeder
                 'category' => 0.15,
 
                 // Forma Jurídica
-                'form_establishment' => 0.05,
+                // 'form_establishment' => 0.05,
 
                 // País de Residência
                 'country_residence' => 0.20,
