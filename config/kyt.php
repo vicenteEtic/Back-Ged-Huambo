@@ -18,5 +18,6 @@ return [
         'policy_lifecycle_abuse'       => \App\Services\KYT\Rules\PolicyLifecycleAbuseHandler::class,
         'third_party_payments'         => \App\Services\KYT\Rules\ThirdPartyPaymentHandler::class,
         'multiple_short_policies'      => \App\Services\KYT\Rules\MultipleShortPoliciesHandler::class,
+        'high_risk_geography'          => \App\Services\KYT\Rules\HighRiskGeographyHandler::class,
     ],
 ];
