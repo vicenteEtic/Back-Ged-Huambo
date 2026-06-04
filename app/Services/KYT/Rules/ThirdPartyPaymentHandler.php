@@ -40,14 +40,14 @@ class ThirdPartyPaymentHandler implements RuleHandler
             $polNum = $r['numero_apolice'] ?? null;
             if (!$polNum || !in_array($polNum, $relevantPolicyNums)) continue;
 
-            $indicator = strtolower(trim($r['indicador_pagamento_terceiro'] ?? ''));
+            $indicator = trim($r['indicador_pagamento_terceiro'] ?? '');
             $payerName = trim($r['nome_pagador'] ?? '');
             $payerNif = trim($r['nif_pagador'] ?? '');
 
-            if ($indicator === 'sim' && $payerName) {
+            if ($indicator !== '' && strtoupper($indicator) !== 'TOMADOR') {
                 $thirdPartyReceipts[$polNum][] = [
-                    'payer' => $payerName,
-                    'nif' => $payerNif,
+                    'payer' => $payerName ?: $indicator,
+                    'nif' => $payerNif ?: $indicator,
                 ];
             }
         }
