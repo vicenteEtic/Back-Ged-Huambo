@@ -32,11 +32,111 @@ class FrequentBeneficiaryChangesHandler implements RuleHandler
         $minChanges = $rule->min_events ?? 3;
         $maxDays = $rule->max_days ?? 180;
 
-        if (count($changes) < $minChanges) return [];
+        $beneficiaryEvents = $this->buildBeneficiaryEvents($beneficiaries, $relevantPolicyNums, $policies);
 
+        $beneficiaryChangeTypes = ['ALTERAÇÃO DE BENEFICIÁRIO', 'ALTERACAO DE BENEFICIARIO', 'INCLUSÃO DE BENEFICIÁRIO', 'INCLUSAO DE BENEFICIARIO', 'EXCLUSÃO DE BENEFICIÁRIO', 'EXCLUSAO DE BENEFICIARIO', 'SUBSTITUIÇÃO DE BENEFICIÁRIO', 'SUBSTITUICAO DE BENEFICIARIO', 'ALTERAÇÃO DE ACTA', 'ALTERACAO DE ACTA'];
+
+        if (count($beneficiaryEvents) < $minChanges) {
+            $beneficiaryEvents = $this->buildChangeEvents($changes, $relevantPolicyNums, $policies, $beneficiaries, $beneficiaryChangeTypes);
+        }
+
+        if (count($beneficiaryEvents) < $minChanges) return [];
+
+        usort($beneficiaryEvents, fn($a, $b) => $a['date']->timestamp <=> $b['date']->timestamp);
+
+        $firstDate = $beneficiaryEvents[0]['date'];
+        $lastDate = $beneficiaryEvents[count($beneficiaryEvents) - 1]['date'];
+        $windowDays = $firstDate->diffInDays($lastDate);
+
+        if ($windowDays > $maxDays) return [];
+
+        $entityLabel = $this->entityLabel($customer);
+
+        $polDetails = [];
+        foreach ($beneficiaryEvents as $e) {
+            $detail = $e['polNum'] . ' (' . $e['product'] . ')';
+            if (!empty($e['beneficiaries'])) {
+                $detail .= ' [Beneficiários: ' . implode(', ', $e['beneficiaries']) . ']';
+            }
+            $polDetails[] = $detail;
+        }
+        $polDetails = array_unique($polDetails);
+
+        $score = $rule->score_base;
+        if (count($beneficiaryEvents) >= $minChanges + 1) {
+            $score += ($rule->score_increments['events_above_min'] ?? 10);
+        }
+        if ($windowDays <= $maxDays / 2) {
+            $score += ($rule->score_increments['half_window'] ?? 5);
+        }
+
+        $description = strtr($rule->description_template, [
+            '{customer}' => $customer->customer_number,
+            '{entity_type}' => $entityLabel,
+            '{events}' => count($beneficiaryEvents),
+            '{min_events}' => $minChanges,
+            '{window_days}' => $windowDays,
+            '{max_days}' => $maxDays,
+            '{products}' => implode("\n", $polDetails),
+            '{interpretation}' => $rule->interpretation_aml,
+            '{total}' => '',
+            '{threshold}' => '',
+        ]);
+
+        return [[
+            'name' => $rule->name,
+            'description' => $description,
+            'severity' => $rule->severity ?? 'Alto',
+            'score' => $score,
+        ]];
+    }
+
+    private function buildBeneficiaryEvents(array $beneficiaries, array $relevantPolicyNums, array $policies): array
+    {
+        $benefByPolicy = [];
+        foreach ($beneficiaries as $b) {
+            $polNum = $b['numero_apolice'] ?? null;
+            if (!$polNum || !in_array($polNum, $relevantPolicyNums)) continue;
+
+            $updateDate = $b['data_atualizacao_beneficiario'] ?? null;
+            if (!$updateDate) continue;
+
+            $parsedDate = $this->safeDate($updateDate);
+            if (!$parsedDate) continue;
+
+            $dateKey = $parsedDate->format('Y-m-d');
+            $name = $b['nome_beneficiario'] ?? '';
+
+            $benefByPolicy[$polNum][$dateKey]['date'] = $parsedDate;
+            $benefByPolicy[$polNum][$dateKey]['names'][$name] = true;
+        }
+
+        $events = [];
+        foreach ($benefByPolicy as $polNum => $dates) {
+            $product = '';
+            foreach ($policies as $p) {
+                if ($p['numero_apolice'] === $polNum) {
+                    $product = $p['descricao_produto'];
+                    break;
+                }
+            }
+
+            foreach ($dates as $dateKey => $batch) {
+                $events[] = [
+                    'date' => $batch['date'],
+                    'polNum' => $polNum,
+                    'product' => $product,
+                    'beneficiaries' => array_keys($batch['names']),
+                ];
+            }
+        }
+
+        return $events;
+    }
+
+    private function buildChangeEvents(array $changes, array $relevantPolicyNums, array $policies, array $beneficiaries, array $beneficiaryChangeTypes): array
+    {
         $justifiedMotives = ['herança', 'casamento', 'divórcio', 'nascimento', 'óbito', 'falecimento', 'alteração familiar'];
-
-        $beneficiaryChangeTypes = ['ALTERAÇÃO DE BENEFICIÁRIO', 'ALTERACAO DE BENEFICIARIO', 'INCLUSÃO DE BENEFICIÁRIO', 'INCLUSAO DE BENEFICIARIO', 'EXCLUSÃO DE BENEFICIÁRIO', 'EXCLUSAO DE BENEFICIARIO', 'SUBSTITUIÇÃO DE BENEFICIÁRIO', 'SUBSTITUICAO DE BENEFICIARIO'];
 
         $beneficiaryMap = [];
         foreach ($beneficiaries as $b) {
@@ -47,7 +147,7 @@ class FrequentBeneficiaryChangesHandler implements RuleHandler
             }
         }
 
-        $beneficiaryChanges = [];
+        $events = [];
         foreach ($changes as $change) {
             $polNum = $change['numero_apolice'] ?? null;
             if (!$polNum || !in_array($polNum, $relevantPolicyNums)) continue;
@@ -78,7 +178,7 @@ class FrequentBeneficiaryChangesHandler implements RuleHandler
                 }
             }
 
-            $beneficiaryChanges[] = [
+            $events[] = [
                 'date' => $changeDate,
                 'polNum' => $polNum,
                 'product' => $product,
@@ -86,55 +186,7 @@ class FrequentBeneficiaryChangesHandler implements RuleHandler
             ];
         }
 
-        if (count($beneficiaryChanges) < $minChanges) return [];
-
-        usort($beneficiaryChanges, fn($a, $b) => $a['date']->timestamp <=> $b['date']->timestamp);
-
-        $firstDate = $beneficiaryChanges[0]['date'];
-        $lastDate = $beneficiaryChanges[count($beneficiaryChanges) - 1]['date'];
-        $windowDays = $firstDate->diffInDays($lastDate);
-
-        if ($windowDays > $maxDays) return [];
-
-        $entityLabel = $this->entityLabel($customer);
-
-        $polDetails = [];
-        foreach ($beneficiaryChanges as $c) {
-            $detail = $c['polNum'] . ' (' . $c['product'] . ')';
-            if (!empty($c['beneficiaries'])) {
-                $detail .= ' [Beneficiários: ' . implode(', ', $c['beneficiaries']) . ']';
-            }
-            $polDetails[] = $detail;
-        }
-        $polDetails = array_unique($polDetails);
-
-        $score = $rule->score_base;
-        if (count($beneficiaryChanges) >= $minChanges + 1) {
-            $score += ($rule->score_increments['events_above_min'] ?? 10);
-        }
-        if ($windowDays <= $maxDays / 2) {
-            $score += ($rule->score_increments['half_window'] ?? 5);
-        }
-
-        $description = strtr($rule->description_template, [
-            '{customer}' => $customer->customer_number,
-            '{entity_type}' => $entityLabel,
-            '{events}' => count($beneficiaryChanges),
-            '{min_events}' => $minChanges,
-            '{window_days}' => $windowDays,
-            '{max_days}' => $maxDays,
-            '{products}' => implode("\n", $polDetails),
-            '{interpretation}' => $rule->interpretation_aml,
-            '{total}' => '',
-            '{threshold}' => '',
-        ]);
-
-        return [[
-            'name' => $rule->name,
-            'description' => $description,
-            'severity' => $rule->severity ?? 'Alto',
-            'score' => $score,
-        ]];
+        return $events;
     }
 
     private function collectPolicyNums(array $policies, array $relevant, array $excluded): array

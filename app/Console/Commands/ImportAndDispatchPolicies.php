@@ -25,7 +25,7 @@ class ImportAndDispatchPolicies extends Command
      // ImportApolAnuladaEstornoJob::dispatch()->onQueue('policy')->delay(now());
     //  ImportRecibosCobradosJob::dispatch()->onQueue('policy')->delay(now());
 
-        BeneficiariosStagingJob::dispatch()->onQueue('policy');
+       // BeneficiariosStagingJob::dispatch()->onQueue('policy');
     
         $this->info('📄 Job de importação disparado. Aguarde a conclusão...');
 
