@@ -3,6 +3,9 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\KYT\KytRuleController;
 
+Route::get('scenarios', [KytRuleController::class, 'scenarios'])
+    ->name('kyt_rules.scenarios');
+
 Route::get('', [KytRuleController::class, 'index'])
     ->name('kyt_rules.index');
 

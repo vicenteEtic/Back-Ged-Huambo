@@ -63,8 +63,11 @@ class DynamicKYTService
                 $beneficiaries,
             );
 
+            $scenarioNames = config('kyt.scenario_names', []);
+            $fixedName = $scenarioNames[$rule->slug] ?? $rule->name;
+
             foreach ($results as $result) {
-                $this->createAlert($customer, $result['name'], $result['description'], $result['severity'], $result['score'], $additionalNames);
+                $this->createAlert($customer, $fixedName, $result['description'], $result['severity'], $result['score'], $additionalNames);
             }
         }
 
@@ -168,7 +171,7 @@ class DynamicKYTService
                 'risk_assessment_id' => $riskData['risk_id'],
                 'category' => 'KYT',
                 'level' => $severity,
-                'name' => $customer->social_denomination,
+                'name' => $type,
                 'score' => $score,
             ]
         );

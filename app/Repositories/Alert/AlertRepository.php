@@ -217,12 +217,10 @@ class AlertRepository extends AbstractRepository
                 'coletiveEntity' => $this->coletiveEntityTransation($data),
 
                 'by_type' => $this->countByField('type', [
-                   "Aumento abrupto e injustificado do capital seguro entre apólices" => 'HighCapitalIncrease',
-                    "Resgate ou cancelamento da apólice antes de 12 meses" => 'EarlyRedemptionDetected',
+                    "Aumento abrupto e injustificado do capital seguro entre apólices" => 'HighCapitalIncrease',
+                    "Cancelamento, resgate e substituição rápidas de apólices" => 'PolicyLifecycleAbuse',
                     "Prémio elevado incompatível com o risco segurado" => 'HighPremiumLowRisk',
-                    "Subscrição de múltiplas apólices de curta duração" => 'PolicyChurn',
-                    "Cancelamentos frequentes de Apólices num curto Período" => 'RepeatedReplacementOrCancellation',
-                    "Substituição rápida de apólices" => 'QuickPolicyReplacementDetected',
+                    "Subscrição de múltiplas apólices de curta duração" => 'MultipleShortPolicies',
                     "Pagamentos de prémios por terceiros sem relação clara com o segurado" => 'ThirdPartyPayments',
                     "Mudanças frequentes de beneficiários sem justificação aparente" => 'FrequentBeneficiaryChanges',
                     "Apólices com beneficiários ou pagamentos de jurisdições de alto risco" => 'HighRiskGeography',
