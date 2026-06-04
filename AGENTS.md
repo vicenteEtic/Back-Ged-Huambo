@@ -30,6 +30,11 @@ Replace hardcoded KYT rules with a dynamic DB-driven system, fix MaxAttemptsExce
 | `app/Services/KYT/Rules/MultipleShortPoliciesHandler.php` | Handler | Date window between first/last policy start + min_events |
 | `config/kyt.php` | Config | Maps rule slugs → handler classes |
 | `database/seeders/KytRuleSeeder.php` | Seeder | Seeds 16 rule rows (8 slugs × 2 entity types) |
+| `app/Repositories/KYT/KytRuleRepository.php` | Repository | CRUD KytRule com gestão de products (createMany, delete+recreate) |
+| `app/Services/KYT/KytRuleService.php` | Service | Service layer para KytRule |
+| `app/Http/Requests/KYT/KytRuleRequest.php` | Request | Validação de todos os campos + products.* |
+| `app/Http/Controllers/KYT/KytRuleController.php` | Controller | store/update com FormRequest tipado |
+| `routes/kyt/kyt_rules.php` | Routes | Rotas REST para KytRule |
 | `app/Jobs/ProcessCustomerPoliciesJob.php` | Job | Switched from `KYTService` to `DynamicKYTService` |
 | `app/Jobs/ProcessCustomerDataJob.php` | Job | `chunkById(500)`, `$tries=10` |
 | `app/Jobs/DispatchCustomerJobsJob.php` | Job | Cursor pagination instead of OFFSET chunk |
@@ -44,6 +49,15 @@ Replace hardcoded KYT rules with a dynamic DB-driven system, fix MaxAttemptsExce
 'multiple_short_policies'      => MultipleShortPoliciesHandler
 ```
 DefaultRuleHandler is used for: `high_premium_low_risk`, `high_risk_geography`.
+
+### API CRUD (KytRule)
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/api/v1/kyt/rules` | GET | Listar regras (com paginação/filtros) |
+| `/api/v1/kyt/rules` | POST | Criar regra (com products opcional) |
+| `/api/v1/kyt/rules/{id}` | GET | Mostrar regra + produtos |
+| `/api/v1/kyt/rules/{id}` | PUT | Atualizar regra (substitui products se enviado) |
+| `/api/v1/kyt/rules/{id}` | DELETE | Remover regra |
 
 ### Fixed Issues
 - `chunk()` with OFFSET → cursor pagination (DispatchCustomerJobsJob)
@@ -66,10 +80,14 @@ DefaultRuleHandler is used for: `high_premium_low_risk`, `high_risk_geography`.
 ## Next Steps on Server
 1. `git pull origin develop`
 2. `docker exec keepcomply-QA-php php artisan db:seed --class=KytRuleSeeder`
-3. `docker exec keepcomply-QA-php supervisorctl restart laravel-worker`
+3. `docker exec keepcomply-QA-php composer dump-autoload`
+4. `docker exec keepcomply-QA-php supervisorctl restart laravel-worker`
 
 ## Key Files
 - `app/Services/KYT/DynamicKYTService.php` — main engine
 - `config/kyt.php` — handler registration
 - `database/seeders/KytRuleSeeder.php` — rule definitions + products
 - `app/Services/KYT/Rules/*.php` — individual rule handlers
+- `app/Repositories/KYT/KytRuleRepository.php` — CRUD regras + produtos
+- `app/Http/Controllers/KYT/KytRuleController.php` — API endpoints
+- `app/Http/Requests/KYT/KytRuleRequest.php` — validação dos payloads
