@@ -507,17 +507,16 @@ class KYTE2ETest extends TestCase
             ],
         ];
 
-        $changes = [];
+        $beneficiaries = [];
         for ($i = 0; $i < 3; $i++) {
-            $changes[] = [
+            $beneficiaries[] = [
                 'numero_apolice' => $polNum,
-                'tipo_alteracao' => 'ALTERAÇÃO DE BENEFICIÁRIO',
-                'motivo_alteracao' => 'Alteração de beneficiário sem justificação',
-                'data_alteracao' => (clone $baseDate)->addDays($i * 30)->format('Y-m-d'),
+                'nome_beneficiario' => 'MARIA DOS SANTOS',
+                'data_atualizacao_beneficiario' => (clone $baseDate)->addDays($i * 30)->format('Y-m-d'),
             ];
         }
 
-        $this->kytService->runAllChecksMemory($customer, $policies, $changes);
+        $this->kytService->runAllChecksMemory($customer, $policies, [], [], [], $beneficiaries);
 
         $alert = Alert::where('entity_id', $customer->id)
             ->where('type', 'Alterações frequentes de beneficiários')
@@ -547,17 +546,16 @@ class KYTE2ETest extends TestCase
             ],
         ];
 
-        $changes = [];
+        $beneficiaries = [];
         for ($i = 0; $i < 2; $i++) {
-            $changes[] = [
+            $beneficiaries[] = [
                 'numero_apolice' => $polNum,
-                'tipo_alteracao' => 'ALTERAÇÃO DE BENEFICIÁRIO',
-                'motivo_alteracao' => 'Alteração de beneficiário',
-                'data_alteracao' => (clone $baseDate)->addDays($i * 30)->format('Y-m-d'),
+                'nome_beneficiario' => 'JOAO SILVA',
+                'data_atualizacao_beneficiario' => (clone $baseDate)->addDays($i * 30)->format('Y-m-d'),
             ];
         }
 
-        $this->kytService->runAllChecksMemory($customer, $policies, $changes);
+        $this->kytService->runAllChecksMemory($customer, $policies, [], [], [], $beneficiaries);
 
         $alert = Alert::where('entity_id', $customer->id)
             ->where('type', 'Alterações frequentes de beneficiários')
@@ -566,15 +564,15 @@ class KYTE2ETest extends TestCase
         $this->assertNotNull($alert, 'Alerta de alterações frequentes de beneficiários (colectiva) não foi criado');
     }
 
-    public function test_frequent_beneficiary_changes_justified(): void
+    public function test_frequent_beneficiary_changes_insufficient(): void
     {
         $customer = Entities::create([
             'entity_type' => TypeEntity::SINGULAR->value,
-            'customer_number' => 'KYT-E2E-BEN-JUS-01',
+            'customer_number' => 'KYT-E2E-BEN-INS-01',
         ]);
 
         $baseDate = now()->subDays(90);
-        $polNum = 'POL-BEN-JUS-001';
+        $polNum = 'POL-BEN-INS-001';
 
         $policies = [
             [
@@ -587,34 +585,21 @@ class KYTE2ETest extends TestCase
             ],
         ];
 
-        $changes = [
+        $beneficiaries = [
             [
                 'numero_apolice' => $polNum,
-                'tipo_alteracao' => 'ALTERAÇÃO DE BENEFICIÁRIO',
-                'motivo_alteracao' => 'Casamento',
-                'data_alteracao' => (clone $baseDate)->addDays(10)->format('Y-m-d'),
-            ],
-            [
-                'numero_apolice' => $polNum,
-                'tipo_alteracao' => 'ALTERAÇÃO DE BENEFICIÁRIO',
-                'motivo_alteracao' => 'Nascimento',
-                'data_alteracao' => (clone $baseDate)->addDays(20)->format('Y-m-d'),
-            ],
-            [
-                'numero_apolice' => $polNum,
-                'tipo_alteracao' => 'ALTERAÇÃO DE BENEFICIÁRIO',
-                'motivo_alteracao' => 'Herança',
-                'data_alteracao' => (clone $baseDate)->addDays(30)->format('Y-m-d'),
+                'nome_beneficiario' => 'MARIA DOS SANTOS',
+                'data_atualizacao_beneficiario' => (clone $baseDate)->format('Y-m-d'),
             ],
         ];
 
-        $this->kytService->runAllChecksMemory($customer, $policies, $changes);
+        $this->kytService->runAllChecksMemory($customer, $policies, [], [], [], $beneficiaries);
 
         $alert = Alert::where('entity_id', $customer->id)
             ->where('type', 'Alterações frequentes de beneficiários')
             ->first();
 
-        $this->assertNull($alert, 'Alerta criado para alterações justificadas');
+        $this->assertNull($alert, 'Alerta criado sem eventos suficientes');
     }
 
     public function test_high_risk_geography_individual(): void

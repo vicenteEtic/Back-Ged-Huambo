@@ -20,7 +20,6 @@ class FrequentBeneficiaryChangesHandler implements RuleHandler
     ): array
     {
         $policies = $this->normalize($policies);
-        $changes = $this->normalize($changes);
         $beneficiaries = $this->normalize($beneficiaries);
 
         $relevant = $rule->relevantProducts();
@@ -33,12 +32,6 @@ class FrequentBeneficiaryChangesHandler implements RuleHandler
         $maxDays = $rule->max_days ?? 180;
 
         $beneficiaryEvents = $this->buildBeneficiaryEvents($beneficiaries, $relevantPolicyNums, $policies);
-
-        $beneficiaryChangeTypes = ['ALTERAÇÃO DE BENEFICIÁRIO', 'ALTERACAO DE BENEFICIARIO', 'INCLUSÃO DE BENEFICIÁRIO', 'INCLUSAO DE BENEFICIARIO', 'EXCLUSÃO DE BENEFICIÁRIO', 'EXCLUSAO DE BENEFICIARIO', 'SUBSTITUIÇÃO DE BENEFICIÁRIO', 'SUBSTITUICAO DE BENEFICIARIO', 'ALTERAÇÃO DE ACTA', 'ALTERACAO DE ACTA'];
-
-        if (count($beneficiaryEvents) < $minChanges) {
-            $beneficiaryEvents = $this->buildChangeEvents($changes, $relevantPolicyNums, $policies, $beneficiaries, $beneficiaryChangeTypes);
-        }
 
         if (count($beneficiaryEvents) < $minChanges) return [];
 
@@ -134,61 +127,6 @@ class FrequentBeneficiaryChangesHandler implements RuleHandler
         return $events;
     }
 
-    private function buildChangeEvents(array $changes, array $relevantPolicyNums, array $policies, array $beneficiaries, array $beneficiaryChangeTypes): array
-    {
-        $justifiedMotives = ['herança', 'casamento', 'divórcio', 'nascimento', 'óbito', 'falecimento', 'alteração familiar'];
-
-        $beneficiaryMap = [];
-        foreach ($beneficiaries as $b) {
-            $bPolNum = $b['numero_apolice'] ?? null;
-            $bName = $b['nome_beneficiario'] ?? '';
-            if ($bPolNum && $bName) {
-                $beneficiaryMap[$bPolNum][] = $bName;
-            }
-        }
-
-        $events = [];
-        foreach ($changes as $change) {
-            $polNum = $change['numero_apolice'] ?? null;
-            if (!$polNum || !in_array($polNum, $relevantPolicyNums)) continue;
-
-            $changeType = strtoupper(trim($change['tipo_alteracao'] ?? ''));
-            if (!in_array($changeType, $beneficiaryChangeTypes)) continue;
-
-            $changeDate = $this->safeDate($change['data_alteracao'] ?? $change['created_at'] ?? null);
-            if (!$changeDate) continue;
-
-            $motive = strtolower(trim($change['motivo_alteracao'] ?? ''));
-            if (in_array($motive, $justifiedMotives)) continue;
-
-            $product = '';
-            foreach ($policies as $p) {
-                if ($p['numero_apolice'] === $polNum) {
-                    $product = $p['descricao_produto'];
-                    break;
-                }
-            }
-
-            $bNames = array_unique($beneficiaryMap[$polNum] ?? []);
-
-            if (empty($bNames)) {
-                $extracted = $this->extractBeneficiaryNames($change['motivo_alteracao'] ?? '');
-                if (!empty($extracted)) {
-                    $bNames = $extracted;
-                }
-            }
-
-            $events[] = [
-                'date' => $changeDate,
-                'polNum' => $polNum,
-                'product' => $product,
-                'beneficiaries' => $bNames,
-            ];
-        }
-
-        return $events;
-    }
-
     private function collectPolicyNums(array $policies, array $relevant, array $excluded): array
     {
         $nums = [];
@@ -224,56 +162,4 @@ class FrequentBeneficiaryChangesHandler implements RuleHandler
             : 'Singular';
     }
 
-    private function extractBeneficiaryNames(string $motive): array
-    {
-        if (empty($motive)) return [];
-        $upper = strtoupper(trim($motive));
-
-        if (preg_match('/PARA\s+(.+?)$/u', $upper, $m)) {
-            $name = trim(preg_replace('/[\.\s]+$/', '', $m[1]));
-            return [$name];
-        }
-        if (preg_match('/NOVO\s+BENEFICI[ÁA]RIO:?\s+(.+?)$/u', $upper, $m)) {
-            $name = trim(preg_replace('/[\.\s]+$/', '', $m[1]));
-            return [$name];
-        }
-        if (preg_match('/INCLUS[ÃA]O\s+(?:DE\s+)?BENEFICI[ÁA]RIO:?\s+(.+?)$/u', $upper, $m)) {
-            $name = trim(preg_replace('/[\.\s]+$/', '', $m[1]));
-            return [$name];
-        }
-
-        if (preg_match('/DE:\s*(.+?)\s+(?:PARA|POR)\s+(.+?)$/u', $upper, $m)) {
-            $newName = trim(preg_replace('/[\.\s]+$/', '', $m[2]));
-            if (strlen($newName) > 3) {
-                return [$newName];
-            }
-        }
-
-        if (preg_match('/SUBSTITUI[ÇC][ÃA]O\s+(?:DE\s+)?BENEFICI[ÁA]RIO[:\s]+(.+?)\s+POR\s+(.+?)$/u', $upper, $m)) {
-            $newName = trim(preg_replace('/[\.\s]+$/', '', $m[2]));
-            if (strlen($newName) > 3) {
-                return [$newName];
-            }
-        }
-
-        if (preg_match('/INCLUS[ÃA]O\s+DO\s+BENEFICI[ÁA]RIO[:\s]+(.+?)$/u', $upper, $m)) {
-            $name = trim(preg_replace('/[\.\s]+$/', '', $m[1]));
-            return [$name];
-        }
-
-        if (preg_match('/ALTERA[ÇC][ÃA]O\s+DE\s+BENEFICI[ÁA]RIO\s+DE\s+(.+?)\s+PARA\s+(.+?)$/u', $upper, $m)) {
-            $newName = trim(preg_replace('/[\.\s]+$/', '', $m[2]));
-            if (strlen($newName) > 3) {
-                return [$newName];
-            }
-        }
-
-        if (preg_match('/BENEF(?:ICI[ÁA]RIO)?[:\s]+(.+?)$/u', $upper, $m)) {
-            $name = trim(preg_replace('/[\.\s]+$/', '', $m[1]));
-            if (strlen($name) > 3 && !in_array(strtolower($name), ['alterado', 'incluido', 'removido', 'incluído', 'excluído', 'excluido'])) {
-                return [$name];
-            }
-        }
-        return [];
-    }
 }
