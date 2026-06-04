@@ -12,6 +12,7 @@ use App\Models\Entities\RiskAssessment;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
+use App\Services\KYT\PepSanctionCheckService;
 
 class DynamicKYTService
 {
@@ -41,6 +42,12 @@ class DynamicKYTService
 
         $rules = $this->loadActiveRules();
 
+        $pepService = app(PepSanctionCheckService::class);
+        $additionalNames = array_merge(
+            $pepService->extractPayerNames($receipts),
+            $pepService->extractBeneficiaryNames($beneficiaries)
+        );
+
         foreach ($rules as $rule) {
             if ($rule->entity_type !== 'both' && $rule->entity_type !== $customerType) continue;
 
@@ -57,7 +64,7 @@ class DynamicKYTService
             );
 
             foreach ($results as $result) {
-                $this->createAlert($customer, $result['name'], $result['description'], $result['severity'], $result['score']);
+                $this->createAlert($customer, $result['name'], $result['description'], $result['severity'], $result['score'], $additionalNames);
             }
         }
 
@@ -124,19 +131,40 @@ class DynamicKYTService
         string $type,
         string $description,
         string $severity,
-        int $score
+        int $score,
+        array $additionalNames = []
     ): void
     {
         $riskData = $this->riskAssessment($customer);
+
+        $pepService = app(PepSanctionCheckService::class);
+
+        $namesToCheck = [$customer->social_denomination];
+        foreach ($additionalNames as $n) {
+            $n = trim($n ?? '');
+            if (!empty($n)) $namesToCheck[] = $n;
+        }
+        $namesToCheck = array_unique(array_filter($namesToCheck));
+        $namesToCheck = array_values($namesToCheck);
+
+        $findings = $pepService->checkMultiple($namesToCheck);
+
+        $finalDescription = $description;
+        $alertPriority = $riskData['alert_priority'];
+
+        if (!empty($findings)) {
+            $finalDescription .= $pepService->buildDescriptionSuffix($findings);
+            $alertPriority = true;
+        }
 
         $alert = Alert::updateOrCreate(
             [
                 'entity_id' => $customer->id,
                 'type' => $type,
-                'description' => $description,
+                'description' => $finalDescription,
             ],
             [
-                'alert_priority' => $riskData['alert_priority'],
+                'alert_priority' => $alertPriority,
                 'risk_assessment_id' => $riskData['risk_id'],
                 'category' => 'KYT',
                 'level' => $severity,
@@ -149,7 +177,7 @@ class DynamicKYTService
             SendGrupoAlertEmailJob::dispatch($alert->id, config('app.url'))->onQueue('high');
             Log::warning("ALERTA {$type}", [
                 'cliente' => $customer->customer_number,
-                'descricao' => $description,
+                'descricao' => $finalDescription,
             ]);
         }
     }
