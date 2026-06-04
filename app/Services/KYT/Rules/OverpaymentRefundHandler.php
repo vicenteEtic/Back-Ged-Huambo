@@ -90,7 +90,7 @@ class OverpaymentRefundHandler implements RuleHandler
             $hasThirdParty = collect($items)->contains('isThirdParty', true);
             $totalActualPaid = array_sum(array_column($items, 'actualPaid'));
 
-            $policyList = implode(', ', array_map(fn($i) => $i['polNum'], $items));
+            $policyList = $product . ': ' . implode(', ', array_map(fn($i) => $i['polNum'], $items));
 
             $entityLabel = $this->entityLabel($customer);
 

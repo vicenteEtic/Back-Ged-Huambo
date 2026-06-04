@@ -105,7 +105,7 @@ class PepSanctionCheckService
                 $parts[] = $listInfo;
             }
             $lists = implode(' e ', $parts);
-            $lines[] = "⚠️ \"{$f['name']}\" encontrado em {$lists}";
+            $lines[] = "\"{$f['name']}\" encontrado em {$lists}";
         }
 
         return "\n\n" . implode("\n", $lines);

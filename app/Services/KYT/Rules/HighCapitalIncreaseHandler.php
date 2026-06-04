@@ -87,7 +87,7 @@ class HighCapitalIncreaseHandler implements RuleHandler
 
             $entityLabel = $this->entityLabel($customer);
 
-            $policiesList = implode("\n", array_map(fn($pair) => sprintf(
+            $policiesList = "Produto: {$product}\n" . implode("\n", array_map(fn($pair) => sprintf(
                 "  - %s | Capital: %s | +%.2f%% em %d dias",
                 $pair['policy'],
                 $this->formatMoney($pair['capital']),
