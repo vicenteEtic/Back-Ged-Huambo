@@ -144,7 +144,9 @@ class PolicyLifecycleAbuseHandler implements RuleHandler
             $num = $p['numero_apolice'] ?? 'N/A';
             $prod = $p['descricao_produto'] ?? 'N/A';
             $prem = $this->formatMoney($p['premium_total'] ?? 0);
-            $lines[] = "{$num} ({$prod}) - {$prem}";
+            $inicio = $p['data_inicio'] ?? 'N/A';
+            $fim = $p['data_fim'] ?? 'N/A';
+            $lines[] = "{$num} ({$prod}) - {$prem} | Início: {$inicio} | Fim: {$fim}";
         }
         return implode("\n", $lines);
     }
