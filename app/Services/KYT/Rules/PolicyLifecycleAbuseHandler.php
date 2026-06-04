@@ -43,7 +43,7 @@ class PolicyLifecycleAbuseHandler implements RuleHandler
         $events = [];
         foreach ($filtered as $p) {
             $inicio = $this->safeDate($p['data_inicio'] ?? null);
-            $fim = $this->safeDate($p['data_fim'] ?? null);
+            $fim = $this->safeDate($p['data_anulacao'] ?? $p['data_fim'] ?? null);
             if (!$inicio || !$fim) continue;
 
             $estado = $p['estado_apolice'] ?? '';
@@ -145,8 +145,8 @@ class PolicyLifecycleAbuseHandler implements RuleHandler
             $prod = $p['descricao_produto'] ?? 'N/A';
             $prem = $this->formatMoney($p['premium_total'] ?? 0);
             $inicio = $p['data_inicio'] ?? 'N/A';
-            $fim = $p['data_fim'] ?? 'N/A';
-            $lines[] = "{$num} ({$prod}) - {$prem} | Início: {$inicio} | Fim: {$fim}";
+            $anulacao = $p['data_anulacao'] ?? $p['data_fim'] ?? 'N/A';
+            $lines[] = "{$num} ({$prod}) - {$prem} | Início: {$inicio} | Cancelamento: {$anulacao}";
         }
         return implode("\n", $lines);
     }
