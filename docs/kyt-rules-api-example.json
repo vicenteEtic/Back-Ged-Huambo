@@ -1,0 +1,33 @@
+{
+  "slug": "high_premium_low_risk",
+  "name": "Prémio Alto / Baixo Risco",
+  "entity_type": "individual",
+  "threshold_field": "total_premium",
+  "threshold_value": 50000,
+  "min_events": 3,
+  "max_days": 90,
+  "score_base": 30,
+  "score_increments": [10, 20, 30],
+  "severity": "Alto",
+  "description_template": "Cliente {customer} apresenta {total} eventos com prémios elevados nos últimos {window_days} dias",
+  "interpretation_aml": "Potencial risco de branqueamento de capitais devido a prémios elevados sem justificação aparente",
+  "extra_params": {
+    "max_ratio": 1.5,
+    "min_premium": 1000
+  },
+  "is_active": true,
+  "products": [
+    {
+      "product_name": "VIDA RISCO",
+      "type": "relevant"
+    },
+    {
+      "product_name": "VIDA CRÉDITO",
+      "type": "relevant"
+    },
+    {
+      "product_name": "VIAGEM",
+      "type": "excluded"
+    }
+  ]
+}
