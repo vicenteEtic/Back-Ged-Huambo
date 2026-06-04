@@ -184,9 +184,36 @@ class FrequentBeneficiaryChangesHandler implements RuleHandler
             $name = trim(preg_replace('/[\.\s]+$/', '', $m[1]));
             return [$name];
         }
-        if (preg_match('/BENEFICI[ÁA]RIO:?\s+(.+?)$/u', $upper, $m)) {
+
+        if (preg_match('/DE:\s*(.+?)\s+(?:PARA|POR)\s+(.+?)$/u', $upper, $m)) {
+            $newName = trim(preg_replace('/[\.\s]+$/', '', $m[2]));
+            if (strlen($newName) > 3) {
+                return [$newName];
+            }
+        }
+
+        if (preg_match('/SUBSTITUI[ÇC][ÃA]O\s+(?:DE\s+)?BENEFICI[ÁA]RIO[:\s]+(.+?)\s+POR\s+(.+?)$/u', $upper, $m)) {
+            $newName = trim(preg_replace('/[\.\s]+$/', '', $m[2]));
+            if (strlen($newName) > 3) {
+                return [$newName];
+            }
+        }
+
+        if (preg_match('/INCLUS[ÃA]O\s+DO\s+BENEFICI[ÁA]RIO[:\s]+(.+?)$/u', $upper, $m)) {
             $name = trim(preg_replace('/[\.\s]+$/', '', $m[1]));
-            if (strlen($name) > 3 && !in_array(strtolower($name), ['alterado', 'incluido', 'removido'])) {
+            return [$name];
+        }
+
+        if (preg_match('/ALTERA[ÇC][ÃA]O\s+DE\s+BENEFICI[ÁA]RIO\s+DE\s+(.+?)\s+PARA\s+(.+?)$/u', $upper, $m)) {
+            $newName = trim(preg_replace('/[\.\s]+$/', '', $m[2]));
+            if (strlen($newName) > 3) {
+                return [$newName];
+            }
+        }
+
+        if (preg_match('/BENEF(?:ICI[ÁA]RIO)?[:\s]+(.+?)$/u', $upper, $m)) {
+            $name = trim(preg_replace('/[\.\s]+$/', '', $m[1]));
+            if (strlen($name) > 3 && !in_array(strtolower($name), ['alterado', 'incluido', 'removido', 'incluído', 'excluído', 'excluido'])) {
                 return [$name];
             }
         }
