@@ -45,6 +45,8 @@ class PepSanctionCheckService
                 'sanction_list_id' => null,
                 'pep_datasets' => null,
                 'sanction_datasets' => null,
+                'pep_country' => null,
+                'sanction_country' => null,
             ];
 
             try {
@@ -56,6 +58,7 @@ class PepSanctionCheckService
                     $result['pep_score'] = $first['score'] ?? null;
                     $result['pep_list_id'] = $first['id'] ?? null;
                     $result['pep_datasets'] = $first['datasets'] ?? null;
+                    $result['pep_country'] = $first['country'] ?? null;
                 }
             } catch (\Throwable $e) {
                 Log::warning("PEP API error for {$name}: " . $e->getMessage());
@@ -70,6 +73,7 @@ class PepSanctionCheckService
                     $result['sanction_score'] = $first['score'] ?? null;
                     $result['sanction_list_id'] = $first['id'] ?? null;
                     $result['sanction_datasets'] = $first['datasets'] ?? null;
+                    $result['sanction_country'] = $first['country'] ?? null;
                 }
             } catch (\Throwable $e) {
                 Log::warning("Sanction API error for {$name}: " . $e->getMessage());
@@ -88,22 +92,16 @@ class PepSanctionCheckService
             $parts = [];
             if ($f['pep']) {
                 $listInfo = 'lista PEP';
-                if ($f['pep_list_id']) {
-                    $listInfo .= ' (ID: ' . $f['pep_list_id'] . ')';
-                }
-                if ($f['pep_datasets']) {
-                    $listInfo .= ' [' . $f['pep_datasets'] . ']';
-                }
+                if ($f['pep_list_id']) $listInfo .= ' (ID: ' . $f['pep_list_id'] . ')';
+                if ($f['pep_country']) $listInfo .= ' - ' . $f['pep_country'];
+                if ($f['pep_datasets']) $listInfo .= ' [' . $f['pep_datasets'] . ']';
                 $parts[] = $listInfo;
             }
             if ($f['sanction']) {
                 $listInfo = 'lista de Sanções';
-                if ($f['sanction_list_id']) {
-                    $listInfo .= ' (ID: ' . $f['sanction_list_id'] . ')';
-                }
-                if ($f['sanction_datasets']) {
-                    $listInfo .= ' [' . $f['sanction_datasets'] . ']';
-                }
+                if ($f['sanction_list_id']) $listInfo .= ' (ID: ' . $f['sanction_list_id'] . ')';
+                if ($f['sanction_country']) $listInfo .= ' - ' . $f['sanction_country'];
+                if ($f['sanction_datasets']) $listInfo .= ' [' . $f['sanction_datasets'] . ']';
                 $parts[] = $listInfo;
             }
             $lists = implode(' e ', $parts);
