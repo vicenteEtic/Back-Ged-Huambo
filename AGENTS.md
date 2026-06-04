@@ -76,6 +76,8 @@ DefaultRuleHandler is used for: `high_premium_low_risk`, `high_risk_geography`.
 
 ### Known Issues (not yet fixed)
 - **Beneficiary names not appearing** in `frequent_beneficiary_changes` alerts for some customers: `beneficiarios_staging` table has no matching records for those policy numbers, and `motivo_alteracao` extraction from `policy_changes_staging` also fails to find names. Need to investigate actual `motivo_alteracao` values.
+- **`indicador_pagamento_terceiro`** está `NULL` nos recibos reais (não preenchido no CSV de origem). O handler foi ajustado para usar também `nome_pagador` como evidência de pagamento por terceiro.
+- Apólice `0100153594` do alerta não tem recibos na BD — alerta disparou apenas pelo limiar de prémio (675k > 300k).
 
 ## Next Steps on Server
 1. `git pull origin develop`
