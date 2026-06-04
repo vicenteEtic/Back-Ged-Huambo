@@ -1,0 +1,64 @@
+version: "3"
+
+dotenv: [".env"]
+
+vars:
+  PHP_CONTAINER: "keepcomply-php"
+
+tasks:
+  deploy:
+    desc: "Fluxo completo: Git pull e refresh total do cache"
+    cmds:
+      - git pull
+      - task: migrate
+      - task: optimize
+      - echo "🚀 App atualizado com sucesso!"
+
+  composer-dump:
+    desc: "Otimiza o carregamento de classes do PHP"
+    cmds:
+      - docker exec -it {{.PHP_CONTAINER}} composer dump-autoload --optimize
+
+  optimize:
+    desc: "Limpa e reconstrói todos os caches do Laravel"
+    cmds:
+      - docker exec -it {{.PHP_CONTAINER}} php artisan optimize:clear
+      - docker exec -it {{.PHP_CONTAINER}} php artisan config:cache
+      - docker exec -it {{.PHP_CONTAINER}} php artisan route:cache
+      - docker exec -it {{.PHP_CONTAINER}} php artisan view:cache
+      - echo "✨ Caches otimizados."
+
+  up:
+    desc: "Sobe os containers em background"
+    cmds:
+      - docker-compose up -d
+
+  down:
+    desc: "Para os containers"
+    cmds:
+      - docker-compose down
+
+  bash:
+    desc: "Acesso rápido ao terminal do PHP"
+    cmds:
+      - docker exec -it {{.PHP_CONTAINER}} bash
+
+  migrate:
+    desc: "Executa as migrações do banco de dados"
+    cmds:
+      - docker exec -it {{.PHP_CONTAINER}} php artisan migrate --force
+
+  create-user:
+    desc: "Cria um novo usuário de forma interativa"
+    cmds:
+      - docker exec -it {{.PHP_CONTAINER}} php artisan user:create-interactive
+
+  logs:
+    desc: "Logs do container PHP (Docker logs)"
+    cmds:
+      - docker logs -f {{.PHP_CONTAINER}}
+
+  logs-laravel:
+    desc: "Monitora o log do Laravel em tempo real"
+    cmds:
+      - docker exec -it {{.PHP_CONTAINER}} tail -f storage/logs/laravel.log
