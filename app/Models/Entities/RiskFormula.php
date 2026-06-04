@@ -13,7 +13,7 @@ class RiskFormula extends Model
     protected $fillable = [
         'name',
         'identification_capacity',
-        'form_establishment',
+        // 'form_establishment',
         'category',
         'status_residence',
         'profession',

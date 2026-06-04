@@ -24,7 +24,7 @@ class RiskFormulaRequest extends BaseFormRequest
         return [
             'name' => 'required',
             'identification_capacity' => 'required',
-            'form_establishment' => 'required',
+            // 'form_establishment' => 'required',
             'category' => 'nullable',
             'status_residence' => 'required',
             'profession' => 'required',

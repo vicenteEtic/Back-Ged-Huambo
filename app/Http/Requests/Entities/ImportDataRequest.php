@@ -29,7 +29,7 @@ class ImportDataRequest extends BaseFormRequest
             '*.country_residence'    => ['nullable'],
             '*.customer_number'      => ['nullable'],
             '*.entity_type'          => ['nullable'],
-            '*.form_establishment'   => ['nullable'],
+            // '*.form_establishment'   => ['nullable'],
             '*.nationality'          => ['nullable'],
             '*.pep'                  => ['nullable'],
             '*.policy_number'        => ['nullable'],

@@ -280,14 +280,14 @@ class RiskAssessmentService extends AbstractService
             'nationality'      => $riskAssessment->nationlity?->score ?? 0,
             'countryResidence' => $riskAssessment->countryResidence?->score ?? 0,
             'statusResidence'  => ($riskAssessment->status_residence == StatusResidence::RESIDENTE) ? 1 : 3,
-            'formEstablishment' => ($riskAssessment->form_establishment == FormEstablishment::PRESENCIAL) ? 1 : 3,
+            // 'formEstablishment' => ($riskAssessment->form_establishment == FormEstablishment::PRESENCIAL) ? 1 : 3,
             'processesReported' => $riskAssessment->processesReportedAuthoritie ? 3 : 0,
             'santion'          => $riskAssessment->santion ? 1000 : 0,
             'pep'              => $riskAssessment->pep ? 3 : 0,
             'channel'          => $riskAssessment->channel?->score ?? 0,
             'category'         => $riskAssessment->category?->score ?? 0, // <- seguro agora
             'totalRiskProduct' => (float)($totalRiskProduct ?? 0),
-            'form_establishment' => $riskAssessment->form_establishment?->score ?? 0,
+            // 'form_establishment' => $riskAssessment->form_establishment?->score ?? 0,
         ];
 
         $safeFormula = fn($field) => (float)($formula->$field ?? 0);
@@ -311,7 +311,7 @@ class RiskAssessmentService extends AbstractService
             // Entidade Coletiva
             $total += $baseScores['identification']   * $safeFormula('identification_capacity');
             $total += $baseScores['category']         * $safeFormula('category');
-            $total += $baseScores['form_establishment'] * $safeFormula('profession');
+            // $total += $baseScores['form_establishment'] * $safeFormula('profession');
             $total += $baseScores['countryResidence'] * $safeFormula('country_residence');
             $total += $baseScores['statusResidence']  * $safeFormula('status_residence');
             $total += $safeBeneficial                 * $safeFormula('beneficialOwner');

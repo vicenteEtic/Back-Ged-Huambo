@@ -74,7 +74,7 @@ class RiskAssessmentResource extends JsonResource
             ? [
                 "name" => $data['risk_formula']['name'] ?? null,
                 "identification_capacity" => $data['risk_formula']['identification_capacity'] ?? null,
-                "form_establishment" => $data['risk_formula']['form_establishment'] ?? null,
+                // "form_establishment" => $data['risk_formula']['form_establishment'] ?? null,
                 "category" => $data['risk_formula']['category'] ?? null,
                 "status_residence" => $data['risk_formula']['status_residence'] ?? null,
                 "profession" => $data['risk_formula']['profession'] ?? null,
