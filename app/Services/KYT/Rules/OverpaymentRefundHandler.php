@@ -47,7 +47,7 @@ class OverpaymentRefundHandler implements RuleHandler
 
         $grouped = [];
         foreach ($refunds as $refund) {
-            $polNum = $refund['Numero_Apolice'] ?? $refund['numero_apolice'] ?? null;
+            $polNum = $refund['Numero_Apolice'] ?? $refund['numero_apolice'] ?? $refund['n_apolice'] ?? null;
             if (!$polNum || !in_array($polNum, $relevantPolicyNums)) continue;
 
             $policy = $policyMap[$polNum] ?? null;

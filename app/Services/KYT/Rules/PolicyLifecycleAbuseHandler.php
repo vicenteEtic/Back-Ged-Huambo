@@ -51,7 +51,7 @@ class PolicyLifecycleAbuseHandler implements RuleHandler
 
             $temResgate = false;
             foreach ($refunds as $r) {
-                if (($r['Numero_Apolice'] ?? $r['numero_apolice'] ?? null) === $p['numero_apolice']) {
+                if (($r['Numero_Apolice'] ?? $r['numero_apolice'] ?? $r['n_apolice'] ?? null) === $p['numero_apolice']) {
                     $temResgate = true;
                     break;
                 }
