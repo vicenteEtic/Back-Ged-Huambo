@@ -38,6 +38,16 @@ class AlertRepository extends AbstractRepository
             ];
         }
 
+        // Converte [['column' => 'x', 'dir' => 'y']] para ['x' => 'y']
+        // Formato que o FilterHandler::applyOrder() espera
+        if (isset($orderByParams[0]['column'])) {
+            $normalized = [];
+            foreach ($orderByParams as $param) {
+                $normalized[$param['column']] = $param['dir'] ?? 'asc';
+            }
+            $orderByParams = $normalized;
+        }
+
         return parent::index($paginate, $filterParams, $orderByParams, $relationships);
     }
 
