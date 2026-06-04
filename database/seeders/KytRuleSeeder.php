@@ -249,7 +249,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['events_above_min' => 10, 'half_window' => 5],
                 'severity' => 'Alto',
-                'description_template' => "MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO\nCliente: {customer} | Tipo: {entity_type}\n\nApólices detetadas: {events} (limiar: {min_events})\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO\nCliente: {customer} | Tipo: {entity_type}\n\nApólices detetadas: {events} (limiar: {min_events})\nJanela temporal: {window_days} / {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Subscrição de múltiplas apólices de curta duração para fragmentar valores elevados.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL TEMPORARIO', 'type' => 'relevant'],
@@ -276,7 +276,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['events_above_min' => 10, 'half_window' => 5],
                 'severity' => 'Alto',
-                'description_template' => "MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO\nCliente: {customer} | Tipo: {entity_type}\n\nApólices detetadas: {events} (limiar: {min_events})\nJanela temporal: {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "MÚLTIPLAS APÓLICES DE CURTA DURAÇÃO\nCliente: {customer} | Tipo: {entity_type}\n\nApólices detetadas: {events} (limiar: {min_events})\nJanela temporal: {window_days} / {max_days} dias\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Subscrição de múltiplas apólices colectivas de curta duração para fragmentar valores elevados.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO', 'type' => 'relevant'],
@@ -305,7 +305,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['above_double_threshold' => 10, 'has_receipts_third_party' => 10],
                 'severity' => 'Alto',
-                'description_template' => "PAGAMENTOS DE PRÉMIOS POR TERCEIROS\nCliente: {customer} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nLimiar aplicado: {threshold}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "PAGAMENTOS DE PRÉMIOS POR TERCEIROS\nCliente: {customer} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nLimiar aplicado: {threshold}\nApólices envolvidas:\n{products}{payer_details}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Pagamentos de prémios realizados por terceiros sem relação clara com o segurado.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL', 'type' => 'relevant'],
@@ -331,7 +331,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 20,
                 'score_increments' => ['above_double_threshold' => 10, 'has_receipts_third_party' => 10],
                 'severity' => 'Alto',
-                'description_template' => "PAGAMENTOS DE PRÉMIOS POR TERCEIROS\nCliente: {customer} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nLimiar aplicado: {threshold}\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "PAGAMENTOS DE PRÉMIOS POR TERCEIROS\nCliente: {customer} | Tipo: {entity_type}\n\nPrémio total detetado: {total}\nLimiar aplicado: {threshold}\nApólices envolvidas:\n{products}{payer_details}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Pagamentos de prémios realizados por terceiros sem relação clara com a entidade.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO', 'type' => 'relevant'],

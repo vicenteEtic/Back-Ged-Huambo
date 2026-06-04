@@ -35,6 +35,9 @@ class DefaultRuleHandler implements RuleHandler
 
         if ($totalValue < ($rule->threshold_value ?? 0)) return [];
 
+        $minEvents = $rule->min_events ?? 0;
+        if ($minEvents > 0 && count($filtered) < $minEvents) return [];
+
         $entityLabel = $this->entityLabel($customer);
 
         $score = $rule->score_base;
@@ -94,6 +97,7 @@ class DefaultRuleHandler implements RuleHandler
             '{min_events}' => (string)($rule->min_events ?? 0),
             '{window_days}' => '',
             '{max_days}' => (string)($rule->max_days ?? 0),
+            '{payer_details}' => '',
             '{interpretation}' => $rule->interpretation_aml,
         ];
 
