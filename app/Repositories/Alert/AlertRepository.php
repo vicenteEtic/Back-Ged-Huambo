@@ -29,6 +29,18 @@ class AlertRepository extends AbstractRepository
         $this->alertUserRepository = $alertUserRepository;
     }
 
+    public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
+    {
+        if (!$orderByParams) {
+            $orderByParams = [
+                ['column' => 'alert_priority', 'dir' => 'desc'],
+                ['column' => 'created_at', 'dir' => 'desc'],
+            ];
+        }
+
+        return parent::index($paginate, $filterParams, $orderByParams, $relationships);
+    }
+
     // ============================================
     // DATE HANDLER (UNIFICADO E SEGURO)
     // ============================================
