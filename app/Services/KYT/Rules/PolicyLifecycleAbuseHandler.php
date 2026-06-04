@@ -146,7 +146,10 @@ class PolicyLifecycleAbuseHandler implements RuleHandler
             $prem = $this->formatMoney($p['premium_total'] ?? 0);
             $inicio = $p['data_inicio'] ?? 'N/A';
             $anulacao = $p['data_anulacao'] ?? $p['data_fim'] ?? 'N/A';
-            $lines[] = "{$num} ({$prod}) - {$prem} | Início: {$inicio} | Cancelamento: {$anulacao}";
+            $motivo = $p['motivo_anulacao'] ?? '';
+            $submotivo = $p['submotivo_anulacao'] ?? '';
+            $motivoStr = $motivo ? " | Motivo: {$motivo}" . ($submotivo ? " ({$submotivo})" : '') : '';
+            $lines[] = "{$num} ({$prod}) - {$prem} | Início: {$inicio} | Cancelamento: {$anulacao}{$motivoStr}";
         }
         return implode("\n", $lines);
     }
