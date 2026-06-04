@@ -219,7 +219,7 @@ class AlertRepository extends AbstractRepository
                 'by_type' => $this->countByField('type', [
                     "Aumento abrupto e injustificado do capital seguro entre apólices" => 'HighCapitalIncrease',
                     "Cancelamento, resgate e substituição rápidas de apólices" => 'PolicyLifecycleAbuse',
-                    "Prémio elevado incompatível com o risco segurado" => 'HighPremiumLowRisk',
+                    "Prémio elevado incompatível com a capacidade financeira do cliente" => 'HighPremiumLowRisk',
                     "Subscrição de múltiplas apólices de curta duração" => 'MultipleShortPolicies',
                     "Pagamentos de prémios por terceiros sem relação clara com o segurado" => 'ThirdPartyPayments',
                     "Mudanças frequentes de beneficiários sem justificação aparente" => 'FrequentBeneficiaryChanges',

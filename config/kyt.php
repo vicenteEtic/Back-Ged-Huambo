@@ -34,7 +34,7 @@ return [
     'scenario_names' => [
         'high_capital_increase'         => 'Aumento abrupto e injustificado do capital seguro entre apólices',
         'policy_lifecycle_abuse'        => 'Cancelamento, resgate e substituição rápidas de apólices',
-        'high_premium_low_risk'         => 'Prémio elevado incompatível com o risco segurado',
+        'high_premium_low_risk'         => 'Prémio elevado incompatível com a capacidade financeira do cliente',
         'multiple_short_policies'       => 'Subscrição de múltiplas apólices de curta duração',
         'third_party_payments'          => 'Pagamentos de prémios por terceiros sem relação clara com o segurado',
         'frequent_beneficiary_changes'  => 'Mudanças frequentes de beneficiários sem justificação aparente',
