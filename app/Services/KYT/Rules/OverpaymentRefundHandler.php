@@ -57,13 +57,13 @@ class OverpaymentRefundHandler implements RuleHandler
             $premium = (float)($policy['premium_total'] ?? 0);
             if ($premium <= 0) continue;
 
-            $refundAmount = (float)($refund['Valor_Estorno'] ?? $refund['valor_estorno'] ?? 0);
+            $refundAmount = (float)($refund['valor_total'] ?? $refund['Valor_Total'] ?? 0);
             if ($refundAmount <= 0) continue;
 
             $overpaymentRatio = $refundAmount / $premium;
             if ($overpaymentRatio < $minRatio) continue;
 
-            $beneficiaryName = $refund['Nome_Beneficiario'] ?? $refund['nome_beneficiario'] ?? '';
+            $beneficiaryName = $refund['nome_beneficiario'] ?? $refund['Nome_Beneficiario'] ?? '';
             $isThirdParty = !empty($beneficiaryName)
                 && strtolower(trim($beneficiaryName)) !== strtolower(trim($customer->social_denomination ?? ''));
 
