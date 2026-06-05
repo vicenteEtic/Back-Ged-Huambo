@@ -18,7 +18,7 @@ class ImportEntitiesSolJob implements ShouldQueue
 
     public function __construct()
     {
-        $this->filePath = database_path('seeders/csv/Apolices_Emitidas.csv');
+        $this->filePath = database_path('seeders/csv/Sol_Apolices_Emitidas.csv');
     }
 
     public function handle(): void
