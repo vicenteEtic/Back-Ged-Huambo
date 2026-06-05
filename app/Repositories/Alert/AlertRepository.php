@@ -8,6 +8,7 @@ use App\Repositories\Alert\AlertUser\AlertUserRepository;
 use App\Services\Log\LogService;
 use App\Services\User\UserService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class AlertRepository extends AbstractRepository
@@ -29,10 +30,16 @@ class AlertRepository extends AbstractRepository
         $this->alertUserRepository = $alertUserRepository;
     }
 
-    public function updateStatus(array $data, int $id)
+    public function updateStatus(array $data, int $id): Alert
     {
+        $data['assigned_to'] = Auth::user()->id;
+        if ($data['is_active'] == 0) $data['alert_priority'] = 0;
+
         $alert = $this->model->findOrFail($id);
         $alert->update($data);
+
+        $this->alertUserRepository->updateAlertUser(["is_read" => $data['is_active']], $id);
+
         return $alert;
     }
 
@@ -233,9 +240,12 @@ class AlertRepository extends AbstractRepository
                 'particularEntity' => $this->particularEntityTransation($data),
                 'coletiveEntity' => $this->coletiveEntityTransation($data),
 
-                'by_type' => $this->countByField('type', collect(config('kyt.scenario_names'))->mapWithKeys(fn ($name, $slug) => [
-                    $name => collect(explode('_', $slug))->map(fn ($p) => ucfirst($p))->implode(''),
-                ])->all(), $data),
+                'by_type' => collect($this->countByField('type', collect(config('kyt.scenario_names'))->mapWithKeys(fn ($name, $slug) => [
+                    $name => $name,
+                ])->all(), $data))->map(fn ($count, $name) => [
+                    'name' => $name,
+                    'value' => $count,
+                ])->values()->all(),
             ],
 
             'ParticularEntity' => $this->particularEntity($data),
