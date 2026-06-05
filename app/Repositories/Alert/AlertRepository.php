@@ -29,6 +29,13 @@ class AlertRepository extends AbstractRepository
         $this->alertUserRepository = $alertUserRepository;
     }
 
+    public function updateStatus(array $data, int $id)
+    {
+        $alert = $this->model->findOrFail($id);
+        $alert->update($data);
+        return $alert;
+    }
+
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
     {
         if (!$orderByParams) {
