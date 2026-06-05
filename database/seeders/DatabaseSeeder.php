@@ -15,13 +15,10 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
 
-          $this->call(KytRulesSeeder::class);
-          $this->call(KytRuleSeeder::class);
-           User::factory(2)->create();
-           //    $this->call(NossaSegurosSeeder::class);
-           $this->call(PermissionSeed::class);
-           $this->call(SolSeguros::class);
-
-         $this->call(RiskFormulaSeed::class);
+        $this->call(KytRulesSeeder::class);
+        $this->call(KytRuleSeeder::class);
+        User::factory(2)->create();
+        $this->call(PermissionSeed::class);
+        $this->call(RiskFormulaSeed::class);
     }
 }
