@@ -43,7 +43,12 @@ class AlertRepository extends AbstractRepository
         return $alert;
     }
 
- 
+    public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
+    {
+        $orderByParams = ['created_at' => 'desc'];
+
+        return parent::index($paginate, $filterParams, $orderByParams, $relationships);
+    }
 
     // ============================================
     // DATE HANDLER (UNIFICADO E SEGURO)
