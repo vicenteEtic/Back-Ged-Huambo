@@ -43,25 +43,7 @@ class AlertRepository extends AbstractRepository
         return $alert;
     }
 
-    public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
-    {
-        if (!$orderByParams) {
-            $orderByParams = [
-                ['column' => 'alert_priority', 'dir' => 'desc'],
-                ['column' => 'created_at', 'dir' => 'desc'],
-            ];
-        }
-
-        if (isset($orderByParams[0]['column'])) {
-            $normalized = [];
-            foreach ($orderByParams as $param) {
-                $normalized[$param['column']] = $param['dir'] ?? 'asc';
-            }
-            $orderByParams = $normalized;
-        }
-
-        return parent::index($paginate, $filterParams, $orderByParams, $relationships);
-    }
+ 
 
     // ============================================
     // DATE HANDLER (UNIFICADO E SEGURO)
