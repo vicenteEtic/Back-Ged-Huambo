@@ -226,16 +226,9 @@ class AlertRepository extends AbstractRepository
                 'particularEntity' => $this->particularEntityTransation($data),
                 'coletiveEntity' => $this->coletiveEntityTransation($data),
 
-                'by_type' => $this->countByField('type', [
-                    "Aumento abrupto e injustificado do capital seguro entre apólices" => 'HighCapitalIncrease',
-                    "Cancelamento, resgate e substituição rápidas de apólices" => 'PolicyLifecycleAbuse',
-                    "Prémio elevado incompatível com a capacidade financeira do cliente" => 'HighPremiumLowRisk',
-                    "Subscrição de múltiplas apólices de curta duração" => 'MultipleShortPolicies',
-                    "Pagamentos de prémios por terceiros sem relação clara com o segurado" => 'ThirdPartyPayments',
-                    "Mudanças frequentes de beneficiários sem justificação aparente" => 'FrequentBeneficiaryChanges',
-                    "Apólices com beneficiários ou pagamentos de jurisdições de alto risco" => 'HighRiskGeography',
-                    "Sobrepagamento de prémios seguido de pedido de reembolso para terceiros" => 'OverpaymentRefund',
-                ], $data),
+                'by_type' => $this->countByField('type', collect(config('kyt.scenario_names'))->mapWithKeys(fn ($name, $slug) => [
+                    $name => collect(explode('_', $slug))->map(fn ($p) => ucfirst($p))->implode(''),
+                ])->all(), $data),
             ],
 
             'ParticularEntity' => $this->particularEntity($data),
