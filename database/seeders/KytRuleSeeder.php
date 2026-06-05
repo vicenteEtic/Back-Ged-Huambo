@@ -128,7 +128,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 15,
                 'score_increments' => ['above_double_threshold' => 5, 'events_above_min' => 5, 'half_window' => 5],
                 'severity' => 'Alto',
-                'description_template' => "ABUSO DO CICLO DE VIDA DAS APÓLICES\nCliente: {customer} | Tipo: {entity_type}\n\nEventos detetados: {events}\nJanela temporal: {max_days} dias\nPrémio total: {total} (limiar: {threshold})\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "CANCELAMENTO, RESGATE E SUBSTITUIÇÃO RÁPIDAS DE APÓLICES\nCliente: {customer} | Tipo: {entity_type}\n\nEventos detetados: {events}\nJanela temporal: {max_days} dias\nPrémio total: {total} (limiar: {threshold})\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Cancelamentos, resgates e substituição rápidos de apólices. Múltiplos resgates ou cancelamentos com substituição reiterados.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) INDIVIDUAL', 'type' => 'relevant'],
@@ -147,7 +147,7 @@ class KytRuleSeeder extends Seeder
             ],
             [
                 'slug' => 'policy_lifecycle_abuse',
-                'name' => 'Abuso do ciclo de vida das apólices',
+                'name' => 'Cancelamento, resgate e substituição rápidas de apólices',
                 'entity_type' => 'collective',
                 'threshold_field' => 'premium_total',
                 'threshold_value' => 10_000_000.00,
@@ -156,7 +156,7 @@ class KytRuleSeeder extends Seeder
                 'score_base' => 15,
                 'score_increments' => ['above_double_threshold' => 5, 'events_above_min' => 5, 'half_window' => 5],
                 'severity' => 'Alto',
-                'description_template' => "ABUSO DO CICLO DE VIDA DAS APÓLICES\nCliente: {customer} | Tipo: {entity_type}\n\nEventos detetados: {events}\nJanela temporal: {max_days} dias\nPrémio total: {total} (limiar: {threshold})\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
+                'description_template' => "CANCELAMENTO, RESGATE E SUBSTITUIÇÃO RÁPIDAS DE APÓLICES\nCliente: {customer} | Tipo: {entity_type}\n\nEventos detetados: {events}\nJanela temporal: {max_days} dias\nPrémio total: {total} (limiar: {threshold})\nApólices envolvidas:\n{products}\n\nInterpretação AML:\n{interpretation}",
                 'interpretation_aml' => 'Cancelamentos, resgates e substituição rápidos de apólices colectivas. Múltiplos resgates ou cancelamentos com substituição reiterados.',
                 'products' => [
                     ['name' => 'SEGURO DE POUPANÇA VIDA (SPV) GRUPO FECHADO', 'type' => 'relevant'],
