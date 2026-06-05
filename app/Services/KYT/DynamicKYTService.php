@@ -171,7 +171,7 @@ class DynamicKYTService
                 'risk_assessment_id' => $riskData['risk_id'],
                 'category' => 'KYT',
                 'level' => $severity,
-                'name' => $type,
+                'name' => $customer->social_denomination,
                 'score' => $score,
             ]
         );
