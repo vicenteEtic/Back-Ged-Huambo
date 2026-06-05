@@ -45,7 +45,7 @@ class KytRuleRepository extends AbstractRepository
         return $rule->fresh()->load('products');
     }
 
-    public function show(int|string $id)
+    public function show(int|string $id, array $relationships = [])
     {
         return $this->model->with('products')->findOrFail($id);
     }
