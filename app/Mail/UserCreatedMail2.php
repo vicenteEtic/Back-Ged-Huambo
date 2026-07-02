@@ -22,7 +22,7 @@ class UserCreatedMail extends Mailable
     public function build()
     {
         return $this
-            ->from('SV001064@nossaseguros.ao', 'Keepcomply')
+            ->from(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME'))
             ->subject('Seu código de autenticação')
             ->view('emails.user_created');
     }

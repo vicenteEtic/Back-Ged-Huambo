@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <title>Código de Autenticação - Keepcomply</title>
+    <title>Código de Autenticação</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -71,29 +71,9 @@
 <body>
     <div class="container">
 
-        @php
-            use Illuminate\Support\Str;
-            $currentHost = request()->getHost();
-        @endphp
-
-        {{-- Logo --}}
-        @if(in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
-            <div class="logo">
-                <img src="https://listapeps.keepcomply.co.ao/Keepcompay.png" alt="Keepcomply">
-            </div>
-        @elseif(Str::contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
-            <div class="logo">
-                <img src="https://www.nossaseguros.ao/assets/img/logo.png" alt="Nossa Seguros">
-            </div>
-        @elseif(Str::contains($currentHost, ['globalseguros.keepcomply.co.ao', '172.17.100.14', '172.17.100.12:8083']))
-            <div class="logo">
-                <img src="https://listapeps.keepcomply.co.ao/global.png" alt="Global Seguros">
-            </div>
-        @elseif(Str::contains($currentHost, ['fortaleza.keepcomply.co.ao', '102.219.127.167']))
-            <div class="logo">
-                <img src="https://listapeps.keepcomply.co.ao/fortaze.png" alt="Fortaleza Seguros">
-            </div>
-        @endif
+        <div class="logo">
+            <img src="{{ config('app.logo_url') }}" alt="{{ config('app.name') }}" style="max-width: 180px;">
+        </div>
 
         <p>Olá, {{ $user->first_name }}</p>
         <p>Seu código de autenticação é:</p>
@@ -103,19 +83,7 @@
 
         {{-- Footer --}}
         <div class="footer">
-            <p>&copy; {{ date('Y') }}
-            @if(in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
-               Keepcomply — Todos os direitos reservados.
-            @elseif(Str::contains($currentHost, 'nossa-denuncias.keepcomply.co.ao'))
-                Nossa Seguros — Todos os direitos reservados.
-            @elseif(Str::contains($currentHost, ['globalseguros.keepcomply.co.ao', '172.17.100.14', '172.17.100.14:8083']))
-                Global Seguros — Todos os direitos reservados.
-            @elseif(Str::contains($currentHost, ['fortaleza.keepcomply.co.ao', '102.219.127.167']))
-                Fortaleza Seguros — Todos os direitos reservados.
-            @else
-                Keepcomply — Todos os direitos reservados.
-            @endif
-            </p>
+            <p>&copy; {{ date('Y') }} {{ config('app.name') }} — Todos os direitos reservados.</p>
         </div>
     </div>
 </body>

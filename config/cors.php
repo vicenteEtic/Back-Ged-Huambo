@@ -16,17 +16,7 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        'https://fortaleza.keepcomply.co.ao',
-        'http://aml.nossaseguros.ao',
-        'https://qualidade-aml.nossaseguros.ao',
-        'http://172.18.100.10:8081',
-        'http://172.18.100.21:8081',
-        'https://172.18.100.10:1025',
-        'https://172.18.100.20:1025',
-        'https://172.18.100.21:1025',
-        'http://172.17.100.11:1025',
-        'http://172.17.100.12:8081',
-        'http://localhost:5173'
+        env('APP_URL'),
     ],
 
     'allowed_origins_patterns' => [],

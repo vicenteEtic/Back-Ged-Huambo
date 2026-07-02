@@ -81,9 +81,9 @@ DefaultRuleHandler is used for: `high_premium_low_risk`, `high_risk_geography`.
 
 ## Next Steps on Server
 1. `git pull origin develop`
-2. `docker exec keepcomply-QA-php php artisan db:seed --class=KytRuleSeeder`
-3. `docker exec keepcomply-QA-php composer dump-autoload`
-4. `docker exec keepcomply-QA-php supervisorctl restart laravel-worker`
+2. `docker exec app-php php artisan db:seed --class=KytRuleSeeder`
+3. `docker exec app-php composer dump-autoload`
+4. `docker exec app-php supervisorctl restart laravel-worker`
 
 ## Key Files
 - `app/Services/KYT/DynamicKYTService.php` — main engine

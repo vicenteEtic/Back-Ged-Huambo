@@ -23,8 +23,5 @@ storage/**/app/public/logos-cache
 /coverage
 .env
 docker-compose.yml
-apolices_vida.csv
-clientes.csv
-Apolices_nvida.csv
-Alteracoes_Apolices.csv
+*.csv
 KYTServicecopy.php

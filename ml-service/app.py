@@ -11,11 +11,11 @@ HIGH_RISK_COUNTRIES = set()  # {"Afeganistão", "África do Sul", ...}
 
 # Configuração MySQL
 DB_CONFIG = {
-    "host": "setupNossaSeguros-mysql",
+    "host": "mysql",
     "port": 3306,
     "user": "user",
-    "password": "nf@204",
-    "db": "nf",
+    "password": "app_password",
+    "db": "app_db",
     "cursorclass": pymysql.cursors.DictCursor
 }
 

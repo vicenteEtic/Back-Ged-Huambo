@@ -83,16 +83,16 @@ O CSV de origem não preenche a coluna `INDICADOR_PAGAMENTO_TERCEIRO`. O handler
 git pull origin develop
 
 # 2. Rodar migration (se houver novas)
-docker exec keepcomply-QA-php php artisan migrate
+docker exec app-php php artisan migrate
 
 # 3. Seed das regras KYT (idempotente)
-docker exec keepcomply-QA-php php artisan db:seed --class=KytRuleSeeder
+docker exec app-php php artisan db:seed --class=KytRuleSeeder
 
 # 4. Atualizar autoload
-docker exec keepcomply-QA-php composer dump-autoload
+docker exec app-php composer dump-autoload
 
 # 5. Restart worker
-docker exec keepcomply-QA-php supervisorctl restart laravel-worker
+docker exec app-php supervisorctl restart laravel-worker
 ```
 
 ---

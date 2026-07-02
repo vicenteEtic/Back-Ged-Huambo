@@ -52,10 +52,6 @@
     <div class="container">
 
         @php
-            // ⚠️ $host deve ser passado via Job/Mailable
-            $currentHost = $host ?? (request()->has('host') ? request()->getHost() : 'default.host');
-
-            // Define $type de forma segura
             $type = match($alert->list) {
                 'PEP List world' => 'PEP',
                 'Sanctions List' => 'Sanctions List',
@@ -66,23 +62,9 @@
         @endphp
 
         {{-- LOGO --}}
-        @if (in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
-            <div class="logo">
-                <img src="https://listapeps.keepcomply.co.ao/Keepcompay.png" alt="Keepcomply">
-            </div>
-        @elseif(strpos($currentHost, 'nossa-denuncias.keepcomply.co.ao') !== false)
-            <div class="logo">
-                <img src="https://www.nossaseguros.ao/assets/img/logo.png" alt="Nossa Seguros">
-            </div>
-        @elseif(in_array($currentHost, ['globalseguros.keepcomply.co.ao', '172.17.100.14', '172.17.100.14:8083']))
-            <div class="logo">
-                <img src="https://listapeps.keepcomply.co.ao/global.png" alt="Global Seguros">
-            </div>
-        @elseif(in_array($currentHost, ['fortaleza.keepcomply.co.ao', '102.219.127.167']))
-            <div class="logo">
-                <img src="https://listapeps.keepcomply.co.ao/fortaze.png" alt="Fortaleza Seguros">
-            </div>
-        @endif
+        <div class="logo">
+            <img src="{{ config('app.logo_url') }}" alt="{{ config('app.name') }}" style="max-width: 180px;">
+        </div>
 
         <p>Olá, <span class="highlight">{{ $user->first_name ?? 'Usuário' }}</span></p>
 
@@ -97,20 +79,7 @@
         <p><strong>Data:</strong> {{ \Carbon\Carbon::parse($alert->created_at)->format('d/m/Y H:i') }}</p>
 
         <div class="footer">
-            <p>&copy; {{ date('Y') }}
-                @if (in_array($currentHost, ['localhost', '127.0.0.1', '172.17.100.11', '172.17.100.12']))
-                    Keepcomply
-                @elseif(strpos($currentHost, 'nossa-denuncias.keepcomply.co.ao') !== false)
-                    Nossa Seguros
-                @elseif(strpos($currentHost, 'globalseguros') !== false)
-                    Global Seguros
-                @elseif(strpos($currentHost, 'fortaleza') !== false)
-                    Fortaleza Seguros
-                @else
-                    Sistema
-                @endif
-                — Todos os direitos reservados.
-            </p>
+            <p>&copy; {{ date('Y') }} {{ config('app.name') }} — Todos os direitos reservados.</p>
         </div>
 
     </div>

@@ -3,7 +3,7 @@ version: "3"
 dotenv: [".env"]
 
 vars:
-  PHP_CONTAINER: "keepcomply-php"
+  PHP_CONTAINER: "app-php"
 
 tasks:
   deploy:
