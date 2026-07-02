@@ -13,6 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         \App\Console\Commands\MakeFullModuleCommand::class,
+        \App\Console\Commands\RH\CheckBirthdaysCommand::class,
+        \App\Console\Commands\RH\CheckDocumentExpiryCommand::class,
     ])
     ->withMiddleware(function (Middleware $middleware) {
         // 1. Configuração de Proxy para Docker
