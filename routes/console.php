@@ -10,3 +10,5 @@ Artisan::command('inspire', function () {
 
 Schedule::command('rh:check-birthdays')->dailyAt('08:00');
 Schedule::command('rh:check-document-expiry --days=30')->dailyAt('06:00');
+Schedule::command('rh:check-pending-evaluations')->weeklyOn(1, '09:00'); // Mondays
+Schedule::command('rh:check-pending-leaves')->dailyAt('07:00');

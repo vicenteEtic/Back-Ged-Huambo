@@ -3,10 +3,12 @@
 namespace App\Services\RH\Leave;
 
 use App\Models\RH\Leave\LeaveRequest;
+use App\Notifications\RH\LeaveRequestSubmittedNotification;
 use App\Repositories\RH\Leave\LeaveRequestRepository;
 use App\Services\AbstractService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class LeaveRequestService extends AbstractService
 {
@@ -35,8 +37,27 @@ class LeaveRequestService extends AbstractService
             $leaveRequest = $this->store($data);
             $this->planService->syncBalance($data['leave_plan_id']);
 
+            // Notify department head
+            $this->notifyApprovers($leaveRequest);
+
             return $leaveRequest->fresh(['employee', 'leaveType', 'leavePlan', 'approvals']);
         });
+    }
+
+    private function notifyApprovers(LeaveRequest $leaveRequest): void
+    {
+        $employee = $leaveRequest->employee;
+        $department = $employee->department;
+
+        $notifiables = [];
+
+        if ($department && $department->responsible) {
+            $notifiables[] = $department->responsible;
+        }
+
+        if (!empty($notifiables)) {
+            Notification::send($notifiables, new LeaveRequestSubmittedNotification($leaveRequest));
+        }
     }
 
     public function calculateBusinessDays(string $start, string $end): int

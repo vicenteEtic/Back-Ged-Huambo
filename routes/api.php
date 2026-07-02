@@ -38,6 +38,7 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::prefix('retirement')->group(base_path('routes/rh/retirement.php'));
         Route::prefix('portal')->group(base_path('routes/rh/portal.php'));
         Route::prefix('archive')->group(base_path('routes/rh/archive.php'));
+        Route::prefix('dashboard')->group(base_path('routes/rh/reports.php'));
     });
 });
 Route::post('/auth/login', [UserController::class, 'login']);

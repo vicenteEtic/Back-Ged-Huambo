@@ -5,10 +5,14 @@ namespace App\Services\RH\Career;
 use App\Models\RH\Career\ProgressionApproval;
 use App\Models\RH\Career\ProgressionRequest;
 use App\Models\RH\Employee\Employee;
+use App\Notifications\RH\ProgressionApprovedNotification;
+use App\Notifications\RH\ProgressionRejectedNotification;
+use App\Notifications\RH\ProgressionSubmittedNotification;
 use App\Repositories\RH\Career\ProgressionRequestRepository;
 use App\Services\AbstractService;
 use Exception;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class ProgressionRequestService extends AbstractService
 {
@@ -21,7 +25,7 @@ class ProgressionRequestService extends AbstractService
 
     public function submit(array $data): ProgressionRequest
     {
-        $employee = Employee::findOrFail($data['employee_id']);
+        $employee = Employee::with('department.responsible')->findOrFail($data['employee_id']);
         $rule = null;
 
         if (!empty($data['rule_id'])) {
@@ -38,15 +42,27 @@ class ProgressionRequestService extends AbstractService
         $data['status'] = 'pending';
         $data['requested_by'] ??= auth()->id();
 
-        return $this->store($data);
+        $progression = $this->store($data);
+
+        // Notify department head
+        if ($employee->department?->responsible) {
+            Notification::send($employee->department->responsible, new ProgressionSubmittedNotification($progression));
+        }
+
+        return $progression;
     }
 
     public function approve(int $id, int $approverId, ?string $comment = null): ProgressionRequest
     {
         return DB::transaction(function () use ($id, $approverId, $comment) {
-            $request = ProgressionRequest::with('approvals')->findOrFail($id);
+            $request = ProgressionRequest::with('approvals', 'employee.user')->findOrFail($id);
             $this->createOrUpdateApproval($request, $approverId, 'approved', $comment);
             $this->updateRequestStatus($request);
+
+            if ($request->employee?->user) {
+                Notification::send($request->employee->user, new ProgressionApprovedNotification($request->fresh()));
+            }
+
             return $request->fresh(['approvals']);
         });
     }
@@ -54,9 +70,14 @@ class ProgressionRequestService extends AbstractService
     public function reject(int $id, int $approverId, string $comment): ProgressionRequest
     {
         return DB::transaction(function () use ($id, $approverId, $comment) {
-            $request = ProgressionRequest::findOrFail($id);
+            $request = ProgressionRequest::with('employee.user')->findOrFail($id);
             $this->createOrUpdateApproval($request, $approverId, 'rejected', $comment);
             $request->update(['status' => 'rejected']);
+
+            if ($request->employee?->user) {
+                Notification::send($request->employee->user, new ProgressionRejectedNotification($request->fresh(), $comment));
+            }
+
             return $request->fresh(['approvals']);
         });
     }

@@ -4,9 +4,12 @@ namespace App\Services\RH\Leave;
 
 use App\Models\RH\Leave\LeaveApproval;
 use App\Models\RH\Leave\LeaveRequest;
+use App\Notifications\RH\LeaveRequestApprovedNotification;
+use App\Notifications\RH\LeaveRequestRejectedNotification;
 use App\Repositories\RH\Leave\LeaveApprovalRepository;
 use App\Services\AbstractService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class LeaveApprovalService extends AbstractService
 {
@@ -20,9 +23,14 @@ class LeaveApprovalService extends AbstractService
     public function approve(int $leaveRequestId, int $approverId, ?string $comment = null): LeaveRequest
     {
         return DB::transaction(function () use ($leaveRequestId, $approverId, $comment) {
-            $request = LeaveRequest::with('approvals')->findOrFail($leaveRequestId);
+            $request = LeaveRequest::with('approvals', 'employee.user')->findOrFail($leaveRequestId);
             $this->createOrUpdateApproval($request->id, $approverId, 'approved', $comment);
             $this->updateRequestStatus($request);
+
+            if ($request->employee?->user) {
+                Notification::send($request->employee->user, new LeaveRequestApprovedNotification($request->fresh()));
+            }
+
             return $request->fresh(['approvals', 'leavePlan']);
         });
     }
@@ -30,12 +38,17 @@ class LeaveApprovalService extends AbstractService
     public function reject(int $leaveRequestId, int $approverId, string $comment): LeaveRequest
     {
         return DB::transaction(function () use ($leaveRequestId, $approverId, $comment) {
-            $request = LeaveRequest::findOrFail($leaveRequestId);
+            $request = LeaveRequest::with('employee.user')->findOrFail($leaveRequestId);
             $this->createOrUpdateApproval($request->id, $approverId, 'rejected', $comment);
             $request->update(['status' => 'rejected']);
             if ($request->leave_plan_id) {
                 $this->planService->syncBalance($request->leave_plan_id);
             }
+
+            if ($request->employee?->user) {
+                Notification::send($request->employee->user, new LeaveRequestRejectedNotification($request->fresh(), $comment));
+            }
+
             return $request->fresh(['approvals', 'leavePlan']);
         });
     }

@@ -247,11 +247,31 @@
 | Pesquisa avançada | `GET /search?q=&type=&status=&confidentiality=` |
 | API | `/api/v1/rh/archive` |
 
+## Dashboard e Relatórios ✅
+| Item | Descrição |
+|------|-----------|
+| `DashboardService` | overview, monthlyBirthdays, leaveSummary, attendanceSummary, documentExpiryAlert, turnover, salaryEvolutionByDepartment |
+| API | `GET /api/v1/rh/dashboard/overview`, `/monthly-birthdays`, `/leave-summary`, `/attendance-summary`, `/document-expiry-alert`, `/turnover`, `/salary-evolution` |
+
+## Notificações (Completas) ✅
+| Notificação | Disparo | Canais |
+|-------------|---------|--------|
+| `LeaveRequestSubmittedNotification` | Submissão de pedido de férias → responsável departamento | mail + database |
+| `LeaveRequestApprovedNotification` | Aprovação de férias → funcionário | mail + database |
+| `LeaveRequestRejectedNotification` | Rejeição de férias → funcionário | mail + database |
+| `ProgressionSubmittedNotification` | Submissão de progressão → responsável departamento | mail + database |
+| `ProgressionApprovedNotification` | Aprovação de progressão → funcionário | mail + database |
+| `ProgressionRejectedNotification` | Rejeição de progressão → funcionário | mail + database |
+| `RetirementProcessNotification` | Actualização de processo de reforma | mail + database |
+| `PerformanceEvaluationNotification` | Avaliação pendente/concluída/feedback | mail + database |
+
 ## Notificações Agendadas ✅
 | Comando | Horário | Descrição |
 |---------|---------|-----------|
 | `rh:check-birthdays` | 08:00 daily | Notifica aniversariantes do dia |
 | `rh:check-document-expiry` | 06:00 daily | Notifica docs a vencer (30 dias) |
+| `rh:check-pending-evaluations` | 09:00 semanal (Seg) | Notifica avaliadores sobre avaliações pendentes |
+| `rh:check-pending-leaves` | 07:00 daily | Alerta pedidos de férias pendentes > 3 dias |
 
 ---
 
