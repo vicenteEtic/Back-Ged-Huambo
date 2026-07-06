@@ -27,13 +27,14 @@ class EmployeeDocumentController extends AbstractController
         DB::beginTransaction();
         try {
             $this->logRequest();
-            $document = $this->service->store($request->validated());
+            $documents = $this->service->store($request->validated());
+            $count = is_array($documents) ? count($documents) : 1;
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Document ' . $document->name . ' created by ' . auth()->user()->first_name
+                customMessage: $count . ' document(s) created by ' . auth()->user()->first_name
             );
             DB::commit();
-            return response()->json($document, Response::HTTP_CREATED);
+            return response()->json($documents, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);

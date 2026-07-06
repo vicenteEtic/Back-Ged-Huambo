@@ -6,6 +6,9 @@ use App\Http\Controllers\RH\Recruitment\ApplicationController;
 use App\Http\Controllers\RH\Recruitment\InterviewController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/', [JobOpeningController::class, 'index'])->name('recruitment.index');
+Route::post('/', [JobOpeningController::class, 'store'])->name('recruitment.store');
+
 Route::prefix('job-openings')->group(function () {
     Route::get('/', [JobOpeningController::class, 'index'])->name('job_opening.index');
     Route::post('/', [JobOpeningController::class, 'store'])->name('job_opening.store');
@@ -37,3 +40,7 @@ Route::prefix('interviews')->group(function () {
     Route::put('{id}', [InterviewController::class, 'update'])->name('interview.update');
     Route::delete('{id}', [InterviewController::class, 'destroy'])->name('interview.destroy');
 });
+
+Route::get('{id}', [JobOpeningController::class, 'show'])->name('recruitment.show');
+Route::put('{id}', [JobOpeningController::class, 'update'])->name('recruitment.update');
+Route::delete('{id}', [JobOpeningController::class, 'destroy'])->name('recruitment.destroy');

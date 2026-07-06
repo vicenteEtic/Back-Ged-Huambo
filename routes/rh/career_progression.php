@@ -4,6 +4,9 @@ use App\Http\Controllers\RH\Career\ProgressionRuleController;
 use App\Http\Controllers\RH\Career\ProgressionRequestController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/', [ProgressionRequestController::class, 'index'])->name('progression.index');
+Route::post('/', [ProgressionRequestController::class, 'store'])->name('progression.store');
+
 Route::prefix('rules')->group(function () {
     Route::get('/', [ProgressionRuleController::class, 'index'])->name('progression_rule.index');
     Route::post('/', [ProgressionRuleController::class, 'store'])->name('progression_rule.store');
@@ -23,3 +26,7 @@ Route::prefix('requests')->group(function () {
     Route::post('{id}/reject', [ProgressionRequestController::class, 'reject'])->name('progression_request.reject');
     Route::post('{id}/execute', [ProgressionRequestController::class, 'execute'])->name('progression_request.execute');
 });
+
+Route::get('{id}', [ProgressionRequestController::class, 'show'])->name('progression.show');
+Route::put('{id}', [ProgressionRequestController::class, 'update'])->name('progression.update');
+Route::delete('{id}', [ProgressionRequestController::class, 'destroy'])->name('progression.destroy');

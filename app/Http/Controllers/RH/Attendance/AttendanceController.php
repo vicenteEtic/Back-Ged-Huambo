@@ -30,9 +30,7 @@ class AttendanceController extends AbstractController
         DB::beginTransaction();
         try {
             $this->logRequest();
-            $attendance = $this->attendanceService->registerCheckIn(
-                $request->employee_id, $request->date, $request->check_in
-            );
+            $attendance = $this->service->store($request->validated());
             $this->logToDatabase(
                 type: 'rh', level: 'info',
                 customMessage: 'Attendance recorded by ' . auth()->user()->first_name

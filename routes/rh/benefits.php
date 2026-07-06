@@ -4,6 +4,9 @@ use App\Http\Controllers\RH\Benefit\BenefitTypeController;
 use App\Http\Controllers\RH\Benefit\EmployeeBenefitController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/', [EmployeeBenefitController::class, 'index'])->name('benefit.index');
+Route::post('/', [EmployeeBenefitController::class, 'store'])->name('benefit.store');
+
 Route::prefix('types')->group(function () {
     Route::get('/', [BenefitTypeController::class, 'index'])->name('benefit_type.index');
     Route::post('/', [BenefitTypeController::class, 'store'])->name('benefit_type.store');
@@ -19,3 +22,7 @@ Route::prefix('employee-benefits')->group(function () {
     Route::put('{id}', [EmployeeBenefitController::class, 'update'])->name('employee_benefit.update');
     Route::delete('{id}', [EmployeeBenefitController::class, 'destroy'])->name('employee_benefit.destroy');
 });
+
+Route::get('{id}', [EmployeeBenefitController::class, 'show'])->name('benefit.show');
+Route::put('{id}', [EmployeeBenefitController::class, 'update'])->name('benefit.update');
+Route::delete('{id}', [EmployeeBenefitController::class, 'destroy'])->name('benefit.destroy');

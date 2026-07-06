@@ -8,6 +8,7 @@ use App\Services\RH\Employee\EmployeeService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -27,7 +28,10 @@ class EmployeeController extends AbstractController
         DB::beginTransaction();
         try {
             $this->logRequest();
-            $employee = $this->service->store($request->validated());
+
+            $data = $request->validated();
+            $data['user_id'] = Auth::user()->id;
+            $employee = $this->service->store($data);
             $this->logToDatabase(
                 type: 'rh',
                 level: 'info',

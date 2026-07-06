@@ -14,7 +14,7 @@ class DisciplinaryRecordRequest extends BaseFormRequest
             'disciplinary_type_id' => ['required', 'exists:disciplinary_types,id'],
             'occurred_at' => ['required', 'date'],
             'description' => ['required', 'string'],
-            'evidence_path' => ['nullable', 'string'],
+            'evidence_path' => ['nullable', 'file', 'max:10240'],
             'status' => ['string', 'max:30'],
             'reported_by' => ['nullable', 'exists:users,id'],
             'resolution' => ['nullable', 'string'],

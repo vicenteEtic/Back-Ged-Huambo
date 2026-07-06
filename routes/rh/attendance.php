@@ -5,6 +5,9 @@ use App\Http\Controllers\RH\Attendance\ShiftAssignmentController;
 use App\Http\Controllers\RH\Attendance\ShiftController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/', [AttendanceController::class, 'index'])->name('attendance.root.index');
+Route::post('/', [AttendanceController::class, 'store'])->name('attendance.root.store');
+
 Route::prefix('shifts')->group(function () {
     Route::get('/', [ShiftController::class, 'index'])->name('shift.index');
     Route::post('/', [ShiftController::class, 'store'])->name('shift.store');
@@ -34,3 +37,7 @@ Route::post('check-out', [AttendanceController::class, 'checkOut'])->name('atten
 Route::post('absence', [AttendanceController::class, 'absence'])->name('attendance.absence');
 Route::post('import-biometric', [AttendanceController::class, 'importBiometric'])->name('attendance.import');
 Route::get('reports/{employee_id}', [AttendanceController::class, 'monthlyReport'])->name('attendance.report');
+
+Route::get('{id}', [AttendanceController::class, 'show'])->name('attendance.root.show');
+Route::put('{id}', [AttendanceController::class, 'update'])->name('attendance.root.update');
+Route::delete('{id}', [AttendanceController::class, 'destroy'])->name('attendance.root.destroy');

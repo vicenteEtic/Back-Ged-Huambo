@@ -6,6 +6,9 @@ use App\Http\Controllers\RH\Leave\LeaveTypeController;
 use App\Http\Controllers\RH\Leave\LeaveRequestController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/', [LeaveRequestController::class, 'index'])->name('leave.index');
+Route::post('/', [LeaveRequestController::class, 'store'])->name('leave.store');
+
 Route::prefix('leave-types')->group(function () {
     Route::get('/', [LeaveTypeController::class, 'index'])->name('leave_type.index');
     Route::post('/', [LeaveTypeController::class, 'store'])->name('leave_type.store');
@@ -39,3 +42,7 @@ Route::prefix('approvals')->group(function () {
 });
 
 Route::get('calendar', [LeavePlanController::class, 'calendar'])->name('leave.calendar');
+
+Route::get('{id}', [LeaveRequestController::class, 'show'])->name('leave.show');
+Route::put('{id}', [LeaveRequestController::class, 'update'])->name('leave.update');
+Route::delete('{id}', [LeaveRequestController::class, 'destroy'])->name('leave.destroy');

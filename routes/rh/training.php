@@ -5,6 +5,9 @@ use App\Http\Controllers\RH\Training\TrainingSessionController;
 use App\Http\Controllers\RH\Training\TrainingEnrollmentController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/', [TrainingCourseController::class, 'index'])->name('training.index');
+Route::post('/', [TrainingCourseController::class, 'store'])->name('training.store');
+
 Route::prefix('courses')->group(function () {
     Route::get('/', [TrainingCourseController::class, 'index'])->name('training_course.index');
     Route::post('/', [TrainingCourseController::class, 'store'])->name('training_course.store');
@@ -28,3 +31,7 @@ Route::prefix('enrollments')->group(function () {
     Route::put('{id}', [TrainingEnrollmentController::class, 'update'])->name('training_enrollment.update');
     Route::delete('{id}', [TrainingEnrollmentController::class, 'destroy'])->name('training_enrollment.destroy');
 });
+
+Route::get('{id}', [TrainingCourseController::class, 'show'])->name('training.show');
+Route::put('{id}', [TrainingCourseController::class, 'update'])->name('training.update');
+Route::delete('{id}', [TrainingCourseController::class, 'destroy'])->name('training.destroy');

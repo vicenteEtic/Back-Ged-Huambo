@@ -11,4 +11,12 @@ class AttendanceRepository extends AbstractRepository
     {
         parent::__construct($model);
     }
+
+    public function store(array $data): Attendance
+    {
+        return $this->model->updateOrCreate(
+            ['employee_id' => $data['employee_id'], 'date' => $data['date']],
+            $data
+        );
+    }
 }

@@ -24,10 +24,5 @@ Route::put('{id}', [UserController::class, 'update'])
     ->name('user.update')
     ->middleware(['can:usuario-edit']);
 
-    Route::put('{id}', [UserController::class, 'update'])
-    ->name('user.update')
-    ->middleware(['can:usuario-edit']);
-
-
 Route::post('/logout', [UserController::class, 'logout']);
 

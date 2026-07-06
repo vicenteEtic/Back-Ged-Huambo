@@ -4,6 +4,9 @@ use App\Http\Controllers\RH\Archive\ArchiveCategoryController;
 use App\Http\Controllers\RH\Archive\ArchiveDocumentController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/', [ArchiveDocumentController::class, 'index'])->name('archive.index');
+Route::post('/', [ArchiveDocumentController::class, 'store'])->name('archive.store');
+
 // === CATEGORIAS ===
 Route::prefix('categories')->group(function () {
     Route::get('/', [ArchiveCategoryController::class, 'index']);
@@ -37,3 +40,7 @@ Route::prefix('documents')->group(function () {
     Route::post('{id}/shares', [ArchiveDocumentController::class, 'storeShare']);
     Route::delete('{id}/shares/{share_id}', [ArchiveDocumentController::class, 'destroyShare']);
 });
+
+Route::get('{id}', [ArchiveDocumentController::class, 'show'])->name('archive.show');
+Route::put('{id}', [ArchiveDocumentController::class, 'update'])->name('archive.update');
+Route::delete('{id}', [ArchiveDocumentController::class, 'destroy'])->name('archive.destroy');

@@ -7,6 +7,9 @@ use App\Http\Controllers\RH\Performance\PerformanceGoalController;
 use App\Http\Controllers\RH\Performance\PerformanceEvaluationController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/', [PerformanceCycleController::class, 'index'])->name('performance.index');
+Route::post('/', [PerformanceCycleController::class, 'store'])->name('performance.store');
+
 Route::prefix('cycles')->group(function () {
     Route::get('/', [PerformanceCycleController::class, 'index'])->name('performance_cycle.index');
     Route::post('/', [PerformanceCycleController::class, 'store'])->name('performance_cycle.store');
@@ -48,3 +51,7 @@ Route::prefix('scores')->group(function () {
     Route::put('{id}', [EvaluationScoreController::class, 'update'])->name('evaluation_score.update');
     Route::delete('{id}', [EvaluationScoreController::class, 'destroy'])->name('evaluation_score.destroy');
 });
+
+Route::get('{id}', [PerformanceCycleController::class, 'show'])->name('performance.show');
+Route::put('{id}', [PerformanceCycleController::class, 'update'])->name('performance.update');
+Route::delete('{id}', [PerformanceCycleController::class, 'destroy'])->name('performance.destroy');

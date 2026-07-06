@@ -11,7 +11,6 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
 
     Route::prefix('user')->group(base_path('routes/user/user.php'));
 
-    Route::prefix('alert')->group(base_path('routes/alert/alert.php'));
     Route::prefix('logs')->group(base_path('routes/logs/logs.php'));
 
     Route::prefix('rh')->group(function () {

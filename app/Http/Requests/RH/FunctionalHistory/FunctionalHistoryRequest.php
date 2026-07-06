@@ -17,8 +17,8 @@ class FunctionalHistoryRequest extends BaseFormRequest
         return [
             'employee_id' => ['required', 'exists:employees,id'],
             'type' => ['required', 'string', 'in:appointment,promotion,progression,transfer,position_change,salary_change,category_change'],
-            'previous_value' => ['nullable', 'json'],
-            'new_value' => ['nullable', 'json'],
+            'previous_value' => ['nullable'],
+            'new_value' => ['nullable'],
             'effective_date' => ['required', 'date'],
             'document_reference' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
