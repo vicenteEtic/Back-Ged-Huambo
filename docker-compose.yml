@@ -47,6 +47,11 @@ services:
       - ged-huambo-network
     ports:
       - '3317:3306'
+    environment:
+      MYSQL_DATABASE: ged
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: user
+      MYSQL_PASSWORD: ged@204
 
   phpmyadmin:
     container_name: ged-huambo-phpmyadmin
@@ -58,6 +63,9 @@ services:
       - ged-huambo-network
     environment:
       PMA_HOST: ged-huambo-mysql
+      PMA_PORT: 3306
+      PMA_USER: user
+      PMA_PASSWORD: ged@204
     depends_on:
       - mysql
 
