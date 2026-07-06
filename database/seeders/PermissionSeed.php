@@ -10,12 +10,8 @@ use App\Models\User\User;
 
 class PermissionSeed extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-
         $role = Role::updateOrCreate(
             ['name' => 'Administrador'],
             [
@@ -25,173 +21,47 @@ class PermissionSeed extends Seeder
         );
 
         $modules = [
+            // Sistema
+            ['name' => 'Usuário', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'Regra', 'operations' => ['show', 'create', 'edit', 'delete']],
 
-            [
-                'name' => 'Usuário',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-
-
-            [
-                'name' => 'Regra',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'Entidades',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'Avaliações',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-            [
-                'name' => 'Importar Avaliações',
-                'operations' => ['show', 'create', 'Export']
-            ],
-
-            [
-                'name' => 'Canais',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-
-
-            [
-                'name' => 'Países',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'Riscos de Produtos',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'Diligências',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'Profissões',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'CAE',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'Perfil',
-                'operations' => ['show', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'Receptores de Alertas',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'Compliance Officer',
-                'operations' => ['show']
-            ],
-
-            [
-                'name' => 'Peps Internos',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'Peps Externos',
-                'operations' => ['show']
-            ],
-
-            [
-                'name' => 'Sanções',
-                'operations' => ['show']
-            ],
-
-            [
-                'name' => 'Transações',
-                'operations' => ['show', 'create', 'Export']
-            ],
-
-            [
-                'name' => 'Capacidades de Identificação',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-            [
-                'name' => 'Formas Jurídicas',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'Histórico Geral',
-                'operations' => ['show', 'Export']
-            ],
-
-            [
-                'name' => 'Alertas',
-                'operations' => ['show', 'Export']
-            ],
-
-            [
-                'name' => 'Ponderadores',
-                'operations' => ['show', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'Regras & Permissões',
-                'operations' => ['show', 'create', 'edit', 'Export']
-            ],
-
-            [
-                'name' => 'Perfil Utilizador',
-                'operations' => ['show', 'edit']
-            ],
-
-            [
-                'name' => 'Painel',
-                'operations' => ['show']
-            ],
-            [
-                'name' => 'Tratar Alerta',
-                'operations' => ['show']
-            ],
-            [
-                'name' => 'Estatística',
-                'operations' => ['show', 'Export']
-            ],
-            [
-                'name' => 'Perfis de Risco',
-                'operations' => ['show', 'Export']
-            ],
-              [
-                'name' => 'Configurações de Transações',
-                'operations' => ['show','edit', 'Export']
-            ],
-
+            // RH
+            ['name' => 'RH Departamentos', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Cargos', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Funcionários', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Documentos', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Férias', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Ponto', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Processamento', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Recrutamento', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Formação', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Desempenho', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Benefícios', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Pedidos Benefícios', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Assistência Médica', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Disciplina', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Histórico Funcional', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Carreira', 'operations' => ['show']],
+            ['name' => 'RH Progressão', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Salários', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Reforma', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Portal', 'operations' => ['show']],
+            ['name' => 'RH Arquivo', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Relatórios', 'operations' => ['show']],
         ];
 
         $operationDescriptions = [
-            'show' => 'Permite listar',
+            'show' => 'Permite visualizar',
             'create' => 'Permite criar',
             'edit' => 'Permite editar',
             'delete' => 'Permite excluir',
-            'Export' => 'Permite Exportar Dados',
         ];
 
         $permissionIds = [];
 
         foreach ($modules as $module) {
-
             foreach ($module['operations'] as $operation) {
-
                 $permissionName = Helper::formatarString($module['name']) . "-$operation";
-
                 $permission = Permission::updateOrCreate(
                     ['name' => $permissionName],
                     [
@@ -200,9 +70,7 @@ class PermissionSeed extends Seeder
                         'is_active' => true,
                     ]
                 );
-
                 $permissionIds[] = $permission->id;
-
                 echo "Permissão {$permission->name} criada ou atualizada.\n";
             }
         }
@@ -212,9 +80,7 @@ class PermissionSeed extends Seeder
         echo "Permissões associadas ao papel {$role->name}.\n";
 
         User::updateOrCreate(
-            [
-                'email' => 'vicentemanueleduardo@gmail.com'
-            ],
+            ['email' => 'vicentemanueleduardo@gmail.com'],
             [
                 'first_name' => 'Administrador',
                 'last_name' => 'Sistema',
@@ -222,7 +88,7 @@ class PermissionSeed extends Seeder
                 'email' => 'vicentemanueleduardo@gmail.com',
                 'password' => bcrypt('12345678'),
                 'role_id' => $role->id,
-                'is_active' => true
+                'is_active' => true,
             ]
         );
 
