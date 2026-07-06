@@ -11,12 +11,12 @@ class PerformanceCycleFactory extends Factory
 
     public function definition(): array
     {
+        $start = fake()->dateTimeThisYear();
         return [
             'name' => 'Ciclo ' . fake()->year() . ' - ' . fake()->randomElement(['Semestral', 'Anual']),
             'code' => strtoupper(fake()->unique()->lexify('CYC???')),
-            'description' => fake()->sentence(),
-            'start_date' => fake()->dateTimeThisYear(),
-            'end_date' => fake()->dateTimeThisYear('+6 months'),
+            'start_date' => $start,
+            'end_date' => fake()->dateTimeBetween($start->format('Y-m-d'), '+6 months'),
             'status' => 'active',
         ];
     }

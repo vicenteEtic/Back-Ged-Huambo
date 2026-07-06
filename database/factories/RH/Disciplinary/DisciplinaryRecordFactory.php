@@ -17,10 +17,10 @@ class DisciplinaryRecordFactory extends Factory
         return [
             'employee_id' => Employee::factory(),
             'disciplinary_type_id' => DisciplinaryType::factory(),
-            'incident_date' => fake()->dateTimeThisYear(),
+            'occurred_at' => fake()->dateTimeThisYear(),
             'description' => fake()->paragraph(),
             'status' => 'pending',
-            'recorded_by' => User::factory(),
+            'reported_by' => User::factory(),
         ];
     }
 }

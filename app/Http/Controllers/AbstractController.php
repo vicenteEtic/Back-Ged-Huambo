@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Auth;
 
 abstract class AbstractController extends Controller
 {
-    protected AbstractService $service;
+    protected mixed $service;
     protected ?string $nameEntity = "Entidade";
     protected ?string $fieldName = "name";
     protected ?string $logType = 'entity';

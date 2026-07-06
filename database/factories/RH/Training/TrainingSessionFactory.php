@@ -14,6 +14,7 @@ class TrainingSessionFactory extends Factory
     {
         return [
             'course_id' => TrainingCourse::factory(),
+            'name' => fake()->sentence(3),
             'start_date' => fake()->dateTimeBetween('now', '+1 month'),
             'end_date' => fake()->dateTimeBetween('+1 month', '+2 months'),
             'location' => fake()->randomElement(['Sala A', 'Sala B', 'Auditório', 'Online']),

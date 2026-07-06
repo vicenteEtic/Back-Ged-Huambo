@@ -18,7 +18,6 @@ class LeavePlanFactory extends Factory
             'total_days_entitled' => 22,
             'days_used' => 0,
             'days_pending' => 0,
-            'days_remaining' => 22,
         ];
     }
 }

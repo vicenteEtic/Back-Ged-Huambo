@@ -13,12 +13,14 @@ class EmployeeBenefitFactory extends Factory
 
     public function definition(): array
     {
+        $start = fake()->dateTimeThisYear();
+
         return [
             'employee_id' => Employee::factory(),
             'benefit_type_id' => BenefitType::factory(),
             'amount' => fake()->randomFloat(2, 5000, 100000),
-            'start_date' => fake()->dateTimeThisYear(),
-            'end_date' => fake()->dateTimeThisYear('+1 year'),
+            'start_date' => $start,
+            'end_date' => (clone $start)->modify('+1 year'),
             'status' => 'active',
         ];
     }

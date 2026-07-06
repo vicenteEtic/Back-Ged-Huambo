@@ -16,9 +16,8 @@ class ShiftAssignmentFactory extends Factory
         return [
             'employee_id' => Employee::factory(),
             'shift_id' => Shift::factory(),
-            'start_date' => now()->startOfMonth(),
+            'effective_date' => now()->startOfMonth(),
             'end_date' => now()->endOfMonth(),
-            'is_active' => true,
         ];
     }
 }

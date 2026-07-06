@@ -15,9 +15,8 @@ class PayrollPeriodFactory extends Factory
         $month = fake()->numberBetween(1, 12);
 
         return [
+            'code' => strtoupper(fake()->unique()->lexify('PP???')),
             'name' => "Processamento {$month}/{$year}",
-            'year' => $year,
-            'month' => $month,
             'start_date' => "{$year}-{$month}-01",
             'end_date' => "{$year}-{$month}-" . cal_days_in_month(CAL_GREGORIAN, $month, $year),
             'status' => 'open',

@@ -12,13 +12,14 @@ class ProgressionRuleFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->unique()->randomElement(['Progressão Técnica', 'Promoção Senior', 'Mudança de Categoria']),
+            'name' => fake()->randomElement(['Progressão Técnica', 'Promoção Senior', 'Mudança de Categoria', 'Promoção por Mérito', 'Progressão por Tempo de Serviço', 'Mudança de Nível']),
             'code' => strtoupper(fake()->unique()->lexify('PRG???')),
             'type' => fake()->randomElement(['progression', 'promotion']),
             'description' => fake()->sentence(),
-            'min_months_in_position' => 12,
+            'min_months_in_category' => 12,
             'min_performance_score' => 70,
-            'min_level' => 1,
+            'requires_training' => false,
+            'requires_evaluation' => true,
             'to_category' => 'Categoria Superior',
             'salary_increase_percent' => fake()->randomFloat(2, 5, 30),
             'is_active' => true,

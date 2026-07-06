@@ -17,7 +17,6 @@ class TrainingEnrollmentFactory extends Factory
             'session_id' => TrainingSession::factory(),
             'employee_id' => Employee::factory(),
             'status' => 'enrolled',
-            'enrolled_date' => fake()->dateTimeThisYear(),
         ];
     }
 }

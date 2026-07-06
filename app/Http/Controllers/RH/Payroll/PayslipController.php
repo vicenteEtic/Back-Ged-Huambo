@@ -7,6 +7,7 @@ use App\Models\RH\Payroll\Payslip;
 use App\Services\RH\Payroll\PayslipService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 
@@ -24,10 +25,15 @@ class PayslipController extends Controller
         }
     }
 
-    public function generate(int $periodId)
+    public function generate(Request $request, int $periodId)
     {
+        $request->validate([
+            'employee_ids' => 'required|array',
+            'employee_ids.*' => 'integer|exists:employees,id',
+        ]);
+
         try {
-            $count = $this->payslipService->generateForPeriod($periodId);
+            $count = $this->payslipService->generateForPeriod($periodId, $request->input('employee_ids'));
             return response()->json(['message' => "{$count} título(s) gerado(s).", 'count' => $count]);
         } catch (Exception $e) {
             Log::error('Error generating payslips', ['message' => $e->getMessage()]);

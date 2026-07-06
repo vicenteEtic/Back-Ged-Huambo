@@ -17,13 +17,13 @@ class AttendanceFactory extends Factory
             'employee_id' => Employee::factory(),
             'shift_id' => Shift::factory(),
             'date' => fake()->dateTimeThisMonth(),
-            'check_in' => '08:00',
-            'check_out' => '17:00',
-            'expected_check_in' => '08:00',
-            'expected_check_out' => '17:00',
+            'check_in' => '08:00:00',
+            'check_out' => '17:00:00',
+            'expected_check_in' => '08:00:00',
+            'expected_check_out' => '17:00:00',
             'late_minutes' => 0,
             'overtime_minutes' => 0,
-            'total_hours' => 9.0,
+            'hours_worked' => 9.0,
             'status' => 'present',
         ];
     }

@@ -18,7 +18,6 @@ class CandidateFactory extends Factory
             'address' => fake()->address(),
             'document_type' => 'bi',
             'document_number' => fake()->unique()->numerify('###########'),
-            'status' => 'new',
         ];
     }
 }

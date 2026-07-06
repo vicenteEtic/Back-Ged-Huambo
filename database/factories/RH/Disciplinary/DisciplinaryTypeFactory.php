@@ -15,7 +15,7 @@ class DisciplinaryTypeFactory extends Factory
             'name' => fake()->unique()->randomElement(['Advertência Verbal', 'Advertência Escrita', 'Suspensão', 'Multa', 'Despedimento']),
             'code' => strtoupper(fake()->unique()->lexify('DSC???')),
             'description' => fake()->sentence(),
-            'severity' => fake()->numberBetween(1, 5),
+            'severity' => fake()->randomElement(['low', 'medium', 'high', 'critical']),
             'is_active' => true,
         ];
     }

@@ -14,6 +14,7 @@ class JobOpeningFactory extends Factory
     public function definition(): array
     {
         return [
+            'code' => strtoupper(fake()->unique()->lexify('JOB???')),
             'title' => fake()->jobTitle(),
             'department_id' => Department::factory(),
             'position_id' => Position::factory(),

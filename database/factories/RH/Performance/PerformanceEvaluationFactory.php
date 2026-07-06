@@ -18,8 +18,7 @@ class PerformanceEvaluationFactory extends Factory
             'employee_id' => Employee::factory(),
             'cycle_id' => PerformanceCycle::factory(),
             'evaluator_id' => User::factory(),
-            'final_score' => null,
-            'rating' => null,
+            'overall_score' => null,
             'status' => 'pending',
         ];
     }

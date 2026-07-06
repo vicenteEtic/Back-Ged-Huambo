@@ -15,7 +15,7 @@ class InterviewFactory extends Factory
     {
         return [
             'application_id' => Application::factory(),
-            'interview_date' => fake()->dateTimeBetween('now', '+2 months'),
+            'scheduled_at' => fake()->dateTimeBetween('now', '+2 months'),
             'interviewer_id' => User::factory(),
             'type' => fake()->randomElement(['presencial', 'online', 'telefonica']),
             'status' => 'scheduled',

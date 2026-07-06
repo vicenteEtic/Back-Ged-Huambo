@@ -61,8 +61,9 @@ class DashboardService
         return Employee::where('status', 'active')
             ->whereMonth('date_of_birth', $month)
             ->with(['department:id,name', 'position:id,name'])
-            ->orderByRaw('DAY(date_of_birth)')
             ->get(['id', 'full_name', 'date_of_birth', 'department_id', 'position_id', 'photo_url'])
+            ->sortBy(fn($e) => $e->date_of_birth?->day)
+            ->values()
             ->toArray();
     }
 
@@ -170,6 +171,6 @@ class DashboardService
                 'average_salary' => round((float) $e->average, 2),
                 'minimum_salary' => round((float) $e->minimum, 2),
                 'maximum_salary' => round((float) $e->maximum, 2),
-            ]);
+            ])->toArray();
     }
 }

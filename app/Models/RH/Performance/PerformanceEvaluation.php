@@ -38,4 +38,9 @@ class PerformanceEvaluation extends Model
     {
         return $this->belongsTo(PerformanceCycle::class, 'cycle_id');
     }
+
+    public function scores()
+    {
+        return $this->hasMany(EvaluationScore::class, 'evaluation_id');
+    }
 }

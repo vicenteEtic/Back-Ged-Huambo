@@ -9,10 +9,14 @@ use Illuminate\Support\Facades\DB;
 
 class PayslipService
 {
-    public function generateForPeriod(int $periodId): int
+    public function generateForPeriod(int $periodId, array $employeeIds = []): int
     {
-        return DB::transaction(function () use ($periodId) {
-            $items = PayrollItem::where('payroll_period_id', $periodId)->where('status', 'approved')->get();
+        return DB::transaction(function () use ($periodId, $employeeIds) {
+            $query = PayrollItem::where('payroll_period_id', $periodId)->where('status', 'approved');
+            if (!empty($employeeIds)) {
+                $query->whereIn('employee_id', $employeeIds);
+            }
+            $items = $query->get();
             $count = 0;
 
             foreach ($items as $item) {

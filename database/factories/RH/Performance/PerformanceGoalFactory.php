@@ -18,10 +18,10 @@ class PerformanceGoalFactory extends Factory
             'cycle_id' => PerformanceCycle::factory(),
             'title' => fake()->sentence(4),
             'description' => fake()->paragraph(),
-            'target_value' => fake()->randomFloat(2, 50, 100),
-            'actual_value' => null,
             'weight' => fake()->numberBetween(10, 100),
-            'status' => 'pending',
+            'score' => null,
+            'category' => fake()->randomElement(['quantitativo', 'qualitativo', 'comportamental']),
+            'notes' => fake()->sentence(),
         ];
     }
 }

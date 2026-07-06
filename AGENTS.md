@@ -283,3 +283,63 @@
 - **Notificações**: Laravel Notifications (database + mail)
 - **SoftDeletes** em todas as tabelas
 - **Transactions** em todas as operações de escrita
+
+---
+
+# Sessão: Correção de Testes RH (Jul 2026)
+
+## Problema
+Testes RH tinham ~140 falhas: SQLSTATE column errors, 500 errors, 404/422 assertion failures — causados por fábricas com campos incompatíveis com as migrations, URLs com prefixo errado (`/api/v1/rh` vs `/api/rh`), e violações de unique constraint em testes.
+
+## O que foi feito
+### URLs e Rotas
+- Substituído `/api/v1/rh` → `/api/rh` em 18 ficheiros de teste
+- Corrigidos URLs nos testes LeaveApproval, ProgressionRuleCheckEligibility, UserManagement
+
+### Fábricas (46 fábricas analisadas, 20 corrigidas)
+| Fábrica | Correção |
+|---------|----------|
+| ShiftFactory | `check_in_time`/`check_out_time` → `start_time`/`end_time`; adicionado `duration_hours` |
+| AttendanceFactory | `total_hours` → `hours_worked`; `check_in`/`check_out` → formato `H:i:s` |
+| ShiftAssignmentFactory | `start_date` → `effective_date`; removido `is_active` |
+| DisciplinaryRecordFactory | `incident_date` → `occurred_at`; `recorded_by` → `reported_by` |
+| DisciplinaryTypeFactory | `severity` de int para string |
+| PayrollPeriodFactory | adicionado `code`; removido `year`/`month` |
+| EmployeeBenefitFactory | `end_date` derivado de `start_date` |
+| JobOpeningFactory | adicionado `code` |
+| TrainingSessionFactory | adicionado `name` |
+| TrainingEnrollmentFactory | removido `enrolled_date` (não existe na migration) |
+| ApplicationFactory | removido `applied_date` |
+| InterviewFactory | `interview_date` → `scheduled_at` |
+| CandidateFactory | removido `status` |
+| LeavePlanFactory | removido `days_remaining` |
+| PayrollItemFactory | `bonuses` → `other_earnings`; `inss` → `inss_deduction`; `irt` → `irt_deduction` |
+| PerformanceCycleFactory | removido `description`; `end_date` derivado de `start_date` |
+| PerformanceEvaluationFactory | `final_score` → `overall_score`; removido `rating` |
+| PerformanceGoalFactory | `target_value`/`actual_value`/`status` → `score`/`category`/`notes` |
+| TrainingCertificateFactory | reescrita: `enrollment_id` em vez de `employee_id`/`course_id`/`session_id`; `issued_at` em vez de `issued_date` |
+| ProgressionRuleFactory | `min_months_in_position` → `min_months_in_category`; removido `min_level`; adicionado `requires_training`/`requires_evaluation`; removido `unique()` do `name` |
+| FunctionalHistoryFactory | `previous_value`/`new_value` agora em `json_encode()` |
+
+### Outras correções
+- **Migration logs**: adicionada coluna `alert_id` que faltava
+- **AbstractController**: tipo `$service` mudado de `AbstractService` para `mixed`
+- **DashboardService**: adicionado `->toArray()` no `salaryEvolutionByDepartment()`
+- **Unique constraints**: 5 testes corrigidos (LeavePlan, Payslip, PerformanceEvaluation, EmployeePortal) — removidos overrides que causavam duplicação de chaves compostas
+
+## Resultado
+- **Antes**: 292 testes, ~140 falhas
+- **Depois**: 292 testes, 0 erros, 15 falhas (apenas falhas de lógica de controller/service)
+- Todos os SQLSTATE e OverflowException eliminados
+
+## Falhas Remanescentes (15)
+Problemas de lógica nos controllers/serviços, não de fábricas/migrations:
+- AttendanceImportLogTest — assertion `false is true`
+- AttendanceTest (2) — 500 errors
+- ProgressionRequestTest (3) — 500/404
+- DashboardTest (1) — 500
+- LeaveApprovalTest (2) — 500
+- PayslipTest (1) — 200 em vez de 422
+- EvaluationScoreTest (2) — 500
+- PerformanceEvaluationTest (2) — 500
+- EmployeePortalTest (1) — 404 em vez de 403

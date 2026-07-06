@@ -60,11 +60,11 @@ class ProgressionRuleController extends AbstractController
         }
     }
 
-    public function checkEligibility(int $employeeId, ?int $ruleId = null)
+    public function checkEligibility(int $id, int $employeeId)
     {
         try {
             $employee = Employee::findOrFail($employeeId);
-            $rule = $ruleId ? \App\Models\RH\Career\ProgressionRule::findOrFail($ruleId) : null;
+            $rule = \App\Models\RH\Career\ProgressionRule::findOrFail($id);
             return response()->json($this->ruleService->checkEligibility($employee, $rule));
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);

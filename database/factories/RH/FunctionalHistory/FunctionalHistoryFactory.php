@@ -15,8 +15,8 @@ class FunctionalHistoryFactory extends Factory
         return [
             'employee_id' => Employee::factory(),
             'type' => fake()->randomElement(['appointment', 'promotion', 'progression', 'transfer', 'salary_change']),
-            'previous_value' => ['salary' => fake()->randomFloat(2, 50000, 200000)],
-            'new_value' => ['salary' => fake()->randomFloat(2, 100000, 500000)],
+            'previous_value' => json_encode(['salary' => fake()->randomFloat(2, 50000, 200000)]),
+            'new_value' => json_encode(['salary' => fake()->randomFloat(2, 100000, 500000)]),
             'effective_date' => fake()->dateTimeThisYear(),
             'created_by' => \App\Models\User::factory(),
         ];

@@ -33,6 +33,7 @@ class CreateLogsTable extends Migration
             $table->string('http_user_agent')->nullable();
             $table->longText('message')->nullable();
             $table->unsignedBigInteger('entity_id')->nullable();
+            $table->unsignedBigInteger('alert_id')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

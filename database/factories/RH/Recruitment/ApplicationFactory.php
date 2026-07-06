@@ -17,7 +17,6 @@ class ApplicationFactory extends Factory
             'job_opening_id' => JobOpening::factory(),
             'candidate_id' => Candidate::factory(),
             'status' => 'submitted',
-            'applied_date' => fake()->dateTimeThisYear(),
         ];
     }
 }
