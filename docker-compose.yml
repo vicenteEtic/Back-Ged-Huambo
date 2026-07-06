@@ -14,7 +14,7 @@ services:
     networks:
       - ged-huambo-network
     ports:
-      - '8080:9000'  # PHP-FPM
+      - '9011:9000'
 
   nginx:
     container_name: ged-huambo-nginx
@@ -24,8 +24,8 @@ services:
     restart: always
     tty: true
     ports:
-      - '1025:80'
-      - '450:443'
+      - '1190:80'
+      - '4443:443'
     volumes:
       - ./:/var/www
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
@@ -46,19 +46,14 @@ services:
     networks:
       - ged-huambo-network
     ports:
-      - '3308:3306'
-    environment:
-      MYSQL_DATABASE: nf
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_USER: user
-      MYSQL_PASSWORD: app_password
+      - '3317:3306'
 
   phpmyadmin:
     container_name: ged-huambo-phpmyadmin
     image: phpmyadmin:5.2
     restart: always
     ports:
-      - '8892:80'
+      - '8190:80'
     networks:
       - ged-huambo-network
     environment:
@@ -73,21 +68,15 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-      - '6388:6379'
+      - '6780:6379'
     networks:
       - ged-huambo-network
     volumes:
       - redis-data:/data
 
-
-
-# **Definição da rede e volumes**
 networks:
   ged-huambo-network:
     driver: bridge
-   # ipam:
-     # config:
-        #- subnet: 192.168.100.0/24
 
 volumes:
   ged-huambo-data:
