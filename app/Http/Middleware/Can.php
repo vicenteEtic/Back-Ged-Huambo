@@ -4,8 +4,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class Can
 {
@@ -16,15 +16,20 @@ class Can
      */
     public function handle(Request $request, Closure $next, ...$permissoes)
     {
-        if (self::checkPermissions($permissoes)) {
+        $missing = self::getMissingPermissions($permissoes);
+
+        if (empty($missing)) {
             return $next($request);
         }
 
-        throw new AccessDeniedHttpException('Você não tem permissão para acessar este recurso.');
+        $permStr = implode(', ', $missing);
+        return response()->json(['error' => "Acesso negado. Permissão necessária: {$permStr}."], Response::HTTP_FORBIDDEN);
     }
 
-    private function checkPermissions(array $permissions): bool
+    private function getMissingPermissions(array $permissions): array
     {
+        $missing = [];
+
         foreach ($permissions as $permissionSet) {
             if (str_contains($permissionSet, '|')) {
                 $orPermissions = explode('|', $permissionSet);
@@ -38,17 +43,16 @@ class Can
                 }
 
                 if (!$hasAtLeastOne) {
-                    return false; // Falhou na verificação "ou"
+                    $missing[] = $permissionSet;
                 }
             } else {
-                // Verifica se o usuário tem a permissão individual
                 if (!self::check($permissionSet)) {
-                    return false;
+                    $missing[] = $permissionSet;
                 }
             }
         }
 
-        return true; // O usuário possui todas as permissões necessárias
+        return $missing;
     }
 
     /**
