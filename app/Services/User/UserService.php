@@ -175,7 +175,7 @@ try {
         }
     
         // ⏱️ VERIFICAR EXPIRAÇÃO PRIMEIRO
-        if ($user->two_factor_expires_at->lt(now())) {
+        if (!$user->two_factor_expires_at || $user->two_factor_expires_at->lt(now())) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'O código expirou, solicite um novo.'
