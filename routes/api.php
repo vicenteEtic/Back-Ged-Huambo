@@ -1,10 +1,21 @@
 <?php
 
 use App\Http\Controllers\AlertAttachment\AlertAttachmentController;
+use App\Http\Controllers\Api\EnumController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\User\UserController;
 
 Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(function () {
+    Route::prefix('enums')->group(function () {
+        Route::get('progression-types', [EnumController::class, 'progressionTypes']);
+        Route::get('benefit-categories', [EnumController::class, 'benefitCategories']);
+        Route::get('document-share-permissions', [EnumController::class, 'documentSharePermissions']);
+        Route::get('document-statuses', [EnumController::class, 'documentStatuses']);
+        Route::get('document-confidentialities', [EnumController::class, 'documentConfidentialities']);
+        Route::get('attendance-statuses', [EnumController::class, 'attendanceStatuses']);
+        Route::get('archive-category-types', [EnumController::class, 'archiveCategoryTypes']);
+        Route::get('functional-history-types', [EnumController::class, 'functionalHistoryTypes']);
+    });
 
     Route::prefix('permission')->group(base_path('routes/user/permission/permission.php'));
     Route::prefix('role')->group(base_path('routes/user/permission/role.php'));

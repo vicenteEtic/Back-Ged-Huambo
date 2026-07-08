@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\RH\Archive;
 
+use App\Enum\DocumentConfidentiality;
+use App\Enum\DocumentStatus;
 use App\Http\Requests\BaseFormRequest;
 
 class ArchiveDocumentRequest extends BaseFormRequest
@@ -26,8 +28,8 @@ class ArchiveDocumentRequest extends BaseFormRequest
             'file_type' => ['nullable', 'string', 'max:50'],
             'file_size' => ['nullable', 'integer', 'min:0'],
             'mime_type' => ['nullable', 'string', 'max:100'],
-            'status' => ['string', 'in:draft,published,archived'],
-            'confidentiality' => ['string', 'in:public,internal,confidential,restricted'],
+            'status' => ['string', 'in:' . implode(',', DocumentStatus::values())],
+            'confidentiality' => ['string', 'in:' . implode(',', DocumentConfidentiality::values())],
             'metadata' => ['nullable', 'json'],
             'issued_date' => ['nullable', 'date'],
             'expiry_date' => ['nullable', 'date', 'after_or_equal:issued_date'],

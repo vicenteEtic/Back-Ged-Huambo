@@ -13,6 +13,15 @@ class LeavePlanService extends AbstractService
         parent::__construct($repository);
     }
 
+    public function store(array $data): \App\Models\RH\Leave\LeavePlan
+    {
+        $data = $this->clean($data);
+        return LeavePlan::updateOrCreate(
+            ['employee_id' => $data['employee_id'], 'year' => $data['year']],
+            $data
+        )->fresh();
+    }
+
     public function syncBalance(int $planId): LeavePlan
     {
         $plan = LeavePlan::with('leaveRequests')->findOrFail($planId);

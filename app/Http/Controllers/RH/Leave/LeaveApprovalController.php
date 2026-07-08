@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class LeaveApprovalController
 {
@@ -22,6 +23,8 @@ class LeaveApprovalController
             $request->validate(['comment' => 'nullable|string']);
             $model = $this->approvalService->approve($leaveRequestId, auth()->id(), $request->comment);
             return response()->json($model);
+        } catch (ValidationException $e) {
+            return response()->json(['error' => 'Bad request.', 'message' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
@@ -36,6 +39,8 @@ class LeaveApprovalController
             $request->validate(['comment' => 'required|string']);
             $model = $this->approvalService->reject($leaveRequestId, auth()->id(), $request->comment);
             return response()->json($model);
+        } catch (ValidationException $e) {
+            return response()->json(['error' => 'Bad request.', 'message' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {

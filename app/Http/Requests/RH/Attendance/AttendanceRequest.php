@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\RH\Attendance;
 
+use App\Enum\AttendanceStatus;
 use App\Http\Requests\BaseFormRequest;
 
 class AttendanceRequest extends BaseFormRequest
@@ -18,7 +19,7 @@ class AttendanceRequest extends BaseFormRequest
             'date' => ['required', 'date'],
             'check_in' => ['nullable', 'date_format:H:i:s'],
             'check_out' => ['nullable', 'date_format:H:i:s'],
-            'status' => ['string', 'in:present,absent,late,justified_absence,holiday,day_off'],
+            'status' => ['string', 'in:' . implode(',', AttendanceStatus::values())],
             'absence_type' => ['nullable', 'string', 'max:100'],
             'absence_reason' => ['nullable', 'string'],
             'is_justified' => ['boolean'],

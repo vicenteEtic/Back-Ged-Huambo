@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\RH\FunctionalHistory;
 
+use App\Enum\FunctionalHistoryType;
 use App\Http\Requests\BaseFormRequest;
 
 class FunctionalHistoryRequest extends BaseFormRequest
@@ -16,7 +17,7 @@ class FunctionalHistoryRequest extends BaseFormRequest
         $id = $this->route('functional_history_item');
         return [
             'employee_id' => ['required', 'integer', 'exists:employees,id'],
-            'type' => ['required', 'string', 'in:appointment,promotion,progression,transfer,position_change,salary_change,category_change'],
+            'type' => ['required', 'string', 'in:' . implode(',', FunctionalHistoryType::values())],
             'previous_value' => ['nullable'],
             'new_value' => ['nullable'],
             'effective_date' => ['required', 'date'],

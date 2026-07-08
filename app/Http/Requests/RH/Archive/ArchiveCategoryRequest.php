@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\RH\Archive;
 
+use App\Enum\ArchiveCategoryType;
 use App\Http\Requests\BaseFormRequest;
 
 class ArchiveCategoryRequest extends BaseFormRequest
@@ -19,7 +20,7 @@ class ArchiveCategoryRequest extends BaseFormRequest
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:50', "unique:archive_categories,code,{$id},id"],
             'description' => ['nullable', 'string'],
-            'type' => ['required', 'string', 'in:processo_individual,administrativo,relatorio,avaliacao,despacho'],
+            'type' => ['required', 'string', 'in:' . implode(',', ArchiveCategoryType::values())],
             'icon' => ['nullable', 'string', 'max:100'],
             'sort_order' => ['integer', 'min:0'],
             'is_active' => ['boolean'],
