@@ -18,7 +18,7 @@ class PositionRequest extends BaseFormRequest
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:50', "unique:positions,code,{$id},id"],
             'description' => ['nullable', 'string'],
-            'department_id' => ['required', 'exists:departments,id'],
+            'department_id' => ['required', 'integer', 'exists:departments,id'],
             'level' => ['integer', 'min:1'],
             'base_salary' => ['numeric', 'min:0'],
             'requirements' => ['nullable', 'string'],

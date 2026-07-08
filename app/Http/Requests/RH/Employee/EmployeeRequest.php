@@ -15,7 +15,7 @@ class EmployeeRequest extends BaseFormRequest
     {
         $id = $this->route('employee');
         return [
-            'user_id' => ['nullable',],
+            'user_id' => ['nullable', 'integer', 'exists:users,id'],
             'employee_number' => ['required', 'string', 'max:50', "unique:employees,employee_number,{$id},id"],
             'full_name' => ['required', 'string', 'max:255'],
             'date_of_birth' => ['nullable', 'date'],
@@ -28,8 +28,8 @@ class EmployeeRequest extends BaseFormRequest
             'personal_email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
             'address' => ['nullable', 'string'],
-            'department_id' => ['nullable', 'exists:departments,id'],
-            'position_id' => ['nullable', 'exists:positions,id'],
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'position_id' => ['nullable', 'integer', 'exists:positions,id'],
             'hire_date' => ['nullable', 'date'],
             'effective_date' => ['nullable', 'date'],
             'contract_type' => ['nullable', 'string', 'max:50'],
@@ -37,7 +37,7 @@ class EmployeeRequest extends BaseFormRequest
             'bank_name' => ['nullable', 'string', 'max:255'],
             'bank_iban' => ['nullable', 'string', 'max:50'],
             'status' => ['string', 'max:30'],
-            'photo_url' => ['nullable', 'string', 'max:255'],
+            'photo_url' => ['nullable', 'file', 'max:1048576'],
         ];
     }
 }

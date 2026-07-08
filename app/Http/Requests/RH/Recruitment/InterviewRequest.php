@@ -15,8 +15,8 @@ class InterviewRequest extends BaseFormRequest
     {
         $id = $this->route('interview');
         return [
-            'application_id' => ['required', 'exists:applications,id'],
-            'interviewer_id' => ['nullable', 'exists:users,id'],
+            'application_id' => ['required', 'integer', 'exists:applications,id'],
+            'interviewer_id' => ['nullable', 'integer', 'exists:users,id'],
             'scheduled_at' => ['required', 'date'],
             'type' => ['string', 'max:50'],
             'location' => ['nullable', 'string', 'max:255'],

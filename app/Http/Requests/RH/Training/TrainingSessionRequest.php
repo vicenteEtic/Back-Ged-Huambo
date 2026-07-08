@@ -10,7 +10,7 @@ class TrainingSessionRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'course_id' => ['required', 'exists:training_courses,id'],
+            'course_id' => ['required', 'integer', 'exists:training_courses,id'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'start_date' => ['required', 'date'],

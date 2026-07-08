@@ -14,8 +14,10 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
 
-        User::factory(2)->create();
+        $this->call(DepartmentSeed::class);
         $this->call(PermissionSeed::class);
+        $this->call(PositionSeed::class);
+        $this->call(LeaveTypeSeeder::class);
       
     }
 }

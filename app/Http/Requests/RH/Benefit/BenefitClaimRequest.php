@@ -14,8 +14,8 @@ class BenefitClaimRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
-            'benefit_type_id' => ['required', 'exists:benefit_types,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'benefit_type_id' => ['required', 'integer', 'exists:benefit_types,id'],
             'amount_requested' => ['required', 'numeric', 'min:0'],
             'amount_approved' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],

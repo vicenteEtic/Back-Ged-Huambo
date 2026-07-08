@@ -10,8 +10,8 @@ class PerformanceGoalRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
-            'cycle_id' => ['required', 'exists:performance_cycles,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'cycle_id' => ['required', 'integer', 'exists:performance_cycles,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'category' => ['nullable', 'string', 'max:100'],

@@ -10,8 +10,8 @@ class TrainingEnrollmentRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'session_id' => ['required', 'exists:training_sessions,id'],
-            'employee_id' => ['required', 'exists:employees,id'],
+            'session_id' => ['required', 'integer', 'exists:training_sessions,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
             'status' => ['string', 'max:30'],
             'grade' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'notes' => ['nullable', 'string'],

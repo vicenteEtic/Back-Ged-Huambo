@@ -17,7 +17,7 @@ class LogService extends AbstractService
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
     {
         $relationships = [
-            'entity',
+          //  'entity',
             'user'
         ];
 

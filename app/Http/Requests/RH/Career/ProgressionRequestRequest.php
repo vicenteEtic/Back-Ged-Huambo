@@ -14,11 +14,11 @@ class ProgressionRequestRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
-            'rule_id' => ['nullable', 'exists:progression_rules,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'rule_id' => ['nullable', 'integer', 'exists:progression_rules,id'],
             'type' => ['required_without:rule_id', 'nullable', 'string', 'in:progression,promotion'],
             'to_category' => ['nullable', 'string', 'max:100'],
-            'to_position_id' => ['nullable', 'exists:positions,id'],
+            'to_position_id' => ['nullable', 'integer', 'exists:positions,id'],
             'new_salary' => ['nullable', 'numeric', 'min:0'],
             'justification' => ['nullable', 'string'],
             'effective_date' => ['nullable', 'date'],

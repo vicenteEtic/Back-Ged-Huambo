@@ -14,7 +14,7 @@ class RetirementProcessRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
             'request_date' => ['required', 'date'],
             'effective_date' => ['nullable', 'date'],
             'status' => ['string', 'max:30'],

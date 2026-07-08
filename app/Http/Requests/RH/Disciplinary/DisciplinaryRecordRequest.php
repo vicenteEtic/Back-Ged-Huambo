@@ -10,8 +10,8 @@ class DisciplinaryRecordRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
-            'disciplinary_type_id' => ['required', 'exists:disciplinary_types,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'disciplinary_type_id' => ['required', 'integer', 'exists:disciplinary_types,id'],
             'occurred_at' => ['required', 'date'],
             'description' => ['required', 'string'],
             'evidence_path' => ['nullable', 'file', 'max:10240'],

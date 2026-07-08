@@ -15,7 +15,7 @@ class EvaluationCriterionRequest extends BaseFormRequest
     {
         $id = $this->route('evaluation_criterion');
         return [
-            'cycle_id' => ['required', 'exists:performance_cycles,id'],
+            'cycle_id' => ['required', 'integer', 'exists:performance_cycles,id'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'section' => ['nullable', 'string', 'max:100'],

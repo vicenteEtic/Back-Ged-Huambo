@@ -44,5 +44,3 @@ Route::post('/auth/login', [UserController::class, 'login']);
 Route::prefix('auth')->middleware('guest')->group(base_path('routes/user/auth.php'));
 Route::post('auth/2fa', [UserController::class, 'verify2fa']);
 
-Route::middleware('web')->get('/alert/show/{id}/file', [AlertAttachmentController::class, 'showFile'])
-    ->name('reports.showFile');

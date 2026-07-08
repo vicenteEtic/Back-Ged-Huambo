@@ -15,7 +15,7 @@ class EmployeeDocumentRequest extends BaseFormRequest
     {
         $id = $this->route('document');
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
             'document_type' => ['required', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],

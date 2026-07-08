@@ -14,7 +14,7 @@ class AttendanceRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
             'date' => ['required', 'date'],
             'check_in' => ['nullable', 'date_format:H:i:s'],
             'check_out' => ['nullable', 'date_format:H:i:s'],

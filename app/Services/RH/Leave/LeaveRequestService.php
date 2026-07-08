@@ -34,6 +34,17 @@ class LeaveRequestService extends AbstractService
                 $data['leave_plan_id'] = $plan->id;
             }
 
+            $plan = \App\Models\RH\Leave\LeavePlan::findOrFail($data['leave_plan_id']);
+            $this->planService->syncBalance($plan->id);
+            $plan->refresh();
+
+            $remaining = max(0, $plan->total_days_entitled - $plan->days_used - $plan->days_pending);
+            if ($data['total_days'] > $remaining) {
+                throw new \DomainException(
+                    "Saldo insuficiente para {$plan->year}. Disponível: {$remaining} dia(s), solicitado: {$data['total_days']} dia(s)."
+                );
+            }
+
             $leaveRequest = $this->store($data);
             $this->planService->syncBalance($data['leave_plan_id']);
 

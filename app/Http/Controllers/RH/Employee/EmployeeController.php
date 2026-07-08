@@ -30,7 +30,7 @@ class EmployeeController extends AbstractController
             $this->logRequest();
 
             $data = $request->validated();
-            $data['user_id'] = Auth::user()->id;
+          
             $employee = $this->service->store($data);
             $this->logToDatabase(
                 type: 'rh',

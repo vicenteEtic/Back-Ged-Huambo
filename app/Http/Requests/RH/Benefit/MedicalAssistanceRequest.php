@@ -14,7 +14,7 @@ class MedicalAssistanceRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
             'assistance_type' => ['required', 'string', 'max:100'],
             'provider' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],

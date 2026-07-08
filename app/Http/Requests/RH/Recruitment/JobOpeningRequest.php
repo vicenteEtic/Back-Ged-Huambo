@@ -17,8 +17,8 @@ class JobOpeningRequest extends BaseFormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:50', "unique:job_openings,code,{$id},id"],
-            'department_id' => ['required', 'exists:departments,id'],
-            'position_id' => ['required', 'exists:positions,id'],
+            'department_id' => ['required', 'integer', 'exists:departments,id'],
+            'position_id' => ['required', 'integer', 'exists:positions,id'],
             'description' => ['nullable', 'string'],
             'requirements' => ['nullable', 'string'],
             'vacancies' => ['integer', 'min:1'],

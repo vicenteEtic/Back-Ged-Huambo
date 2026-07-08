@@ -15,9 +15,9 @@ class LeaveRequestForm extends BaseFormRequest
     {
         $id = $this->route('leave_request');
         $rules = [
-            'employee_id' => ['required', 'exists:employees,id'],
-            'leave_type_id' => ['required', 'exists:leave_types,id'],
-            'leave_plan_id' => ['nullable', 'exists:leave_plans,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'leave_type_id' => ['required', 'integer', 'exists:leave_types,id'],
+            'leave_plan_id' => ['nullable', 'integer', 'exists:leave_plans,id'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['nullable', 'string'],

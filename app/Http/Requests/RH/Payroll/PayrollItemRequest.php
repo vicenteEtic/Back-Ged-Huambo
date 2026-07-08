@@ -15,8 +15,8 @@ class PayrollItemRequest extends BaseFormRequest
     {
         $id = $this->route('payroll_item');
         return [
-            'payroll_period_id' => ['required', 'exists:payroll_periods,id'],
-            'employee_id' => ['required', 'exists:employees,id'],
+            'payroll_period_id' => ['required', 'integer', 'exists:payroll_periods,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
             'base_salary' => ['numeric', 'min:0'],
             'transport_allowance' => ['numeric', 'min:0'],
             'meal_allowance' => ['numeric', 'min:0'],

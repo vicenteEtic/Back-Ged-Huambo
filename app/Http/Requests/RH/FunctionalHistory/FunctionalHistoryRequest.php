@@ -15,7 +15,7 @@ class FunctionalHistoryRequest extends BaseFormRequest
     {
         $id = $this->route('functional_history_item');
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
             'type' => ['required', 'string', 'in:appointment,promotion,progression,transfer,position_change,salary_change,category_change'],
             'previous_value' => ['nullable'],
             'new_value' => ['nullable'],

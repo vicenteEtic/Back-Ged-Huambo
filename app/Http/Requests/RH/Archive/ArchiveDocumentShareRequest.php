@@ -14,8 +14,8 @@ class ArchiveDocumentShareRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'shared_with_user_id' => ['nullable', 'exists:users,id'],
-            'shared_with_employee_id' => ['nullable', 'exists:employees,id'],
+            'shared_with_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'shared_with_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'permission' => ['string', 'in:view,download,edit'],
             'expires_at' => ['nullable', 'date', 'after:now'],
         ];

@@ -15,7 +15,7 @@ class LeavePlanRequest extends BaseFormRequest
     {
         $id = $this->route('leave_plan');
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
             'year' => ['required', 'integer', 'min:2000', 'max:2100'],
             'total_days_entitled' => ['required', 'numeric', 'min:0', 'max:365'],
             'days_used' => ['numeric', 'min:0'],

@@ -15,7 +15,7 @@ class ArchiveCategoryRequest extends BaseFormRequest
     {
         $id = $this->route('id');
         return [
-            'parent_id' => ['nullable', 'exists:archive_categories,id'],
+            'parent_id' => ['nullable', 'integer', 'exists:archive_categories,id'],
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:50', "unique:archive_categories,code,{$id},id"],
             'description' => ['nullable', 'string'],

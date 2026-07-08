@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use DomainException;
 
 class LeaveRequestController extends AbstractController
 {
@@ -36,6 +37,9 @@ class LeaveRequestController extends AbstractController
             );
             DB::commit();
             return response()->json($leaveRequest, Response::HTTP_CREATED);
+        } catch (DomainException $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);

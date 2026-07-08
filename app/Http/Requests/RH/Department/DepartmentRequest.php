@@ -18,8 +18,8 @@ class DepartmentRequest extends BaseFormRequest
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:50', "unique:departments,code,{$id},id"],
             'description' => ['nullable', 'string'],
-            'responsible_id' => ['nullable', 'exists:users,id'],
-            'parent_id' => ['nullable', 'exists:departments,id'],
+            'responsible_id' => ['nullable', 'integer', 'exists:users,id'],
+            'parent_id' => ['nullable', 'integer', 'exists:departments,id'],
             'is_active' => ['boolean'],
         ];
     }
