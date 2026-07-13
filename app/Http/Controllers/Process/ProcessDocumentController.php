@@ -46,7 +46,7 @@ class ProcessDocumentController extends AbstractController
         }
     }
 
-    public function index(int $processId)
+    public function byProcess(int $processId)
     {
         try {
             $this->logRequest();
