@@ -61,7 +61,7 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::prefix('dashboard')->group(base_path('routes/rh/reports.php'));
     });
 
-    Route::prefix('processes/{process_id}/documents')->group(base_path('routes/process/process_document.php'));
+   // Route::prefix('processes/{process_id}/documents')->group(base_path('routes/process/process_document.php'));
     Route::prefix('processes')->group(base_path('routes/process/process.php'));
 });
 Route::post('/auth/login', [UserController::class, 'login']);
