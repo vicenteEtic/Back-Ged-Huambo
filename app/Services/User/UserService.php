@@ -9,7 +9,7 @@ use App\Services\AbstractService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Repositories\User\UserRepository;
-use Exception; 
+use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
@@ -27,28 +27,28 @@ class UserService extends AbstractService
 
     public function store(array $data)
     {
-      // 1. Gerar uma senha aleatória caso não venha do front
-    $password = Str::random(12); // gera senha aleatória de 12 caracteres
-    $data['password'] = Hash::make($password);
+        // 1. Gerar uma senha aleatória caso não venha do front
+        $password = Str::random(12); // gera senha aleatória de 12 caracteres
+        $data['password'] = Hash::make($password);
 
-    // 2. Salvar o usuário no repositório
-    $user = $this->repository->store($data);
+        // 2. Salvar o usuário no repositório
+        $user = $this->repository->store($data);
 
-try {
-    Mail::to($data['email'])->send(
-        new \App\Mail\UserCreatedMail($user, $password)
-    );
-} catch (\Throwable $th) {
-    Log::error('Erro ao enviar email UserCreatedMail', [
-        'message' => $th->getMessage(),
-        'file' => $th->getFile(),
-        'line' => $th->getLine(),
-        'trace' => $th->getTraceAsString(),
-        'email' => $data['email'] ?? null,
-    ]);
-}
+        try {
+            Mail::to($data['email'])->send(
+                new \App\Mail\UserCreatedMail($user, $password)
+            );
+        } catch (\Throwable $th) {
+            Log::error('Erro ao enviar email UserCreatedMail', [
+                'message' => $th->getMessage(),
+                'file' => $th->getFile(),
+                'line' => $th->getLine(),
+                'trace' => $th->getTraceAsString(),
+                'email' => $data['email'] ?? null,
+            ]);
+        }
 
-    return $user;
+        return $user;
     }
 
     public function login(Request $request)
@@ -57,57 +57,58 @@ try {
             'email' => 'required|email',
             'password' => 'required'
         ]);
-    
+
         $email = $request->email;
         $ip = $request->ip();
-    
+
         // 🔐 Keys de segurança
         $attemptKey = "login_attempts_{$email}_{$ip}";
         $lockKey = "login_lock_{$email}_{$ip}";
-    
+
         // ⛔ Verifica bloqueio temporário
         if (Cache::has($lockKey)) {
             return response()->json([
                 'message' => 'Número máximo de tentativas atingido. Tente novamente mais tarde.'
             ], 423);
         }
-    
+
         $user = User::where('email', $email)->first();
-    
+
         // ❌ Falha de autenticação
         if (!$user || !Hash::check($request->password, $user->password)) {
-    
+
             $attempts = Cache::get($attemptKey, 0);
             $attempts++;
-    
+
             Cache::put($attemptKey, $attempts, now()->addMinutes(10));
-    
+
             // 🔴 Bloqueia após 5 tentativas
             if ($attempts >= 5) {
                 Cache::put($lockKey, true, now()->addMinutes(15));
             }
-    
+
             return response()->json([
                 'message' => 'Email ou senha incorretos'
             ], 401);
         }
-    
+
         // 🔁 Sucesso → limpa tentativas
         Cache::forget($attemptKey);
         Cache::forget($lockKey);
-    
+
         // 🔐 Gera código 2FA
         $user->generateTwoFactorCode();
-    
+
         // 📧 Envia email
         Mail::to($user->email)->send(new \App\Mail\TwoFactorCodeMail($user));
-    
-      return response()->json([
-            'message' => 'Código 2FA enviado para seu email',
-            'user_id' => $user->id ,
-             'email' => $user->email,
+
+        $token = $user->createToken("ged")->plainTextToken;
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Utilizador autenticado com sucesso. Bem-vindo!',
+            'token' => $token,
         ]);
-        
     }
 
 
@@ -148,32 +149,32 @@ try {
             throw new Exception(trans($status));
         }
     }
- 
+
 
     public function verify2fa(array $request)
     {
         $code = trim((string) ($request['code'] ?? null));
         $email = $request['email'] ?? null;
-    
+
         $user = User::where('email', $email)->first();
-    
+
         if (!$user) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Usuário não encontrado.'
             ], 404);
         }
-    
+
         $attemptKey = "2fa_attempts_{$user->id}";
         $lockKey = "2fa_lock_{$user->id}";
-    
+
         if (Cache::has($lockKey)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Muitas tentativas inválidas. Tente novamente mais tarde.'
             ], 423);
         }
-    
+
         // ⏱️ VERIFICAR EXPIRAÇÃO PRIMEIRO
         if (!$user->two_factor_expires_at || $user->two_factor_expires_at->lt(now())) {
             return response()->json([
@@ -181,31 +182,31 @@ try {
                 'message' => 'O código expirou, solicite um novo.'
             ], 401);
         }
-    
+
         // ❌ CÓDIGO ERRADO
         if ($user->two_factor_code !== $code) {
-    
+
             $attempts = Cache::get($attemptKey, 0) + 1;
-    
+
             Cache::put($attemptKey, $attempts, now()->addMinutes(10));
-    
+
             if ($attempts >= 3) {
                 Cache::put($lockKey, true, now()->addMinutes(15));
             }
-    
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Código inválido.'
             ], 401);
         }
-    
+
         Cache::forget($attemptKey);
         Cache::forget($lockKey);
-    
+
         $user->resetTwoFactorCode();
-    
+
         $token = $user->createToken("keepComply")->plainTextToken;
-    
+
         return response()->json([
             'status' => 'success',
             'message' => 'Autenticação 2FA validada com sucesso.',

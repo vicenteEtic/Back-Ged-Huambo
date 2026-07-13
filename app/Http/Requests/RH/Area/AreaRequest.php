@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests\RH\Department;
+namespace App\Http\Requests\RH\Area;
 
 use App\Http\Requests\BaseFormRequest;
 
-class DepartmentRequest extends BaseFormRequest
+class AreaRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {
@@ -13,14 +13,13 @@ class DepartmentRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('department');
+        $id = $this->route('area');
         return [
+            'department_id' => ['required', 'integer', 'exists:departments,id'],
             'name' => ['required', 'string', 'max:255'],
-            'type' => ['nullable', 'string', 'in:expediente,gabinete,departamento,vice_governador'],
-            'code' => ['required', 'string', 'max:50', "unique:departments,code,{$id},id"],
+            'code' => ['required', 'string', 'max:50', "unique:areas,code,{$id},id"],
             'description' => ['nullable', 'string'],
             'responsible_id' => ['nullable', 'integer', 'exists:users,id'],
-            'parent_id' => ['nullable', 'integer', 'exists:departments,id'],
             'is_active' => ['boolean'],
         ];
     }

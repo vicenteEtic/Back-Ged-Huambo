@@ -15,6 +15,14 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::get('attendance-statuses', [EnumController::class, 'attendanceStatuses']);
         Route::get('archive-category-types', [EnumController::class, 'archiveCategoryTypes']);
         Route::get('functional-history-types', [EnumController::class, 'functionalHistoryTypes']);
+        Route::get('process-types', [EnumController::class, 'processTypes']);
+        Route::get('process-statuses', [EnumController::class, 'processStatuses']);
+        Route::get('process-classifications', [EnumController::class, 'processClassifications']);
+        Route::get('process-priorities', [EnumController::class, 'processPriorities']);
+        Route::get('process-visibilities', [EnumController::class, 'processVisibilities']);
+        Route::get('process-assignment-statuses', [EnumController::class, 'processAssignmentStatuses']);
+        Route::get('process-movement-types', [EnumController::class, 'processMovementTypes']);
+        Route::get('department-types', [EnumController::class, 'departmentTypes']);
     });
 
     Route::prefix('permission')->group(base_path('routes/user/permission/permission.php'));
@@ -48,10 +56,15 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::prefix('retirement')->group(base_path('routes/rh/retirement.php'));
         Route::prefix('portal')->group(base_path('routes/rh/portal.php'));
         Route::prefix('archive')->group(base_path('routes/rh/archive.php'));
+        Route::prefix('areas')->group(base_path('routes/rh/area.php'));
+        Route::prefix('department-permissions')->group(base_path('routes/rh/department_permission.php'));
         Route::prefix('dashboard')->group(base_path('routes/rh/reports.php'));
     });
+
+    Route::prefix('processes/{process_id}/documents')->group(base_path('routes/process/process_document.php'));
+    Route::prefix('processes')->group(base_path('routes/process/process.php'));
 });
 Route::post('/auth/login', [UserController::class, 'login']);
 Route::prefix('auth')->middleware('guest')->group(base_path('routes/user/auth.php'));
-Route::post('auth/2fa', [UserController::class, 'verify2fa']);
+//Route::post('auth/2fa', [UserController::class, 'verify2fa']);
 
