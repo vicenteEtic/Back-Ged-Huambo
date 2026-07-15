@@ -98,4 +98,9 @@ class Employee extends Model
     {
         return $this->hasMany(ShiftAssignment::class);
     }
+
+    public function documents()
+    {
+        return $this->hasMany(\App\Models\RH\EmployeeDocument\EmployeeDocument::class);
+    }
 }

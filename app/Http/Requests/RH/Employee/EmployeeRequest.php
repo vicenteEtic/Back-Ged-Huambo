@@ -38,6 +38,12 @@ class EmployeeRequest extends BaseFormRequest
             'bank_iban' => ['nullable', 'string', 'max:50'],
             'status' => ['string', 'max:30'],
             'photo_url' => ['nullable', 'file', 'max:1048576'],
+            'documents' => ['nullable', 'array'],
+            'documents.*.document_type' => ['required_with:documents', 'string', 'max:100'],
+            'documents.*.name' => ['nullable', 'string', 'max:255'],
+            'documents.*.description' => ['nullable', 'string'],
+            'documents.*.file_path' => ['required_with:documents', 'file', 'max:10485760'],
+            'documents.*.expiry_date' => ['nullable', 'date'],
         ];
     }
 }

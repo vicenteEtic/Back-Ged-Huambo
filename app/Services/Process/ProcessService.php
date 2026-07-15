@@ -5,9 +5,11 @@ namespace App\Services\Process;
 use App\Models\Process\Process;
 use App\Models\Process\ProcessAssignment;
 use App\Models\Process\ProcessAssignmentTechnician;
+use App\Models\Process\ProcessDocument;
 use App\Models\Process\ProcessMovement;
 use App\Repositories\Process\ProcessRepository;
 use App\Services\AbstractService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 class ProcessService extends AbstractService
@@ -36,10 +38,14 @@ class ProcessService extends AbstractService
 
     public function store(array $data): Process
     {
+        $files = $data['file_path'] ?? null;
+        $documentType = $data['document_type'] ?? 'anexo';
+        unset($data['file_path'], $data['document_type']);
+
         $data = $this->clean($data);
 
-        // Busca o departamento do expediente para gerar o reference_number
         $expediente = \App\Models\RH\Department\Department::where('type', 'expediente')->firstOrFail();
+
         $data['current_department_id'] = $expediente->id;
         $data['current_holder_id'] = auth()->id();
         $data['sequence_number'] = $this->repository->nextSequenceNumber($expediente->code);
@@ -49,9 +55,13 @@ class ProcessService extends AbstractService
 
         $model = $this->repository->store($data);
 
+        if ($files) {
+            $this->storeDocuments($model->id, $files, $documentType);
+        }
+
         $this->registerMovement($model, null, null, $expediente->id, null, 'reception', 'Processo criado no expediente');
 
-        return $model->fresh(['currentDepartment', 'currentArea', 'currentHolder', 'creator']);
+        return $model->fresh(['currentDepartment', 'currentArea', 'currentHolder', 'creator', 'documents']);
     }
 
     public function dispatchToChief(int $processId, int $departmentId, ?int $areaId = null): Process
@@ -370,6 +380,33 @@ class ProcessService extends AbstractService
 
             return $process->fresh(['currentDepartment', 'currentArea', 'closedBy']);
         });
+    }
+
+    protected function storeDocuments(int $processId, mixed $files, string $documentType): void
+    {
+        $single = $files instanceof UploadedFile;
+        $files = $single ? [$files] : $files;
+
+        if (!is_array($files)) {
+            return;
+        }
+
+        foreach ($files as $file) {
+            if ($file instanceof UploadedFile) {
+                $path = $file->store('/processes/files/'.$processId, 'public');
+
+                ProcessDocument::create([
+                    'process_id' => $processId,
+                    'document_type' => $documentType,
+                    'name' => $file->getClientOriginalName(),
+                    'file_path' => $path,
+                    'file_type' => $file->getClientOriginalExtension(),
+                    'file_size' => $file->getSize(),
+                    'mime_type' => $file->getMimeType(),
+                    'uploaded_by' => auth()->id(),
+                ]);
+            }
+        }
     }
 
     protected function registerMovement(

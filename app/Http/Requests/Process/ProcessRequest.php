@@ -14,7 +14,7 @@ class ProcessRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'process_type' => ['required', 'string', 'in:external,internal'],
+            'process_type' => ['required', 'string'],
             'subject' => ['required', 'string', 'max:255'],
             'reception_date' => ['required', 'date'],
             'reception_time' => ['required', 'date_format:H:i'],
@@ -27,10 +27,9 @@ class ProcessRequest extends BaseFormRequest
             'document_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
             'sender_entity' => ['nullable', 'string', 'max:255'],
-            'file_path' => ['nullable', 'string'],
-            'file_type' => ['nullable', 'string'],
-            'file_size' => ['nullable', 'integer'],
-            'mime_type' => ['nullable', 'string'],
+            'file_path' => ['nullable', 'array'],
+            'file_path.*' => ['file', 'max:10485760'],
+            'document_type' => ['nullable', 'string', 'max:100'],
             'justification' => ['nullable', 'string'],
             'classification' => ['nullable', 'string', 'in:pedido,reclamacao,sugestao,informacao,outro'],
             'deadline' => ['nullable', 'date'],

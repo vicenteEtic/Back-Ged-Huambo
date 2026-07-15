@@ -51,7 +51,6 @@ class ProcessRepository extends AbstractRepository
 
     /**
      * Gera número de registo: CÓDIGO_DEPT/YEAR/SEQUENCE
-     * Usa selectMax para ser infalível (sem depender de lock)
      */
     public function nextSequenceNumber(string $departmentCode): string
     {
@@ -74,7 +73,6 @@ class ProcessRepository extends AbstractRepository
 
     /**
      * Override do store para tratar duplicate key no sequence_number
-     * com retry automático (até 5 tentativas)
      */
     public function store(array $data)
     {
@@ -87,7 +85,6 @@ class ProcessRepository extends AbstractRepository
                 });
             } catch (QueryException $e) {
                 if ($attempt < $maxAttempts && str_contains($e->getMessage(), 'Duplicate entry')) {
-                    // Regenera o sequence_number e tenta novamente
                     $expediente = \App\Models\RH\Department\Department::where('type', 'expediente')->first();
                     if ($expediente) {
                         $data['sequence_number'] = $this->nextSequenceNumber($expediente->code);
