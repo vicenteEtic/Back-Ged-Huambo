@@ -39,7 +39,7 @@ class EmployeeRequest extends BaseFormRequest
             'status' => ['string', 'max:30'],
             'photo_url' => ['nullable', 'file', 'max:1048576'],
             'documents' => ['nullable', 'array'],
-            'documents.*.document_type' => ['required_with:documents', 'string', 'max:100'],
+            'documents.*.document_type' => ['nullable', 'string', 'max:100'],
             'documents.*.name' => ['nullable', 'string', 'max:255'],
             'documents.*.description' => ['nullable', 'string'],
             'documents.*.file_path' => ['required_with:documents', 'file', 'max:10485760'],

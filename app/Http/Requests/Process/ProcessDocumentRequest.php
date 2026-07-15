@@ -14,7 +14,7 @@ class ProcessDocumentRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'document_type' => ['required', 'string', 'max:100'],
+            'document_type' => ['nullable', 'string', 'max:100'],
             'name' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'file_path' => ['required', 'array'],

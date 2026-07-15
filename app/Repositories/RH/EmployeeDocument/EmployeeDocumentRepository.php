@@ -41,7 +41,7 @@ class EmployeeDocumentRepository extends AbstractRepository
 
                     $created[] = $this->model->create([
                         'employee_id'   => $data['employee_id'],
-                        'document_type' => $data['document_type'],
+                        'document_type' => $data['document_type'] ?? $this->guessDocumentType($file),
                         'name'          => $data['name'] ?? $file->getClientOriginalName(),
                         'description'   => $data['description'] ?? null,
                         'file_path'     => $path,
@@ -58,5 +58,19 @@ class EmployeeDocumentRepository extends AbstractRepository
             }
             throw $e;
         }
+    }
+
+    protected function guessDocumentType(UploadedFile $file): string
+    {
+        $mime = $file->getMimeType();
+
+        return match (true) {
+            str_contains($mime, 'pdf') => 'PDF',
+            str_contains($mime, 'image') => 'Imagem',
+            str_contains($mime, 'word') || str_contains($mime, 'document') => 'Documento Word',
+            str_contains($mime, 'excel') || str_contains($mime, 'spreadsheet') => 'Folha de cálculo',
+            str_contains($mime, 'text') => 'Texto',
+            default => $mime,
+        };
     }
 }
