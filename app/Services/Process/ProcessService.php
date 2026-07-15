@@ -39,7 +39,7 @@ class ProcessService extends AbstractService
     public function store(array $data): Process
     {
         $files = $data['file_path'] ?? null;
-        $documentType = $data['document_type'] ?? 'anexo';
+        $documentType = $data['document_type'] ?? null;
         unset($data['file_path'], $data['document_type']);
 
         $data = $this->clean($data);
@@ -382,7 +382,7 @@ class ProcessService extends AbstractService
         });
     }
 
-    protected function storeDocuments(int $processId, mixed $files, string $documentType): void
+    protected function storeDocuments(int $processId, mixed $files, ?string $documentType = null): void
     {
         $single = $files instanceof UploadedFile;
         $files = $single ? [$files] : $files;
@@ -393,11 +393,11 @@ class ProcessService extends AbstractService
 
         foreach ($files as $file) {
             if ($file instanceof UploadedFile) {
-                $path = $file->store('/processes/files/'.$processId, 'public');
+                $path = $file->store($processId . '/process-documents', 'public');
 
                 ProcessDocument::create([
                     'process_id' => $processId,
-                    'document_type' => $documentType,
+                    'document_type' => $documentType ?? $this->guessDocumentType($file),
                     'name' => $file->getClientOriginalName(),
                     'file_path' => $path,
                     'file_type' => $file->getClientOriginalExtension(),
@@ -407,6 +407,20 @@ class ProcessService extends AbstractService
                 ]);
             }
         }
+    }
+
+    protected function guessDocumentType(UploadedFile $file): string
+    {
+        $mime = $file->getMimeType();
+
+        return match (true) {
+            str_contains($mime, 'pdf') => 'PDF',
+            str_contains($mime, 'image') => 'Imagem',
+            str_contains($mime, 'word') || str_contains($mime, 'document') => 'Documento Word',
+            str_contains($mime, 'excel') || str_contains($mime, 'spreadsheet') => 'Folha de cálculo',
+            str_contains($mime, 'text') => 'Texto',
+            default => $mime,
+        };
     }
 
     protected function registerMovement(
