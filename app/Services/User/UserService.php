@@ -100,7 +100,7 @@ class UserService extends AbstractService
         $user->generateTwoFactorCode();
 
         // 📧 Envia email
-        Mail::to($user->email)->send(new \App\Mail\TwoFactorCodeMail($user));
+      //000  Mail::to($user->email)->send(new \App\Mail\TwoFactorCodeMail($user));
 
         $token = $user->createToken("ged")->plainTextToken;
 
