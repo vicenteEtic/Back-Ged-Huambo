@@ -23,20 +23,7 @@ class EmployeeDocumentController extends AbstractController
         $this->service = $service;
     }
 
-    public function index(Request $request, int $employeeId)
-    {
-        try {
-            $this->logRequest();
-            $filters = $request['filters'] ?? $request['filtersV2'] ?? [];
-            $filters['employee_id'] = $employeeId;
-            $result = $this->service->index($request['paginate'], $filters, $request['orderBy'], $request['relationships']);
-            return response()->json($result);
-        } catch (Exception $e) {
-            $this->logRequest($e);
-            Log::error('Error fetching employee documents', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
+   
 
     public function store(EmployeeDocumentRequest $request, int $employeeId)
     {
