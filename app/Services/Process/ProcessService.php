@@ -89,7 +89,7 @@ class ProcessService extends AbstractService
                 $departmentId,
                 $areaId,
                 'dispatch_to_chief',
-                'Encaminhado ao chefe do departamento',
+                'Encaminhado ao Director do Gabinete',
                 null,
                 $chiefUserId
             );
