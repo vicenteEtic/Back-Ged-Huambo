@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
         $this->call(LeaveTypeSeeder::class);
         $this->call(DisciplinaryTypeSeed::class);
         $this->call(ProgressionRuleSeed::class);
+        $this->call(AreaSeed::class);
       
     }
 }
