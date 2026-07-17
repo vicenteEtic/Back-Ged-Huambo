@@ -25,7 +25,7 @@ class ArchiveDocumentRepository extends AbstractRepository
                     $employeeId = $data['employee_id'] ?? 'general';
                     $path = $file->store($employeeId . '/archive-documents', 'public');
 
-                    $data['file_path'] = $path;
+                    $data['file_path'] = 'storage/'.$path;
                     $data['file_type'] = $this->guessFileType($file);
                     $data['file_size'] = $file->getSize();
                     $data['mime_type'] = $file->getMimeType();

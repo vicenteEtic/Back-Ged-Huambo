@@ -44,7 +44,7 @@ class EmployeeDocumentRepository extends AbstractRepository
                         'document_type' => $data['document_type'] ?? $this->guessDocumentType($file),
                         'name'          => $data['name'] ?? $file->getClientOriginalName(),
                         'description'   => $data['description'] ?? null,
-                        'file_path'     => $path,
+                        'file_path'     => 'storage/'.$path,
                         'expiry_date'   => $data['expiry_date'] ?? null,
                         'is_verified'   => $data['is_verified'] ?? false,
                     ]);

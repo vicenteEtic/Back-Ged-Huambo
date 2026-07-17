@@ -3,7 +3,7 @@ version: "3"
 dotenv: [".env"]
 
 vars:
-  PHP_CONTAINER: "app-php"
+  PHP_CONTAINER: "${PHP_CONTAINER:-app-php}"
 
 tasks:
   deploy:
@@ -11,6 +11,7 @@ tasks:
     cmds:
       - git pull
       - task: migrate
+      - task: storage-link
       - task: optimize
       - echo "🚀 App atualizado com sucesso!"
 
@@ -18,6 +19,11 @@ tasks:
     desc: "Otimiza o carregamento de classes do PHP"
     cmds:
       - docker exec -it {{.PHP_CONTAINER}} composer dump-autoload --optimize
+
+  storage-link:
+    desc: "Cria o symlink do storage (relativo para Docker)"
+    cmds:
+      - docker exec -it {{.PHP_CONTAINER}} php artisan storage:link --force
 
   optimize:
     desc: "Limpa e reconstrói todos os caches do Laravel"
