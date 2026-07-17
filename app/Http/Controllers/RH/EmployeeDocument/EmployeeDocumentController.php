@@ -24,15 +24,15 @@ class EmployeeDocumentController extends AbstractController
     }
 
 
-    
-
-    public function show(int|string $id = 0)
+      public function findBy(int|string $id = 0)
     {
         $employeeId = request()->route('employee_id');
         $documents = $this->service->findBy(['employee_id' => $employeeId]);
 
         return response()->json($documents);
     }
+
+   
 
     public function destroy($id)
     {

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AlertAttachment\AlertAttachmentController;
 use App\Http\Controllers\Api\EnumController;
+use App\Http\Controllers\RH\EmployeeDocument\EmployeeDocumentController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\User\UserController;
 
@@ -36,6 +37,7 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::prefix('departments')->group(base_path('routes/rh/department.php'));
         Route::prefix('positions')->group(base_path('routes/rh/position.php'));
         Route::prefix('employees')->group(function () {
+            Route::get('/{employee_id}/documents', [EmployeeDocumentController::class, 'findBy'])->name('employee_document.findBy')->middleware(['can:rh-documentos-show']);
             Route::prefix('documents')->group(base_path('routes/rh/employee_document.php'));
             Route::group([], base_path('routes/rh/employee.php'));
         });

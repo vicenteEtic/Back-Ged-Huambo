@@ -40,12 +40,6 @@ class ArchiveDocumentController extends AbstractController
             $this->logRequest();
             $data = $request->validated();
             $data['created_by'] = auth()->id();
-            if (isset($data['metadata'])) {
-                $data['metadata'] = is_string($data['metadata']) ? json_decode($data['metadata'], true) : $data['metadata'];
-            }
-            if (isset($data['tags'])) {
-                $data['tags'] = is_string($data['tags']) ? json_decode($data['tags'], true) : $data['tags'];
-            }
             $model = $this->service->store($data);
             DB::commit();
             return response()->json($model->load(['category', 'employee', 'creator']), Response::HTTP_CREATED);

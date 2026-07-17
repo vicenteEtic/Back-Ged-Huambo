@@ -24,6 +24,7 @@ class ArchiveDocumentRequest extends BaseFormRequest
             'document_number' => ['nullable', 'string', 'max:100'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'issuing_authority' => ['nullable', 'string', 'max:255'],
+            'file' => ['nullable', 'file', 'max:102400'],
             'file_path' => ['nullable', 'string', 'max:500'],
             'file_type' => ['nullable', 'string', 'max:50'],
             'file_size' => ['nullable', 'integer', 'min:0'],
