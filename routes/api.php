@@ -37,6 +37,7 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::prefix('positions')->group(base_path('routes/rh/position.php'));
         Route::prefix('employees')->group(base_path('routes/rh/employee.php'));
         Route::prefix('employees/{employee_id}/documents')->group(base_path('routes/rh/employee_document.php'));
+        Route::get('employees/documents', [\App\Http\Controllers\RH\EmployeeDocument\EmployeeDocumentController::class, 'index'])->name('employee_document.index')->middleware(['can:rh-documentos-show']);
         Route::prefix('leaves')->group(base_path('routes/rh/leave.php'));
         Route::prefix('attendance')->group(base_path('routes/rh/attendance.php'));
         Route::prefix('payroll')->group(base_path('routes/rh/payroll.php'));
