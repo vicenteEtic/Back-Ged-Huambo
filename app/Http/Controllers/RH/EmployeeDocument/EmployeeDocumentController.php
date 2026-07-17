@@ -23,18 +23,6 @@ class EmployeeDocumentController extends AbstractController
         parent::__construct($service);
     }
 
-    public function index(Request $request)
-    {
-        $employeeId = $request->route('employee_id');
-        $existingFilters = $request->input('filters') ?? $request->input('filtersV2') ?? [];
-        $employeeFilter = [
-            'field' => 'employee_id',
-            'filterType' => 'EQUALS',
-            'filterValue' => $employeeId,
-        ];
-        $request->merge(['filters' => array_merge([$employeeFilter], $existingFilters)]);
-        return parent::index($request);
-    }
 
     public function show(int|string $id)
     {
