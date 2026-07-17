@@ -81,6 +81,13 @@ class EmployeeDocumentController extends AbstractController
 
     public function update(EmployeeDocumentRequest $request, $id)
     {
+        $employeeId = request()->route('employee_id');
+        $document = $this->service->show($id);
+
+        if ($document->employee_id != $employeeId) {
+            return response()->json(['error' => 'Document does not belong to this employee.'], Response::HTTP_NOT_FOUND);
+        }
+
         DB::beginTransaction();
         try {
             $this->logRequest();
