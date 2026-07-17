@@ -24,26 +24,15 @@ class EmployeeDocumentController extends AbstractController
     }
 
 
-    public function index(Request $request)
-    {
-        $employeeId = request()->route('employee_id');
-        $existingFilters = $request->input('filters') ?? $request->input('filtersV2') ?? [];
-        $employeeFilter = [
-            'field' => 'employee_id',
-            'filterType' => 'EQUALS',
-            'filterValue' => $employeeId,
-        ];
-        $request->merge(['filters' => array_merge([$employeeFilter], $existingFilters)]);
-        return parent::index($request);
-    }
+    
 
     public function show(int|string $id)
     {
         $employeeId = request()->route('employee_id');
-        $document = $this->service->show($id);
+        $document = $this->service->findOneBy(['id' => $id, 'employee_id' => $employeeId]);
 
-        if ($document->employee_id != $employeeId) {
-            return response()->json(['error' => 'Document does not belong to this employee.'], Response::HTTP_NOT_FOUND);
+        if (!$document) {
+            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
         }
 
         return response()->json($document);
