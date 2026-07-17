@@ -26,24 +26,20 @@ class EmployeeDocumentController extends AbstractController
 
     
 
-    public function show(int|string $id)
+    public function show(int|string $id = 0)
     {
         $employeeId = request()->route('employee_id');
-        $document = $this->service->findOneBy(['id' => $id, 'employee_id' => $employeeId]);
+        $documents = $this->service->findBy(['employee_id' => $employeeId]);
 
-        if (!$document) {
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
-        }
-
-        return response()->json($document);
+        return response()->json($documents);
     }
 
-    public function destroy(int|string $id)
+    public function destroy($id)
     {
         $employeeId = request()->route('employee_id');
         $document = $this->service->show($id);
 
-        if ($document->employee_id != $employeeId) {
+        if (!$document || $document->employee_id != $employeeId) {
             return response()->json(['error' => 'Document does not belong to this employee.'], Response::HTTP_NOT_FOUND);
         }
 
@@ -58,13 +54,12 @@ class EmployeeDocumentController extends AbstractController
         return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 
-    public function store(EmployeeDocumentRequest $request, int $employeeId)
+    public function store(EmployeeDocumentRequest $request)
     {
         DB::beginTransaction();
         try {
             $this->logRequest();
             $data = $request->validated();
-            $data['employee_id'] = $employeeId;
             $documents = $this->service->store($data);
             $count = is_array($documents) ? count($documents) : 1;
             $this->logToDatabase(
@@ -86,7 +81,7 @@ class EmployeeDocumentController extends AbstractController
         $employeeId = request()->route('employee_id');
         $document = $this->service->show($id);
 
-        if ($document->employee_id != $employeeId) {
+        if (!$document || $document->employee_id != $employeeId) {
             return response()->json(['error' => 'Document does not belong to this employee.'], Response::HTTP_NOT_FOUND);
         }
 

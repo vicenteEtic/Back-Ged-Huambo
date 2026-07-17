@@ -35,8 +35,10 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
     Route::prefix('rh')->group(function () {
         Route::prefix('departments')->group(base_path('routes/rh/department.php'));
         Route::prefix('positions')->group(base_path('routes/rh/position.php'));
-        Route::prefix('employees')->group(base_path('routes/rh/employee.php'));
-        Route::prefix('employees/{employee_id}/documents')->group(base_path('routes/rh/employee_document.php'));
+        Route::prefix('employees')->group(function () {
+            Route::prefix('documents')->group(base_path('routes/rh/employee_document.php'));
+            Route::group([], base_path('routes/rh/employee.php'));
+        });
         
         Route::prefix('leaves')->group(base_path('routes/rh/leave.php'));
         Route::prefix('attendance')->group(base_path('routes/rh/attendance.php'));

@@ -65,6 +65,11 @@ abstract class AbstractService
         return $this->repository->findOneBy($criteria);
     }
 
+    public function findBy(array $criteria)
+    {
+        return $this->repository->findBy($criteria);
+    }
+
     protected function clean(array $data): array
     {
         array_walk_recursive($data, function (&$value) {
