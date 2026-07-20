@@ -88,10 +88,11 @@ namespace App\Models\\{$namespacePath};
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class $filename extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
     protected \$table = '$tableName';
     protected \$primaryKey = 'id';
     protected \$fillable = ['$fillableString'];
@@ -169,6 +170,10 @@ use Illuminate\Support\Facades\Log;
     
     class {$filename}Controller extends AbstractController
     {
+        protected ?string \$logType = 'rh';
+        protected ?string \$nameEntity = '{$filename}';
+        protected ?string \$fieldName = 'name';
+
         public function __construct({$filename}Service \$service)
         {
             \$this->service = \$service;
@@ -182,10 +187,16 @@ use Illuminate\Support\Facades\Log;
             try {
                 \$this->logRequest();
                 \${$entityName} = \$this->service->store(\$request->validated());
+                \$this->logToDatabase(
+                    type: \$this->logType,
+                    level: 'info',
+                    customMessage: \$this->nameEntity . ' criado por ' . auth()->user()->first_name
+                );
                 return response()->json(\${$entityName}, Response::HTTP_CREATED);
             } catch (Exception \$e) {
                 \$this->logRequest(\$e);
-                return response()->json(\$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+                Log::error('Erro ao criar ' . \$this->nameEntity, ['message' => \$e->getMessage()]);
+                return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
         }
     
@@ -197,13 +208,19 @@ use Illuminate\Support\Facades\Log;
             try {
                 \$this->logRequest();
                 \${$entityName} = \$this->service->update(\$request->validated(), \$id);
+                \$this->logToDatabase(
+                    type: \$this->logType,
+                    level: 'info',
+                    customMessage: \$this->nameEntity . ' actualizado por ' . auth()->user()->first_name
+                );
                 return response()->json(\${$entityName}, Response::HTTP_OK);
             } catch (ModelNotFoundException \$e) {
                 \$this->logRequest(\$e);
                 return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
             } catch (Exception \$e) {
                 \$this->logRequest(\$e);
-                return response()->json(\$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+                Log::error('Erro ao actualizar ' . \$this->nameEntity, ['message' => \$e->getMessage()]);
+                return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
         }
     }";
@@ -238,7 +255,7 @@ use Illuminate\Support\Facades\Log;
 
             // Cria regras básicas para cada coluna (pode ser personalizado conforme necessidade)
             foreach ($fillable as $column) {
-                $rules[] = "'$column' => 'required'";
+                $rules[] = "'$column' => [\$this->requiredOnCreate(), 'string', 'max:255']";
             }
         }
 
@@ -268,6 +285,7 @@ class {$filename}Request extends BaseFormRequest
      */
     public function rules(): array
     {
+        \$id = \$this->route('id');
         return [
             $rulesString
         ];

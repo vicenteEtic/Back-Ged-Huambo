@@ -309,6 +309,17 @@
 - **NÃO** enviar `employee_number` no request — é ignorado se fornecido
 - Campo removido do `EmployeeRequest` (não validado)
 
+### Convenção Route Parameter
+- Todas as rotas RH usam `{id}` como parâmetro (ex: `Route::put('{id}', ...)`)
+- No FormRequest, **SEMPRE** usar `$this->route('id')` para obter o ID actual
+- **NÃO** usar nomes de entidade (`$this->route('department')`, `$this->route('position')`, etc.)
+- Se `$id` for null, o `unique:table,column,{$id},id` nunca ignora o registo actual → erro "já está sendo utilizado" na edição
+- Exemplo correcto:
+  ```php
+  $id = $this->route('id');  // CORRECTO
+  // $id = $this->route('department');  // ERRADO — retorna null
+  ```
+
 ---
 
 # Sessão: Correção de Testes RH (Jul 2026)
