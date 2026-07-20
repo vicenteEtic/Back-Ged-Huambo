@@ -36,22 +36,23 @@ class EmployeeDocumentController extends AbstractController
 
     public function destroy($id)
     {
-        $employeeId = request()->route('employee_id');
-        $document = $this->service->show($id);
+        try {
+            $document = $this->service->show($id);
+            $this->service->destroy($id);
 
-        if (!$document || $document->employee_id != $employeeId) {
-            return response()->json(['error' => 'Document does not belong to this employee.'], Response::HTTP_NOT_FOUND);
+            $this->logToDatabase(
+                type: $this->logType,
+                level: 'info',
+                customMessage: "Document {$id} removed from employee {$document->employee_id} by " . auth()->user()->first_name
+            );
+
+            return response()->json(null, Response::HTTP_NO_CONTENT);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+        } catch (Exception $e) {
+            Log::error('Error deleting employee document', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $this->service->destroy($id);
-
-        $this->logToDatabase(
-            type: $this->logType,
-            level: 'info',
-            customMessage: "Document {$id} removed from employee {$employeeId} by " . auth()->user()->first_name
-        );
-
-        return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 
     public function store(EmployeeDocumentRequest $request)
@@ -78,13 +79,6 @@ class EmployeeDocumentController extends AbstractController
 
     public function update(EmployeeDocumentRequest $request, $id)
     {
-        $employeeId = request()->route('employee_id');
-        $document = $this->service->show($id);
-
-        if (!$document || $document->employee_id != $employeeId) {
-            return response()->json(['error' => 'Document does not belong to this employee.'], Response::HTTP_NOT_FOUND);
-        }
-
         DB::beginTransaction();
         try {
             $this->logRequest();
