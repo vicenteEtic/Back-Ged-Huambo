@@ -31,7 +31,7 @@ class DisciplinaryTypeController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
             Log::error('Error', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -45,11 +45,11 @@ class DisciplinaryTypeController extends AbstractController
             DB::commit();
             return response()->json($model, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
-            DB::rollBack(); return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            DB::rollBack(); return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
             Log::error('Error', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

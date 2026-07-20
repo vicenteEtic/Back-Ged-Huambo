@@ -31,10 +31,10 @@ class RetirementController extends AbstractController
             $employee = Employee::findOrFail($employeeId);
             return response()->json($this->retirementService->checkEligibility($employee));
         } catch (ModelNotFoundException $e) {
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             Log::error('Error checking retirement eligibility', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -51,7 +51,7 @@ class RetirementController extends AbstractController
             DB::rollBack();
             $this->logRequest($e);
             Log::error('Error creating retirement process', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -65,12 +65,12 @@ class RetirementController extends AbstractController
             return response()->json($model->load(['employee', 'approver']), Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
             Log::error('Error updating retirement process', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -80,7 +80,7 @@ class RetirementController extends AbstractController
             return response()->json($this->retirementService->processHistory($employeeId));
         } catch (Exception $e) {
             Log::error('Error fetching retirement history', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

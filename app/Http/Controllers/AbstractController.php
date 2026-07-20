@@ -91,7 +91,7 @@ abstract class AbstractController extends Controller
                     customMessage: "Erro ao visualizar o registro {$id} em {$this->nameEntity}."
                 );
             }
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             if ($this->logRequest) {
                 $this->logRequest($e);
@@ -137,7 +137,7 @@ abstract class AbstractController extends Controller
                     customMessage: "Erro ao remover o registro {$id} em {$this->nameEntity}."
                 );
             }
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             if ($this->logRequest) {
                 $this->logRequest($e);
@@ -162,7 +162,7 @@ abstract class AbstractController extends Controller
             $service = $this->service->restore($id);
             return response()->json($service, Response::HTTP_NO_CONTENT);
         } catch (ModelNotFoundException $e) {
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             Log::error('Erro interno', [
                 'message' => $e->getMessage(),

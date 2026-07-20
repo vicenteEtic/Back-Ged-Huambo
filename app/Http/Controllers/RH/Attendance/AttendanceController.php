@@ -41,7 +41,7 @@ class AttendanceController extends AbstractController
             DB::rollBack();
             $this->logRequest($e);
             Log::error('Error recording attendance', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -59,12 +59,12 @@ class AttendanceController extends AbstractController
             return response()->json($attendance, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
             Log::error('Error updating attendance', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -82,7 +82,7 @@ class AttendanceController extends AbstractController
             return response()->json($attendance);
         } catch (Exception $e) {
             Log::error('Error registering check-in', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -100,7 +100,7 @@ class AttendanceController extends AbstractController
             return response()->json($attendance);
         } catch (Exception $e) {
             Log::error('Error registering check-out', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -121,7 +121,7 @@ class AttendanceController extends AbstractController
             return response()->json($attendance);
         } catch (Exception $e) {
             Log::error('Error registering absence', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -133,7 +133,7 @@ class AttendanceController extends AbstractController
             return response()->json($this->attendanceService->monthlyReport($employeeId, $year, $month));
         } catch (Exception $e) {
             Log::error('Error generating report', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -156,7 +156,7 @@ class AttendanceController extends AbstractController
             return response()->json($result, Response::HTTP_CREATED);
         } catch (Exception $e) {
             Log::error('Error importing biometric data', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

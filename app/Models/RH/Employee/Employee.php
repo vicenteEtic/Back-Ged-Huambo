@@ -20,6 +20,33 @@ class Employee extends Model
 
     protected $table = 'employees';
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (Employee $employee) {
+            if (empty($employee->employee_number)) {
+                $employee->employee_number = self::generateEmployeeNumber();
+            }
+        });
+    }
+
+    public static function generateEmployeeNumber(): string
+    {
+        $last = static::withTrashed()
+            ->where('employee_number', 'like', 'EMP-%')
+            ->orderByRaw("CAST(SUBSTRING(employee_number, 5) AS UNSIGNED) DESC")
+            ->first();
+
+        if ($last && preg_match('/EMP-(\d+)/', $last->employee_number, $matches)) {
+            $next = (int) $matches[1] + 1;
+        } else {
+            $next = 1;
+        }
+
+        return 'EMP-' . str_pad($next, 5, '0', STR_PAD_LEFT);
+    }
+
     protected function casts(): array
     {
         return [

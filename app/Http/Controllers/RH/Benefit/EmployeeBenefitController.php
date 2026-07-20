@@ -36,11 +36,11 @@ class EmployeeBenefitController extends AbstractController
             }
             $this->logRequest($e);
             Log::error('Error', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
             Log::error('Error', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -54,7 +54,7 @@ class EmployeeBenefitController extends AbstractController
             DB::commit();
             return response()->json($model, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
-            DB::rollBack(); return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            DB::rollBack(); return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (QueryException $e) {
             DB::rollBack();
             if ($e->getCode() === '23000' && str_contains($e->getMessage(), '1062')) {
@@ -62,11 +62,11 @@ class EmployeeBenefitController extends AbstractController
             }
             $this->logRequest($e);
             Log::error('Error', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
             Log::error('Error', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

@@ -296,6 +296,19 @@
 - Campos que NUNCA devem usar `requiredOnCreate` (devem ser sempre `nullable`): `status`, `notes`, `description`, campos opcionais
 - Campos que devem ser sempre `required` (mesmo na edição): nenhum — se for essencial, o controller deve validar separadamente
 
+### Convenção de Idioma
+- **Todas** as mensagens de resposta da API devem estar em **português (PT)**
+- Mensagens de erro: `'Erro interno no servidor.'`, `'Recurso não encontrado.'`, `'Erro de validação'`
+- Mensagens de sucesso: textos em PT
+- Log messages (logToDatabase, Log::error): em PT quando visíveis ao utilizador
+- Template `MakeFullModuleCommand`: gerar controllers com mensagens em PT
+
+### Convenção employee_number
+- `employee_number` é **auto-gerado** pelo model `Employee` no `boot()` (método `creating`)
+- Formato: `EMP-00001`, `EMP-00002`, etc. (sequencial, 5 dígitos)
+- **NÃO** enviar `employee_number` no request — é ignorado se fornecido
+- Campo removido do `EmployeeRequest` (não validado)
+
 ---
 
 # Sessão: Correção de Testes RH (Jul 2026)
