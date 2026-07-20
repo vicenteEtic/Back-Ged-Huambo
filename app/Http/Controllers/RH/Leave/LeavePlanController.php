@@ -38,7 +38,7 @@ class LeavePlanController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating leave plan', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar plano de férias', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -57,7 +57,7 @@ class LeavePlanController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating leave plan', ['message' => $e->getMessage()]);
+            Log::error('Erro ao actualizar plano de férias', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -69,7 +69,7 @@ class LeavePlanController extends AbstractController
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            Log::error('Error syncing balance', ['message' => $e->getMessage()]);
+            Log::error('Erro ao sincronizar saldo', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -81,7 +81,7 @@ class LeavePlanController extends AbstractController
             $departmentId = $request->input('department_id');
             return response()->json($this->planService->calendar($year, $departmentId));
         } catch (Exception $e) {
-            Log::error('Error fetching calendar', ['message' => $e->getMessage()]);
+            Log::error('Erro ao obter calendário de férias', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

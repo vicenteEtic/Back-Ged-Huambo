@@ -30,14 +30,14 @@ class LeaveTypeController extends AbstractController
             $leaveType = $this->service->store($request->validated());
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Leave type ' . $leaveType->name . ' created by ' . auth()->user()->first_name
+                customMessage: 'Tipo de licença ' . $leaveType->name . ' criado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($leaveType, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating leave type', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar tipo de licença', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -50,7 +50,7 @@ class LeaveTypeController extends AbstractController
             $leaveType = $this->service->update($request->validated(), $id);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Leave type ' . $leaveType->name . ' updated by ' . auth()->user()->first_name
+                customMessage: 'Tipo de licença ' . $leaveType->name . ' actualizado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($leaveType, Response::HTTP_OK);
@@ -60,7 +60,7 @@ class LeaveTypeController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating leave type', ['message' => $e->getMessage()]);
+            Log::error('Erro ao actualizar tipo de licença', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
