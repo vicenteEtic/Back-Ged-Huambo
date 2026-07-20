@@ -16,6 +16,7 @@ use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -195,6 +196,66 @@ class ArchiveDocumentController extends AbstractController
     }
 
     // === Versões ===
+
+    public function showFile(int $id)
+    {
+        try {
+            $document = ArchiveDocument::findOrFail($id);
+
+            if (!$document->file_path) {
+                return response()->json(['error' => 'Documento sem ficheiro associado.'], Response::HTTP_NOT_FOUND);
+            }
+
+            $filePath = public_path($document->file_path);
+
+            if (!file_exists($filePath)) {
+                return response()->json(['error' => 'Ficheiro não encontrado no servidor.'], Response::HTTP_NOT_FOUND);
+            }
+
+            $mimeType = File::mimeType($filePath);
+            $fileName = basename($filePath);
+
+            return response()->file($filePath, [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (\Throwable $th) {
+            Log::error('Erro ao abrir ficheiro do arquivo', ['message' => $th->getMessage()]);
+            return response()->json(['error' => 'Falha ao abrir o ficheiro.'], Response::HTTP_BAD_REQUEST);
+        }
+    }
+
+    public function showVersionFile(int $versionId)
+    {
+        try {
+            $version = ArchiveDocumentVersion::findOrFail($versionId);
+
+            if (!$version->file_path) {
+                return response()->json(['error' => 'Versão sem ficheiro associado.'], Response::HTTP_NOT_FOUND);
+            }
+
+            $filePath = public_path($version->file_path);
+
+            if (!file_exists($filePath)) {
+                return response()->json(['error' => 'Ficheiro não encontrado no servidor.'], Response::HTTP_NOT_FOUND);
+            }
+
+            $mimeType = File::mimeType($filePath);
+            $fileName = basename($filePath);
+
+            return response()->file($filePath, [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (\Throwable $th) {
+            Log::error('Erro ao abrir ficheiro de versão', ['message' => $th->getMessage()]);
+            return response()->json(['error' => 'Falha ao abrir o ficheiro.'], Response::HTTP_BAD_REQUEST);
+        }
+    }
 
     public function versions(int $documentId)
     {

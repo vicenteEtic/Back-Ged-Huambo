@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
 class EmployeeDocumentController extends AbstractController
@@ -97,6 +98,36 @@ class EmployeeDocumentController extends AbstractController
             $this->logRequest($e);
             Log::error('Error updating employee document', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function showFile(int $id)
+    {
+        try {
+            $document = $this->service->show($id);
+
+            if (!$document->file_path) {
+                return response()->json(['error' => 'Documento sem ficheiro associado.'], Response::HTTP_NOT_FOUND);
+            }
+
+            $filePath = public_path($document->file_path);
+
+            if (!file_exists($filePath)) {
+                return response()->json(['error' => 'Ficheiro não encontrado no servidor.'], Response::HTTP_NOT_FOUND);
+            }
+
+            $mimeType = File::mimeType($filePath);
+            $fileName = basename($filePath);
+
+            return response()->file($filePath, [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (\Throwable $th) {
+            Log::error('Erro ao abrir ficheiro de documento', ['message' => $th->getMessage()]);
+            return response()->json(['error' => 'Falha ao abrir o ficheiro.'], Response::HTTP_BAD_REQUEST);
         }
     }
 }
