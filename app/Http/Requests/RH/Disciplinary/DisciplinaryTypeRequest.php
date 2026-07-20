@@ -11,8 +11,8 @@ class DisciplinaryTypeRequest extends BaseFormRequest
     {
         $id = $this->route('disciplinary_type');
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:50', "unique:disciplinary_types,code,{$id},id"],
+            'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
+            'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:disciplinary_types,code,{$id},id"],
             'description' => ['nullable', 'string'],
             'severity' => ['string', 'max:30'],
             'is_active' => ['boolean'],

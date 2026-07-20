@@ -10,10 +10,10 @@ class DisciplinaryRecordRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'integer', 'exists:employees,id'],
-            'disciplinary_type_id' => ['required', 'integer', 'exists:disciplinary_types,id'],
-            'occurred_at' => ['required', 'date'],
-            'description' => ['required', 'string'],
+            'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
+            'disciplinary_type_id' => [$this->requiredOnCreate(), 'integer', 'exists:disciplinary_types,id'],
+            'occurred_at' => [$this->requiredOnCreate(), 'date'],
+            'description' => [$this->requiredOnCreate(), 'string'],
             'evidence_path' => ['nullable', 'file', 'max:10240'],
             'status' => ['string', 'max:30'],
             'reported_by' => ['nullable', 'exists:users,id'],

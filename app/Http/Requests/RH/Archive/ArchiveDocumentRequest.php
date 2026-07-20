@@ -17,9 +17,9 @@ class ArchiveDocumentRequest extends BaseFormRequest
     {
         $id = $this->route('id');
         return [
-            'category_id' => ['required', 'integer', 'exists:archive_categories,id'],
+            'category_id' => [$this->requiredOnCreate(), 'integer', 'exists:archive_categories,id'],
             'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
-            'title' => ['required', 'string', 'max:255'],
+            'title' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'document_number' => ['nullable', 'string', 'max:100'],
             'reference_number' => ['nullable', 'string', 'max:100'],

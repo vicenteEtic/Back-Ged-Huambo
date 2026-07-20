@@ -15,8 +15,8 @@ class LeaveTypeRequest extends BaseFormRequest
     {
         $id = $this->route('leave_type');
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:50', "unique:leave_types,code,{$id},id"],
+            'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
+            'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:leave_types,code,{$id},id"],
             'description' => ['nullable', 'string'],
             'default_days' => ['integer', 'min:0'],
             'allows_carryover' => ['boolean'],

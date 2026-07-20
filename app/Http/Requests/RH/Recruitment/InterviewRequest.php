@@ -15,9 +15,9 @@ class InterviewRequest extends BaseFormRequest
     {
         $id = $this->route('interview');
         return [
-            'application_id' => ['required', 'integer', 'exists:applications,id'],
+            'application_id' => [$this->requiredOnCreate(), 'integer', 'exists:applications,id'],
             'interviewer_id' => ['nullable', 'integer', 'exists:users,id'],
-            'scheduled_at' => ['required', 'date'],
+            'scheduled_at' => [$this->requiredOnCreate(), 'date'],
             'type' => ['string', 'max:50'],
             'location' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],

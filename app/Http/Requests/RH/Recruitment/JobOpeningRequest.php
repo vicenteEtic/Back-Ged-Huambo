@@ -15,10 +15,10 @@ class JobOpeningRequest extends BaseFormRequest
     {
         $id = $this->route('job_opening');
         return [
-            'title' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:50', "unique:job_openings,code,{$id},id"],
-            'department_id' => ['required', 'integer', 'exists:departments,id'],
-            'position_id' => ['required', 'integer', 'exists:positions,id'],
+            'title' => [$this->requiredOnCreate(), 'string', 'max:255'],
+            'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:job_openings,code,{$id},id"],
+            'department_id' => [$this->requiredOnCreate(), 'integer', 'exists:departments,id'],
+            'position_id' => [$this->requiredOnCreate(), 'integer', 'exists:positions,id'],
             'description' => ['nullable', 'string'],
             'requirements' => ['nullable', 'string'],
             'vacancies' => ['integer', 'min:1'],

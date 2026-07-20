@@ -16,9 +16,9 @@ class ProgressionRuleRequest extends BaseFormRequest
     {
         $id = $this->route('progression_rule');
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:50', "unique:progression_rules,code,{$id},id"],
-            'type' => ['required', 'string', 'in:' . implode(',', ProgressionType::values())],
+            'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
+            'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:progression_rules,code,{$id},id"],
+            'type' => [$this->requiredOnCreate(), 'string', 'in:' . implode(',', ProgressionType::values())],
             'description' => ['nullable', 'string'],
             'min_months_in_category' => ['integer', 'min:0'],
             'min_performance_score' => ['nullable', 'numeric', 'min:0', 'max:100'],

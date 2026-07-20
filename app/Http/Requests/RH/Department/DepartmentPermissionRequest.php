@@ -14,9 +14,9 @@ class DepartmentPermissionRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'department_id' => ['required', 'integer', 'exists:departments,id'],
+            'department_id' => [$this->requiredOnCreate(), 'integer', 'exists:departments,id'],
             'area_id' => ['nullable', 'integer', 'exists:areas,id'],
-            'permission_id' => ['required', 'integer', 'exists:permission,id'],
+            'permission_id' => [$this->requiredOnCreate(), 'integer', 'exists:permission,id'],
             'is_active' => ['boolean'],
         ];
     }

@@ -18,4 +18,9 @@ class BaseFormRequest extends FormRequest
             ], Response::HTTP_UNPROCESSABLE_ENTITY)
         );
     }
+
+    protected function requiredOnCreate(): string
+    {
+        return $this->isMethod('POST') ? 'required' : 'sometimes';
+    }
 }

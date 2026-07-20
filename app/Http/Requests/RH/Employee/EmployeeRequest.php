@@ -16,8 +16,8 @@ class EmployeeRequest extends BaseFormRequest
         $id = $this->route('employee');
         return [
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
-            'employee_number' => ['required', 'string', 'max:50', "unique:employees,employee_number,{$id},id"],
-            'full_name' => ['required', 'string', 'max:255'],
+            'employee_number' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:employees,employee_number,{$id},id"],
+            'full_name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'date_of_birth' => ['nullable', 'date'],
             'gender' => ['nullable', 'string', 'max:20'],
             'marital_status' => ['nullable', 'string', 'max:30'],

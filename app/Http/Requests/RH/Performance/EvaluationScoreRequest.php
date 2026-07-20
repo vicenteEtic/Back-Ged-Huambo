@@ -14,8 +14,8 @@ class EvaluationScoreRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'evaluation_id' => ['required', 'integer', 'exists:performance_evaluations,id'],
-            'criterion_id' => ['required', 'integer', 'exists:evaluation_criteria,id'],
+            'evaluation_id' => [$this->requiredOnCreate(), 'integer', 'exists:performance_evaluations,id'],
+            'criterion_id' => [$this->requiredOnCreate(), 'integer', 'exists:evaluation_criteria,id'],
             'score' => ['nullable', 'numeric', 'min:0'],
             'comment' => ['nullable', 'string'],
         ];

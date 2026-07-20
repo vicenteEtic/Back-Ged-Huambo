@@ -15,8 +15,8 @@ class ApplicationRequest extends BaseFormRequest
     {
         $id = $this->route('application');
         return [
-            'job_opening_id' => ['required', 'integer', 'exists:job_openings,id'],
-            'candidate_id' => ['required', 'integer', 'exists:candidates,id'],
+            'job_opening_id' => [$this->requiredOnCreate(), 'integer', 'exists:job_openings,id'],
+            'candidate_id' => [$this->requiredOnCreate(), 'integer', 'exists:candidates,id'],
             'status' => ['string', 'max:30'],
             'cover_letter' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],

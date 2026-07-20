@@ -15,7 +15,7 @@ class ProgressionRequestRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
             'rule_id' => ['nullable', 'integer', 'exists:progression_rules,id'],
             'type' => ['required_without:rule_id', 'nullable', 'string', 'in:' . implode(',', ProgressionType::values())],
             'to_category' => ['nullable', 'string', 'max:100'],

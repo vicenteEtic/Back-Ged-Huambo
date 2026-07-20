@@ -15,9 +15,9 @@ class DepartmentRequest extends BaseFormRequest
     {
         $id = $this->route('department');
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'type' => ['nullable', 'string', 'in:expediente,gabinete,departamento,vice_governador'],
-            'code' => ['required', 'string', 'max:50', "unique:departments,code,{$id},id"],
+            'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:departments,code,{$id},id"],
             'description' => ['nullable', 'string'],
             'responsible_id' => ['nullable', 'integer', 'exists:users,id'],
             'parent_id' => ['nullable', 'integer', 'exists:departments,id'],
