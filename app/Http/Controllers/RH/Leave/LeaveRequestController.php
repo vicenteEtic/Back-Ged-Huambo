@@ -33,7 +33,7 @@ class LeaveRequestController extends AbstractController
             $leaveRequest = $this->leaveService->submit($request->validated());
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Leave request #' . $leaveRequest->id . ' submitted by ' . auth()->user()->first_name
+                customMessage: 'Pedido de férias #' . $leaveRequest->id . ' submetido por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($leaveRequest, Response::HTTP_CREATED);
@@ -43,7 +43,7 @@ class LeaveRequestController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error submitting leave request', ['message' => $e->getMessage()]);
+            Log::error('Erro ao submeter pedido de férias', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -56,7 +56,7 @@ class LeaveRequestController extends AbstractController
             $leaveRequest = $this->service->update($request->validated(), $id);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Leave request #' . $leaveRequest->id . ' updated by ' . auth()->user()->first_name
+                customMessage: 'Pedido de férias #' . $leaveRequest->id . ' actualizado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($leaveRequest, Response::HTTP_OK);
@@ -66,7 +66,7 @@ class LeaveRequestController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating leave request', ['message' => $e->getMessage()]);
+            Log::error('Erro ao actualizar pedido de férias', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -75,9 +75,10 @@ class LeaveRequestController extends AbstractController
     {
         try {
             $year = request('year', now()->year);
-            return response()->json($this->leaveService->balanceByEmployee($employeeId, $year));
+            $leaveTypeId = request('leave_type_id');
+            return response()->json($this->leaveService->balanceByEmployee($employeeId, $year, $leaveTypeId));
         } catch (Exception $e) {
-            Log::error('Error fetching leave balance', ['message' => $e->getMessage()]);
+            Log::error('Erro ao obter saldo de férias', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

@@ -17,7 +17,7 @@ class LeavePlanService extends AbstractService
     {
         $data = $this->clean($data);
         return LeavePlan::updateOrCreate(
-            ['employee_id' => $data['employee_id'], 'year' => $data['year']],
+            ['employee_id' => $data['employee_id'], 'year' => $data['year'], 'leave_type_id' => $data['leave_type_id'] ?? null],
             $data
         )->fresh();
     }
@@ -25,14 +25,27 @@ class LeavePlanService extends AbstractService
     public function syncBalance(int $planId): LeavePlan
     {
         $plan = LeavePlan::with('leaveRequests')->findOrFail($planId);
-        $plan->days_used = round(
-            $plan->leaveRequests->where('status', 'approved')->sum('total_days'), 1
-        );
-        $plan->days_pending = round(
-            $plan->leaveRequests->where('status', 'pending')->sum('total_days'), 1
-        );
+        $query = $plan->leaveRequests()->where('status', 'approved');
+        $pendingQuery = $plan->leaveRequests()->where('status', 'pending');
+
+        $plan->days_used = round($query->sum('total_days'), 1);
+        $plan->days_pending = round($pendingQuery->sum('total_days'), 1);
         $plan->save();
         return $plan->fresh();
+    }
+
+    public function findOrCreateForRequest(int $employeeId, int $year, int $leaveTypeId): LeavePlan
+    {
+        $leaveType = \App\Models\RH\Leave\LeaveType::findOrFail($leaveTypeId);
+
+        return LeavePlan::updateOrCreate(
+            [
+                'employee_id' => $employeeId,
+                'year' => $year,
+                'leave_type_id' => $leaveTypeId,
+            ],
+            ['total_days_entitled' => $leaveType->default_days]
+        );
     }
 
     public function calendar(int $year, ?int $departmentId = null): array

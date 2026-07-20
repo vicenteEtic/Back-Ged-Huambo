@@ -26,22 +26,22 @@ class LeaveRequestService extends AbstractService
             $data['total_days'] = $this->calculateBusinessDays($data['start_date'], $data['end_date']);
             $data['status'] = 'pending';
 
-            if (empty($data['leave_plan_id'])) {
-                $plan = \App\Models\RH\Leave\LeavePlan::firstOrCreate(
-                    ['employee_id' => $data['employee_id'], 'year' => Carbon::parse($data['start_date'])->year],
-                    ['total_days_entitled' => 22, 'created_by' => auth()->id()]
-                );
-                $data['leave_plan_id'] = $plan->id;
-            }
+            $year = Carbon::parse($data['start_date'])->year;
+            $plan = $this->planService->findOrCreateForRequest(
+                $data['employee_id'],
+                $year,
+                $data['leave_type_id']
+            );
+            $data['leave_plan_id'] = $plan->id;
 
-            $plan = \App\Models\RH\Leave\LeavePlan::findOrFail($data['leave_plan_id']);
             $this->planService->syncBalance($plan->id);
             $plan->refresh();
 
             $remaining = max(0, $plan->total_days_entitled - $plan->days_used - $plan->days_pending);
             if ($data['total_days'] > $remaining) {
+                $typeName = $plan->leaveType?->name ?? 'esta licença';
                 throw new \DomainException(
-                    "Saldo insuficiente para {$plan->year}. Disponível: {$remaining} dia(s), solicitado: {$data['total_days']} dia(s)."
+                    "Saldo insuficiente de {$typeName} para {$year}. Disponível: {$remaining} dia(s), solicitado: {$data['total_days']} dia(s)."
                 );
             }
 
@@ -86,22 +86,48 @@ class LeaveRequestService extends AbstractService
         return $days;
     }
 
-    public function balanceByEmployee(int $employeeId, int $year): array
+    public function balanceByEmployee(int $employeeId, int $year, ?int $leaveTypeId = null): array
     {
-        $plan = \App\Models\RH\Leave\LeavePlan::firstOrCreate(
-            ['employee_id' => $employeeId, 'year' => $year],
-            ['total_days_entitled' => 22, 'created_by' => auth()->id()]
-        );
-        $this->planService->syncBalance($plan->id);
-        $plan->refresh();
+        if ($leaveTypeId) {
+            $plan = $this->planService->findOrCreateForRequest($employeeId, $year, $leaveTypeId);
+            $this->planService->syncBalance($plan->id);
+            $plan->refresh();
+
+            return [
+                'employee_id' => $employeeId,
+                'year' => $year,
+                'leave_type_id' => $leaveTypeId,
+                'leave_type_name' => $plan->leaveType?->name,
+                'total_days_entitled' => $plan->total_days_entitled,
+                'days_used' => $plan->days_used,
+                'days_pending' => $plan->days_pending,
+                'days_remaining' => $plan->days_remaining,
+            ];
+        }
+
+        $plans = \App\Models\RH\Leave\LeavePlan::with('leaveType')
+            ->where('employee_id', $employeeId)
+            ->where('year', $year)
+            ->get();
+
+        $result = [];
+        foreach ($plans as $plan) {
+            $this->planService->syncBalance($plan->id);
+            $plan->refresh();
+            $result[] = [
+                'leave_type_id' => $plan->leave_type_id,
+                'leave_type_name' => $plan->leaveType?->name,
+                'total_days_entitled' => $plan->total_days_entitled,
+                'days_used' => $plan->days_used,
+                'days_pending' => $plan->days_pending,
+                'days_remaining' => $plan->days_remaining,
+            ];
+        }
 
         return [
             'employee_id' => $employeeId,
             'year' => $year,
-            'total_days_entitled' => $plan->total_days_entitled,
-            'days_used' => $plan->days_used,
-            'days_pending' => $plan->days_pending,
-            'days_remaining' => $plan->days_remaining,
+            'balances' => $result,
         ];
     }
 }
