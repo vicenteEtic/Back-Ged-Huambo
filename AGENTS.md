@@ -284,6 +284,18 @@
 - **SoftDeletes** em todas as tabelas
 - **Transactions** em todas as operações de escrita
 
+### Convenção FormRequest (create vs update)
+- **SEMPRE** usar `$this->requiredOnCreate()` em vez de `'required'` para campos que só são obrigatórios na criação
+- `BaseFormRequest::requiredOnCreate()` retorna `'required'` no POST, `'sometimes'` no PUT/PATCH
+- Isto permite actualizações parciais (só enviar os campos que se quer alterar)
+- Exemplo correto:
+  ```php
+  'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
+  'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:table,code,{$id},id"],
+  ```
+- Campos que NUNCA devem usar `requiredOnCreate` (devem ser sempre `nullable`): `status`, `notes`, `description`, campos opcionais
+- Campos que devem ser sempre `required` (mesmo na edição): nenhum — se for essencial, o controller deve validar separadamente
+
 ---
 
 # Sessão: Correção de Testes RH (Jul 2026)
