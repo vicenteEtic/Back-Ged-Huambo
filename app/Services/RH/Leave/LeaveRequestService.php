@@ -26,6 +26,12 @@ class LeaveRequestService extends AbstractService
             $data['total_days'] = $this->calculateBusinessDays($data['start_date'], $data['end_date']);
             $data['status'] = 'pending';
 
+            $this->checkDateConflict(
+                $data['employee_id'],
+                $data['start_date'],
+                $data['end_date']
+            );
+
             $year = Carbon::parse($data['start_date'])->year;
             $plan = $this->planService->findOrCreateForRequest(
                 $data['employee_id'],
@@ -68,6 +74,32 @@ class LeaveRequestService extends AbstractService
 
         if (!empty($notifiables)) {
             Notification::send($notifiables, new LeaveRequestSubmittedNotification($leaveRequest));
+        }
+    }
+
+    private function checkDateConflict(int $employeeId, string $startDate, string $endDate): void
+    {
+        $start = Carbon::parse($startDate);
+        $end = Carbon::parse($endDate);
+
+        $conflict = LeaveRequest::where('employee_id', $employeeId)
+            ->whereIn('status', ['pending', 'approved'])
+            ->where(function ($q) use ($start, $end) {
+                $q->whereBetween('start_date', [$start, $end])
+                    ->orWhereBetween('end_date', [$start, $end])
+                    ->orWhere(function ($q2) use ($start, $end) {
+                        $q2->where('start_date', '<=', $start)
+                            ->where('end_date', '>=', $end);
+                    });
+            })
+            ->first();
+
+        if ($conflict) {
+            $typeName = $conflict->leaveType?->name ?? 'férias';
+            $status = $conflict->status === 'approved' ? 'aprovadas' : 'em aprovação';
+            throw new \DomainException(
+                "Conflito de datas: o funcionário já tem {$typeName} {$status} entre {$conflict->start_date->format('d/m/Y')} e {$conflict->end_date->format('d/m/Y')}."
+            );
         }
     }
 
