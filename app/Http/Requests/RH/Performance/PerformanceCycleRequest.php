@@ -9,7 +9,7 @@ class PerformanceCycleRequest extends BaseFormRequest
     public function authorize(): bool { return true; }
     public function rules(): array
     {
-        $id = $this->route('performance_cycle');
+        $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:performance_cycles,code,{$id},id"],

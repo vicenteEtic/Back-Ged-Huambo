@@ -13,7 +13,7 @@ class DepartmentRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('department');
+        $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'type' => ['nullable', 'string', 'in:expediente,gabinete,departamento,vice_governador'],

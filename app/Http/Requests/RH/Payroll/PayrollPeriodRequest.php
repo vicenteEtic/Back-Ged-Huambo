@@ -13,7 +13,7 @@ class PayrollPeriodRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('payroll_period');
+        $id = $this->route('id');
         return [
             'code' => [$this->requiredOnCreate(), 'string', 'max:20', "unique:payroll_periods,code,{$id},id"],
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],

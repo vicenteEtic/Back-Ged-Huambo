@@ -13,7 +13,7 @@ class PayrollItemRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('payroll_item');
+        $id = $this->route('id');
         return [
             'payroll_period_id' => [$this->requiredOnCreate(), 'integer', 'exists:payroll_periods,id'],
             'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],

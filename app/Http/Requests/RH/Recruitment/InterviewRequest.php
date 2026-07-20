@@ -13,7 +13,7 @@ class InterviewRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('interview');
+        $id = $this->route('id');
         return [
             'application_id' => [$this->requiredOnCreate(), 'integer', 'exists:applications,id'],
             'interviewer_id' => ['nullable', 'integer', 'exists:users,id'],

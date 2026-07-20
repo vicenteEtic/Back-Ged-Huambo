@@ -14,7 +14,7 @@ class ProgressionRuleRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('progression_rule');
+        $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:progression_rules,code,{$id},id"],

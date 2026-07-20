@@ -13,7 +13,7 @@ class LeaveRequestForm extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('leave_request');
+        $id = $this->route('id');
         $rules = [
             'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
             'leave_type_id' => [$this->requiredOnCreate(), 'integer', 'exists:leave_types,id'],

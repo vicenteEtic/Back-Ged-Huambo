@@ -13,7 +13,7 @@ class PositionRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('position');
+        $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:positions,code,{$id},id"],

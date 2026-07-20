@@ -10,7 +10,7 @@ class BenefitTypeRequest extends BaseFormRequest
     public function authorize(): bool { return true; }
     public function rules(): array
     {
-        $id = $this->route('benefit_type');
+        $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:benefit_types,code,{$id},id"],

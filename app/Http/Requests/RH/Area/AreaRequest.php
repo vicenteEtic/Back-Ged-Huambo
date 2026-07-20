@@ -13,7 +13,7 @@ class AreaRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('area');
+        $id = $this->route('id');
         return [
             'department_id' => [$this->requiredOnCreate(), 'integer', 'exists:departments,id'],
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],

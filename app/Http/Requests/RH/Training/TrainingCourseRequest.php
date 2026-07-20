@@ -9,7 +9,7 @@ class TrainingCourseRequest extends BaseFormRequest
     public function authorize(): bool { return true; }
     public function rules(): array
     {
-        $id = $this->route('training_course');
+        $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:training_courses,code,{$id},id"],

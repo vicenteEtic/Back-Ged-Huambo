@@ -13,7 +13,7 @@ class ShiftRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('shift');
+        $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:shifts,code,{$id},id"],

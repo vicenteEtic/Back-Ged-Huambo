@@ -13,7 +13,7 @@ class LeaveTypeRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('leave_type');
+        $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:leave_types,code,{$id},id"],

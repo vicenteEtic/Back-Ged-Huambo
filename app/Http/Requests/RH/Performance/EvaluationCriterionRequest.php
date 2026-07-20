@@ -13,7 +13,7 @@ class EvaluationCriterionRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('evaluation_criterion');
+        $id = $this->route('id');
         return [
             'cycle_id' => [$this->requiredOnCreate(), 'integer', 'exists:performance_cycles,id'],
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],

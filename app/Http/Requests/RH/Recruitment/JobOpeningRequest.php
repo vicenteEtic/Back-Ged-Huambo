@@ -13,7 +13,7 @@ class JobOpeningRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('job_opening');
+        $id = $this->route('id');
         return [
             'title' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:job_openings,code,{$id},id"],

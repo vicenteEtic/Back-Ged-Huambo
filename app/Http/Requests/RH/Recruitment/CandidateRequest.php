@@ -13,7 +13,7 @@ class CandidateRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('candidate');
+        $id = $this->route('id');
         return [
             'full_name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'email' => [$this->requiredOnCreate(), 'email', 'max:255'],

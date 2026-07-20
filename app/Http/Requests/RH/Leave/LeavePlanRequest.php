@@ -13,7 +13,7 @@ class LeavePlanRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('leave_plan');
+        $id = $this->route('id');
         return [
             'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
             'year' => [$this->requiredOnCreate(), 'integer', 'min:2000', 'max:2100'],

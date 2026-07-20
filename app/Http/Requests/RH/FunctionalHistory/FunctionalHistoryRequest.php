@@ -14,7 +14,7 @@ class FunctionalHistoryRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('functional_history_item');
+        $id = $this->route('id');
         return [
             'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
             'type' => [$this->requiredOnCreate(), 'string', 'in:' . implode(',', FunctionalHistoryType::values())],

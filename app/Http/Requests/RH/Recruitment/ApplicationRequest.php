@@ -13,7 +13,7 @@ class ApplicationRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('application');
+        $id = $this->route('id');
         return [
             'job_opening_id' => [$this->requiredOnCreate(), 'integer', 'exists:job_openings,id'],
             'candidate_id' => [$this->requiredOnCreate(), 'integer', 'exists:candidates,id'],
