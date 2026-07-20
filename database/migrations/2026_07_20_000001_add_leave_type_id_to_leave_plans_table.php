@@ -8,7 +8,6 @@ return new class extends Migration
     public function up(): void
     {
         $pdo = DB::connection()->getPdo();
-
         $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
 
         $pdo->exec("ALTER TABLE `leave_requests` DROP FOREIGN KEY `leave_requests_leave_plan_id_foreign`");
@@ -20,6 +19,7 @@ return new class extends Migration
 
         $oldIdx = count(DB::select("SHOW INDEX FROM `leave_plans` WHERE Key_name = 'leave_plans_employee_id_year_unique'"));
         if (!empty($oldIdx)) {
+            $pdo->exec("ALTER TABLE `leave_plans` ADD INDEX `leave_plans_employee_id_index` (`employee_id`)");
             $pdo->exec("ALTER TABLE `leave_plans` DROP INDEX `leave_plans_employee_id_year_unique`");
         }
 
@@ -43,7 +43,6 @@ return new class extends Migration
     public function down(): void
     {
         $pdo = DB::connection()->getPdo();
-
         $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
 
         $pdo->exec("ALTER TABLE `leave_requests` DROP FOREIGN KEY `leave_requests_leave_plan_id_foreign`");
@@ -58,6 +57,11 @@ return new class extends Migration
         $newIdx = count(DB::select("SHOW INDEX FROM `leave_plans` WHERE Key_name = 'leave_plans_employee_id_year_leave_type_id_unique'"));
         if (!empty($newIdx)) {
             $pdo->exec("ALTER TABLE `leave_plans` DROP INDEX `leave_plans_employee_id_year_leave_type_id_unique`");
+        }
+
+        $supportIdx = count(DB::select("SHOW INDEX FROM `leave_plans` WHERE Key_name = 'leave_plans_employee_id_index'"));
+        if (!empty($supportIdx)) {
+            $pdo->exec("ALTER TABLE `leave_plans` DROP INDEX `leave_plans_employee_id_index`");
         }
 
         $hasColumn = count(DB::select("SHOW COLUMNS FROM `leave_plans` LIKE 'leave_type_id'"));
