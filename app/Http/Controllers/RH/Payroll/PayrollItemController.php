@@ -23,11 +23,17 @@ class PayrollItemController extends AbstractController
         $this->service = $service;
     }
 
+    private static array $computedFields = [
+        'inss_deduction', 'irt_deduction', 'gross_pay', 'total_deductions', 'net_pay',
+    ];
+
     public function store(PayrollItemRequest $request)
     {
         try {
             $this->logRequest();
-            $data = PayrollCalculator::calculate($request->validated());
+
+            $input = collect($request->validated())->except(self::$computedFields)->toArray();
+            $data = PayrollCalculator::calculate($input);
 
             $duplicate = \App\Models\RH\Payroll\PayrollItem::where('payroll_period_id', $data['payroll_period_id'])
                 ->where('employee_id', $data['employee_id'])
@@ -58,7 +64,9 @@ class PayrollItemController extends AbstractController
     {
         try {
             $this->logRequest();
-            $data = PayrollCalculator::calculate($request->validated());
+
+            $input = collect($request->validated())->except(self::$computedFields)->toArray();
+            $data = PayrollCalculator::calculate($input);
 
             $item = $this->service->update($data, $id);
             $this->logToDatabase(
