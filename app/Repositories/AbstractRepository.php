@@ -312,6 +312,7 @@ abstract class AbstractRepository
             $friendlyMessages = [
                 'training_enrollments' => 'Este funcionário já está inscrito nesta sessão de formação.',
                 'payslips' => 'Já existe um título de vencimento para este período.',
+                'payroll_items' => 'Este funcionário já possui um item de vencimento para o período seleccionado.',
                 'unique' => 'Já existe um registro com estes dados.',
             ];
 
