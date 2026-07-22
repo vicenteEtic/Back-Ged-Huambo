@@ -82,19 +82,29 @@ class ModelRelationsController extends Controller
     {
         $relations = [];
         $reflection = new \ReflectionClass($model);
+        $file = $reflection->getFileName();
+        $code = file_get_contents($file);
 
         foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-            if ($method->getDeclaringClass()->getName() === get_class($model)
-                && $method->getNumberOfParameters() === 0
-                && !in_array($method->getName(), ['boot', 'initialize', 'booted', 'toArray', 'toArrayableRelations'])
-                && !str_starts_with($method->getName(), '__')
-            ) {
-                $returnType = $method->getReturnType();
-                if ($returnType instanceof \ReflectionNamedType
-                    && is_a($returnType->getName(), \Illuminate\Database\Eloquent\Relations\Relation::class, true)
-                ) {
-                    $relations[] = $method->getName();
-                }
+            if ($method->getDeclaringClass()->getName() !== get_class($model)) {
+                continue;
+            }
+            if ($method->getNumberOfParameters() > 0) {
+                continue;
+            }
+            if (in_array($method->getName(), ['boot', 'initialize', 'booted', 'toArray'])) {
+                continue;
+            }
+            if (str_starts_with($method->getName(), '__')) {
+                continue;
+            }
+
+            $startLine = $method->getStartLine();
+            $endLine = $method->getEndLine();
+            $methodCode = implode("\n", array_slice(explode("\n", $code), $startLine - 1, $endLine - $startLine + 1));
+
+            if (preg_match('/return\s+\$this->(belongsTo|hasMany|hasOne|belongsToMany|hasOneThrough|hasManyThrough|morphTo|morphMany|morphToMany)\s*\(/', $methodCode)) {
+                $relations[] = $method->getName();
             }
         }
 
