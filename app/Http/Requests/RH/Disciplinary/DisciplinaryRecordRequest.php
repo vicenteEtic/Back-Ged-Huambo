@@ -19,7 +19,7 @@ class DisciplinaryRecordRequest extends BaseFormRequest
             'reported_by' => ['nullable', 'exists:users,id'],
             'resolution' => ['nullable', 'string'],
             'sanction' => ['nullable', 'string', 'max:255'],
-            'sanction_start' => ['nullable', 'date'],
+            'sanction_start' => ['nullable', 'date', 'before_or_equal:today'],
             'sanction_end' => ['nullable', 'date', 'after_or_equal:sanction_start'],
         ];
     }
