@@ -35,16 +35,6 @@ class PayrollItemController extends AbstractController
             $input = collect($request->validated())->except(self::$computedFields)->toArray();
             $data = PayrollCalculator::calculate($input);
 
-            $duplicate = \App\Models\RH\Payroll\PayrollItem::where('payroll_period_id', $data['payroll_period_id'])
-                ->where('employee_id', $data['employee_id'])
-                ->exists();
-
-            if ($duplicate) {
-                return response()->json([
-                    'error' => 'Este funcionário já possui um item de vencimento para o período seleccionado.',
-                ], Response::HTTP_UNPROCESSABLE_ENTITY);
-            }
-
             $item = $this->service->store($data);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
