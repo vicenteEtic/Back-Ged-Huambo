@@ -43,7 +43,8 @@ abstract class AbstractRepository
         }
 
         if (!empty($relationships)) {
-            $query = $query->with($relationships);
+            $validRelations = $this->validateRelationships($relationships);
+            $query = $query->with($validRelations);
         }
 
         // aplica counts genéricos
@@ -177,7 +178,8 @@ abstract class AbstractRepository
         $query = $this->model->query();
 
         if (!empty($relationships)) {
-            $query = $query->with($relationships);
+            $validRelations = $this->validateRelationships($relationships);
+            $query = $query->with($validRelations);
         }
 
         return $query->findOrFail($id);
@@ -248,5 +250,53 @@ abstract class AbstractRepository
         return $this->model->query()
             ->where($criteria)
             ->first(); // retorna o primeiro registro ou null se não existir
+    }
+
+    protected function validateRelationships(array $relationships): array
+    {
+        $valid = [];
+        $invalid = [];
+
+        foreach ($relationships as $relation) {
+            $method = \Illuminate\Support\Str::camel($relation);
+            if (method_exists($this->model, $method)) {
+                $valid[] = $relation;
+            } else {
+                $invalid[] = $relation;
+            }
+        }
+
+        if (!empty($invalid)) {
+            throw new \InvalidArgumentException(
+                'Relacionamento(s) não encontrado(s): ' . implode(', ', $invalid) .
+                '. Disponíveis: ' . implode(', ', $this->getAvailableRelations())
+            );
+        }
+
+        return $valid;
+    }
+
+    protected function getAvailableRelations(): array
+    {
+        $relations = [];
+
+        $reflection = new \ReflectionClass($this->model);
+
+        foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+            if ($method->getDeclaringClass()->getName() === get_class($this->model)
+                && $method->getNumberOfParameters() === 0
+                && !in_array($method->getName(), ['boot', 'initialize', 'booted'])
+                && !str_starts_with($method->getName(), '__')
+            ) {
+                $returnType = $method->getReturnType();
+                if ($returnType instanceof \ReflectionNamedType
+                    && is_a($returnType->getName(), \Illuminate\Database\Eloquent\Relations\Relation::class, true)
+                ) {
+                    $relations[] = $method->getName();
+                }
+            }
+        }
+
+        return $relations;
     }
 }

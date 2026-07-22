@@ -46,6 +46,10 @@ abstract class AbstractController extends Controller
             $filters = $request['filters'] ?? $request['filtersV2'];
             $service = $this->service->index($request['paginate'], $filters, $request['orderBy'], $request['relationships']);
             return response()->json($service);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], Response::HTTP_BAD_REQUEST);
         } catch (Exception $e) {
             if ($this->logRequest) {
                 $this->logRequest($e);
@@ -92,6 +96,10 @@ abstract class AbstractController extends Controller
                 );
             }
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], Response::HTTP_BAD_REQUEST);
         } catch (Exception $e) {
             if ($this->logRequest) {
                 $this->logRequest($e);
