@@ -28,13 +28,13 @@ class ApplicationController extends AbstractController
         try {
             $this->logRequest();
             $application = $this->service->store($request->validated());
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Application #' . $application->id . ' created by ' . auth()->user()->first_name);
+            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Candidatura #' . $application->id . ' criada por ' . auth()->user()->first_name);
             DB::commit();
             return response()->json($application, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating application', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar candidatura', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -45,7 +45,7 @@ class ApplicationController extends AbstractController
         try {
             $this->logRequest();
             $application = $this->service->update($request->validated(), $id);
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Application #' . $application->id . ' updated by ' . auth()->user()->first_name);
+            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Candidatura #' . $application->id . ' atualizada por ' . auth()->user()->first_name);
             DB::commit();
             return response()->json($application, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
@@ -54,7 +54,7 @@ class ApplicationController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating application', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar candidatura', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

@@ -30,14 +30,14 @@ class PayrollPeriodController extends AbstractController
             $period = $this->service->store($request->validated());
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Payroll period ' . $period->name . ' created by ' . auth()->user()->first_name
+                customMessage: 'Período de folha de pagamento ' . $period->name . ' criado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($period, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating payroll period', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar período de folha de pagamento', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -50,7 +50,7 @@ class PayrollPeriodController extends AbstractController
             $period = $this->service->update($request->validated(), $id);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Payroll period ' . $period->name . ' updated by ' . auth()->user()->first_name
+                customMessage: 'Período de folha de pagamento ' . $period->name . ' atualizado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($period, Response::HTTP_OK);
@@ -60,7 +60,7 @@ class PayrollPeriodController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating payroll period', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar período de folha de pagamento', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

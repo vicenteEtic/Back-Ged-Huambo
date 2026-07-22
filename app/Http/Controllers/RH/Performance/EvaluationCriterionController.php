@@ -33,7 +33,7 @@ class EvaluationCriterionController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating evaluation criterion', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar critério de avaliação', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -52,7 +52,7 @@ class EvaluationCriterionController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating evaluation criterion', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar critério de avaliação', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

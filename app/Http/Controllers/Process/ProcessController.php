@@ -51,7 +51,7 @@ class ProcessController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating process', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar processo', ['message' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -70,7 +70,7 @@ class ProcessController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating process', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar processo', ['message' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -307,7 +307,7 @@ class ProcessController extends AbstractController
             return response()->json($result);
         } catch (Exception $e) {
             $this->logRequest($e);
-            Log::error('Error fetching inbox', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar caixa de entrada', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -320,7 +320,7 @@ class ProcessController extends AbstractController
             return response()->json($result);
         } catch (Exception $e) {
             $this->logRequest($e);
-            Log::error('Error fetching outbox', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar caixa de saída', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -333,7 +333,7 @@ class ProcessController extends AbstractController
             return response()->json($result);
         } catch (Exception $e) {
             $this->logRequest($e);
-            Log::error('Error fetching history', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar histórico', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -346,7 +346,7 @@ class ProcessController extends AbstractController
             $movements = $this->movementService->byProcess($id);
             return response()->json($movements);
         } catch (Exception $e) {
-            Log::error('Error fetching movements', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar movimentos', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -357,7 +357,7 @@ class ProcessController extends AbstractController
             $comments = $this->commentService->byProcess($id);
             return response()->json($comments);
         } catch (Exception $e) {
-            Log::error('Error fetching comments', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar comentários', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -376,7 +376,7 @@ class ProcessController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating comment', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar comentário', ['message' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -389,7 +389,7 @@ class ProcessController extends AbstractController
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            Log::error('Error fetching assignments', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar atribuições', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

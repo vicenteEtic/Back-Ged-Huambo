@@ -41,7 +41,7 @@ class ProcessDocumentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating process document', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar documento de processo', ['message' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -54,7 +54,7 @@ class ProcessDocumentController extends AbstractController
             return response()->json($documents);
         } catch (Exception $e) {
             $this->logRequest($e);
-            Log::error('Error fetching process documents', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar documentos de processo', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -78,7 +78,7 @@ class ProcessDocumentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error deleting process document', ['message' => $e->getMessage()]);
+            Log::error('Erro ao eliminar documento de processo', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

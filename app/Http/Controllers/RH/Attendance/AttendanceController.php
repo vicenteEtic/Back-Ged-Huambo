@@ -33,14 +33,14 @@ class AttendanceController extends AbstractController
             $attendance = $this->service->store($request->validated());
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Attendance recorded by ' . auth()->user()->first_name
+                customMessage: 'Assiduidade registada por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($attendance, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error recording attendance', ['message' => $e->getMessage()]);
+            Log::error('Erro ao registar assiduidade', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -53,7 +53,7 @@ class AttendanceController extends AbstractController
             $attendance = $this->service->update($request->validated(), $id);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Attendance updated by ' . auth()->user()->first_name
+                customMessage: 'Assiduidade atualizada por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($attendance, Response::HTTP_OK);
@@ -63,7 +63,7 @@ class AttendanceController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating attendance', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar assiduidade', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -81,7 +81,7 @@ class AttendanceController extends AbstractController
             );
             return response()->json($attendance);
         } catch (Exception $e) {
-            Log::error('Error registering check-in', ['message' => $e->getMessage()]);
+            Log::error('Erro ao registar entrada', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -99,7 +99,7 @@ class AttendanceController extends AbstractController
             );
             return response()->json($attendance);
         } catch (Exception $e) {
-            Log::error('Error registering check-out', ['message' => $e->getMessage()]);
+            Log::error('Erro ao registar saída', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -120,7 +120,7 @@ class AttendanceController extends AbstractController
             );
             return response()->json($attendance);
         } catch (Exception $e) {
-            Log::error('Error registering absence', ['message' => $e->getMessage()]);
+            Log::error('Erro ao registar ausência', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -132,7 +132,7 @@ class AttendanceController extends AbstractController
             $month = $request->input('month', now()->month);
             return response()->json($this->attendanceService->monthlyReport($employeeId, $year, $month));
         } catch (Exception $e) {
-            Log::error('Error generating report', ['message' => $e->getMessage()]);
+            Log::error('Erro ao gerar relatório', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -155,7 +155,7 @@ class AttendanceController extends AbstractController
             );
             return response()->json($result, Response::HTTP_CREATED);
         } catch (Exception $e) {
-            Log::error('Error importing biometric data', ['message' => $e->getMessage()]);
+            Log::error('Erro ao importar dados biométricos', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

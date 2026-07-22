@@ -35,14 +35,14 @@ class EmployeeController extends AbstractController
             $this->logToDatabase(
                 type: 'rh',
                 level: 'info',
-                customMessage: 'Employee ' . $employee->full_name . ' created by ' . auth()->user()->first_name
+                customMessage: 'Funcionário ' . $employee->full_name . ' criado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($employee, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating employee', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar funcionário', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -56,7 +56,7 @@ class EmployeeController extends AbstractController
             $this->logToDatabase(
                 type: 'rh',
                 level: 'info',
-                customMessage: 'Employee ' . $employee->full_name . ' updated by ' . auth()->user()->first_name
+                customMessage: 'Funcionário ' . $employee->full_name . ' atualizado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($employee, Response::HTTP_OK);
@@ -66,7 +66,7 @@ class EmployeeController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating employee', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar funcionário', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

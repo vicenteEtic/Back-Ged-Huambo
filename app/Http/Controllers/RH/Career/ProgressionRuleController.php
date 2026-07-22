@@ -36,7 +36,7 @@ class ProgressionRuleController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating progression rule', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar regra de progressão', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -55,7 +55,7 @@ class ProgressionRuleController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating progression rule', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar regra de progressão', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -69,7 +69,7 @@ class ProgressionRuleController extends AbstractController
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            Log::error('Error checking eligibility', ['message' => $e->getMessage()]);
+            Log::error('Erro ao verificar elegibilidade', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

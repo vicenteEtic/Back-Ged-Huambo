@@ -38,7 +38,7 @@ class AreaController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating area', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar área', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -62,7 +62,7 @@ class AreaController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating area', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar área', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -73,7 +73,7 @@ class AreaController extends AbstractController
             $areas = $this->service->index(null, [['department_id' => ['filterValue' => $departmentId]]], null, ['department', 'responsible']);
             return response()->json($areas);
         } catch (Exception $e) {
-            Log::error('Error fetching areas by department', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar áreas por departamento', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

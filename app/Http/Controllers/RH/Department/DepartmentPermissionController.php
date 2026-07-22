@@ -35,7 +35,7 @@ class DepartmentPermissionController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating department permission', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar permissão de departamento', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -46,7 +46,7 @@ class DepartmentPermissionController extends AbstractController
             $permissions = $this->service->byDepartment($departmentId);
             return response()->json($permissions);
         } catch (Exception $e) {
-            Log::error('Error fetching department permissions', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar permissões de departamento', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

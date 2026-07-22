@@ -44,14 +44,14 @@ class EmployeeDocumentController extends AbstractController
             $this->logToDatabase(
                 type: $this->logType,
                 level: 'info',
-                customMessage: "Document {$id} removed from employee {$document->employee_id} by " . auth()->user()->first_name
+                customMessage: "Documento {$id} removido do funcionário {$document->employee_id} por " . auth()->user()->first_name
             );
 
             return response()->json(null, Response::HTTP_NO_CONTENT);
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            Log::error('Error deleting employee document', ['message' => $e->getMessage()]);
+            Log::error('Erro ao apagar documento do funcionário', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -66,14 +66,14 @@ class EmployeeDocumentController extends AbstractController
             $count = is_array($documents) ? count($documents) : 1;
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: $count . ' document(s) created by ' . auth()->user()->first_name
+                customMessage: $count . ' documento(s) criado(s) por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($documents, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating employee document', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar documento do funcionário', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -86,7 +86,7 @@ class EmployeeDocumentController extends AbstractController
             $document = $this->service->update($request->validated(), $id);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Document ' . $document->name . ' updated by ' . auth()->user()->first_name
+                customMessage: 'Documento ' . $document->name . ' atualizado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($document, Response::HTTP_OK);
@@ -96,7 +96,7 @@ class EmployeeDocumentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating employee document', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar documento do funcionário', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

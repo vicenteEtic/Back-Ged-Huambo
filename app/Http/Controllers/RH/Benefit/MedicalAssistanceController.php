@@ -32,7 +32,7 @@ class MedicalAssistanceController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating medical assistance', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar assistência médica', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -51,7 +51,7 @@ class MedicalAssistanceController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating medical assistance', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar assistência médica', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

@@ -32,14 +32,14 @@ class FunctionalHistoryController extends AbstractController
             $model = $this->service->store($data);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Functional history #' . $model->id . ' created by ' . auth()->user()->first_name
+                customMessage: 'Histórico funcional #' . $model->id . ' criado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($model, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating functional history', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar histórico funcional', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -53,7 +53,7 @@ class FunctionalHistoryController extends AbstractController
             $model = $this->service->update($data, $id);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Functional history #' . $model->id . ' updated by ' . auth()->user()->first_name
+                customMessage: 'Histórico funcional #' . $model->id . ' atualizado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($model, Response::HTTP_OK);
@@ -63,7 +63,7 @@ class FunctionalHistoryController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating functional history', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar histórico funcional', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

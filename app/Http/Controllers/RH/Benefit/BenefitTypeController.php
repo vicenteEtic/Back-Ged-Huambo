@@ -25,12 +25,12 @@ class BenefitTypeController extends AbstractController
         try {
             $this->logRequest();
             $model = $this->service->store($request->validated());
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Benefit type ' . $model->name . ' created by ' . Auth::user()->first_name);
+            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Tipo de benefício ' . $model->name . ' criado por ' . Auth::user()->first_name);
             DB::commit();
             return response()->json($model, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
-            Log::error('Error', ['message' => $e->getMessage()]);
+            Log::error('Erro', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -41,14 +41,14 @@ class BenefitTypeController extends AbstractController
         try {
             $this->logRequest();
             $model = $this->service->update($request->validated(), $id);
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Benefit type ' . $model->name . ' updated by ' . Auth::user()->first_name);
+            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Tipo de benefício ' . $model->name . ' atualizado por ' . Auth::user()->first_name);
             DB::commit();
             return response()->json($model, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             DB::rollBack(); return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
-            Log::error('Error', ['message' => $e->getMessage()]);
+            Log::error('Erro', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

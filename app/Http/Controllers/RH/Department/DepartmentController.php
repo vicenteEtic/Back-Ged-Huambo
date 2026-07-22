@@ -31,14 +31,14 @@ class DepartmentController extends AbstractController
             $this->logToDatabase(
                 type: 'rh',
                 level: 'info',
-                customMessage: 'Department ' . $department->name . ' created by ' . auth()->user()->first_name
+                customMessage: 'Departamento ' . $department->name . ' criado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($department, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating department', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar departamento', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -52,7 +52,7 @@ class DepartmentController extends AbstractController
             $this->logToDatabase(
                 type: 'rh',
                 level: 'info',
-                customMessage: 'Department ' . $department->name . ' updated by ' . auth()->user()->first_name
+                customMessage: 'Departamento ' . $department->name . ' atualizado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($department, Response::HTTP_OK);
@@ -62,7 +62,7 @@ class DepartmentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating department', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar departamento', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

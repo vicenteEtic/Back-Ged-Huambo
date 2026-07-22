@@ -28,13 +28,13 @@ class InterviewController extends AbstractController
         try {
             $this->logRequest();
             $interview = $this->service->store($request->validated());
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Interview scheduled by ' . auth()->user()->first_name);
+            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Entrevista agendada por ' . auth()->user()->first_name);
             DB::commit();
             return response()->json($interview, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating interview', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar entrevista', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -45,7 +45,7 @@ class InterviewController extends AbstractController
         try {
             $this->logRequest();
             $interview = $this->service->update($request->validated(), $id);
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Interview updated by ' . auth()->user()->first_name);
+            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Entrevista atualizada por ' . auth()->user()->first_name);
             DB::commit();
             return response()->json($interview, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
@@ -54,7 +54,7 @@ class InterviewController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating interview', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar entrevista', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

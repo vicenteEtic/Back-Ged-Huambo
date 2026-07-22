@@ -28,12 +28,12 @@ class PerformanceEvaluationController extends AbstractController
         try {
             $this->logRequest();
             $model = $this->service->store($request->validated());
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Performance evaluation created by ' . Auth::user()->first_name);
+            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Avaliação de desempenho criada por ' . Auth::user()->first_name);
             DB::commit();
             return response()->json($model, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
-            Log::error('Error', ['message' => $e->getMessage()]);
+            Log::error('Erro', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -44,14 +44,14 @@ class PerformanceEvaluationController extends AbstractController
         try {
             $this->logRequest();
             $model = $this->service->update($request->validated(), $id);
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Performance evaluation updated by ' . Auth::user()->first_name);
+            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Avaliação de desempenho atualizada por ' . Auth::user()->first_name);
             DB::commit();
             return response()->json($model, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             DB::rollBack(); return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
-            Log::error('Error', ['message' => $e->getMessage()]);
+            Log::error('Erro', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -68,7 +68,7 @@ class PerformanceEvaluationController extends AbstractController
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            Log::error('Error calculating score', ['message' => $e->getMessage()]);
+            Log::error('Erro ao calcular pontuação', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

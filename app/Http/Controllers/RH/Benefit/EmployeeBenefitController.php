@@ -26,7 +26,7 @@ class EmployeeBenefitController extends AbstractController
         try {
             $this->logRequest();
             $model = $this->service->store($request->validated());
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Employee benefit created by ' . Auth::user()->first_name);
+            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Benefício do funcionário criado por ' . Auth::user()->first_name);
             DB::commit();
             return response()->json($model, Response::HTTP_CREATED);
         } catch (QueryException $e) {
@@ -35,11 +35,11 @@ class EmployeeBenefitController extends AbstractController
                 return response()->json(['error' => 'Já existe um benefício para este funcionário, tipo e data de início.'], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
             $this->logRequest($e);
-            Log::error('Error', ['message' => $e->getMessage()]);
+            Log::error('Erro', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
-            Log::error('Error', ['message' => $e->getMessage()]);
+            Log::error('Erro', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -50,7 +50,7 @@ class EmployeeBenefitController extends AbstractController
         try {
             $this->logRequest();
             $model = $this->service->update($request->validated(), $id);
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Employee benefit updated by ' . Auth::user()->first_name);
+            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Benefício do funcionário atualizado por ' . Auth::user()->first_name);
             DB::commit();
             return response()->json($model, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
@@ -61,11 +61,11 @@ class EmployeeBenefitController extends AbstractController
                 return response()->json(['error' => 'Já existe um benefício para este funcionário, tipo e data de início.'], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
             $this->logRequest($e);
-            Log::error('Error', ['message' => $e->getMessage()]);
+            Log::error('Erro', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
-            Log::error('Error', ['message' => $e->getMessage()]);
+            Log::error('Erro', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

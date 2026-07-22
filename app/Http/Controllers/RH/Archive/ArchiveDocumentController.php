@@ -47,7 +47,7 @@ class ArchiveDocumentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating archive document', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar documento de arquivo', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -73,7 +73,7 @@ class ArchiveDocumentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating archive document', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar documento de arquivo', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -87,7 +87,7 @@ class ArchiveDocumentController extends AbstractController
                 ->paginate(request('paginate', 50));
             return response()->json($documents);
         } catch (Exception $e) {
-            Log::error('Error fetching employee documents', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar documentos do funcionário', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -101,7 +101,7 @@ class ArchiveDocumentController extends AbstractController
                 ->paginate(request('paginate', 50));
             return response()->json($documents);
         } catch (Exception $e) {
-            Log::error('Error fetching documents by category', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar documentos por categoria', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -123,7 +123,7 @@ class ArchiveDocumentController extends AbstractController
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Error approving document', ['message' => $e->getMessage()]);
+            Log::error('Erro ao aprovar documento', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -141,7 +141,7 @@ class ArchiveDocumentController extends AbstractController
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Error archiving document', ['message' => $e->getMessage()]);
+            Log::error('Erro ao arquivar documento', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -190,7 +190,7 @@ class ArchiveDocumentController extends AbstractController
 
             return response()->json($query->orderByDesc('created_at')->paginate(request('paginate', 50)));
         } catch (Exception $e) {
-            Log::error('Error searching documents', ['message' => $e->getMessage()]);
+            Log::error('Erro ao pesquisar documentos', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -266,7 +266,7 @@ class ArchiveDocumentController extends AbstractController
                 ->get();
             return response()->json($versions);
         } catch (Exception $e) {
-            Log::error('Error fetching versions', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar versões', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -289,7 +289,7 @@ class ArchiveDocumentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating version', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar versão', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -304,7 +304,7 @@ class ArchiveDocumentController extends AbstractController
                 ->get();
             return response()->json($shares);
         } catch (Exception $e) {
-            Log::error('Error fetching shares', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar partilhas', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -327,7 +327,7 @@ class ArchiveDocumentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating share', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar partilha', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -347,7 +347,7 @@ class ArchiveDocumentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error deleting share', ['message' => $e->getMessage()]);
+            Log::error('Erro ao eliminar partilha', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

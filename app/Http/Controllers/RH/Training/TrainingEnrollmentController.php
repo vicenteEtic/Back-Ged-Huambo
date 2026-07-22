@@ -25,12 +25,12 @@ class TrainingEnrollmentController extends AbstractController
         try {
             $this->logRequest();
             $model = $this->service->store($request->validated());
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Training enrollment created by ' . Auth::user()->first_name);
+            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Inscrição de formação criada por ' . Auth::user()->first_name);
             DB::commit();
             return response()->json($model, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
-            Log::error('Error creating training enrollment', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar inscrição de formação', ['message' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
@@ -41,14 +41,14 @@ class TrainingEnrollmentController extends AbstractController
         try {
             $this->logRequest();
             $model = $this->service->update($request->validated(), $id);
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Training enrollment updated by ' . Auth::user()->first_name);
+            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Inscrição de formação atualizada por ' . Auth::user()->first_name);
             DB::commit();
             return response()->json($model, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             DB::rollBack(); return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
-            Log::error('Error updating training enrollment', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar inscrição de formação', ['message' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }

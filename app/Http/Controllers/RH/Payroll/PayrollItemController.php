@@ -30,14 +30,14 @@ class PayrollItemController extends AbstractController
             $item = $this->service->store($request->validated());
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Payroll item created by ' . auth()->user()->first_name
+                customMessage: 'Item de folha de pagamento criado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($item, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating payroll item', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar item de folha de pagamento', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -50,7 +50,7 @@ class PayrollItemController extends AbstractController
             $item = $this->service->update($request->validated(), $id);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Payroll item updated by ' . auth()->user()->first_name
+                customMessage: 'Item de folha de pagamento atualizado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($item, Response::HTTP_OK);
@@ -60,7 +60,7 @@ class PayrollItemController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating payroll item', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar item de folha de pagamento', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

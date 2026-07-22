@@ -31,14 +31,14 @@ class PositionController extends AbstractController
             $this->logToDatabase(
                 type: 'rh',
                 level: 'info',
-                customMessage: 'Position ' . $position->name . ' created by ' . auth()->user()->first_name
+                customMessage: 'Cargo ' . $position->name . ' criado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($position, Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating position', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar cargo', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -52,7 +52,7 @@ class PositionController extends AbstractController
             $this->logToDatabase(
                 type: 'rh',
                 level: 'info',
-                customMessage: 'Position ' . $position->name . ' updated by ' . auth()->user()->first_name
+                customMessage: 'Cargo ' . $position->name . ' atualizado por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($position, Response::HTTP_OK);
@@ -62,7 +62,7 @@ class PositionController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating position', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar cargo', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

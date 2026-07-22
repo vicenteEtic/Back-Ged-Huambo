@@ -34,7 +34,7 @@ class ArchiveCategoryController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating archive category', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar categoria de arquivo', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -53,7 +53,7 @@ class ArchiveCategoryController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating archive category', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar categoria de arquivo', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -70,7 +70,7 @@ class ArchiveCategoryController extends AbstractController
                 ->get();
             return response()->json($categories);
         } catch (Exception $e) {
-            Log::error('Error fetching category tree', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar árvore de categorias', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -84,7 +84,7 @@ class ArchiveCategoryController extends AbstractController
                 ->get();
             return response()->json($categories);
         } catch (Exception $e) {
-            Log::error('Error fetching categories by type', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar categorias por tipo', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

@@ -34,14 +34,14 @@ class ProgressionRequestController extends AbstractController
             $model = $this->progressionService->submit($request->validated());
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Progression request #' . $model->id . ' created by ' . auth()->user()->first_name
+                customMessage: 'Solicitação de progressão #' . $model->id . ' criada por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($model->load(['employee', 'rule', 'approvals']), Response::HTTP_CREATED);
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error creating progression request', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar solicitação de progressão', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -60,7 +60,7 @@ class ProgressionRequestController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             $this->logRequest($e);
-            Log::error('Error updating progression request', ['message' => $e->getMessage()]);
+            Log::error('Erro ao atualizar solicitação de progressão', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -74,7 +74,7 @@ class ProgressionRequestController extends AbstractController
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            Log::error('Error approving progression', ['message' => $e->getMessage()]);
+            Log::error('Erro ao aprovar progressão', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -88,7 +88,7 @@ class ProgressionRequestController extends AbstractController
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            Log::error('Error rejecting progression', ['message' => $e->getMessage()]);
+            Log::error('Erro ao rejeitar progressão', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -100,7 +100,7 @@ class ProgressionRequestController extends AbstractController
             $model = $this->progressionService->execute($id);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Progression request #' . $model->id . ' executed by ' . auth()->user()->first_name
+                customMessage: 'Solicitação de progressão #' . $model->id . ' executada por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($model->load(['employee', 'rule', 'employee.functionalHistory']));
@@ -109,7 +109,7 @@ class ProgressionRequestController extends AbstractController
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Error executing progression', ['message' => $e->getMessage()]);
+            Log::error('Erro ao executar progressão', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -125,7 +125,7 @@ class ProgressionRequestController extends AbstractController
             );
             return response()->json($models);
         } catch (Exception $e) {
-            Log::error('Error fetching progression history', ['message' => $e->getMessage()]);
+            Log::error('Erro ao buscar histórico de progressão', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
