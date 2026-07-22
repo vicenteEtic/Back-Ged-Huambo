@@ -307,6 +307,16 @@ abstract class AbstractRepository
             return 'O banco de dados está ocupado, tente novamente em alguns segundos.';
         }
 
+        if (str_contains($message, 'a foreign key constraint fails') || str_contains($message, '23503') || str_contains($message, '1452')) {
+            if (preg_match('/FOREIGN KEY \(`(.+?)`\)/', $message, $matches)) {
+                return "O valor referenciado no campo '{$matches[1]}' não existe na tabela associada.";
+            }
+            if (preg_match('/constraint `(.+?)` fails/i', $message, $matches)) {
+                return "Referência inválida: um dos dados referenciados não existe.";
+            }
+            return 'Referência inválida: um dos dados referenciados não existe.';
+        }
+
         if (str_contains($message, 'Duplicate entry') || str_contains($message, '23000')) {
             $tableName = $this->model->getTable();
             $friendlyMessages = [
@@ -326,16 +336,6 @@ abstract class AbstractRepository
                 return "O valor '{$matches[1]}' já está sendo utilizado.";
             }
             return 'Já existe um registro com os mesmos dados.';
-        }
-
-        if (str_contains($message, 'a foreign key constraint fails') || str_contains($message, '23506')) {
-            if (preg_match('/FOREIGN KEY \(`(.+?)`\)/', $message, $matches)) {
-                return "O referenciado no campo '{$matches[1]}' não existe.";
-            }
-            if (preg_match('/constraint `(.+?)` fails/i', $message, $matches)) {
-                return "Referência inválida: dados dependentes não encontrados.";
-            }
-            return 'Referência inválida: um dos dados referenciados não existe.';
         }
 
         if (str_contains($message, 'Column') && str_contains($message, 'cannot be null')) {

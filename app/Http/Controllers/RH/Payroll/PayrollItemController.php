@@ -45,7 +45,10 @@ class PayrollItemController extends AbstractController
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            Log::error('Erro ao criar item de folha de pagamento', ['message' => $e->getMessage()]);
+            Log::error('Erro ao criar item de folha de pagamento', [
+                'message' => $e->getMessage(),
+                'data' => $data ?? $request->validated(),
+            ]);
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
