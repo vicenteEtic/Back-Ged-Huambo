@@ -50,7 +50,7 @@ class PermissionController extends AbstractController
             return response()->json($entity, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
             Log::error('Erro interno', [

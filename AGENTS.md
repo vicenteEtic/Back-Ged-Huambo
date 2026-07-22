@@ -284,6 +284,42 @@
 - **SoftDeletes** em todas as tabelas
 - **Transactions** em todas as operações de escrita
 
+### Convenção FormRequest (create vs update)
+- **SEMPRE** usar `$this->requiredOnCreate()` em vez de `'required'` para campos que só são obrigatórios na criação
+- `BaseFormRequest::requiredOnCreate()` retorna `'required'` no POST, `'sometimes'` no PUT/PATCH
+- Isto permite actualizações parciais (só enviar os campos que se quer alterar)
+- Exemplo correto:
+  ```php
+  'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
+  'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:table,code,{$id},id"],
+  ```
+- Campos que NUNCA devem usar `requiredOnCreate` (devem ser sempre `nullable`): `status`, `notes`, `description`, campos opcionais
+- Campos que devem ser sempre `required` (mesmo na edição): nenhum — se for essencial, o controller deve validar separadamente
+
+### Convenção de Idioma
+- **Todas** as mensagens de resposta da API devem estar em **português (PT)**
+- Mensagens de erro: `'Erro interno no servidor.'`, `'Recurso não encontrado.'`, `'Erro de validação'`
+- Mensagens de sucesso: textos em PT
+- Log messages (logToDatabase, Log::error): em PT quando visíveis ao utilizador
+- Template `MakeFullModuleCommand`: gerar controllers com mensagens em PT
+
+### Convenção employee_number
+- `employee_number` é **auto-gerado** pelo model `Employee` no `boot()` (método `creating`)
+- Formato: `EMP-00001`, `EMP-00002`, etc. (sequencial, 5 dígitos)
+- **NÃO** enviar `employee_number` no request — é ignorado se fornecido
+- Campo removido do `EmployeeRequest` (não validado)
+
+### Convenção Route Parameter
+- Todas as rotas RH usam `{id}` como parâmetro (ex: `Route::put('{id}', ...)`)
+- No FormRequest, **SEMPRE** usar `$this->route('id')` para obter o ID actual
+- **NÃO** usar nomes de entidade (`$this->route('department')`, `$this->route('position')`, etc.)
+- Se `$id` for null, o `unique:table,column,{$id},id` nunca ignora o registo actual → erro "já está sendo utilizado" na edição
+- Exemplo correcto:
+  ```php
+  $id = $this->route('id');  // CORRECTO
+  // $id = $this->route('department');  // ERRADO — retorna null
+  ```
+
 ---
 
 # Sessão: Correção de Testes RH (Jul 2026)

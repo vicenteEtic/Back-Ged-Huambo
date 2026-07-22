@@ -27,7 +27,17 @@ class TrainingSession extends Model
         return $this->belongsTo(TrainingCourse::class, 'course_id');
     }
 
+    public function trainingCourse()
+    {
+        return $this->belongsTo(TrainingCourse::class, 'course_id');
+    }
+
     public function enrollments()
+    {
+        return $this->hasMany(TrainingEnrollment::class, 'session_id');
+    }
+
+    public function trainingEnrollments()
     {
         return $this->hasMany(TrainingEnrollment::class, 'session_id');
     }

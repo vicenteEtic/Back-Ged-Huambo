@@ -20,8 +20,8 @@ class PayslipController extends Controller
         try {
             return response()->json(Payslip::with(['employee:id,full_name', 'period:id,name'])->orderByDesc('created_at')->paginate(request('paginate', 50)));
         } catch (Exception $e) {
-            Log::error('Error listing payslips', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao listar títulos de vencimento', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -36,8 +36,8 @@ class PayslipController extends Controller
             $count = $this->payslipService->generateForPeriod($periodId, $request->input('employee_ids'));
             return response()->json(['message' => "{$count} título(s) gerado(s).", 'count' => $count]);
         } catch (Exception $e) {
-            Log::error('Error generating payslips', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao gerar títulos de vencimento', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -46,8 +46,8 @@ class PayslipController extends Controller
         try {
             return response()->json($this->payslipService->historyByEmployee($employeeId));
         } catch (Exception $e) {
-            Log::error('Error fetching payslips', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao buscar títulos de vencimento', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -56,10 +56,10 @@ class PayslipController extends Controller
         try {
             return response()->json(Payslip::with(['employee', 'period'])->findOrFail($id));
         } catch (ModelNotFoundException $e) {
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            Log::error('Error fetching payslip', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao buscar título de vencimento', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

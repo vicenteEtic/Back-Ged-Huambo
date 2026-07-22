@@ -4,11 +4,13 @@ namespace App\Http\Controllers\RH\Leave;
 
 use App\Models\RH\Leave\LeaveRequest;
 use App\Services\RH\Leave\LeaveApprovalService;
+use DomainException;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class LeaveApprovalController
 {
@@ -22,11 +24,15 @@ class LeaveApprovalController
             $request->validate(['comment' => 'nullable|string']);
             $model = $this->approvalService->approve($leaveRequestId, auth()->id(), $request->comment);
             return response()->json($model);
+        } catch (ValidationException $e) {
+            return response()->json(['error' => 'Erro de validação.', 'message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (ModelNotFoundException $e) {
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (DomainException $e) {
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Exception $e) {
-            Log::error('Error approving leave', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao aprovar pedido de férias', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -36,11 +42,15 @@ class LeaveApprovalController
             $request->validate(['comment' => 'required|string']);
             $model = $this->approvalService->reject($leaveRequestId, auth()->id(), $request->comment);
             return response()->json($model);
+        } catch (ValidationException $e) {
+            return response()->json(['error' => 'Erro de validação.', 'message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (ModelNotFoundException $e) {
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (DomainException $e) {
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Exception $e) {
-            Log::error('Error rejecting leave', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao rejeitar pedido de férias', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -53,8 +63,8 @@ class LeaveApprovalController
                 ->get();
             return response()->json($pending);
         } catch (Exception $e) {
-            Log::error('Error fetching pending leaves', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao listar pedidos de férias pendentes', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

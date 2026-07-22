@@ -194,4 +194,4 @@ class Temp extends Model
 {
     protected $fillable = []; // Array vazio
 }
-```
+```# API-UNIA

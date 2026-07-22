@@ -10,9 +10,9 @@ class PerformanceEvaluationRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
-            'evaluator_id' => ['required', 'exists:users,id'],
-            'cycle_id' => ['required', 'exists:performance_cycles,id'],
+            'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
+            'evaluator_id' => [$this->requiredOnCreate(), 'integer', 'exists:users,id'],
+            'cycle_id' => [$this->requiredOnCreate(), 'integer', 'exists:performance_cycles,id'],
             'overall_score' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'strengths' => ['nullable', 'string'],
             'improvements' => ['nullable', 'string'],

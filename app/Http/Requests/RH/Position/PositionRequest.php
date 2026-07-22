@@ -13,12 +13,12 @@ class PositionRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('position');
+        $id = $this->route('id');
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:50', "unique:positions,code,{$id},id"],
+            'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
+            'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:positions,code,{$id},id"],
             'description' => ['nullable', 'string'],
-            'department_id' => ['required', 'exists:departments,id'],
+            'department_id' => [$this->requiredOnCreate(), 'integer', 'exists:departments,id'],
             'level' => ['integer', 'min:1'],
             'base_salary' => ['numeric', 'min:0'],
             'requirements' => ['nullable', 'string'],

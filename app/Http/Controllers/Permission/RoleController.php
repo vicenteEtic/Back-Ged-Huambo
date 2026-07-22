@@ -80,7 +80,7 @@ class RoleController extends AbstractController
                 level: 'error',
                 customMessage: "O usuário " . auth()->user()->first_name . " tentou atualizar um perfil que não existe."
             );
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
             DB::rollBack();

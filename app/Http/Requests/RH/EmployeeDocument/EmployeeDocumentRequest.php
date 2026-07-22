@@ -13,13 +13,13 @@ class EmployeeDocumentRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('document');
+        $id = $this->route('id');
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
-            'document_type' => ['required', 'string', 'max:100'],
-            'name' => ['required', 'string', 'max:255'],
+            'document_type' => ['nullable', 'string', 'max:100'],
+            'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
+            'name' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'file_path' => ['required', 'array'],
+            'file_path' => [$this->requiredOnCreate(), 'array'],
             'file_path.*' => ['file', 'max:1048576'],
             'expiry_date' => ['nullable', 'date'],
             'is_verified' => ['boolean'],

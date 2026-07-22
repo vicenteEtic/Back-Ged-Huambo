@@ -23,4 +23,9 @@ class TrainingCourse extends Model
     {
         return $this->hasMany(TrainingSession::class, 'course_id');
     }
+
+    public function trainingSessions()
+    {
+        return $this->hasMany(TrainingSession::class, 'course_id');
+    }
 }

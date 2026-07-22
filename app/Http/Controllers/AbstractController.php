@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use App\Services\AbstractService;
@@ -28,6 +29,53 @@ abstract class AbstractController extends Controller
         $this->service = $service;
     }
 
+    protected function handleStore(callable $callback, ?string $createdMessage = null): \Illuminate\Http\JsonResponse
+    {
+        DB::beginTransaction();
+        try {
+            $this->logRequest();
+            $result = $callback();
+            if ($createdMessage) {
+                $this->logToDatabase(type: $this->logType, level: 'info', customMessage: $createdMessage);
+            }
+            DB::commit();
+            return response()->json($result, Response::HTTP_CREATED);
+        } catch (\InvalidArgumentException $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        } catch (Exception $e) {
+            DB::rollBack();
+            $this->logRequest($e);
+            Log::error("Erro ao criar {$this->nameEntity}", ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    protected function handleUpdate(callable $callback, int|string $id, ?string $updatedMessage = null): \Illuminate\Http\JsonResponse
+    {
+        DB::beginTransaction();
+        try {
+            $this->logRequest();
+            $result = $callback();
+            if ($updatedMessage) {
+                $this->logToDatabase(type: $this->logType, level: 'info', customMessage: $updatedMessage);
+            }
+            DB::commit();
+            return response()->json($result, Response::HTTP_OK);
+        } catch (ModelNotFoundException $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (\InvalidArgumentException $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        } catch (Exception $e) {
+            DB::rollBack();
+            $this->logRequest($e);
+            Log::error("Erro ao atualizar {$this->nameEntity}", ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -39,13 +87,17 @@ abstract class AbstractController extends Controller
                 $this->logToDatabase(
                     type: $this->logType,
                     level: 'info',
-                    customMessage: "O utilizador " . Auth::user()->first_name . " Visualizou todos os registros no módulo {$this->nameEntity}",
+                    customMessage: "O utilizador " . Auth::user()->first_name . " visualizou todos os registros no módulo {$this->nameEntity}",
                 );
             }
 
             $filters = $request['filters'] ?? $request['filtersV2'];
             $service = $this->service->index($request['paginate'], $filters, $request['orderBy'], $request['relationships']);
             return response()->json($service);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], Response::HTTP_BAD_REQUEST);
         } catch (Exception $e) {
             if ($this->logRequest) {
                 $this->logRequest($e);
@@ -55,9 +107,7 @@ abstract class AbstractController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json([
-                'error' => 'Erro interno no servidor.'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -91,7 +141,11 @@ abstract class AbstractController extends Controller
                     customMessage: "Erro ao visualizar o registro {$id} em {$this->nameEntity}."
                 );
             }
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], Response::HTTP_BAD_REQUEST);
         } catch (Exception $e) {
             if ($this->logRequest) {
                 $this->logRequest($e);
@@ -102,7 +156,7 @@ abstract class AbstractController extends Controller
             ]);
 
             return response()->json([
-                'error' => 'Erro interno no servidor.'
+                'error' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -137,7 +191,7 @@ abstract class AbstractController extends Controller
                     customMessage: "Erro ao remover o registro {$id} em {$this->nameEntity}."
                 );
             }
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             if ($this->logRequest) {
                 $this->logRequest($e);
@@ -148,7 +202,7 @@ abstract class AbstractController extends Controller
             ]);
 
             return response()->json([
-                'error' => 'Erro interno no servidor.'
+                'error' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -162,7 +216,7 @@ abstract class AbstractController extends Controller
             $service = $this->service->restore($id);
             return response()->json($service, Response::HTTP_NO_CONTENT);
         } catch (ModelNotFoundException $e) {
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             Log::error('Erro interno', [
                 'message' => $e->getMessage(),
@@ -170,7 +224,7 @@ abstract class AbstractController extends Controller
             ]);
 
             return response()->json([
-                'error' => 'Erro interno no servidor.'
+                'error' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

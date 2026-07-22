@@ -8,61 +8,91 @@ use App\Services\RH\EmployeeDocument\EmployeeDocumentService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
 class EmployeeDocumentController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'EmployeeDocument';
+    protected ?string $nameEntity = 'Documento do Funcionário';
     protected ?string $fieldName = 'name';
 
     public function __construct(EmployeeDocumentService $service)
     {
-        $this->service = $service;
+        parent::__construct($service);
+    }
+
+    public function findBy(int|string $id = 0)
+    {
+        $employeeId = request()->route('employee_id');
+        $documents = $this->service->findBy(['employee_id' => $employeeId]);
+        return response()->json($documents);
     }
 
     public function store(EmployeeDocumentRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $documents = $this->service->store($request->validated());
-            $count = is_array($documents) ? count($documents) : 1;
-            $this->logToDatabase(
-                type: 'rh', level: 'info',
-                customMessage: $count . ' document(s) created by ' . auth()->user()->first_name
-            );
-            DB::commit();
-            return response()->json($documents, Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Error creating employee document', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleStore(function () use ($request) {
+            $data = $request->validated();
+            return $this->service->store($data);
+        });
     }
 
     public function update(EmployeeDocumentRequest $request, $id)
     {
-        DB::beginTransaction();
+        return $this->handleUpdate(
+            fn() => $this->service->update($request->validated(), $id),
+            $id,
+        );
+    }
+
+    public function destroy($id)
+    {
         try {
-            $this->logRequest();
-            $document = $this->service->update($request->validated(), $id);
+            $document = $this->service->show($id);
+            $this->service->destroy($id);
+
             $this->logToDatabase(
-                type: 'rh', level: 'info',
-                customMessage: 'Document ' . $document->name . ' updated by ' . auth()->user()->first_name
+                type: $this->logType,
+                level: 'info',
+                customMessage: "Documento {$id} removido do funcionário {$document->employee_id} por " . auth()->user()->first_name
             );
-            DB::commit();
-            return response()->json($document, Response::HTTP_OK);
+
+            return response()->json(null, Response::HTTP_NO_CONTENT);
         } catch (ModelNotFoundException $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Error updating employee document', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao apagar documento do funcionário', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    public function showFile(int $id)
+    {
+        try {
+            $document = $this->service->show($id);
+
+            if (!$document->file_path) {
+                return response()->json(['error' => 'Documento sem ficheiro associado.'], Response::HTTP_NOT_FOUND);
+            }
+
+            $filePath = public_path($document->file_path);
+
+            if (!file_exists($filePath)) {
+                return response()->json(['error' => 'Ficheiro não encontrado no servidor.'], Response::HTTP_NOT_FOUND);
+            }
+
+            $mimeType = File::mimeType($filePath);
+            $fileName = basename($filePath);
+
+            return response()->file($filePath, [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (\Throwable $th) {
+            Log::error('Erro ao abrir ficheiro de documento', ['message' => $th->getMessage()]);
+            return response()->json(['error' => 'Falha ao abrir o ficheiro.'], Response::HTTP_BAD_REQUEST);
         }
     }
 }

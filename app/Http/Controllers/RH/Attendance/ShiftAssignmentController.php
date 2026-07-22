@@ -4,58 +4,38 @@ namespace App\Http\Controllers\RH\Attendance;
 
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Attendance\ShiftAssignmentRequest;
+use App\Services\RH\Attendance\ShiftAssignmentService;
 use Exception;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ShiftAssignmentController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'ShiftAssignment';
+    protected ?string $nameEntity = 'Alocação de Turno';
     protected ?string $fieldName = 'id';
 
-    public function __construct(\App\Services\RH\Attendance\ShiftAssignmentService $service)
+    public function __construct(ShiftAssignmentService $service)
     {
         $this->service = $service;
     }
 
     public function store(ShiftAssignmentRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
+        return $this->handleStore(function () use ($request) {
             $data = $request->validated();
             $data['created_by'] ??= auth()->id();
             $model = $this->service->store($data);
-            DB::commit();
-            return response()->json($model->load('shift'), Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Error assigning shift', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+            return $model->load('shift');
+        });
     }
 
     public function update(ShiftAssignmentRequest $request, $id)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
+        return $this->handleUpdate(function () use ($request, $id) {
             $model = $this->service->update($request->validated(), $id);
-            DB::commit();
-            return response()->json($model->load('shift'), Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Error updating shift assignment', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+            return $model->load('shift');
+        }, $id);
     }
 
     public function byEmployee(int $employeeId)
@@ -69,8 +49,8 @@ class ShiftAssignmentController extends AbstractController
             );
             return response()->json($models);
         } catch (Exception $e) {
-            Log::error('Error fetching assignments', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao buscar alocações', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 }

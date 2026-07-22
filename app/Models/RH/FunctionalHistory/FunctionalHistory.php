@@ -2,6 +2,7 @@
 
 namespace App\Models\RH\FunctionalHistory;
 
+use App\Enum\FunctionalHistoryType;
 use App\Models\RH\Employee\Employee;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -31,7 +32,20 @@ class FunctionalHistory extends Model
             'effective_date' => 'date',
             'previous_value' => 'array',
             'new_value' => 'array',
+            'type' => FunctionalHistoryType::class,
         ];
+    }
+
+    public function getTypeLabelAttribute(): string
+    {
+        return $this->type?->label() ?? $this->type;
+    }
+
+    public function toArray(): array
+    {
+        $data = parent::toArray();
+        $data['type_label'] = $this->type_label;
+        return $data;
     }
 
     public function employee()

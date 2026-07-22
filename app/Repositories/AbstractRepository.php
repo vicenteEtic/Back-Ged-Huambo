@@ -43,7 +43,8 @@ abstract class AbstractRepository
         }
 
         if (!empty($relationships)) {
-            $query = $query->with($relationships);
+            $validRelations = $this->validateRelationships($relationships);
+            $query = $query->with($validRelations);
         }
 
         // aplica counts genéricos
@@ -141,13 +142,9 @@ abstract class AbstractRepository
         try {
             return DB::transaction(function () use ($data) {
                 return $this->model->create($data);
-            }, 6); // 5 é o número de tentativas de retry
+            }, 6);
         } catch (QueryException $e) {
-            if (str_contains($e->getMessage(), 'Lock wait timeout')) {
-                // Tenta novamente ou retorna erro amigável
-                throw new \Exception('O banco está ocupado, tente novamente em alguns segundos.');
-            }
-            throw $e;
+            throw new \Exception($this->translateQueryException($e));
         }
     }
 
@@ -177,7 +174,8 @@ abstract class AbstractRepository
         $query = $this->model->query();
 
         if (!empty($relationships)) {
-            $query = $query->with($relationships);
+            $validRelations = $this->validateRelationships($relationships);
+            $query = $query->with($validRelations);
         }
 
         return $query->findOrFail($id);
@@ -196,10 +194,13 @@ abstract class AbstractRepository
      */
     public function update(array $data, int $id)
     {
-        $model = $this->model->findOrFail($id);
-        $model->update($data);
-
-        return $model;
+        try {
+            $model = $this->model->findOrFail($id);
+            $model->update($data);
+            return $model;
+        } catch (QueryException $e) {
+            throw new \Exception($this->translateQueryException($e));
+        }
     }
 
     /**
@@ -248,5 +249,102 @@ abstract class AbstractRepository
         return $this->model->query()
             ->where($criteria)
             ->first(); // retorna o primeiro registro ou null se não existir
+    }
+
+    protected function validateRelationships(array $relationships): array
+    {
+        $valid = [];
+        $invalid = [];
+
+        foreach ($relationships as $relation) {
+            $method = \Illuminate\Support\Str::camel($relation);
+            if (method_exists($this->model, $method)) {
+                $valid[] = $relation;
+            } else {
+                $invalid[] = $relation;
+            }
+        }
+
+        if (!empty($invalid)) {
+            throw new \InvalidArgumentException(
+                'Relacionamento(s) não encontrado(s): ' . implode(', ', $invalid) .
+                '. Disponíveis: ' . implode(', ', $this->getAvailableRelations())
+            );
+        }
+
+        return $valid;
+    }
+
+    protected function getAvailableRelations(): array
+    {
+        $relations = [];
+
+        $reflection = new \ReflectionClass($this->model);
+
+        foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+            if ($method->getDeclaringClass()->getName() === get_class($this->model)
+                && $method->getNumberOfParameters() === 0
+                && !in_array($method->getName(), ['boot', 'initialize', 'booted'])
+                && !str_starts_with($method->getName(), '__')
+            ) {
+                $returnType = $method->getReturnType();
+                if ($returnType instanceof \ReflectionNamedType
+                    && is_a($returnType->getName(), \Illuminate\Database\Eloquent\Relations\Relation::class, true)
+                ) {
+                    $relations[] = $method->getName();
+                }
+            }
+        }
+
+        return $relations;
+    }
+
+    protected function translateQueryException(QueryException $e): string
+    {
+        $message = $e->getMessage();
+
+        if (str_contains($message, 'Lock wait timeout')) {
+            return 'O banco de dados está ocupado, tente novamente em alguns segundos.';
+        }
+
+        if (str_contains($message, 'a foreign key constraint fails') || str_contains($message, '23503') || str_contains($message, '1452')) {
+            if (preg_match('/FOREIGN KEY \(`(.+?)`\)/', $message, $matches)) {
+                return "O valor referenciado no campo '{$matches[1]}' não existe na tabela associada.";
+            }
+            if (preg_match('/constraint `(.+?)` fails/i', $message, $matches)) {
+                return "Referência inválida: um dos dados referenciados não existe.";
+            }
+            return 'Referência inválida: um dos dados referenciados não existe.';
+        }
+
+        if (str_contains($message, 'Duplicate entry') || str_contains($message, '23000')) {
+            $tableName = $this->model->getTable();
+            $friendlyMessages = [
+                'training_enrollments' => 'Este funcionário já está inscrito nesta sessão de formação.',
+                'payslips' => 'Já existe um título de vencimento para este período.',
+                'payroll_items' => 'Este funcionário já possui um item de vencimento para o período seleccionado.',
+                'unique' => 'Já existe um registro com estes dados.',
+            ];
+
+            foreach ($friendlyMessages as $table => $msg) {
+                if (str_contains($tableName, $table)) {
+                    return $msg;
+                }
+            }
+
+            if (preg_match("/Duplicate entry '(.+?)' for key/i", $message, $matches)) {
+                return "O valor '{$matches[1]}' já está sendo utilizado.";
+            }
+            return 'Já existe um registro com os mesmos dados.';
+        }
+
+        if (str_contains($message, 'Column') && str_contains($message, 'cannot be null')) {
+            if (preg_match("/Column '(.+?)'/", $message, $matches)) {
+                return "O campo '{$matches[1]}' é obrigatório.";
+            }
+            return 'Um campo obrigatório não foi preenchido.';
+        }
+
+        return 'Erro de banco de dados.';
     }
 }
