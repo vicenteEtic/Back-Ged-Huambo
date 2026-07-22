@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AlertAttachment\AlertAttachmentController;
 use App\Http\Controllers\Api\EnumController;
+use App\Http\Controllers\Api\ModelRelationsController;
 use App\Http\Controllers\RH\EmployeeDocument\EmployeeDocumentController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\User\UserController;
@@ -64,6 +65,9 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::prefix('areas')->group(base_path('routes/rh/area.php'));
         Route::prefix('department-permissions')->group(base_path('routes/rh/department_permission.php'));
         Route::prefix('dashboard')->group(base_path('routes/rh/reports.php'));
+
+        Route::get('model-relations', [ModelRelationsController::class, 'index']);
+        Route::get('model-relations/{model}', [ModelRelationsController::class, 'show']);
     });
 
    // Route::prefix('processes/{process_id}/documents')->group(base_path('routes/process/process_document.php'));
