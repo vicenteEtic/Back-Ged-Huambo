@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 class RetirementController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'RetirementProcess';
+    protected ?string $nameEntity = 'Processo de Aposentação';
     protected ?string $fieldName = 'id';
 
     public function __construct(
@@ -34,44 +34,23 @@ class RetirementController extends AbstractController
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             Log::error('Erro ao verificar elegibilidade de aposentação', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
     public function store(RetirementProcessRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $model = $this->service->store($request->validated());
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Processo de aposentação criado por ' . auth()->user()->first_name);
-            DB::commit();
-            return response()->json($model->load(['employee', 'approver']), Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Erro ao criar processo de aposentação', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleStore(
+            fn() => $this->service->store($request->validated()),
+        );
     }
 
     public function update(RetirementProcessRequest $request, $id)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $model = $this->service->update($request->validated(), $id);
-            DB::commit();
-            return response()->json($model->load(['employee', 'approver']), Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Erro ao atualizar processo de aposentação', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleUpdate(
+            fn() => $this->service->update($request->validated(), $id),
+            $id,
+        );
     }
 
     public function history(int $employeeId)
@@ -80,7 +59,7 @@ class RetirementController extends AbstractController
             return response()->json($this->retirementService->processHistory($employeeId));
         } catch (Exception $e) {
             Log::error('Erro ao buscar histórico de aposentação', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 }

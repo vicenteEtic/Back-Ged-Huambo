@@ -5,51 +5,30 @@ namespace App\Http\Controllers\RH\Training;
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Training\TrainingSessionRequest;
 use App\Services\RH\Training\TrainingSessionService;
-use Exception;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
 
 class TrainingSessionController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'TrainingSession';
+    protected ?string $nameEntity = 'Sessão de Formação';
     protected ?string $fieldName = 'name';
-    public function __construct(TrainingSessionService $service) { $this->service = $service; }
+
+    public function __construct(TrainingSessionService $service)
+    {
+        $this->service = $service;
+    }
 
     public function store(TrainingSessionRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $model = $this->service->store($request->validated());
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Sessão de formação ' . $model->name . ' criada por ' . Auth::user()->first_name);
-            DB::commit();
-            return response()->json($model, Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            DB::rollBack(); $this->logRequest($e);
-            Log::error('Erro ao criar sessão de formação', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleStore(
+            fn() => $this->service->store($request->validated()),
+        );
     }
 
     public function update(TrainingSessionRequest $request, $id)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $model = $this->service->update($request->validated(), $id);
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Sessão de formação ' . $model->name . ' atualizada por ' . Auth::user()->first_name);
-            DB::commit();
-            return response()->json($model, Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
-            DB::rollBack(); return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            DB::rollBack(); $this->logRequest($e);
-            Log::error('Erro ao atualizar sessão de formação', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleUpdate(
+            fn() => $this->service->update($request->validated(), $id),
+            $id,
+        );
     }
 }

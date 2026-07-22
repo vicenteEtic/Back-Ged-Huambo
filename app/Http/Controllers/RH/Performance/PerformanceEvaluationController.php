@@ -8,52 +8,34 @@ use App\Services\RH\Performance\PerformanceEvaluationService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
 
 class PerformanceEvaluationController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'PerformanceEvaluation';
+    protected ?string $nameEntity = 'Avaliação de Desempenho';
     protected ?string $fieldName = 'id';
+
     public function __construct(
         PerformanceEvaluationService $service,
-        protected PerformanceEvaluationService $evaluationService
-    ) { $this->service = $service; }
+        protected PerformanceEvaluationService $evaluationService,
+    ) {
+        $this->service = $service;
+    }
 
     public function store(PerformanceEvaluationRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $model = $this->service->store($request->validated());
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Avaliação de desempenho criada por ' . Auth::user()->first_name);
-            DB::commit();
-            return response()->json($model, Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            DB::rollBack(); $this->logRequest($e);
-            Log::error('Erro', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleStore(
+            fn() => $this->service->store($request->validated()),
+        );
     }
 
     public function update(PerformanceEvaluationRequest $request, $id)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $model = $this->service->update($request->validated(), $id);
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Avaliação de desempenho atualizada por ' . Auth::user()->first_name);
-            DB::commit();
-            return response()->json($model, Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
-            DB::rollBack(); return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            DB::rollBack(); $this->logRequest($e);
-            Log::error('Erro', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleUpdate(
+            fn() => $this->service->update($request->validated(), $id),
+            $id,
+        );
     }
 
     public function calculate(int $id)
@@ -69,7 +51,7 @@ class PerformanceEvaluationController extends AbstractController
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             Log::error('Erro ao calcular pontuação', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 }

@@ -9,14 +9,13 @@ use App\Models\RH\Leave\LeaveRequest;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use DomainException;
 
 class LeaveRequestController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'LeaveRequest';
+    protected ?string $nameEntity = 'Pedido de Férias';
     protected ?string $fieldName = 'id';
 
     public function __construct(
@@ -28,48 +27,21 @@ class LeaveRequestController extends AbstractController
 
     public function store(LeaveRequestForm $request)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
+        return $this->handleStore(function () use ($request) {
             $leaveRequest = $this->leaveService->submit($request->validated());
-            $this->logToDatabase(
+            return $this->logToDatabase(
                 type: 'rh', level: 'info',
                 customMessage: 'Pedido de férias #' . $leaveRequest->id . ' submetido por ' . auth()->user()->first_name
-            );
-            DB::commit();
-            return response()->json($leaveRequest, Response::HTTP_CREATED);
-        } catch (DomainException $e) {
-            DB::rollBack();
-            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Erro ao submeter pedido de férias', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+            ) ? $leaveRequest : $leaveRequest;
+        });
     }
 
     public function update(LeaveRequestForm $request, $id)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $leaveRequest = $this->service->update($request->validated(), $id);
-            $this->logToDatabase(
-                type: 'rh', level: 'info',
-                customMessage: 'Pedido de férias #' . $leaveRequest->id . ' actualizado por ' . auth()->user()->first_name
-            );
-            DB::commit();
-            return response()->json($leaveRequest, Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Erro ao actualizar pedido de férias', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleUpdate(
+            fn() => $this->service->update($request->validated(), $id),
+            $id,
+        );
     }
 
     public function balance(int $employeeId)
@@ -80,7 +52,7 @@ class LeaveRequestController extends AbstractController
             return response()->json($this->leaveService->balanceByEmployee($employeeId, $year, $leaveTypeId));
         } catch (Exception $e) {
             Log::error('Erro ao obter saldo de férias', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -108,7 +80,7 @@ class LeaveRequestController extends AbstractController
         } catch (Exception $e) {
             $this->logRequest($e);
             Log::error('Erro ao eliminar pedido de férias', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 }

@@ -5,51 +5,30 @@ namespace App\Http\Controllers\RH\Training;
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Training\TrainingEnrollmentRequest;
 use App\Services\RH\Training\TrainingEnrollmentService;
-use Exception;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
 
 class TrainingEnrollmentController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'TrainingEnrollment';
+    protected ?string $nameEntity = 'Inscrição de Formação';
     protected ?string $fieldName = 'id';
-    public function __construct(TrainingEnrollmentService $service) { $this->service = $service; }
+
+    public function __construct(TrainingEnrollmentService $service)
+    {
+        $this->service = $service;
+    }
 
     public function store(TrainingEnrollmentRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $model = $this->service->store($request->validated());
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Inscrição de formação criada por ' . Auth::user()->first_name);
-            DB::commit();
-            return response()->json($model, Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            DB::rollBack(); $this->logRequest($e);
-            Log::error('Erro ao criar inscrição de formação', ['message' => $e->getMessage()]);
-            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
+        return $this->handleStore(
+            fn() => $this->service->store($request->validated()),
+        );
     }
 
     public function update(TrainingEnrollmentRequest $request, $id)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $model = $this->service->update($request->validated(), $id);
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Inscrição de formação atualizada por ' . Auth::user()->first_name);
-            DB::commit();
-            return response()->json($model, Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
-            DB::rollBack(); return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            DB::rollBack(); $this->logRequest($e);
-            Log::error('Erro ao atualizar inscrição de formação', ['message' => $e->getMessage()]);
-            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
+        return $this->handleUpdate(
+            fn() => $this->service->update($request->validated(), $id),
+            $id,
+        );
     }
 }

@@ -7,16 +7,14 @@ use App\Http\Requests\RH\EmployeeDocument\EmployeeDocumentRequest;
 use App\Services\RH\EmployeeDocument\EmployeeDocumentService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
 class EmployeeDocumentController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'EmployeeDocument';
+    protected ?string $nameEntity = 'Documento do Funcionário';
     protected ?string $fieldName = 'name';
 
     public function __construct(EmployeeDocumentService $service)
@@ -24,16 +22,28 @@ class EmployeeDocumentController extends AbstractController
         parent::__construct($service);
     }
 
-
-      public function findBy(int|string $id = 0)
+    public function findBy(int|string $id = 0)
     {
         $employeeId = request()->route('employee_id');
         $documents = $this->service->findBy(['employee_id' => $employeeId]);
-
         return response()->json($documents);
     }
 
-   
+    public function store(EmployeeDocumentRequest $request)
+    {
+        return $this->handleStore(function () use ($request) {
+            $data = $request->validated();
+            return $this->service->store($data);
+        });
+    }
+
+    public function update(EmployeeDocumentRequest $request, $id)
+    {
+        return $this->handleUpdate(
+            fn() => $this->service->update($request->validated(), $id),
+            $id,
+        );
+    }
 
     public function destroy($id)
     {
@@ -52,52 +62,7 @@ class EmployeeDocumentController extends AbstractController
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             Log::error('Erro ao apagar documento do funcionário', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    public function store(EmployeeDocumentRequest $request)
-    {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $data = $request->validated();
-            $documents = $this->service->store($data);
-            $count = is_array($documents) ? count($documents) : 1;
-            $this->logToDatabase(
-                type: 'rh', level: 'info',
-                customMessage: $count . ' documento(s) criado(s) por ' . auth()->user()->first_name
-            );
-            DB::commit();
-            return response()->json($documents, Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Erro ao criar documento do funcionário', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    public function update(EmployeeDocumentRequest $request, $id)
-    {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $document = $this->service->update($request->validated(), $id);
-            $this->logToDatabase(
-                type: 'rh', level: 'info',
-                customMessage: 'Documento ' . $document->name . ' atualizado por ' . auth()->user()->first_name
-            );
-            DB::commit();
-            return response()->json($document, Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Erro ao atualizar documento do funcionário', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 

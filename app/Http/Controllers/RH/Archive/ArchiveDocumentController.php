@@ -18,12 +18,11 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ArchiveDocumentController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'ArchiveDocument';
+    protected ?string $nameEntity = 'Documento de Arquivo';
     protected ?string $fieldName = 'id';
 
     public function __construct(
@@ -36,27 +35,17 @@ class ArchiveDocumentController extends AbstractController
 
     public function store(ArchiveDocumentRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
+        return $this->handleStore(function () use ($request) {
             $data = $request->validated();
             $data['created_by'] = auth()->id();
             $model = $this->service->store($data);
-            DB::commit();
-            return response()->json($model->load(['category', 'employee', 'creator']), Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Erro ao criar documento de arquivo', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+            return $model->load(['category', 'employee', 'creator']);
+        });
     }
 
     public function update(ArchiveDocumentRequest $request, $id)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
+        return $this->handleUpdate(function () use ($request, $id) {
             $data = $request->validated();
             if (isset($data['metadata'])) {
                 $data['metadata'] = is_string($data['metadata']) ? json_decode($data['metadata'], true) : $data['metadata'];
@@ -65,17 +54,8 @@ class ArchiveDocumentController extends AbstractController
                 $data['tags'] = is_string($data['tags']) ? json_decode($data['tags'], true) : $data['tags'];
             }
             $model = $this->service->update($data, $id);
-            DB::commit();
-            return response()->json($model->load(['category', 'employee', 'creator']), Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Erro ao atualizar documento de arquivo', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+            return $model->load(['category', 'employee', 'creator']);
+        }, $id);
     }
 
     public function byEmployee(int $employeeId)
@@ -88,7 +68,7 @@ class ArchiveDocumentController extends AbstractController
             return response()->json($documents);
         } catch (Exception $e) {
             Log::error('Erro ao buscar documentos do funcionário', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -102,14 +82,14 @@ class ArchiveDocumentController extends AbstractController
             return response()->json($documents);
         } catch (Exception $e) {
             Log::error('Erro ao buscar documentos por categoria', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
     public function approve(int $id)
     {
-        DB::beginTransaction();
         try {
+            DB::beginTransaction();
             $document = ArchiveDocument::findOrFail($id);
             $document->update([
                 'status' => 'published',
@@ -124,14 +104,14 @@ class ArchiveDocumentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Erro ao aprovar documento', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
     public function archive(int $id)
     {
-        DB::beginTransaction();
         try {
+            DB::beginTransaction();
             $document = ArchiveDocument::findOrFail($id);
             $document->update(['status' => 'archived']);
             DB::commit();
@@ -142,7 +122,7 @@ class ArchiveDocumentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Erro ao arquivar documento', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -191,11 +171,9 @@ class ArchiveDocumentController extends AbstractController
             return response()->json($query->orderByDesc('created_at')->paginate(request('paginate', 50)));
         } catch (Exception $e) {
             Log::error('Erro ao pesquisar documentos', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
-
-    // === Versões ===
 
     public function showFile(int $id)
     {
@@ -267,14 +245,14 @@ class ArchiveDocumentController extends AbstractController
             return response()->json($versions);
         } catch (Exception $e) {
             Log::error('Erro ao buscar versões', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
     public function storeVersion(ArchiveDocumentVersionRequest $request, int $documentId)
     {
-        DB::beginTransaction();
         try {
+            DB::beginTransaction();
             $this->logRequest();
             ArchiveDocument::findOrFail($documentId);
             $data = $request->validated();
@@ -290,11 +268,9 @@ class ArchiveDocumentController extends AbstractController
             DB::rollBack();
             $this->logRequest($e);
             Log::error('Erro ao criar versão', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
-
-    // === Partilhas ===
 
     public function shares(int $documentId)
     {
@@ -305,14 +281,14 @@ class ArchiveDocumentController extends AbstractController
             return response()->json($shares);
         } catch (Exception $e) {
             Log::error('Erro ao buscar partilhas', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
     public function storeShare(ArchiveDocumentShareRequest $request, int $documentId)
     {
-        DB::beginTransaction();
         try {
+            DB::beginTransaction();
             $this->logRequest();
             ArchiveDocument::findOrFail($documentId);
             $data = $request->validated();
@@ -328,14 +304,14 @@ class ArchiveDocumentController extends AbstractController
             DB::rollBack();
             $this->logRequest($e);
             Log::error('Erro ao criar partilha', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
     public function destroyShare(int $documentId, int $shareId)
     {
-        DB::beginTransaction();
         try {
+            DB::beginTransaction();
             $this->logRequest();
             $share = ArchiveDocumentShare::where('archive_document_id', $documentId)->findOrFail($shareId);
             $share->delete();
@@ -348,7 +324,7 @@ class ArchiveDocumentController extends AbstractController
             DB::rollBack();
             $this->logRequest($e);
             Log::error('Erro ao eliminar partilha', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 }

@@ -5,16 +5,11 @@ namespace App\Http\Controllers\RH\Recruitment;
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Recruitment\CandidateRequest;
 use App\Services\RH\Recruitment\CandidateService;
-use Exception;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class CandidateController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'Candidate';
+    protected ?string $nameEntity = 'Candidato';
     protected ?string $fieldName = 'full_name';
 
     public function __construct(CandidateService $service)
@@ -24,38 +19,16 @@ class CandidateController extends AbstractController
 
     public function store(CandidateRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $candidate = $this->service->store($request->validated());
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Candidato ' . $candidate->full_name . ' criado por ' . auth()->user()->first_name);
-            DB::commit();
-            return response()->json($candidate, Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Erro ao criar candidato', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleStore(
+            fn() => $this->service->store($request->validated()),
+        );
     }
 
     public function update(CandidateRequest $request, $id)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $candidate = $this->service->update($request->validated(), $id);
-            $this->logToDatabase(type: 'rh', level: 'info', customMessage: 'Candidato ' . $candidate->full_name . ' atualizado por ' . auth()->user()->first_name);
-            DB::commit();
-            return response()->json($candidate, Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Erro ao atualizar candidato', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleUpdate(
+            fn() => $this->service->update($request->validated(), $id),
+            $id,
+        );
     }
 }
