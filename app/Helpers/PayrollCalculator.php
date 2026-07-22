@@ -2,23 +2,40 @@
 
 namespace App\Helpers;
 
+use App\Models\RH\Payroll\IrtBracket;
+use Illuminate\Support\Facades\Cache;
+
 class PayrollCalculator
 {
     private const INSS_RATE = 0.03;
 
-    private const IRT_TABLE = [
-        1 => ['min' => 0,        'max' => 150000,     'parcela_fixa' => 0,        'taxa' => 0,    'excesso' => 0],
-        2 => ['min' => 150001,   'max' => 200000,     'parcela_fixa' => 12500,    'taxa' => 0.16, 'excesso' => 150000],
-        3 => ['min' => 200001,   'max' => 300000,     'parcela_fixa' => 31250,    'taxa' => 0.18, 'excesso' => 200000],
-        4 => ['min' => 300001,   'max' => 500000,     'parcela_fixa' => 49250,    'taxa' => 0.19, 'excesso' => 300000],
-        5 => ['min' => 500001,   'max' => 1000000,    'parcela_fixa' => 87250,    'taxa' => 0.20, 'excesso' => 500000],
-        6 => ['min' => 1000001,  'max' => 1500000,    'parcela_fixa' => 187250,   'taxa' => 0.21, 'excesso' => 1000000],
-        7 => ['min' => 1500001,  'max' => 2000000,    'parcela_fixa' => 292250,   'taxa' => 0.22, 'excesso' => 1500000],
-        8 => ['min' => 2000001,  'max' => 2500000,    'parcela_fixa' => 402250,   'taxa' => 0.23, 'excesso' => 2000000],
-        9 => ['min' => 2500001,  'max' => 5000000,    'parcela_fixa' => 517250,   'taxa' => 0.24, 'excesso' => 2500000],
-        10 => ['min' => 5000001, 'max' => 10000000,   'parcela_fixa' => 1117250,  'taxa' => 0.245,'excesso' => 5000000],
-        11 => ['min' => 10000001,'max' => PHP_INT_MAX, 'parcela_fixa' => 2342250,  'taxa' => 0.25, 'excesso' => 10000000],
+    private const FALLBACK_IRT_TABLE = [
+        ['bracket' => 1,  'min_salary' => 0,        'max_salary' => 150000,    'fixed_amount' => 0,       'rate' => 0,      'excess_over' => 0,        'is_exempt' => true],
+        ['bracket' => 2,  'min_salary' => 150001,   'max_salary' => 200000,    'fixed_amount' => 12500,   'rate' => 0.16,   'excess_over' => 150000,   'is_exempt' => false],
+        ['bracket' => 3,  'min_salary' => 200001,   'max_salary' => 300000,    'fixed_amount' => 31250,   'rate' => 0.18,   'excess_over' => 200000,   'is_exempt' => false],
+        ['bracket' => 4,  'min_salary' => 300001,   'max_salary' => 500000,    'fixed_amount' => 49250,   'rate' => 0.19,   'excess_over' => 300000,   'is_exempt' => false],
+        ['bracket' => 5,  'min_salary' => 500001,   'max_salary' => 1000000,   'fixed_amount' => 87250,   'rate' => 0.20,   'excess_over' => 500000,   'is_exempt' => false],
+        ['bracket' => 6,  'min_salary' => 1000001,  'max_salary' => 1500000,   'fixed_amount' => 187250,  'rate' => 0.21,   'excess_over' => 1000000,  'is_exempt' => false],
+        ['bracket' => 7,  'min_salary' => 1500001,  'max_salary' => 2000000,   'fixed_amount' => 292250,  'rate' => 0.22,   'excess_over' => 1500000,  'is_exempt' => false],
+        ['bracket' => 8,  'min_salary' => 2000001,  'max_salary' => 2500000,   'fixed_amount' => 402250,  'rate' => 0.23,   'excess_over' => 2000000,  'is_exempt' => false],
+        ['bracket' => 9,  'min_salary' => 2500001,  'max_salary' => 5000000,   'fixed_amount' => 517250,  'rate' => 0.24,   'excess_over' => 2500000,  'is_exempt' => false],
+        ['bracket' => 10, 'min_salary' => 5000001,  'max_salary' => 10000000,  'fixed_amount' => 1117250, 'rate' => 0.245,  'excess_over' => 5000000,  'is_exempt' => false],
+        ['bracket' => 11, 'min_salary' => 10000001, 'max_salary' => 999999999, 'fixed_amount' => 2342250, 'rate' => 0.25,   'excess_over' => 10000000, 'is_exempt' => false],
     ];
+
+    private static function getIrtBrackets(): array
+    {
+        try {
+            $brackets = IrtBracket::active()->orderBy('bracket')->get()->toArray();
+            if (!empty($brackets)) {
+                return $brackets;
+            }
+        } catch (\Throwable $e) {
+            // tabela ainda não existe, usa fallback
+        }
+
+        return self::FALLBACK_IRT_TABLE;
+    }
 
     public static function calculateINSS(float $baseSalary): float
     {
@@ -27,13 +44,22 @@ class PayrollCalculator
 
     public static function calculateIRT(float $materiaColetavel): float
     {
-        if ($materiaColetavel <= 150000) {
-            return 0;
-        }
+        $brackets = self::getIrtBrackets();
 
-        foreach (self::IRT_TABLE as $escalao) {
-            if ($materiaColetavel >= $escalao['min'] && $materiaColetavel <= $escalao['max']) {
-                return round($escalao['parcela_fixa'] + (($materiaColetavel - $escalao['excesso']) * $escalao['taxa']), 2);
+        foreach ($brackets as $bracket) {
+            if ((bool) ($bracket['is_exempt'] ?? false)) {
+                continue;
+            }
+
+            $min = (float) $bracket['min_salary'];
+            $max = (float) $bracket['max_salary'];
+
+            if ($materiaColetavel >= $min && $materiaColetavel <= $max) {
+                $fixed = (float) $bracket['fixed_amount'];
+                $rate = (float) $bracket['rate'];
+                $excess = (float) $bracket['excess_over'];
+
+                return round($fixed + (($materiaColetavel - $excess) * $rate), 2);
             }
         }
 

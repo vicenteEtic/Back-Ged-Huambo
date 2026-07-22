@@ -46,6 +46,7 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::prefix('leaves')->group(base_path('routes/rh/leave.php'));
         Route::prefix('attendance')->group(base_path('routes/rh/attendance.php'));
         Route::prefix('payroll')->group(base_path('routes/rh/payroll.php'));
+        Route::prefix('irt-brackets')->group(base_path('routes/rh/irt_bracket.php'));
         Route::prefix('recruitment')->group(base_path('routes/rh/recruitment.php'));
         Route::prefix('training')->group(base_path('routes/rh/training.php'));
         Route::prefix('performance')->group(base_path('routes/rh/performance.php'));
