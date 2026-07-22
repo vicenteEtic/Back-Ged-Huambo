@@ -6,6 +6,11 @@ use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Payroll\PayrollItemRequest;
 use App\Helpers\PayrollCalculator;
 use App\Services\RH\Payroll\PayrollItemService;
+use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PayrollItemController extends AbstractController
 {
@@ -20,17 +25,53 @@ class PayrollItemController extends AbstractController
 
     public function store(PayrollItemRequest $request)
     {
-        return $this->handleStore(function () use ($request) {
+        try {
+            $this->logRequest();
             $data = PayrollCalculator::calculate($request->validated());
-            return $this->service->store($data);
-        });
+
+            $duplicate = \App\Models\RH\Payroll\PayrollItem::where('payroll_period_id', $data['payroll_period_id'])
+                ->where('employee_id', $data['employee_id'])
+                ->exists();
+
+            if ($duplicate) {
+                return response()->json([
+                    'error' => 'Este funcionário já possui um item de vencimento para o período seleccionado.',
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            $item = $this->service->store($data);
+            $this->logToDatabase(
+                type: 'rh', level: 'info',
+                customMessage: 'Item de folha de pagamento criado por ' . auth()->user()->first_name
+            );
+            return response()->json($item, Response::HTTP_CREATED);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (Exception $e) {
+            $this->logRequest($e);
+            Log::error('Erro ao criar item de folha de pagamento', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
     }
 
     public function update(PayrollItemRequest $request, $id)
     {
-        return $this->handleUpdate(function () use ($request, $id) {
+        try {
+            $this->logRequest();
             $data = PayrollCalculator::calculate($request->validated());
-            return $this->service->update($data, $id);
-        }, $id);
+
+            $item = $this->service->update($data, $id);
+            $this->logToDatabase(
+                type: 'rh', level: 'info',
+                customMessage: 'Item de folha de pagamento atualizado por ' . auth()->user()->first_name
+            );
+            return response()->json($item, Response::HTTP_OK);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (Exception $e) {
+            $this->logRequest($e);
+            Log::error('Erro ao atualizar item de folha de pagamento', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
     }
 }
