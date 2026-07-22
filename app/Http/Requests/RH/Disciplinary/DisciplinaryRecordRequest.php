@@ -12,7 +12,7 @@ class DisciplinaryRecordRequest extends BaseFormRequest
         return [
             'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
             'disciplinary_type_id' => [$this->requiredOnCreate(), 'integer', 'exists:disciplinary_types,id'],
-            'occurred_at' => [$this->requiredOnCreate(), 'date'],
+            'occurred_at' => [$this->requiredOnCreate(), 'date', 'before_or_equal:today'],
             'description' => [$this->requiredOnCreate(), 'string'],
             'evidence_path' => ['nullable', 'file', 'max:10240'],
             'status' => ['string', 'max:30'],
