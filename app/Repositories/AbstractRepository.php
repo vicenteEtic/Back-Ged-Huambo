@@ -308,6 +308,19 @@ abstract class AbstractRepository
         }
 
         if (str_contains($message, 'Duplicate entry') || str_contains($message, '23000')) {
+            $tableName = $this->model->getTable();
+            $friendlyMessages = [
+                'training_enrollments' => 'Este funcionário já está inscrito nesta sessão de formação.',
+                'payslips' => 'Já existe um título de vencimento para este período.',
+                'unique' => 'Já existe um registro com estes dados.',
+            ];
+
+            foreach ($friendlyMessages as $table => $msg) {
+                if (str_contains($tableName, $table)) {
+                    return $msg;
+                }
+            }
+
             if (preg_match("/Duplicate entry '(.+?)' for key/i", $message, $matches)) {
                 return "O valor '{$matches[1]}' já está sendo utilizado.";
             }
