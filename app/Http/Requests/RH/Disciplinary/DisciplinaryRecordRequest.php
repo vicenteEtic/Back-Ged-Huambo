@@ -7,6 +7,18 @@ use App\Http\Requests\BaseFormRequest;
 class DisciplinaryRecordRequest extends BaseFormRequest
 {
     public function authorize(): bool { return true; }
+
+    public function messages(): array
+    {
+        return [
+            'occurred_at.before_or_equal' => 'A data da ocorrência deve ser uma data anterior ou igual a :date.',
+            'occurred_at.date' => 'A data da ocorrência deve ser uma data válida.',
+            'sanction_start.before_or_equal' => 'A data de início da sanção deve ser uma data anterior ou igual a :date.',
+            'sanction_start.date' => 'A data de início da sanção deve ser uma data válida.',
+            'sanction_end.after_or_equal' => 'A data de término da sanção deve ser igual ou posterior à data de início.',
+        ];
+    }
+
     public function rules(): array
     {
         return [
