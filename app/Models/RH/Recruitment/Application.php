@@ -22,6 +22,11 @@ class Application extends Model
         return $this->belongsTo(JobOpening::class);
     }
 
+    public function job_opening()
+    {
+        return $this->belongsTo(JobOpening::class);
+    }
+
     public function candidate()
     {
         return $this->belongsTo(Candidate::class);
