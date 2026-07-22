@@ -31,7 +31,7 @@ class TrainingEnrollmentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
             Log::error('Error creating training enrollment', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -49,7 +49,7 @@ class TrainingEnrollmentController extends AbstractController
         } catch (Exception $e) {
             DB::rollBack(); $this->logRequest($e);
             Log::error('Error updating training enrollment', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 }

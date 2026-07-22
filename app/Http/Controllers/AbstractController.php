@@ -59,9 +59,7 @@ abstract class AbstractController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json([
-                'error' => 'Erro interno no servidor.'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -110,7 +108,7 @@ abstract class AbstractController extends Controller
             ]);
 
             return response()->json([
-                'error' => 'Erro interno no servidor.'
+                'error' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -156,7 +154,7 @@ abstract class AbstractController extends Controller
             ]);
 
             return response()->json([
-                'error' => 'Erro interno no servidor.'
+                'error' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -178,7 +176,7 @@ abstract class AbstractController extends Controller
             ]);
 
             return response()->json([
-                'error' => 'Erro interno no servidor.'
+                'error' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

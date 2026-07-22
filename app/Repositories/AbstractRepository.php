@@ -142,13 +142,9 @@ abstract class AbstractRepository
         try {
             return DB::transaction(function () use ($data) {
                 return $this->model->create($data);
-            }, 6); // 5 é o número de tentativas de retry
+            }, 6);
         } catch (QueryException $e) {
-            if (str_contains($e->getMessage(), 'Lock wait timeout')) {
-                // Tenta novamente ou retorna erro amigável
-                throw new \Exception('O banco está ocupado, tente novamente em alguns segundos.');
-            }
-            throw $e;
+            throw new \Exception($this->translateQueryException($e));
         }
     }
 
@@ -198,10 +194,13 @@ abstract class AbstractRepository
      */
     public function update(array $data, int $id)
     {
-        $model = $this->model->findOrFail($id);
-        $model->update($data);
-
-        return $model;
+        try {
+            $model = $this->model->findOrFail($id);
+            $model->update($data);
+            return $model;
+        } catch (QueryException $e) {
+            throw new \Exception($this->translateQueryException($e));
+        }
     }
 
     /**
@@ -298,5 +297,40 @@ abstract class AbstractRepository
         }
 
         return $relations;
+    }
+
+    protected function translateQueryException(QueryException $e): string
+    {
+        $message = $e->getMessage();
+
+        if (str_contains($message, 'Lock wait timeout')) {
+            return 'O banco de dados está ocupado, tente novamente em alguns segundos.';
+        }
+
+        if (str_contains($message, 'Duplicate entry') || str_contains($message, '23000')) {
+            if (preg_match("/Duplicate entry '(.+?)' for key/i", $message, $matches)) {
+                return "O valor '{$matches[1]}' já está sendo utilizado.";
+            }
+            return 'Já existe um registro com os mesmos dados.';
+        }
+
+        if (str_contains($message, 'a foreign key constraint fails') || str_contains($message, '23506')) {
+            if (preg_match('/FOREIGN KEY \(`(.+?)`\)/', $message, $matches)) {
+                return "O referenciado no campo '{$matches[1]}' não existe.";
+            }
+            if (preg_match('/constraint `(.+?)` fails/i', $message, $matches)) {
+                return "Referência inválida: dados dependentes não encontrados.";
+            }
+            return 'Referência inválida: um dos dados referenciados não existe.';
+        }
+
+        if (str_contains($message, 'Column') && str_contains($message, 'cannot be null')) {
+            if (preg_match("/Column '(.+?)'/", $message, $matches)) {
+                return "O campo '{$matches[1]}' é obrigatório.";
+            }
+            return 'Um campo obrigatório não foi preenchido.';
+        }
+
+        return 'Erro de banco de dados.';
     }
 }
