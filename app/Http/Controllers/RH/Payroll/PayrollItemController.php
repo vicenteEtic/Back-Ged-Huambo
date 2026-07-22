@@ -4,6 +4,7 @@ namespace App\Http\Controllers\RH\Payroll;
 
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Payroll\PayrollItemRequest;
+use App\Helpers\PayrollCalculator;
 use App\Services\RH\Payroll\PayrollItemService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -27,7 +28,8 @@ class PayrollItemController extends AbstractController
         DB::beginTransaction();
         try {
             $this->logRequest();
-            $item = $this->service->store($request->validated());
+            $data = PayrollCalculator::calculate($request->validated());
+            $item = $this->service->store($data);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
                 customMessage: 'Item de folha de pagamento criado por ' . auth()->user()->first_name
@@ -47,7 +49,8 @@ class PayrollItemController extends AbstractController
         DB::beginTransaction();
         try {
             $this->logRequest();
-            $item = $this->service->update($request->validated(), $id);
+            $data = PayrollCalculator::calculate($request->validated());
+            $item = $this->service->update($data, $id);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
                 customMessage: 'Item de folha de pagamento atualizado por ' . auth()->user()->first_name
