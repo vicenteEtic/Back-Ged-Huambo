@@ -13,18 +13,18 @@ enum FunctionalHistoryType: string
     case CategoryChange = 'category_change';
 
     private const LABELS = [
-        self::Appointment => 'Nomeação',
-        self::Promotion => 'Promoção',
-        self::Progression => 'Progressão',
-        self::Transfer => 'Transferência',
-        self::PositionChange => 'Mudança de Cargo',
-        self::SalaryChange => 'Alteração Salarial',
-        self::CategoryChange => 'Mudança de Categoria',
+        'appointment' => 'Nomeação',
+        'promotion' => 'Promoção',
+        'progression' => 'Progressão',
+        'transfer' => 'Transferência',
+        'position_change' => 'Mudança de Cargo',
+        'salary_change' => 'Alteração Salarial',
+        'category_change' => 'Mudança de Categoria',
     ];
 
     public function label(): string
     {
-        return self::LABELS[$this] ?? $this->value;
+        return self::LABELS[$this->value] ?? $this->value;
     }
 
     public static function values(): array
