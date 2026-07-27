@@ -12,10 +12,26 @@ class PermissionSeed extends Seeder
 {
     public function run(): void
     {
-        $role = Role::updateOrCreate(
+        $roleAdministrador = Role::updateOrCreate(
             ['name' => 'Administrador'],
             [
                 'description' => 'Administrador do sistema',
+                'is_active' => true,
+            ]
+        );
+
+        $roleDirector = Role::updateOrCreate(
+            ['name' => 'Director RH'],
+            [
+                'description' => 'Director de Recursos Humanos',
+                'is_active' => true,
+            ]
+        );
+
+        $roleTecnico = Role::updateOrCreate(
+            ['name' => 'Técnico RH'],
+            [
+                'description' => 'Técnico de Recursos Humanos',
                 'is_active' => true,
             ]
         );
@@ -86,9 +102,41 @@ class PermissionSeed extends Seeder
             }
         }
 
-        $role->permissions()->sync($permissionIds);
+        $roleAdministrador->permissions()->sync($permissionIds);
+        echo "Permissões associadas ao papel {$roleAdministrador->name}.\n";
 
-        echo "Permissões associadas ao papel {$role->name}.\n";
+        $rhModules = array_filter($modules, fn($m) => str_starts_with($m['name'], 'RH'));
+        $rhPermissionIds = [];
+
+        foreach ($rhModules as $module) {
+            foreach ($module['operations'] as $operation) {
+                $permissionName = Helper::formatarString($module['name']) . "-$operation";
+                $permission = Permission::where('name', $permissionName)->first();
+                if ($permission) {
+                    $rhPermissionIds[] = $permission->id;
+                }
+            }
+        }
+
+        $roleDirector->permissions()->sync($rhPermissionIds);
+        echo "Permissões RH associadas ao papel {$roleDirector->name}.\n";
+
+        $technicianPermissionIds = [];
+
+        foreach ($rhModules as $module) {
+            foreach ($module['operations'] as $operation) {
+                if (in_array($operation, ['show', 'create'])) {
+                    $permissionName = Helper::formatarString($module['name']) . "-$operation";
+                    $permission = Permission::where('name', $permissionName)->first();
+                    if ($permission) {
+                        $technicianPermissionIds[] = $permission->id;
+                    }
+                }
+            }
+        }
+
+        $roleTecnico->permissions()->sync($technicianPermissionIds);
+        echo "Permissões RH associadas ao papel {$roleTecnico->name} (show + create).\n";
 
         User::updateOrCreate(
             ['email' => 'vicentemanueleduardo@gmail.com'],
@@ -98,7 +146,7 @@ class PermissionSeed extends Seeder
                 'phone' => '11999999999',
                 'email' => 'vicentemanueleduardo@gmail.com',
                 'password' => bcrypt('12345678'),
-                'role_id' => $role->id,
+                'role_id' => $roleAdministrador->id,
                 'is_active' => true,
             ]
         );
