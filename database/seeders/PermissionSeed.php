@@ -67,7 +67,7 @@ class PermissionSeed extends Seeder
 
             // Áreas e Permissões
             ['name' => 'Áreas', 'operations' => ['show', 'create', 'edit', 'delete']],
-            ['name' => 'Permissões Departamento', 'operations' => ['show', 'create', 'delete']],
+            ['name' => 'RH Permissões Departamento', 'operations' => ['show', 'create', 'delete']],
 
             // Processos (Gestão de Expediente)
             ['name' => 'Processos', 'operations' => ['show', 'create', 'edit', 'delete', 'dispatch', 'assign', 'validate', 'close']],
