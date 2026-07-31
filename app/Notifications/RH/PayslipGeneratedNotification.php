@@ -3,6 +3,7 @@
 namespace App\Notifications\RH;
 
 use App\Models\RH\Payroll\Payslip;
+use App\Services\RH\Payroll\PayslipPdfService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -25,12 +26,16 @@ class PayslipGeneratedNotification extends Notification
 
     public function toMail($notifiable): MailMessage
     {
+        $pdf = app(PayslipPdfService::class)->generate($this->payslip);
+        $pdfService = app(PayslipPdfService::class);
+
         return (new MailMessage)
             ->subject('Título de Vencimento - ' . ($this->payslip->period?->name ?? 'Recibo de Salário'))
             ->markdown('emails.rh.payslip', [
                 'payslip' => $this->payslip,
                 'notifiable' => $notifiable,
-            ]);
+            ])
+            ->attachData($pdf, $pdfService->fileName($this->payslip), ['mime' => 'application/pdf']);
     }
 
     public function toArray($notifiable): array

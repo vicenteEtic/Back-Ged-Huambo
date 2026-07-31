@@ -8,6 +8,7 @@ use App\Models\RH\Leave\LeavePlan;
 use App\Models\RH\Payroll\Payslip;
 use App\Services\RH\Career\CareerService;
 use App\Services\RH\Leave\LeaveRequestService;
+use App\Services\RH\Payroll\PayslipPdfService;
 use App\Services\RH\Payroll\PayslipService;
 use Exception;
 use Illuminate\Http\Response;
@@ -95,8 +96,15 @@ class EmployeePortalController extends Controller
             if (!$employee) return response()->json(['error' => 'Funcionário não encontrado.'], Response::HTTP_NOT_FOUND);
 
             $payslip = Payslip::where('id', $id)->where('employee_id', $employee->id)->firstOrFail();
-            $payslip = $this->payslipService->markDownloaded($id);
-            return response()->json($payslip->load('period'));
+            $this->payslipService->markDownloaded($id);
+
+            $pdfService = app(PayslipPdfService::class);
+            $pdf = $pdfService->generate($payslip);
+
+            return response($pdf, Response::HTTP_OK, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $pdfService->fileName($payslip) . '"',
+            ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['error' => 'Título não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {

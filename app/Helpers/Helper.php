@@ -142,4 +142,9 @@ class Helper
 
         return $stringFormatada;
     }
+
+    public static function moneyKz($value): string
+    {
+        return number_format((float) $value, 0, ',', ' ') . ' Kz';
+    }
 }
