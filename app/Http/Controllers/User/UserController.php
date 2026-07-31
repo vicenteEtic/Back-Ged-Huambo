@@ -34,17 +34,22 @@ class UserController extends AbstractController
 
         if ($response->getStatusCode() !== Response::HTTP_OK) {
             $this->logToDatabase('error', 'Erro ao iniciar sessão do usuário.');
-
-            return $response;
+        } else {
+            $this->logToDatabase(
+                type: 'user',
+                level: 'info',
+                customMessage: 'Iniciou sessão.',
+            );
         }
 
-        $this->logToDatabase(
-            type: 'user',
-            level: 'info',
-            customMessage: 'Iniciou sessão.',
-        );
+        $data = $response->getData();
 
-        return $response;
+        return response()->json([
+            'api_token' => [
+                'original' => $data,
+            ],
+            'token' => $data->token ?? null,
+        ], $response->getStatusCode());
     }
     public function logout(Request $request)
     {
