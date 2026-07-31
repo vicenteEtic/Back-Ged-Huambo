@@ -27,7 +27,7 @@
 </head>
 <body>
     <div class="header">
-        <img src="{{ \App\Support\FrontUrl::logo() }}" alt="{{ config('app.name') }}">
+        <img src="{{ \App\Support\FrontUrl::logoDataUri() }}" alt="{{ config('app.name') }}">
         <div class="title">Recibo de Vencimento</div>
         <div class="doc-no">Nº {{ $payslip->payslip_number }}</div>
     </div>

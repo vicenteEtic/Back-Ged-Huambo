@@ -54,12 +54,23 @@ class FrontUrl
 
     public static function logo(): string
     {
+        $configured = config('app.logo_url');
+
+        if (! empty($configured)) {
+            return $configured;
+        }
+
+        return self::base().'/logo_huambo-D4WV4fyp.png';
+    }
+
+    public static function logoDataUri(): string
+    {
         $path = public_path('logo_huambo-D4WV4fyp.png');
 
         if (file_exists($path)) {
             return 'data:image/png;base64,'.base64_encode((string) file_get_contents($path));
         }
 
-        return self::asset('logo_huambo-D4WV4fyp.png');
+        return self::logo();
     }
 }
