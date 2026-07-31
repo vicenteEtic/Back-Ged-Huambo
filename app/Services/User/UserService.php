@@ -62,6 +62,7 @@ class UserService extends AbstractService
 
         $email = $request->email;
         $ip = $request->ip();
+        $password = trim((string) $request->password);
 
         // 🔐 Keys de segurança
         $attemptKey = "login_attempts_{$email}_{$ip}";
@@ -77,7 +78,7 @@ class UserService extends AbstractService
         $user = User::where('email', $email)->first();
 
         // ❌ Falha de autenticação
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user || !Hash::check($password, $user->password)) {
 
             $attempts = Cache::get($attemptKey, 0);
             $attempts++;
@@ -266,7 +267,7 @@ class UserService extends AbstractService
             }
 
             // Atualiza senha
-            $user->password = Hash::make($request->password);
+            $user->password = Hash::make(trim((string) $request->password));
 
             // Atualiza remember token
             $user->setRememberToken(Str::random(60));
