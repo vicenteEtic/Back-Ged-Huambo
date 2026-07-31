@@ -59,20 +59,47 @@ class PayslipService
 
         // 📧 Envia os recibos por email após o commit (falhas de email não cancelam a geração)
         foreach ($created as $payslip) {
-            try {
-                $user = $payslip->employee?->user;
-                if ($user) {
-                    Notification::send($user, new PayslipGeneratedNotification($payslip));
-                }
-            } catch (\Throwable $e) {
-                Log::error('Erro ao enviar recibo por email', [
-                    'payslip_id' => $payslip->id,
-                    'message' => $e->getMessage(),
-                ]);
-            }
+            $this->notifyEmployee($payslip);
         }
 
         return count($created);
+    }
+
+    public function notifyEmployee(Payslip $payslip): bool
+    {
+        try {
+            $employee = $payslip->employee;
+            $user = $employee?->user;
+            $email = $employee?->personal_email ?: $user?->email;
+
+            if ($user) {
+                Notification::send($user, (new PayslipGeneratedNotification($payslip))->databaseOnly());
+            }
+
+            if ($email) {
+                Notification::route('mail', $email)->notify(new PayslipGeneratedNotification($payslip));
+                return true;
+            }
+        } catch (\Throwable $e) {
+            Log::error('Erro ao enviar recibo por email', [
+                'payslip_id' => $payslip->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        return false;
+    }
+
+    public function sendToEmployee(int $payslipId): array
+    {
+        $payslip = Payslip::findOrFail($payslipId);
+
+        return [
+            'sent' => $this->notifyEmployee($payslip),
+            'recipient' => $payslip->employee?->personal_email
+                ?? $payslip->employee?->user?->email
+                ?? null,
+        ];
     }
 
     public function historyByEmployee(int $employeeId): array

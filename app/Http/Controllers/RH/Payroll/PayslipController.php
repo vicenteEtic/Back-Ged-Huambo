@@ -62,4 +62,29 @@ class PayslipController extends Controller
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    public function sendEmail(int $id)
+    {
+        try {
+            $result = $this->payslipService->sendToEmployee($id);
+
+            if (!$result['sent']) {
+                return response()->json([
+                    'message' => 'Não foi possível enviar o recibo por email. O funcionário não tem email associado.',
+                    'sent' => false,
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            return response()->json([
+                'message' => 'Recibo enviado por email.',
+                'sent' => true,
+                'recipient' => $result['recipient'],
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (Exception $e) {
+            Log::error('Erro ao enviar recibo por email', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

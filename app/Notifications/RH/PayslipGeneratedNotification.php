@@ -5,6 +5,7 @@ namespace App\Notifications\RH;
 use App\Models\RH\Payroll\Payslip;
 use App\Services\RH\Payroll\PayslipPdfService;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -14,13 +15,30 @@ class PayslipGeneratedNotification extends Notification
 
     public Payslip $payslip;
 
+    public bool $databaseOnly = false;
+
     public function __construct(Payslip $payslip)
     {
         $this->payslip = $payslip->load('period', 'employee');
     }
 
+    public function databaseOnly(): self
+    {
+        $this->databaseOnly = true;
+
+        return $this;
+    }
+
     public function via($notifiable): array
     {
+        if ($this->databaseOnly) {
+            return ['database'];
+        }
+
+        if ($notifiable instanceof AnonymousNotifiable) {
+            return ['mail'];
+        }
+
         return ['mail', 'database'];
     }
 
