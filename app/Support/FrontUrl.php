@@ -51,4 +51,15 @@ class FrontUrl
     {
         return self::frontend().'/'.ltrim($path, '/');
     }
+
+    public static function logo(): string
+    {
+        $path = public_path('logo_huambo-D4WV4fyp.png');
+
+        if (file_exists($path)) {
+            return 'data:image/png;base64,'.base64_encode((string) file_get_contents($path));
+        }
+
+        return self::asset('logo_huambo-D4WV4fyp.png');
+    }
 }

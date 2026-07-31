@@ -72,7 +72,7 @@
     <div class="container">
 
         <div class="logo">
-            <img src="{{ \App\Support\FrontUrl::asset('logo_huambo-D4WV4fyp.png') }}" alt="{{ config('app.name') }}" style="max-width: 180px;">
+            <img src="{{ \App\Support\FrontUrl::logo() }}" alt="{{ config('app.name') }}" style="max-width: 180px;">
         </div>
 
         <p>Olá, {{ $user->first_name }}</p>

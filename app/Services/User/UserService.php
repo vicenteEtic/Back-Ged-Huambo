@@ -90,7 +90,10 @@ class UserService extends AbstractService
             }
 
             return response()->json([
-                'message' => 'Email ou senha incorretos'
+                'message' => 'Email ou senha incorretos',
+                'errors' => [
+                    'email' => ['Email ou senha incorretos'],
+                ],
             ], 401);
         }
 

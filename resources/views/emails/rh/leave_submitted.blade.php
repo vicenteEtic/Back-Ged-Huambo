@@ -22,7 +22,7 @@
 <div class="wrapper">
     <div class="container">
         <div class="logo">
-            <img src="{{ \App\Support\FrontUrl::asset('logo_huambo-D4WV4fyp.png') }}" alt="{{ config('app.name') }}">
+            <img src="{{ \App\Support\FrontUrl::logo() }}" alt="{{ config('app.name') }}">
         </div>
 
         <h2>Novo Pedido de Férias</h2>
