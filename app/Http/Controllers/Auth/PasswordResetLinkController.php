@@ -6,16 +6,13 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Validation\ValidationException;
 
 class PasswordResetLinkController extends Controller
 {
     /**
      * Handle an incoming password reset link request.
-     *
-     * @throws \Illuminate\Validation\ValidationException
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         $request->validate([
             'email' => 'required|email',
@@ -32,8 +29,6 @@ class PasswordResetLinkController extends Controller
             return response()->json(['status' => __($status)]);
         }
 
-        throw ValidationException::withMessages([
-            'email' => [trans($status)],
-        ]);
+        return response()->json(['message' => trans($status)], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
     }
 }
