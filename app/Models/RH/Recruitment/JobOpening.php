@@ -2,6 +2,7 @@
 
 namespace App\Models\RH\Recruitment;
 
+use App\Models\Concerns\HasAutoCode;
 use App\Models\RH\Department\Department;
 use App\Models\RH\Position\Position;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class JobOpening extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasAutoCode;
+
+    protected static $codePrefix = 'VAG';
 
     protected $table = 'job_openings';
 

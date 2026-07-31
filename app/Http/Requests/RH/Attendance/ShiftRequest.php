@@ -16,7 +16,6 @@ class ShiftRequest extends BaseFormRequest
         $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
-            'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:shifts,code,{$id},id"],
             'start_time' => [$this->requiredOnCreate(), 'date_format:H:i:s'],
             'end_time' => [$this->requiredOnCreate(), 'date_format:H:i:s', 'after:start_time'],
             'grace_minutes' => ['integer', 'min:0', 'max:120'],

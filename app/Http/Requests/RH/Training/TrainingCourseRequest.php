@@ -12,7 +12,6 @@ class TrainingCourseRequest extends BaseFormRequest
         $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
-            'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:training_courses,code,{$id},id"],
             'description' => ['nullable', 'string'],
             'duration_hours' => ['integer', 'min:0'],
             'provider' => ['nullable', 'string', 'max:255'],

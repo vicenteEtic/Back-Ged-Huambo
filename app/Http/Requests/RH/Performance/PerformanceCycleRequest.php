@@ -12,7 +12,6 @@ class PerformanceCycleRequest extends BaseFormRequest
         $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
-            'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:performance_cycles,code,{$id},id"],
             'start_date' => [$this->requiredOnCreate(), 'date'],
             'end_date' => [$this->requiredOnCreate(), 'date', 'after_or_equal:start_date'],
             'status' => ['string', 'max:30'],

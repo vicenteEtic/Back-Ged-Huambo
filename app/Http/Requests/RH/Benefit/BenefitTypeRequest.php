@@ -13,7 +13,6 @@ class BenefitTypeRequest extends BaseFormRequest
         $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
-            'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:benefit_types,code,{$id},id"],
             'category' => ['nullable', 'string', 'in:' . implode(',', BenefitCategory::values())],
             'description' => ['nullable', 'string'],
             'provider' => ['nullable', 'string', 'max:255'],

@@ -15,7 +15,6 @@ class PayrollPeriodRequest extends BaseFormRequest
     {
         $id = $this->route('id');
         return [
-            'code' => [$this->requiredOnCreate(), 'string', 'max:20', "unique:payroll_periods,code,{$id},id"],
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'start_date' => [$this->requiredOnCreate(), 'date'],
             'end_date' => [$this->requiredOnCreate(), 'date', 'after_or_equal:start_date'],

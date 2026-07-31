@@ -2,6 +2,7 @@
 
 namespace App\Models\RH\Area;
 
+use App\Models\Concerns\HasAutoCode;
 use App\Models\RH\Department\Department;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Area extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasAutoCode;
+
+    protected static $codePrefix = 'ARE';
 
     protected $table = 'areas';
 

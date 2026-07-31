@@ -18,7 +18,6 @@ class ArchiveCategoryRequest extends BaseFormRequest
         return [
             'parent_id' => ['nullable', 'integer', 'exists:archive_categories,id'],
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
-            'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:archive_categories,code,{$id},id"],
             'description' => ['nullable', 'string'],
             'type' => [$this->requiredOnCreate(), 'string', 'in:' . implode(',', ArchiveCategoryType::values())],
             'icon' => ['nullable', 'string', 'max:100'],

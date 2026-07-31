@@ -2,6 +2,7 @@
 
 namespace App\Models\RH\Archive;
 
+use App\Models\Concerns\HasAutoCode;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,7 +10,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ArchiveCategory extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasAutoCode;
+
+    protected static $codePrefix = 'ARC';
 
     protected $table = 'archive_categories';
 

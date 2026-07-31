@@ -2,13 +2,16 @@
 
 namespace App\Models\RH\Benefit;
 
+use App\Models\Concerns\HasAutoCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BenefitType extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasAutoCode;
+
+    protected static $codePrefix = 'BEN';
 
     protected $table = 'benefit_types';
 

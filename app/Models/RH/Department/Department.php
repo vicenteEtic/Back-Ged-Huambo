@@ -2,6 +2,7 @@
 
 namespace App\Models\RH\Department;
 
+use App\Models\Concerns\HasAutoCode;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,7 +10,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Department extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasAutoCode;
+
+    protected static $codePrefix = 'DEP';
 
     protected $table = 'departments';
 
