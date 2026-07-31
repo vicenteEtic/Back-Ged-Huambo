@@ -20,6 +20,8 @@ class PositionRequest extends BaseFormRequest
             'department_id' => [$this->requiredOnCreate(), 'integer', 'exists:departments,id'],
             'level' => ['integer', 'min:1'],
             'base_salary' => ['numeric', 'min:0'],
+            'transport_allowance' => ['nullable', 'numeric', 'min:0'],
+            'meal_allowance' => ['nullable', 'numeric', 'min:0'],
             'requirements' => ['nullable', 'string'],
             'is_active' => ['boolean'],
         ];

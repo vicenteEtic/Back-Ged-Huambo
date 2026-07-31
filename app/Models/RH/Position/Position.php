@@ -23,6 +23,8 @@ class Position extends Model
         'department_id',
         'level',
         'base_salary',
+        'transport_allowance',
+        'meal_allowance',
         'requirements',
         'is_active',
     ];

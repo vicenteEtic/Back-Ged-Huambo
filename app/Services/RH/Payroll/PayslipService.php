@@ -4,20 +4,24 @@ namespace App\Services\RH\Payroll;
 
 use App\Models\RH\Payroll\Payslip;
 use App\Models\RH\Payroll\PayrollItem;
+use App\Notifications\RH\PayslipGeneratedNotification;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 
 class PayslipService
 {
     public function generateForPeriod(int $periodId, array $employeeIds = []): int
     {
-        return DB::transaction(function () use ($periodId, $employeeIds) {
+        $created = [];
+
+        DB::transaction(function () use ($periodId, $employeeIds, &$created) {
             $query = PayrollItem::where('payroll_period_id', $periodId)->where('status', 'approved');
             if (!empty($employeeIds)) {
                 $query->whereIn('employee_id', $employeeIds);
             }
             $items = $query->get();
-            $count = 0;
 
             foreach ($items as $item) {
                 $exists = Payslip::where('employee_id', $item->employee_id)
@@ -29,7 +33,7 @@ class PayslipService
                 $period = $item->period;
                 $seq = Payslip::where('payroll_period_id', $periodId)->count() + 1;
 
-                Payslip::create([
+                $payslip = Payslip::create([
                     'employee_id' => $item->employee_id,
                     'payroll_period_id' => $periodId,
                     'payslip_number' => "P{$period->code}-{$seq}",
@@ -49,11 +53,26 @@ class PayslipService
                     'generated_at' => now(),
                 ]);
 
-                $count++;
+                $created[] = $payslip;
             }
-
-            return $count;
         });
+
+        // 📧 Envia os recibos por email após o commit (falhas de email não cancelam a geração)
+        foreach ($created as $payslip) {
+            try {
+                $user = $payslip->employee?->user;
+                if ($user) {
+                    Notification::send($user, new PayslipGeneratedNotification($payslip));
+                }
+            } catch (\Throwable $e) {
+                Log::error('Erro ao enviar recibo por email', [
+                    'payslip_id' => $payslip->id,
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return count($created);
     }
 
     public function historyByEmployee(int $employeeId): array

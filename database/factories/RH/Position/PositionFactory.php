@@ -19,6 +19,8 @@ class PositionFactory extends Factory
             'department_id' => Department::factory(),
             'level' => fake()->numberBetween(1, 10),
             'base_salary' => fake()->randomFloat(2, 50000, 500000),
+            'transport_allowance' => fake()->randomFloat(2, 5000, 30000),
+            'meal_allowance' => fake()->randomFloat(2, 5000, 20000),
             'requirements' => fake()->paragraph(),
             'is_active' => true,
         ];
