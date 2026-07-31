@@ -114,6 +114,7 @@ class UserService extends AbstractService
             'status' => 'success',
             'message' => 'Utilizador autenticado com sucesso. Bem-vindo!',
             'token' => $token,
+            'api_token' => $token,
         ]);
     }
 
