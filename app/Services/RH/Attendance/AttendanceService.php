@@ -18,6 +18,82 @@ class AttendanceService extends AbstractService
         parent::__construct($repository);
     }
 
+    public function store(array $data)
+    {
+        return DB::transaction(function () use ($data) {
+            $data = $this->applyCalculations($data);
+
+            $model = $this->repository->store($data);
+
+            return $model->fresh();
+        });
+    }
+
+    public function update(array $data, int $id)
+    {
+        return DB::transaction(function () use ($data, $id) {
+            $record = $this->repository->show($id);
+
+            $data['employee_id'] = $data['employee_id'] ?? $record->employee_id;
+            $data['date'] = $data['date'] ?? $record->date;
+            $data['shift_id'] = $data['shift_id'] ?? $record->shift_id;
+            $data['check_in'] = $data['check_in'] ?? $record->check_in;
+            $data['check_out'] = $data['check_out'] ?? $record->check_out;
+
+            $data = $this->applyCalculations($data);
+
+            return $this->repository->update($data, $id);
+        });
+    }
+
+    private function applyCalculations(array $data): array
+    {
+        $checkIn = $data['check_in'] ?? null;
+        $checkOut = $data['check_out'] ?? null;
+
+        if (!$checkIn && !$checkOut) {
+            return $data;
+        }
+
+        $shift = null;
+        if (!empty($data['shift_id'])) {
+            $shift = Shift::find($data['shift_id']);
+        } elseif (!empty($data['employee_id']) && !empty($data['date'])) {
+            $shift = $this->resolveShift((int) $data['employee_id'], $data['date']);
+        }
+
+        if ($checkIn && $checkOut) {
+            $data['hours_worked'] = round(Carbon::parse($checkIn)->diffInMinutes(Carbon::parse($checkOut)) / 60, 2);
+        }
+
+        if ($shift && $checkIn) {
+            $expectedIn = Carbon::parse($shift->start_time);
+            $actualIn = Carbon::parse($checkIn);
+            $graceEnd = $expectedIn->copy()->addMinutes($shift->grace_minutes);
+
+            $data['late_minutes'] = $actualIn->gt($graceEnd)
+                ? max(0, (int) round($expectedIn->diffInMinutes($actualIn)))
+                : 0;
+            $data['expected_check_in'] = $shift->start_time;
+
+            if (empty($data['absence_type'])) {
+                $data['status'] = $data['late_minutes'] > 0 ? 'late' : 'present';
+            }
+        }
+
+        if ($shift && $checkOut) {
+            $expectedOut = Carbon::parse($shift->end_time);
+            $actualOut = Carbon::parse($checkOut);
+
+            $data['overtime_minutes'] = $actualOut->gt($expectedOut)
+                ? max(0, (int) round($expectedOut->diffInMinutes($actualOut)))
+                : 0;
+            $data['expected_check_out'] = $shift->end_time;
+        }
+
+        return $data;
+    }
+
     public function registerCheckIn(int $employeeId, string $date, string $time): Attendance
     {
         return DB::transaction(function () use ($employeeId, $date, $time) {

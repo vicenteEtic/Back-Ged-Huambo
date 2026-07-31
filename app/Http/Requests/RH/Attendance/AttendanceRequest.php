@@ -17,6 +17,7 @@ class AttendanceRequest extends BaseFormRequest
         return [
             'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
             'date' => [$this->requiredOnCreate(), 'date'],
+            'shift_id' => ['nullable', 'integer', 'exists:shifts,id'],
             'check_in' => ['nullable', 'date_format:H:i:s'],
             'check_out' => ['nullable', 'date_format:H:i:s'],
             'status' => ['string', 'in:' . implode(',', AttendanceStatus::values())],
