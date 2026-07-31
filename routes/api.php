@@ -75,6 +75,6 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
     Route::prefix('processes')->group(base_path('routes/process/process.php'));
 });
 Route::post('/auth/login', [UserController::class, 'login']);
-Route::prefix('auth')->middleware('guest')->group(base_path('routes/user/auth.php'));
+Route::prefix('auth')->group(base_path('routes/user/auth.php'));
 //Route::post('auth/2fa', [UserController::class, 'verify2fa']);
 

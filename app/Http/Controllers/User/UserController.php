@@ -29,23 +29,22 @@ class UserController extends AbstractController
 
     public function login(AuthRequest $request)
     {
-     
-            $this->logRequest();
-            $token = $this->service->login($request);
-            $this->logToDatabase(
-                type: 'user',
-                level: 'info',
-                customMessage: 'Iniciou sessão.',
-                
-                
-            );
-            return response()->json(['api_token' => $token], Response::HTTP_OK);
-            try {
-        } catch (Exception $e) {
-            $this->logRequest($e);
+        $this->logRequest();
+        $response = $this->service->login($request);
+
+        if ($response->getStatusCode() !== Response::HTTP_OK) {
             $this->logToDatabase('error', 'Erro ao iniciar sessão do usuário.');
-            return response()->json($e->getMessage(), Response::HTTP_UNAUTHORIZED);
+
+            return $response;
         }
+
+        $this->logToDatabase(
+            type: 'user',
+            level: 'info',
+            customMessage: 'Iniciou sessão.',
+        );
+
+        return $response;
     }
     public function logout(Request $request)
     {

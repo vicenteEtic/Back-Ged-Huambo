@@ -73,6 +73,11 @@ class User extends Model implements
         return $this->belongsTo(Role::class, 'role_id', 'id');
     }
 
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new CustomResetPassword($token));
+    }
+
     public function can($rule)
     {
         $permissions = $this->role->permissions->contains('name', $rule);

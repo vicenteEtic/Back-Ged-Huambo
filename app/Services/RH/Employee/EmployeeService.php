@@ -19,9 +19,13 @@ class EmployeeService extends AbstractService
         $documents = $data['documents'] ?? [];
         unset($data['documents']);
 
+        $photo = $data['photo_url'] ?? null;
+        unset($data['photo_url']);
+
         $data = $this->clean($data);
         $employee = $this->repository->store($data);
 
+        $this->storePhoto($employee, $photo);
         $this->storeDocuments($employee->id, $documents);
 
         return $employee->fresh(['documents']);
@@ -32,14 +36,30 @@ class EmployeeService extends AbstractService
         $documents = $data['documents'] ?? [];
         unset($data['documents']);
 
+        $photo = $data['photo_url'] ?? null;
+        unset($data['photo_url']);
+
         $data = $this->clean($data);
         $employee = $this->repository->update($data, $id);
+
+        $this->storePhoto($employee, $photo);
 
         if (!empty($documents)) {
             $this->storeDocuments($employee->id, $documents);
         }
 
         return $employee->fresh(['documents']);
+    }
+
+    protected function storePhoto($employee, $photo): void
+    {
+        if (!$photo instanceof UploadedFile) {
+            return;
+        }
+
+        $path = $photo->store('employees/photos', 'public');
+        $employee->photo_url = $path;
+        $employee->save();
     }
 
     protected function storeDocuments(int $employeeId, array $documents): void

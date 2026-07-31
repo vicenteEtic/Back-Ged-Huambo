@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\FrontUrl;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
 
@@ -9,14 +10,14 @@ class CustomResetPassword extends ResetPassword
 {
     public function toMail($notifiable)
     {
-        $domain=request()->getSchemeAndHttpHost();
-        $frontendUrl = config('app.frontend_url',  $domain);
-
-        $resetUrl = $frontendUrl . '/reset-password?token=' . $this->token . '&email=' . urlencode($notifiable->getEmailForPasswordReset());
+        $resetUrl = FrontUrl::resetPasswordUrl(
+            $this->token,
+            $notifiable->getEmailForPasswordReset()
+        );
 
         return (new MailMessage)
             ->subject('Redefinição de Senha')
-            ->markdown('emails.auth.reset-password', [
+            ->markdown('emails.reset-password', [
                 'resetUrl' => $resetUrl,
                 'notifiable' => $notifiable,
             ]);

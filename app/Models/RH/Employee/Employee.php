@@ -10,6 +10,7 @@ use App\Models\RH\Leave\LeavePlan;
 use App\Models\RH\Performance\PerformanceEvaluation;
 use App\Models\RH\Position\Position;
 use App\Models\User;
+use App\Support\FrontUrl;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -45,6 +46,19 @@ class Employee extends Model
         }
 
         return 'EMP-' . str_pad($next, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function getPhotoUrlAttribute($value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        if (filter_var($value, FILTER_VALIDATE_URL)) {
+            return $value;
+        }
+
+        return FrontUrl::base().'/storage/'.$value;
     }
 
     protected function casts(): array

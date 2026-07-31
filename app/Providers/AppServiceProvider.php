@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\FrontUrl;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
@@ -30,7 +31,7 @@ class AppServiceProvider extends ServiceProvider
             );
         });
         ResetPassword::createUrlUsing(function (object $notifiable, string $token) {
-            return config('app.frontend_url')."/password-reset/$token?email={$notifiable->getEmailForPasswordReset()}";
+            return FrontUrl::frontend()."/password-reset/$token?email={$notifiable->getEmailForPasswordReset()}";
         });
           Http::macro('noVerify', function() {
         return Http::withOptions(['verify' => false]);
