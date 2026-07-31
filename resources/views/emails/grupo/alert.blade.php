@@ -63,7 +63,7 @@
 
         {{-- LOGO --}}
         <div class="logo">
-            <img src="{{ config('app.logo_url') }}" alt="{{ config('app.name') }}" style="max-width: 180px;">
+            <img src="{{ \App\Support\FrontUrl::asset('logo_huambo-D4WV4fyp.png') }}" alt="{{ config('app.name') }}" style="max-width: 180px;">
         </div>
 
         <p>Olá, <span class="highlight">{{ $user->first_name ?? 'Usuário' }}</span></p>

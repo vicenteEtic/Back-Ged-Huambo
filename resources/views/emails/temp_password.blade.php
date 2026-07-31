@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <title>Criação de conta</title>
+    <title>Senha Temporária</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -63,6 +63,16 @@
             font-weight: bold;
             font-size: 16px;
         }
+        .btn {
+            display: inline-block;
+            padding: 12px 28px;
+            background-color: #0072CE;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
         .footer {
             margin-top: 35px;
             font-size: 12px;
@@ -81,9 +91,9 @@
             <img src="{{ \App\Support\FrontUrl::asset('logo_huambo-D4WV4fyp.png') }}" alt="{{ config('app.name') }}" style="max-width: 160px;">
         </div>
 
-        <h2>Bem-vindo ao {{ config('app.name') }}</h2>
+        <h2>{{ config('app.name') }}</h2>
 
-          <p>Olá <span class="highlight">{{ $user->first_name }}</span>,</p>
+        <p>Olá <span class="highlight">{{ $user->first_name }}</span>,</p>
         <p>Sua conta no {{ config('app.name') }} foi criada com sucesso.</p>
 
         <p>Use os dados abaixo para fazer login:</p>
@@ -95,6 +105,10 @@
                 <span class="password">{{ $password }}</span>
             </p>
         </div>
+
+        <p style="text-align: center;">
+            <a href="{{ $url }}" class="btn">Entrar no sistema</a>
+        </p>
 
         <p>
             Após acessar pela primeira vez, recomendamos que altere sua senha para garantir a segurança da sua conta.

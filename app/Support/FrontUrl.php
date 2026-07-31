@@ -46,4 +46,9 @@ class FrontUrl
     {
         return self::frontend().'/reset-password?token='.$token.'&email='.urlencode($email);
     }
+
+    public static function asset(string $path): string
+    {
+        return self::frontend().'/'.ltrim($path, '/');
+    }
 }

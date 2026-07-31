@@ -20,7 +20,7 @@
 <div class="wrapper">
     <div class="container">
         <div class="logo">
-            <img src="{{ config('app.logo_url') }}" alt="{{ config('app.name') }}">
+            <img src="{{ \App\Support\FrontUrl::asset('logo_huambo-D4WV4fyp.png') }}" alt="{{ config('app.name') }}">
         </div>
 
         <h2>🎉 Feliz Aniversário!</h2>

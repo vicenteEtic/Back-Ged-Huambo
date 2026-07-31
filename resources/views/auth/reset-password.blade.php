@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Redefinir Senha - Kixicrédito</title>
+    <title>Redefinir Senha - {{ config('app.name') }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- Bootstrap CSS -->
@@ -30,13 +30,13 @@
             margin-bottom: 20px;
         }
 
-        .btn-kixicredito {
-            background-color: #95C35B;
+        .btn-ged {
+            background-color: #0072CE;
             color: white;
         }
 
-        .btn-kixicredito:hover {
-            background-color: #617945;
+        .btn-ged:hover {
+            background-color: #0057A0;
             color: white;
         }
     </style>
@@ -47,7 +47,7 @@
         <div class="auth-container">
             <div class="text-center auth-logo">
                 <a href="/">
-                    <img src="kixicredito.svg" alt="Logo Kixicrédito" width="200">
+                    <img src="{{ \App\Support\FrontUrl::asset('logo_huambo-D4WV4fyp.png') }}" alt="{{ config('app.name') }}" width="200">
                 </a>
             </div>
 
@@ -95,7 +95,7 @@
                 </div>
 
                 <div class="d-grid">
-                    <button type="submit" class="btn btn-kixicredito">Redefinir Senha</button>
+                    <button type="submit" class="btn btn-ged">Redefinir Senha</button>
                 </div>
             </form>
         </div>
