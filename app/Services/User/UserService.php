@@ -110,11 +110,11 @@ class UserService extends AbstractService
 
         $token = $user->createToken("ged")->plainTextToken;
 
+          
         return response()->json([
             'status' => 'success',
-            'message' => 'Utilizador autenticado com sucesso. Bem-vindo!',
+            'message' => 'Autenticação 2FA validada com sucesso.',
             'token' => $token,
-            'api_token' => $token,
         ]);
     }
 
