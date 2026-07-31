@@ -15,7 +15,7 @@ class LeavePlan extends Model
     protected $table = 'leave_plans';
 
     protected $fillable = [
-        'employee_id', 'year', 'total_days_entitled',
+        'employee_id', 'year', 'leave_type_id', 'total_days_entitled',
         'days_used', 'days_pending', 'observations', 'created_by',
     ];
 
@@ -32,6 +32,11 @@ class LeavePlan extends Model
     public function employee()
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function leaveType()
+    {
+        return $this->belongsTo(LeaveType::class);
     }
 
     public function creator()

@@ -53,7 +53,7 @@ class Helper
     }
     public static function returnApi($messages, $status, $data = null, $header = null)
     {
-        $response = ['status' => '0', 'message' => 'Validation error'];
+        $response = ['status' => '0', 'message' => 'Erro de validação'];
         $response['status'] = $status;
         $response['message'] = $messages;
         if ($data != null) {
@@ -85,7 +85,7 @@ class Helper
             }
             return [
                 'status' => false,
-                'message' => "Error Upload"
+                'message' => "Erro no upload"
             ];
         }
     }

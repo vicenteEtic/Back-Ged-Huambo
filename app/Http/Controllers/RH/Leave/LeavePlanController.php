@@ -5,17 +5,11 @@ namespace App\Http\Controllers\RH\Leave;
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Leave\LeavePlanRequest;
 use App\Services\RH\Leave\LeavePlanService;
-use Exception;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class LeavePlanController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'LeavePlan';
+    protected ?string $nameEntity = 'Plano de Férias';
     protected ?string $fieldName = 'id';
 
     public function __construct(
@@ -27,62 +21,42 @@ class LeavePlanController extends AbstractController
 
     public function store(LeavePlanRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
+        return $this->handleStore(function () use ($request) {
             $data = $request->validated();
             $data['created_by'] ??= auth()->id();
-            $plan = $this->service->store($data);
-            DB::commit();
-            return response()->json($plan, Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Error creating leave plan', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+            return $this->service->store($data);
+        });
     }
 
     public function update(LeavePlanRequest $request, $id)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $plan = $this->service->update($request->validated(), $id);
-            DB::commit();
-            return response()->json($plan, Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Error updating leave plan', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleUpdate(
+            fn() => $this->service->update($request->validated(), $id),
+            $id,
+        );
     }
 
     public function syncBalance(int $id)
     {
         try {
             return response()->json($this->planService->syncBalance($id));
-        } catch (ModelNotFoundException $e) {
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            Log::error('Error syncing balance', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Recurso não encontrado.'], 404);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Erro ao sincronizar saldo', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], 422);
         }
     }
 
-    public function calendar(Request $request)
+    public function calendar(\Illuminate\Http\Request $request)
     {
         try {
             $year = $request->input('year', now()->year);
             $departmentId = $request->input('department_id');
             return response()->json($this->planService->calendar($year, $departmentId));
-        } catch (Exception $e) {
-            Log::error('Error fetching calendar', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Erro ao obter calendário de férias', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], 422);
         }
     }
 }

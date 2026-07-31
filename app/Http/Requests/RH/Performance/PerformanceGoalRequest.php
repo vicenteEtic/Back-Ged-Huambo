@@ -10,9 +10,9 @@ class PerformanceGoalRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
-            'cycle_id' => ['required', 'exists:performance_cycles,id'],
-            'title' => ['required', 'string', 'max:255'],
+            'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
+            'cycle_id' => [$this->requiredOnCreate(), 'integer', 'exists:performance_cycles,id'],
+            'title' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'category' => ['nullable', 'string', 'max:100'],
             'weight' => ['numeric', 'min:0', 'max:100'],

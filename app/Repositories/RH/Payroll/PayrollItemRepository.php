@@ -11,4 +11,18 @@ class PayrollItemRepository extends AbstractRepository
     {
         parent::__construct($model);
     }
+
+    public function store(array $data)
+    {
+        $existing = $this->model->withTrashed()
+            ->where('payroll_period_id', $data['payroll_period_id'])
+            ->where('employee_id', $data['employee_id'])
+            ->first();
+
+        if ($existing && $existing->trashed()) {
+            $existing->forceDelete();
+        }
+
+        return parent::store($data);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\RH\Career;
 
+use App\Enum\ProgressionType;
 use App\Http\Requests\BaseFormRequest;
 
 class ProgressionRuleRequest extends BaseFormRequest
@@ -13,11 +14,11 @@ class ProgressionRuleRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        $id = $this->route('progression_rule');
+        $id = $this->route('id');
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:50', "unique:progression_rules,code,{$id},id"],
-            'type' => ['required', 'string', 'in:progression,promotion'],
+            'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
+            'code' => [$this->requiredOnCreate(), 'string', 'max:50', "unique:progression_rules,code,{$id},id"],
+            'type' => [$this->requiredOnCreate(), 'string', 'in:' . implode(',', ProgressionType::values())],
             'description' => ['nullable', 'string'],
             'min_months_in_category' => ['integer', 'min:0'],
             'min_performance_score' => ['nullable', 'numeric', 'min:0', 'max:100'],

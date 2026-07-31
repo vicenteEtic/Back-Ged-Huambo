@@ -40,7 +40,12 @@ class LeaveApprovalService extends AbstractService
         return DB::transaction(function () use ($leaveRequestId, $approverId, $comment) {
             $request = LeaveRequest::with('employee.user')->findOrFail($leaveRequestId);
             $this->createOrUpdateApproval($request->id, $approverId, 'rejected', $comment);
-            $request->update(['status' => 'rejected']);
+            $request->update([
+                'status' => 'rejected',
+                'rejection_reason' => $comment,
+                'approved_by' => $approverId,
+                'approved_at' => now(),
+            ]);
             if ($request->leave_plan_id) {
                 $this->planService->syncBalance($request->leave_plan_id);
             }

@@ -131,15 +131,6 @@ class User extends Model implements
         $this->two_factor_expires_at = null;
         $this->save();
     }
-    public function alerts()
-    {
-        return $this->belongsToMany(\App\Models\Alert\Alert::class, 'alert_user', 'user_id', 'alert_id')
-            ->withTimestamps()
-            ->withPivot('is_read', 'created_at');
-    }
-
-
-
-
+   
     
 }

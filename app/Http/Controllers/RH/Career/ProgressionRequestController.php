@@ -4,7 +4,6 @@ namespace App\Http\Controllers\RH\Career;
 
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Career\ProgressionRequestRequest;
-use App\Http\Requests\RH\Career\ProgressionApprovalRequest;
 use App\Services\RH\Career\ProgressionRequestService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -16,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 class ProgressionRequestController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'ProgressionRequest';
+    protected ?string $nameEntity = 'Solicitação de Progressão';
     protected ?string $fieldName = 'id';
 
     public function __construct(
@@ -28,41 +27,17 @@ class ProgressionRequestController extends AbstractController
 
     public function store(ProgressionRequestRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $model = $this->progressionService->submit($request->validated());
-            $this->logToDatabase(
-                type: 'rh', level: 'info',
-                customMessage: 'Progression request #' . $model->id . ' created by ' . auth()->user()->first_name
-            );
-            DB::commit();
-            return response()->json($model->load(['employee', 'rule', 'approvals']), Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Error creating progression request', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleStore(
+            fn() => $this->progressionService->submit($request->validated()),
+        );
     }
 
     public function update(ProgressionRequestRequest $request, $id)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
-            $model = $this->service->update($request->validated(), $id);
-            DB::commit();
-            return response()->json($model->load(['employee', 'rule', 'approvals']), Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Error updating progression request', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->handleUpdate(
+            fn() => $this->service->update($request->validated(), $id),
+            $id,
+        );
     }
 
     public function approve(Request $request, int $id)
@@ -72,10 +47,10 @@ class ProgressionRequestController extends AbstractController
             $model = $this->progressionService->approve($id, auth()->id(), $request->comment);
             return response()->json($model);
         } catch (ModelNotFoundException $e) {
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            Log::error('Error approving progression', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao aprovar progressão', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -86,31 +61,31 @@ class ProgressionRequestController extends AbstractController
             $model = $this->progressionService->reject($id, auth()->id(), $request->comment);
             return response()->json($model);
         } catch (ModelNotFoundException $e) {
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            Log::error('Error rejecting progression', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao rejeitar progressão', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
     public function execute(int $id)
     {
-        DB::beginTransaction();
         try {
+            DB::beginTransaction();
             $model = $this->progressionService->execute($id);
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Progression request #' . $model->id . ' executed by ' . auth()->user()->first_name
+                customMessage: 'Solicitação de progressão #' . $model->id . ' executada por ' . auth()->user()->first_name
             );
             DB::commit();
             return response()->json($model->load(['employee', 'rule', 'employee.functionalHistory']));
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Error executing progression', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao executar progressão', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -125,8 +100,8 @@ class ProgressionRequestController extends AbstractController
             );
             return response()->json($models);
         } catch (Exception $e) {
-            Log::error('Error fetching progression history', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao buscar histórico de progressão', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 }

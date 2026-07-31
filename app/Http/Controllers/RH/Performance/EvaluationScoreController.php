@@ -4,20 +4,16 @@ namespace App\Http\Controllers\RH\Performance;
 
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Performance\EvaluationScoreRequest;
-use App\Models\RH\Performance\EvaluationCriterion;
-use App\Models\RH\Performance\PerformanceEvaluation;
 use App\Services\RH\Performance\EvaluationScoreService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class EvaluationScoreController extends AbstractController
 {
     protected ?string $logType = 'rh';
-    protected ?string $nameEntity = 'EvaluationScore';
+    protected ?string $nameEntity = 'Pontuação de Avaliação';
     protected ?string $fieldName = 'id';
 
     public function __construct(
@@ -29,46 +25,27 @@ class EvaluationScoreController extends AbstractController
 
     public function store(EvaluationScoreRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
+        return $this->handleStore(function () use ($request) {
             $score = $this->service->store($request->validated());
             $this->scoreService->calculateOverall($score->evaluation_id);
-            DB::commit();
-            return response()->json($score->load('criterion'), Response::HTTP_CREATED);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Error creating evaluation score', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+            return $score->load('criterion');
+        });
     }
 
     public function update(EvaluationScoreRequest $request, $id)
     {
-        DB::beginTransaction();
-        try {
-            $this->logRequest();
+        return $this->handleUpdate(function () use ($request, $id) {
             $score = $this->service->update($request->validated(), $id);
             $this->scoreService->calculateOverall($score->evaluation_id);
-            DB::commit();
-            return response()->json($score->load('criterion'), Response::HTTP_OK);
-        } catch (ModelNotFoundException $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->logRequest($e);
-            Log::error('Error updating evaluation score', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+            return $score->load('criterion');
+        }, $id);
     }
 
     public function byEvaluation(int $evaluationId)
     {
         try {
-            $evaluation = PerformanceEvaluation::with('scores.criterion', 'cycle')->findOrFail($evaluationId);
-            $criteria = EvaluationCriterion::where('cycle_id', $evaluation->cycle_id)
+            $evaluation = \App\Models\RH\Performance\PerformanceEvaluation::with('scores.criterion', 'cycle')->findOrFail($evaluationId);
+            $criteria = \App\Models\RH\Performance\EvaluationCriterion::where('cycle_id', $evaluation->cycle_id)
                 ->where('is_active', true)
                 ->get();
 
@@ -95,10 +72,10 @@ class EvaluationScoreController extends AbstractController
                 'scores' => $result,
             ]);
         } catch (ModelNotFoundException $e) {
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
-            Log::error('Error fetching scores', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            Log::error('Erro ao buscar pontuações', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 }

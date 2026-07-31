@@ -15,6 +15,7 @@ class Department extends Model
 
     protected $fillable = [
         'name',
+        'type',
         'code',
         'description',
         'responsible_id',
@@ -35,5 +36,15 @@ class Department extends Model
     public function children()
     {
         return $this->hasMany(self::class, 'parent_id');
+    }
+
+    public function areas()
+    {
+        return $this->hasMany(\App\Models\RH\Area\Area::class);
+    }
+
+    public function departmentPermissions()
+    {
+        return $this->hasMany(\App\Models\RH\Department\DepartmentPermission::class);
     }
 }

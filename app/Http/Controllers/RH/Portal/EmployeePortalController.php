@@ -31,7 +31,7 @@ class EmployeePortalController extends Controller
             return response()->json($employee->load(['department', 'position']));
         } catch (Exception $e) {
             Log::error('Portal profile error', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -44,7 +44,7 @@ class EmployeePortalController extends Controller
             return response()->json($this->leaveService->balanceByEmployee($employee->id, $year));
         } catch (Exception $e) {
             Log::error('Portal leave balance error', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -56,7 +56,7 @@ class EmployeePortalController extends Controller
             return response()->json($this->payslipService->historyByEmployee($employee->id));
         } catch (Exception $e) {
             Log::error('Portal salary history error', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -68,7 +68,7 @@ class EmployeePortalController extends Controller
             return response()->json($this->careerService->calculate($employee));
         } catch (Exception $e) {
             Log::error('Portal career error', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -84,7 +84,7 @@ class EmployeePortalController extends Controller
             return response()->json($benefits);
         } catch (Exception $e) {
             Log::error('Portal benefits error', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -101,7 +101,7 @@ class EmployeePortalController extends Controller
             return response()->json(['error' => 'Título não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             Log::error('Portal payslip download error', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Internal server error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

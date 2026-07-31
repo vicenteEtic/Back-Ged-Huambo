@@ -125,7 +125,7 @@ class UserController extends AbstractController
                 level: 'error',
                 customMessage: 'Usuário não encontrado.',
             );
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
             $this->logToDatabase(
@@ -162,7 +162,7 @@ class UserController extends AbstractController
                 level: 'error',
                 customMessage: 'Usuário não encontrado.',
             );
-            return response()->json(['error' => 'Resource not found.'], Response::HTTP_NOT_FOUND);
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
             $this->logToDatabase(

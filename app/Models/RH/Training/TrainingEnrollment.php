@@ -22,6 +22,11 @@ class TrainingEnrollment extends Model
         return $this->belongsTo(TrainingSession::class, 'session_id');
     }
 
+    public function trainingSession()
+    {
+        return $this->belongsTo(TrainingSession::class, 'session_id');
+    }
+
     public function employee()
     {
         return $this->belongsTo(Employee::class);

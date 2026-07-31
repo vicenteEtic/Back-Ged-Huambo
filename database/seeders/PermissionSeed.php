@@ -48,6 +48,13 @@ class PermissionSeed extends Seeder
             ['name' => 'RH Portal', 'operations' => ['show']],
             ['name' => 'RH Arquivo', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Relatórios', 'operations' => ['show']],
+
+            // Áreas e Permissões
+            ['name' => 'Áreas', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'Permissões Departamento', 'operations' => ['show', 'create', 'delete']],
+
+            // Processos (Gestão de Expediente)
+            ['name' => 'Processos', 'operations' => ['show', 'create', 'edit', 'delete', 'dispatch', 'assign', 'validate', 'close']],
         ];
 
         $operationDescriptions = [
@@ -55,6 +62,10 @@ class PermissionSeed extends Seeder
             'create' => 'Permite criar',
             'edit' => 'Permite editar',
             'delete' => 'Permite excluir',
+            'dispatch' => 'Permite encaminhar',
+            'assign' => 'Permite atribuir',
+            'validate' => 'Permite validar',
+            'close' => 'Permite encerrar',
         ];
 
         $permissionIds = [];
