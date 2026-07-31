@@ -9,9 +9,11 @@ use App\Services\AbstractService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Repositories\User\UserRepository;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -139,16 +141,7 @@ class UserService extends AbstractService
         Password::sendResetLink(['email' => $userEmail]);
     }
 
-    public function resetPassword(array $data): void
-    {
-        $status = Password::reset($data, function (User $user, string $password) {
-            $user->update(['password' => $password]);
-        });
 
-        if ($status !== Password::PASSWORD_RESET) {
-            throw new Exception(trans($status));
-        }
-    }
 
 
     public function verify2fa(array $request)
@@ -217,5 +210,87 @@ class UserService extends AbstractService
     public function changePassword(array $data, $id)
     {
         return $this->repository->changePassword($data, $id);
+    }
+
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required|string',
+            'email' => 'required|email',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+
+
+            $passwordReset = DB::table('password_reset_tokens')
+                ->where('email', $request->email)
+                ->first();
+
+            if (!$passwordReset) {
+                return response()->json([
+                    'message' => 'Token inválido ou expirado.'
+                ], 400);
+            }
+
+            // Verifica expiração (60 minutos)
+            $createdAt = Carbon::parse($passwordReset->created_at);
+
+            if ($createdAt->addMinutes(60)->isPast()) {
+
+                DB::table('password_reset_tokens')
+                    ->where('email', $request->email)
+                    ->delete();
+
+                return response()->json([
+                    'message' => 'Token expirado.'
+                ], 400);
+            }
+
+            // Verifica token
+            if (!Hash::check($request->token, $passwordReset->token)) {
+                return response()->json([
+                    'message' => 'Token inválido.'
+                ], 400);
+            }
+
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'Usuário não encontrado.'
+                ], 404);
+            }
+
+            // Atualiza senha
+            $user->password = Hash::make($request->password);
+
+            // Atualiza remember token
+            $user->setRememberToken(Str::random(60));
+
+            $user->save();
+
+            // Remove token após uso
+            DB::table('password_reset_tokens')
+                ->where('email', $request->email)
+                ->delete();
+
+            return response()->json([
+                'message' => 'Senha redefinida com sucesso.'
+            ], 200);
+            try {
+        } catch (\Throwable $th) {
+
+            Log::error('Erro ao redefinir senha', [
+                'message' => $th->getMessage(),
+                'file' => $th->getFile(),
+                'line' => $th->getLine(),
+                'trace' => $th->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'Erro interno ao redefinir senha.'
+            ], 500);
+        }
     }
 }
