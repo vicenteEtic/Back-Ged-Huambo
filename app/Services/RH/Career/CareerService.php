@@ -17,8 +17,8 @@ class CareerService
             'time_in_category' => $this->timeInCategory($employee),
             'time_in_position' => $this->timeInPosition($employee),
             'time_in_institution' => $this->timeInInstitution($employee),
-            'category' => $employee->category,
-            'career_regime' => $employee->career_regime,
+            'category' => $employee->careerCategory?->name,
+            'career_regime' => $employee->careerRegime?->name,
             'current_position' => $employee->position?->name,
             'current_department' => $employee->department?->name,
         ];
@@ -26,7 +26,7 @@ class CareerService
 
     public function calculateForAll(array $filters = []): Collection
     {
-        $query = Employee::with(['position', 'department', 'functionalHistory']);
+        $query = Employee::with(['position', 'department', 'careerCategory', 'careerRegime', 'functionalHistory']);
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
