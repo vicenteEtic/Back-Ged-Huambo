@@ -27,27 +27,54 @@ class PayrollItemController extends AbstractController
         'inss_deduction', 'irt_deduction', 'gross_pay', 'total_deductions', 'net_pay',
     ];
 
+    private array $numericFields = [
+        'base_salary', 'transport_allowance', 'meal_allowance',
+        'overtime', 'other_earnings', 'other_deductions',
+    ];
+
+    private function normalizeNumericFields(array $input): array
+    {
+        foreach ($this->numericFields as $field) {
+            $input[$field] = isset($input[$field]) && is_numeric($input[$field]) ? $input[$field] : 0;
+        }
+
+        return $input;
+    }
+
     public function store(PayrollItemRequest $request)
     {
         try {
             $this->logRequest();
 
-            $input = collect($request->validated())->except(self::$computedFields)->toArray();
-            $data = PayrollCalculator::calculate($input);
+            $validated = $request->validated();
+            $periodId = $validated['payroll_period_id'];
 
-            $item = $this->service->store($data);
+            $items = DB::transaction(function () use ($validated, $periodId) {
+                $created = [];
+
+                foreach ($validated['items'] as $item) {
+                    $item['payroll_period_id'] = $periodId;
+
+                    $input = collect($item)->except(self::$computedFields)->toArray();
+                    $input = $this->normalizeNumericFields($input);
+                    $created[] = $this->service->store(PayrollCalculator::calculate($input));
+                }
+
+                return $created;
+            });
+
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Item de folha de pagamento criado por ' . auth()->user()->first_name
+                customMessage: count($items) . ' item(s) de folha de pagamento criado(s) por ' . auth()->user()->first_name
             );
-            return response()->json($item, Response::HTTP_CREATED);
+            return response()->json($items, Response::HTTP_CREATED);
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
-            Log::error('Erro ao criar item de folha de pagamento', [
+            Log::error('Erro ao criar item(s) de folha de pagamento', [
                 'message' => $e->getMessage(),
-                'data' => $data ?? $request->validated(),
+                'data' => $validated ?? $request->validated(),
             ]);
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
@@ -59,6 +86,7 @@ class PayrollItemController extends AbstractController
             $this->logRequest();
 
             $input = collect($request->validated())->except(self::$computedFields)->toArray();
+            $input = $this->normalizeNumericFields($input);
             $data = PayrollCalculator::calculate($input);
 
             $item = $this->service->update($data, $id);
