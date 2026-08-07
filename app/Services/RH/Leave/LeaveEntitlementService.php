@@ -8,60 +8,47 @@ use Carbon\Carbon;
 
 class LeaveEntitlementService
 {
-    public const PROPORTIONAL_BASE_DAYS = 22;
+    /** Base legal: 22 dias úteis (art. 79.º n.º 1 da Lei 26/22). */
+    public const BASE_DAYS = 22;
+
+    /** Acréscimo de 3 dias úteis por cada 10 anos de serviço (art. 79.º n.º 2). */
+    public const EXTRA_DAYS_PER_DECADE = 3;
+
+    /** Ano de admissão: 2 dias por mês completo (art. 79.º n.º 3). */
+    public const ADMISSION_MONTHLY_DAYS = 2;
+
+    /** Ano de admissão: limite mínimo de 6 dias (art. 79.º n.º 3). */
+    public const ADMISSION_MIN_DAYS = 6;
 
     /**
-     * Calcula os dias de férias a que o funcionário tem direito.
+     * Calcula os dias de férias a que o funcionário tem direito,
+     * de acordo com a Lei de Bases da Função Pública (Lei 26/22 de 22 de Agosto):
      *
-     * Para tipos de licença com `service_years_based = true` (férias anuais),
-     * o número de dias segue a tabela por anos de carreira:
-     *
-     *  - Até 1 ano      → proporcional ao tempo trabalhado
-     *  - 1 a 5 anos     → 22 dias úteis
-     *  - 6 a 10 anos    → 23 dias úteis
-     *  - 11 a 15 anos   → 24 dias úteis
-     *  - 16 a 20 anos   → 25 dias úteis
-     *  - 21 a 25 anos   → 26 dias úteis
-     *  - Mais de 25 anos → 30 dias úteis
+     *  - Ano de admissão (menos de 1 ano) → 2 dias por mês completo,
+     *    com limite mínimo de 6 dias (art. 79.º n.º 3);
+     *  - 1 a 9 anos  → 22 dias úteis;
+     *  - 10 a 19 anos → 25 dias úteis (+3);
+     *  - 20 a 29 anos → 28 dias úteis (+6);
+     *  - 30 ou mais anos → 31 dias úteis (+9).
      */
     public function entitledDays(Employee $employee, LeaveType $leaveType): float
     {
-        if (!$leaveType->service_years_based) {
+        if (! $leaveType->service_years_based) {
             return (float) $leaveType->default_days;
         }
 
         $years = $this->yearsOfService($employee);
 
         if ($years < 1) {
-            return $this->proportionalDays($employee);
+            return $this->admissionYearDays($employee);
         }
 
-        if ($years < 6) {
-            return 22;
-        }
-
-        if ($years < 11) {
-            return 23;
-        }
-
-        if ($years < 16) {
-            return 24;
-        }
-
-        if ($years < 21) {
-            return 25;
-        }
-
-        if ($years < 26) {
-            return 26;
-        }
-
-        return 30;
+        return self::BASE_DAYS + self::EXTRA_DAYS_PER_DECADE * floor($years / 10);
     }
 
     /**
      * Calcula os dias de férias anuais a que o funcionário tem direito,
-     * com base no tempo de casa (anos de serviço).
+     * com base no tempo de serviço (Lei 26/22).
      */
     public function annualEntitlement(Employee $employee): array
     {
@@ -69,7 +56,7 @@ class LeaveEntitlementService
             ->orderByRaw("CASE WHEN code = 'ANNUAL' THEN 0 ELSE 1 END")
             ->first();
 
-        if (!$leaveType) {
+        if (! $leaveType) {
             return [
                 'employee_id' => $employee->id,
                 'employee_name' => $employee->full_name,
@@ -96,10 +83,10 @@ class LeaveEntitlementService
         ];
 
         if ($years < 1) {
-            $result['proportional_days'] = $this->proportionalDays($employee);
-            $result['calculation_note'] = 'Funcionário com menos de 1 ano de serviço: dias proporcionais (base de 22 dias por 12 meses).';
+            $result['proportional_days'] = $this->admissionYearDays($employee);
+            $result['calculation_note'] = 'Ano de admissão (art. 79.º n.º 3 da Lei 26/22): 2 dias por cada mês completo de trabalho, com limite mínimo de 6 dias. O gozo só é permitido após 6 meses de trabalho efectivo (art. 77.º n.º 3).';
         } else {
-            $result['calculation_note'] = "Tempo de serviço de {$this->formatYears($years)} → " . $this->bracket($years) . ": {$days} dias úteis.";
+            $result['calculation_note'] = "Tempo de serviço de {$this->formatYears($years)} → ".$this->bracket($years).": {$days} dias úteis (Lei 26/22).";
         }
 
         return $result;
@@ -108,47 +95,34 @@ class LeaveEntitlementService
     public function bracket(float $years): string
     {
         if ($years < 1) {
-            return 'Menos de 1 ano de serviço (proporcional)';
+            return 'Ano de admissão (2 dias por mês completo, mínimo 6 dias)';
         }
 
-        if ($years < 6) {
-            return '1 a 5 anos de serviço';
-        }
+        $decades = (int) floor($years / 10);
 
-        if ($years < 11) {
-            return '6 a 10 anos de serviço';
-        }
-
-        if ($years < 16) {
-            return '11 a 15 anos de serviço';
-        }
-
-        if ($years < 21) {
-            return '16 a 20 anos de serviço';
-        }
-
-        if ($years < 26) {
-            return '21 a 25 anos de serviço';
-        }
-
-        return 'Mais de 25 anos de serviço';
+        return match ($decades) {
+            0 => '1 a 9 anos de serviço',
+            1 => '10 a 19 anos de serviço',
+            2 => '20 a 29 anos de serviço',
+            default => '30 ou mais anos de serviço',
+        };
     }
 
     /**
-     * Dias proporcionais ao tempo efectivamente trabalhado (menos de 1 ano).
-     * Base: 22 dias por 12 meses completos de serviço.
+     * Dias de férias no ano de admissão (art. 79.º n.º 3 da Lei 26/22):
+     * 2 dias por mês completo de trabalho, com limite mínimo de 6 dias.
      */
-    public function proportionalDays(Employee $employee): float
+    public function admissionYearDays(Employee $employee): float
     {
         $start = $this->serviceStartDate($employee);
 
-        if (!$start) {
-            return (float) self::PROPORTIONAL_BASE_DAYS;
+        if (! $start) {
+            return (float) self::BASE_DAYS;
         }
 
         $months = $start->diffInMonths(Carbon::today());
 
-        return round(self::PROPORTIONAL_BASE_DAYS * min($months, 12) / 12, 1);
+        return (float) max(self::ADMISSION_MIN_DAYS, self::ADMISSION_MONTHLY_DAYS * $months);
     }
 
     /**
@@ -158,7 +132,7 @@ class LeaveEntitlementService
     {
         $start = $this->serviceStartDate($employee);
 
-        if (!$start) {
+        if (! $start) {
             return 0.0;
         }
 

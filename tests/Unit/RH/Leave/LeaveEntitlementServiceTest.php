@@ -19,7 +19,7 @@ class LeaveEntitlementServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new LeaveEntitlementService();
+        $this->service = new LeaveEntitlementService;
     }
 
     private function annualLeaveType(): LeaveType
@@ -53,47 +53,54 @@ class LeaveEntitlementServiceTest extends TestCase
         $this->assertSame(3.0, $this->service->yearsOfService($employee));
     }
 
-    public function test_one_to_five_years_gets_22_days()
+    public function test_one_to_nine_years_gets_22_days()
     {
         $employee = $this->employeeWithHireDate(now()->subYears(3)->format('Y-m-d'));
         $this->assertSame(22.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
     }
 
-    public function test_six_to_ten_years_gets_23_days()
+    public function test_eight_years_still_gets_22_days()
     {
         $employee = $this->employeeWithHireDate(now()->subYears(8)->format('Y-m-d'));
-        $this->assertSame(23.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
+        $this->assertSame(22.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
     }
 
-    public function test_eleven_to_fifteen_years_gets_24_days()
+    public function test_ten_to_nineteen_years_gets_25_days()
     {
         $employee = $this->employeeWithHireDate(now()->subYears(13)->format('Y-m-d'));
-        $this->assertSame(24.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
+        $this->assertSame(25.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
     }
 
-    public function test_sixteen_to_twenty_years_gets_25_days()
+    public function test_sixteen_to_nineteen_years_gets_25_days()
     {
         $employee = $this->employeeWithHireDate(now()->subYears(18)->format('Y-m-d'));
         $this->assertSame(25.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
     }
 
-    public function test_twenty_one_to_twenty_five_years_gets_26_days()
+    public function test_twenty_to_twenty_nine_years_gets_28_days()
     {
         $employee = $this->employeeWithHireDate(now()->subYears(23)->format('Y-m-d'));
-        $this->assertSame(26.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
+        $this->assertSame(28.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
     }
 
-    public function test_more_than_twenty_five_years_gets_30_days()
+    public function test_thirty_or_more_years_gets_31_days()
     {
         $employee = $this->employeeWithHireDate(now()->subYears(30)->format('Y-m-d'));
-        $this->assertSame(30.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
+        $this->assertSame(31.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
     }
 
-    public function test_less_than_one_year_is_proportional()
+    public function test_admission_year_two_days_per_full_month()
     {
         $employee = $this->employeeWithHireDate(now()->subMonths(6)->format('Y-m-d'));
 
-        $this->assertSame(11.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
+        $this->assertSame(12.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
+    }
+
+    public function test_admission_year_minimum_of_six_days()
+    {
+        $employee = $this->employeeWithHireDate(now()->subDays(25)->format('Y-m-d'));
+
+        $this->assertSame(6.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
     }
 
     public function test_non_service_based_type_uses_default_days()
