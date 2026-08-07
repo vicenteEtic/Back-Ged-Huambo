@@ -12,7 +12,7 @@ class DisciplinaryTypeFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->unique()->randomElement(['Advertência Verbal', 'Advertência Escrita', 'Suspensão', 'Multa', 'Despedimento']),
+            'name' => fake()->unique()->randomElement(['Admoestação Verbal', 'Censura Registada', 'Multa', 'Suspensão', 'Despromoção', 'Demissão']),
             'code' => strtoupper(fake()->unique()->lexify('DSC???')),
             'description' => fake()->sentence(),
             'severity' => fake()->randomElement(['low', 'medium', 'high', 'critical']),
