@@ -56,6 +56,18 @@ class LeaveRequestController extends AbstractController
         }
     }
 
+    public function annualEntitlement(int $employeeId)
+    {
+        try {
+            return response()->json($this->leaveService->annualEntitlement($employeeId));
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (Exception $e) {
+            Log::error('Erro ao calcular férias anuais', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
     public function destroy(int $id)
     {
         try {

@@ -43,6 +43,8 @@ Route::prefix('approvals')->group(function () {
 
 Route::get('calendar', [LeavePlanController::class, 'calendar'])->name('leave.calendar')->middleware(['can:rh-ferias-show']);
 
+Route::get('annual-entitlement/{employeeId}', [LeaveRequestController::class, 'annualEntitlement'])->name('leave.annual_entitlement')->middleware(['can:rh-ferias-show']);
+
 Route::get('{id}', [LeaveRequestController::class, 'show'])->name('leave.show')->middleware(['can:rh-ferias-show']);
 Route::put('{id}', [LeaveRequestController::class, 'update'])->name('leave.update')->middleware(['can:rh-ferias-edit']);
 Route::delete('{id}', [LeaveRequestController::class, 'destroy'])->name('leave.destroy')->middleware(['can:rh-ferias-delete']);

@@ -121,11 +121,17 @@ class LeaveRequestService extends AbstractService
         return $days;
     }
 
+    public function annualEntitlement(int $employeeId): array
+    {
+        $employee = \App\Models\RH\Employee\Employee::findOrFail($employeeId);
+
+        return $this->entitlementService->annualEntitlement($employee);
+    }
+
     public function balanceByEmployee(int $employeeId, int $year, ?int $leaveTypeId = null): array
     {
         $employee = \App\Models\RH\Employee\Employee::findOrFail($employeeId);
         $yearsOfService = $this->entitlementService->yearsOfService($employee);
-
         if ($leaveTypeId) {
             $plan = $this->planService->findOrCreateForRequest($employeeId, $year, $leaveTypeId);
             $this->planService->syncBalance($plan->id);

@@ -104,4 +104,41 @@ class LeavePlanEntitlementTest extends RhTestCase
         $this->assertNotNull($plan);
         $this->assertSame(30.0, (float) $plan->total_days_entitled);
     }
+
+    public function test_annual_entitlement_returns_days_by_service_time()
+    {
+        $response = $this->getJsonAuth('/api/rh/leaves/annual-entitlement/' . $this->employee->id);
+        $response->assertStatus(200)
+            ->assertJsonPath('is_annual', true)
+            ->assertJsonPath('employee_id', $this->employee->id)
+            ->assertJsonPath('years_of_service', 8)
+            ->assertJsonPath('bracket', '6 a 10 anos de serviço')
+            ->assertJsonPath('entitled_days', 23)
+            ->assertJsonPath('leave_type_id', $this->annualType->id);
+    }
+
+    public function test_annual_entitlement_is_proportional_below_one_year()
+    {
+        $employee = Employee::factory()->create([
+            'department_id' => $this->department->id,
+            'position_id' => $this->position->id,
+            'user_id' => $this->user->id,
+            'hire_date' => now()->subMonths(6)->format('Y-m-d'),
+            'effective_date' => null,
+        ]);
+
+        $response = $this->getJsonAuth('/api/rh/leaves/annual-entitlement/' . $employee->id);
+        $response->assertStatus(200)
+            ->assertJsonPath('is_annual', true)
+            ->assertJsonPath('bracket', 'Menos de 1 ano de serviço (proporcional)')
+            ->assertJsonPath('entitled_days', 11)
+            ->assertJsonPath('proportional_days', 11);
+    }
+
+    public function test_annual_entitlement_returns_404_for_missing_employee()
+    {
+        $response = $this->getJsonAuth('/api/rh/leaves/annual-entitlement/99999');
+        $response->assertStatus(404)
+            ->assertJsonPath('error', 'Recurso não encontrado.');
+    }
 }
