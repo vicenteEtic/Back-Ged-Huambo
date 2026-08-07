@@ -189,4 +189,59 @@ class LeaveRequestTest extends RhTestCase
         $response->assertStatus(200)
             ->assertJsonPath('total_days', 3);
     }
+
+    public function test_cannot_submit_annual_leave_before_six_months_of_service()
+    {
+        $annual = LeaveType::factory()->create([
+            'code' => 'ANNUAL',
+            'service_years_based' => true,
+        ]);
+
+        $employee = Employee::factory()->create([
+            'department_id' => $this->employee->department_id,
+            'position_id' => $this->employee->position_id,
+            'user_id' => $this->user->id,
+            'hire_date' => now()->subMonths(2)->format('Y-m-d'),
+            'effective_date' => null,
+        ]);
+
+        $start = now()->addDays(30);
+
+        $response = $this->postJsonAuth('/api/rh/leaves/leave-requests', [
+            'employee_id' => $employee->id,
+            'leave_type_id' => $annual->id,
+            'start_date' => $start->format('Y-m-d'),
+            'end_date' => $start->copy()->addDays(2)->format('Y-m-d'),
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error', 'Férias do ano de admissão só podem ser gozadas após 6 meses de trabalho efectivo (art. 77.º n.º 3 da Lei 26/22).');
+    }
+
+    public function test_can_submit_annual_leave_after_six_months_of_service()
+    {
+        $annual = LeaveType::factory()->create([
+            'code' => 'ANNUAL',
+            'service_years_based' => true,
+        ]);
+
+        $employee = Employee::factory()->create([
+            'department_id' => $this->employee->department_id,
+            'position_id' => $this->employee->position_id,
+            'user_id' => $this->user->id,
+            'hire_date' => now()->subMonths(8)->format('Y-m-d'),
+            'effective_date' => null,
+        ]);
+
+        $start = now()->addDays(30);
+
+        $response = $this->postJsonAuth('/api/rh/leaves/leave-requests', [
+            'employee_id' => $employee->id,
+            'leave_type_id' => $annual->id,
+            'start_date' => $start->format('Y-m-d'),
+            'end_date' => $start->copy()->addDays(2)->format('Y-m-d'),
+        ]);
+
+        $response->assertStatus(201);
+    }
 }

@@ -66,6 +66,8 @@ class LeaveRequestService extends AbstractService
             $data['return_date'] = $this->calculateReturnDate($data['end_date']);
             $data['status'] = 'pending';
 
+            $this->assertCanTakeAdmissionYearLeave($data['employee_id'], $data['leave_type_id']);
+
             $this->checkDateConflict(
                 $data['employee_id'],
                 $data['start_date'],
@@ -117,6 +119,23 @@ class LeaveRequestService extends AbstractService
 
         if (! empty($notifiables)) {
             Notification::send($notifiables, new LeaveRequestSubmittedNotification($leaveRequest));
+        }
+    }
+
+    private function assertCanTakeAdmissionYearLeave(int $employeeId, int $leaveTypeId): void
+    {
+        $leaveType = \App\Models\RH\Leave\LeaveType::find($leaveTypeId);
+
+        if (! $leaveType?->service_years_based) {
+            return;
+        }
+
+        $employee = \App\Models\RH\Employee\Employee::findOrFail($employeeId);
+
+        if (! $this->entitlementService->hasCompletedMinimumService($employee)) {
+            throw new \DomainException(
+                'Férias do ano de admissão só podem ser gozadas após 6 meses de trabalho efectivo (art. 77.º n.º 3 da Lei 26/22).'
+            );
         }
     }
 

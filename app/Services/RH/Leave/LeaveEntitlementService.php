@@ -139,6 +139,21 @@ class LeaveEntitlementService
         return $start->diffInYears(Carbon::today());
     }
 
+    /**
+     * Verifica se o funcionário completou os 6 meses de trabalho efectivo
+     * exigidos para o gozo das férias do ano de admissão (art. 77.º n.º 3 da Lei 26/22).
+     */
+    public function hasCompletedMinimumService(Employee $employee): bool
+    {
+        $start = $this->serviceStartDate($employee);
+
+        if (! $start) {
+            return true;
+        }
+
+        return $start->diffInMonths(Carbon::today()) >= 6;
+    }
+
     public function serviceStartDate(Employee $employee): ?Carbon
     {
         $date = $employee->effective_date ?? $employee->hire_date ?? $employee->institution_entry_date;
