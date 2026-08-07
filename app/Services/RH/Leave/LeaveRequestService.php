@@ -46,8 +46,11 @@ class LeaveRequestService extends AbstractService
             $remaining = max(0, $plan->total_days_entitled - $plan->days_used - $plan->days_pending);
             if ($data['total_days'] > $remaining) {
                 $typeName = $plan->leaveType?->name ?? 'esta licença';
+                $yearsOfService = $this->entitlementService->yearsOfService($plan->employee);
                 throw new \DomainException(
-                    "Saldo insuficiente de {$typeName} para {$year}. Disponível: {$remaining} dia(s), solicitado: {$data['total_days']} dia(s)."
+                    "Saldo insuficiente de {$typeName} para {$year}. " .
+                    "Tempo de serviço: {$this->formatServiceTime($yearsOfService)}. " .
+                    "Disponível: {$remaining} dia(s), solicitado: {$data['total_days']} dia(s)."
                 );
             }
 
@@ -166,5 +169,26 @@ class LeaveRequestService extends AbstractService
             'years_of_service' => round($yearsOfService, 2),
             'balances' => $result,
         ];
+    }
+
+    private function formatServiceTime(float $years): string
+    {
+        if ($years < 1) {
+            $months = max(1, (int) round($years * 12));
+            return "{$months} mês(es)";
+        }
+
+        $wholeYears = (int) floor($years);
+        $months = (int) round(($years - $wholeYears) * 12);
+        $parts = [];
+
+        if ($wholeYears > 0) {
+            $parts[] = $wholeYears . ' ano(s)';
+        }
+        if ($months > 0) {
+            $parts[] = $months . ' mês(es)';
+        }
+
+        return implode(' e ', $parts);
     }
 }
