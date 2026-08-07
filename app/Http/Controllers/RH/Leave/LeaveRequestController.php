@@ -4,18 +4,19 @@ namespace App\Http\Controllers\RH\Leave;
 
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Leave\LeaveRequestForm;
-use App\Services\RH\Leave\LeaveRequestService;
 use App\Models\RH\Leave\LeaveRequest;
+use App\Services\RH\Leave\LeaveRequestService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
-use DomainException;
 
 class LeaveRequestController extends AbstractController
 {
     protected ?string $logType = 'rh';
+
     protected ?string $nameEntity = 'Pedido de Férias';
+
     protected ?string $fieldName = 'id';
 
     public function __construct(
@@ -29,9 +30,10 @@ class LeaveRequestController extends AbstractController
     {
         return $this->handleStore(function () use ($request) {
             $leaveRequest = $this->leaveService->submit($request->validated());
+
             return $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Pedido de férias #' . $leaveRequest->id . ' submetido por ' . auth()->user()->first_name
+                customMessage: 'Pedido de férias #'.$leaveRequest->id.' submetido por '.auth()->user()->first_name
             ) ? $leaveRequest : $leaveRequest;
         });
     }
@@ -39,7 +41,7 @@ class LeaveRequestController extends AbstractController
     public function update(LeaveRequestForm $request, $id)
     {
         return $this->handleUpdate(
-            fn() => $this->service->update($request->validated(), $id),
+            fn () => $this->service->update($request->validated(), $id),
             $id,
         );
     }
@@ -49,9 +51,11 @@ class LeaveRequestController extends AbstractController
         try {
             $year = request('year', now()->year);
             $leaveTypeId = request('leave_type_id');
+
             return response()->json($this->leaveService->balanceByEmployee($employeeId, $year, $leaveTypeId));
         } catch (Exception $e) {
             Log::error('Erro ao obter saldo de férias', ['message' => $e->getMessage()]);
+
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
@@ -59,11 +63,14 @@ class LeaveRequestController extends AbstractController
     public function annualEntitlement(int $employeeId)
     {
         try {
-            return response()->json($this->leaveService->annualEntitlement($employeeId));
+            $leaveTypeId = request()->has('leave_type_id') ? (int) request('leave_type_id') : null;
+
+            return response()->json($this->leaveService->annualEntitlement($employeeId, $leaveTypeId));
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             Log::error('Erro ao calcular férias anuais', ['message' => $e->getMessage()]);
+
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -82,16 +89,18 @@ class LeaveRequestController extends AbstractController
 
             $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: "Pedido de férias #{$id} removido por " . auth()->user()->first_name
+                customMessage: "Pedido de férias #{$id} removido por ".auth()->user()->first_name
             );
 
             return response()->json(null, Response::HTTP_NO_CONTENT);
         } catch (ModelNotFoundException $e) {
             $this->logRequest($e);
+
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             $this->logRequest($e);
             Log::error('Erro ao eliminar pedido de férias', ['message' => $e->getMessage()]);
+
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }

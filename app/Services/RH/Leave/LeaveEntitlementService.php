@@ -5,6 +5,7 @@ namespace App\Services\RH\Leave;
 use App\Models\RH\Employee\Employee;
 use App\Models\RH\Leave\LeaveType;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class LeaveEntitlementService
 {
@@ -47,22 +48,47 @@ class LeaveEntitlementService
     }
 
     /**
-     * Calcula os dias de férias anuais a que o funcionário tem direito,
-     * com base no tempo de serviço (Lei 26/22).
+     * Calcula os dias de férias a que o funcionário tem direito.
+     *
+     * Para tipos de licença com `service_years_based = true` (férias anuais),
+     * o cálculo segue a Lei 26/22. Para os restantes tipos, devolve os dias
+     * por defeito do tipo, independentemente do tempo de serviço.
      */
-    public function annualEntitlement(Employee $employee): array
+    public function annualEntitlement(Employee $employee, ?int $leaveTypeId = null): array
     {
-        $leaveType = LeaveType::where('service_years_based', true)
-            ->orderByRaw("CASE WHEN code = 'ANNUAL' THEN 0 ELSE 1 END")
-            ->first();
+        if ($leaveTypeId) {
+            $leaveType = LeaveType::find($leaveTypeId);
 
-        if (! $leaveType) {
-            return [
-                'employee_id' => $employee->id,
-                'employee_name' => $employee->full_name,
-                'is_annual' => false,
-                'message' => 'Não existe tipo de licença anual (service_years_based) configurado.',
-            ];
+            if (! $leaveType) {
+                throw new ModelNotFoundException('Tipo de licença não encontrado.');
+            }
+
+            if (! $leaveType->service_years_based) {
+                return [
+                    'employee_id' => $employee->id,
+                    'employee_name' => $employee->full_name,
+                    'is_annual' => false,
+                    'leave_type_id' => $leaveType->id,
+                    'leave_type_code' => $leaveType->code,
+                    'leave_type_name' => $leaveType->name,
+                    'default_days' => (float) $leaveType->default_days,
+                    'entitled_days' => (float) $leaveType->default_days,
+                    'calculation_note' => "{$leaveType->name}: {$leaveType->default_days} dias por defeito, independentemente do tempo de serviço.",
+                ];
+            }
+        } else {
+            $leaveType = LeaveType::where('service_years_based', true)
+                ->orderByRaw("CASE WHEN code = 'ANNUAL' THEN 0 ELSE 1 END")
+                ->first();
+
+            if (! $leaveType) {
+                return [
+                    'employee_id' => $employee->id,
+                    'employee_name' => $employee->full_name,
+                    'is_annual' => false,
+                    'message' => 'Não existe tipo de licença anual (service_years_based) configurado.',
+                ];
+            }
         }
 
         $start = $this->serviceStartDate($employee);

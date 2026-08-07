@@ -156,6 +156,23 @@ class LeavePlanEntitlementTest extends RhTestCase
             ->assertJsonPath('proportional_days', 6);
     }
 
+    public function test_annual_entitlement_returns_default_days_for_non_service_based_type()
+    {
+        $medical = LeaveType::factory()->create([
+            'name' => 'Licença Médica',
+            'code' => 'MEDICAL',
+            'default_days' => 30,
+            'service_years_based' => false,
+        ]);
+
+        $response = $this->getJsonAuth('/api/rh/leaves/annual-entitlement/'.$this->employee->id.'?leave_type_id='.$medical->id);
+        $response->assertStatus(200)
+            ->assertJsonPath('is_annual', false)
+            ->assertJsonPath('leave_type_name', 'Licença Médica')
+            ->assertJsonPath('default_days', 30)
+            ->assertJsonPath('entitled_days', 30);
+    }
+
     public function test_annual_entitlement_returns_404_for_missing_employee()
     {
         $response = $this->getJsonAuth('/api/rh/leaves/annual-entitlement/99999');
