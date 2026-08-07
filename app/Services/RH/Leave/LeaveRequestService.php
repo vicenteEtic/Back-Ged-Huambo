@@ -203,6 +203,7 @@ class LeaveRequestService extends AbstractService
     {
         $employee = \App\Models\RH\Employee\Employee::findOrFail($employeeId);
         $yearsOfService = $this->entitlementService->yearsOfService($employee);
+        $serviceTime = $this->entitlementService->serviceTimeParts($yearsOfService);
         if ($leaveTypeId) {
             $plan = $this->planService->findOrCreateForRequest($employeeId, $year, $leaveTypeId);
             $this->planService->syncBalance($plan->id);
@@ -217,7 +218,8 @@ class LeaveRequestService extends AbstractService
                 'days_used' => $plan->days_used,
                 'days_pending' => $plan->days_pending,
                 'days_remaining' => $plan->days_remaining,
-                'years_of_service' => round($yearsOfService, 2),
+                'years_of_service' => $serviceTime['years'],
+                'months_of_service' => $serviceTime['months'],
             ];
         }
 
@@ -243,7 +245,8 @@ class LeaveRequestService extends AbstractService
         return [
             'employee_id' => $employeeId,
             'year' => $year,
-            'years_of_service' => round($yearsOfService, 2),
+            'years_of_service' => $serviceTime['years'],
+            'months_of_service' => $serviceTime['months'],
             'balances' => $result,
         ];
     }

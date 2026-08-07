@@ -67,6 +67,7 @@ class LeaveEntitlementService
 
         $start = $this->serviceStartDate($employee);
         $years = $this->yearsOfService($employee);
+        $serviceTime = $this->serviceTimeParts($years);
         $days = $this->entitledDays($employee, $leaveType);
 
         $result = [
@@ -77,7 +78,8 @@ class LeaveEntitlementService
             'leave_type_code' => $leaveType->code,
             'leave_type_name' => $leaveType->name,
             'service_start_date' => $start?->format('Y-m-d'),
-            'years_of_service' => round($years, 2),
+            'years_of_service' => $serviceTime['years'],
+            'months_of_service' => $serviceTime['months'],
             'bracket' => $this->bracket($years),
             'entitled_days' => $days,
         ];
@@ -161,22 +163,38 @@ class LeaveEntitlementService
         return $date ? Carbon::parse($date) : null;
     }
 
+    /**
+     * Decompõe o tempo de serviço em anos e meses inteiros (ex.: 28.82 → 28 anos e 10 meses).
+     */
+    public function serviceTimeParts(float $years): array
+    {
+        $wholeYears = (int) floor($years);
+        $months = (int) round(($years - $wholeYears) * 12);
+
+        if ($months >= 12) {
+            $wholeYears += 1;
+            $months = 0;
+        }
+
+        return ['years' => $wholeYears, 'months' => $months];
+    }
+
     private function formatYears(float $years): string
     {
-        if ($years < 1) {
-            $months = max(1, (int) round($years * 12));
+        $parts = $this->serviceTimeParts($years);
+
+        if ($parts['years'] === 0) {
+            $months = max(1, $parts['months']);
 
             return "{$months} mês(es)";
         }
 
-        $whole = (int) floor($years);
-        $months = (int) round(($years - $whole) * 12);
-        $parts = ["{$whole} ano(s)"];
+        $chunks = ["{$parts['years']} ano(s)"];
 
-        if ($months > 0) {
-            $parts[] = "{$months} mês(es)";
+        if ($parts['months'] > 0) {
+            $chunks[] = "{$parts['months']} mês(es)";
         }
 
-        return implode(' e ', $parts);
+        return implode(' e ', $chunks);
     }
 }

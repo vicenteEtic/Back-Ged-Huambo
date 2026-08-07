@@ -120,4 +120,20 @@ class LeaveEntitlementServiceTest extends TestCase
 
         $this->assertSame(22.0, $this->service->entitledDays($employee, $this->annualLeaveType()));
     }
+
+    public function test_service_time_parts_splits_years_and_months()
+    {
+        $this->assertSame(
+            ['years' => 28, 'months' => 10],
+            $this->service->serviceTimeParts(28.82)
+        );
+    }
+
+    public function test_service_time_parts_rounds_up_when_month_hits_twelve()
+    {
+        $this->assertSame(
+            ['years' => 9, 'months' => 0],
+            $this->service->serviceTimeParts(8.98)
+        );
+    }
 }
