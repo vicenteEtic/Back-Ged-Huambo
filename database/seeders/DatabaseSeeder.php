@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
         $this->call(ProgressionRuleSeed::class);
         $this->call(AreaSeed::class);
         $this->call(IrtBracketSeeder::class);
+        $this->call(DeclarationTypeSeeder::class);
       
     }
 }

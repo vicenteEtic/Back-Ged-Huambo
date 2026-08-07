@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enum\ArchiveCategoryType;
 use App\Enum\AttendanceStatus;
+use App\Enum\DeclarationTypeEnum;
 use App\Enum\BenefitCategory;
 use App\Enum\DocumentConfidentiality;
 use App\Enum\DocumentSharePermission;
@@ -243,6 +244,17 @@ class EnumController
                 ['value' => 'departamento', 'label' => 'Departamento'],
                 ['value' => 'vice_governador', 'label' => 'Vice-Governador'],
             ],
+        ]);
+    }
+
+    public function declarationTypes(): JsonResponse
+    {
+        return response()->json([
+            'data' => collect(DeclarationTypeEnum::cases())->map(fn($case) => [
+                'value' => $case->value,
+                'label' => $case->label(),
+                'description' => $case->description(),
+            ]),
         ]);
     }
 }

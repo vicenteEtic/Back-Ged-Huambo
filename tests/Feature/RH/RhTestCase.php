@@ -4,6 +4,7 @@ namespace Tests\Feature\RH;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
 
 abstract class RhTestCase extends TestCase
@@ -16,6 +17,10 @@ abstract class RhTestCase extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // O utilizador autenticado nos testes é App\Models\User (sem role/permissões),
+        // por isso concede-se todas as permissões ao middleware `can:`.
+        Gate::before(fn($user, $ability) => true);
 
         $this->user = User::factory()->create([
             'email_verified_at' => now(),

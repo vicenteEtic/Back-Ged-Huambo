@@ -10,7 +10,7 @@ class LeaveTypeSeeder extends Seeder
     public function run(): void
     {
         $types = [
-            ['name' => 'Férias Anuais',                 'code' => 'ANNUAL',     'default_days' => 22, 'allows_carryover' => true,  'max_carryover_days' => 10, 'requires_attachment' => false, 'description' => 'Férias anuais remuneradas.'],
+            ['name' => 'Férias Anuais',                 'code' => 'ANNUAL',     'default_days' => 22, 'service_years_based' => true, 'allows_carryover' => true,  'max_carryover_days' => 10, 'requires_attachment' => false, 'description' => 'Férias anuais remuneradas. O número de dias é calculado com base no tempo de serviço do funcionário.'],
             ['name' => 'Licença Médica',                'code' => 'SICK',       'default_days' => 30, 'allows_carryover' => false, 'max_carryover_days' => 0,  'requires_attachment' => true,  'description' => 'Licença por motivo de doença.'],
             ['name' => 'Licença de Maternidade',        'code' => 'MATERNITY',  'default_days' => 90, 'allows_carryover' => false, 'max_carryover_days' => 0,  'requires_attachment' => true,  'description' => 'Licença de maternidade.'],
             ['name' => 'Licença de Paternidade',        'code' => 'PATERNITY',  'default_days' => 7,  'allows_carryover' => false, 'max_carryover_days' => 0,  'requires_attachment' => false, 'description' => 'Licença de paternidade.'],

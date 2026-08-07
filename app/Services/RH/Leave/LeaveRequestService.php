@@ -16,10 +16,10 @@ class LeaveRequestService extends AbstractService
         LeaveRequestRepository $repository,
         protected LeavePlanService $planService,
         protected LeaveApprovalService $approvalService,
+        protected LeaveEntitlementService $entitlementService,
     ) {
         parent::__construct($repository);
     }
-
     public function submit(array $data): LeaveRequest
     {
         return DB::transaction(function () use ($data) {
@@ -120,6 +120,9 @@ class LeaveRequestService extends AbstractService
 
     public function balanceByEmployee(int $employeeId, int $year, ?int $leaveTypeId = null): array
     {
+        $employee = \App\Models\RH\Employee\Employee::findOrFail($employeeId);
+        $yearsOfService = $this->entitlementService->yearsOfService($employee);
+
         if ($leaveTypeId) {
             $plan = $this->planService->findOrCreateForRequest($employeeId, $year, $leaveTypeId);
             $this->planService->syncBalance($plan->id);
@@ -134,6 +137,7 @@ class LeaveRequestService extends AbstractService
                 'days_used' => $plan->days_used,
                 'days_pending' => $plan->days_pending,
                 'days_remaining' => $plan->days_remaining,
+                'years_of_service' => round($yearsOfService, 2),
             ];
         }
 
@@ -159,6 +163,7 @@ class LeaveRequestService extends AbstractService
         return [
             'employee_id' => $employeeId,
             'year' => $year,
+            'years_of_service' => round($yearsOfService, 2),
             'balances' => $result,
         ];
     }

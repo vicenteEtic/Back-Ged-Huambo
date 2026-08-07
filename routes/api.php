@@ -25,6 +25,7 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::get('process-assignment-statuses', [EnumController::class, 'processAssignmentStatuses']);
         Route::get('process-movement-types', [EnumController::class, 'processMovementTypes']);
         Route::get('department-types', [EnumController::class, 'departmentTypes']);
+        Route::get('declaration-types', [EnumController::class, 'declarationTypes']);
     });
 
     Route::prefix('permission')->group(base_path('routes/user/permission/permission.php'));
@@ -66,6 +67,7 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::prefix('areas')->group(base_path('routes/rh/area.php'));
         Route::prefix('department-permissions')->group(base_path('routes/rh/department_permission.php'));
         Route::prefix('dashboard')->group(base_path('routes/rh/reports.php'));
+        Route::prefix('declarations')->group(base_path('routes/rh/declaration.php'));
 
         Route::get('model-relations', [ModelRelationsController::class, 'index']);
         Route::get('model-relations/{model}', [ModelRelationsController::class, 'show']);

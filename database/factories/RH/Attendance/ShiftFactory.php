@@ -12,7 +12,7 @@ class ShiftFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->unique()->randomElement(['Normal', 'Nocturno', 'Fim-de-semana']),
+            'name' => fake()->randomElement(['Normal', 'Nocturno', 'Fim-de-semana']),
             'code' => strtoupper(fake()->unique()->lexify('SFT???')),
             'start_time' => '08:00:00',
             'end_time' => '17:00:00',

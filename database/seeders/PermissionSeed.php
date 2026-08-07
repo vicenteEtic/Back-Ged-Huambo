@@ -64,6 +64,7 @@ class PermissionSeed extends Seeder
             ['name' => 'RH Portal', 'operations' => ['show']],
             ['name' => 'RH Arquivo', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Relatórios', 'operations' => ['show']],
+            ['name' => 'RH Declarações', 'operations' => ['show', 'create', 'edit', 'delete']],
 
             // Áreas e Permissões
             ['name' => 'Áreas', 'operations' => ['show', 'create', 'edit', 'delete']],

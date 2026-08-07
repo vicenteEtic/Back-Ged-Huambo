@@ -20,6 +20,7 @@ class LeaveType extends Model
         'code',
         'description',
         'default_days',
+        'service_years_based',
         'allows_carryover',
         'max_carryover_days',
         'requires_attachment',
@@ -28,6 +29,7 @@ class LeaveType extends Model
 
     protected $casts = [
         'allows_carryover' => 'boolean',
+        'service_years_based' => 'boolean',
         'requires_attachment' => 'boolean',
         'is_active' => 'boolean',
     ];
