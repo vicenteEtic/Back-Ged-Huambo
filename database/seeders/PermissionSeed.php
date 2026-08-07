@@ -3,10 +3,10 @@
 namespace Database\Seeders;
 
 use App\Helpers\Helper;
-use App\Models\Permission\Role;
-use Illuminate\Database\Seeder;
 use App\Models\Permission\Permission;
+use App\Models\Permission\Role;
 use App\Models\User\User;
+use Illuminate\Database\Seeder;
 
 class PermissionSeed extends Seeder
 {
@@ -47,6 +47,7 @@ class PermissionSeed extends Seeder
             ['name' => 'RH Funcionários', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Documentos', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Férias', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Feriados', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Ponto', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Processamento', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Recrutamento', 'operations' => ['show', 'create', 'edit', 'delete']],
@@ -89,7 +90,7 @@ class PermissionSeed extends Seeder
 
         foreach ($modules as $module) {
             foreach ($module['operations'] as $operation) {
-                $permissionName = Helper::formatarString($module['name']) . "-$operation";
+                $permissionName = Helper::formatarString($module['name'])."-$operation";
                 $permission = Permission::updateOrCreate(
                     ['name' => $permissionName],
                     [
@@ -106,12 +107,12 @@ class PermissionSeed extends Seeder
         $roleAdministrador->permissions()->sync($permissionIds);
         echo "Permissões associadas ao papel {$roleAdministrador->name}.\n";
 
-        $rhModules = array_filter($modules, fn($m) => str_starts_with($m['name'], 'RH'));
+        $rhModules = array_filter($modules, fn ($m) => str_starts_with($m['name'], 'RH'));
         $rhPermissionIds = [];
 
         foreach ($rhModules as $module) {
             foreach ($module['operations'] as $operation) {
-                $permissionName = Helper::formatarString($module['name']) . "-$operation";
+                $permissionName = Helper::formatarString($module['name'])."-$operation";
                 $permission = Permission::where('name', $permissionName)->first();
                 if ($permission) {
                     $rhPermissionIds[] = $permission->id;
@@ -127,7 +128,7 @@ class PermissionSeed extends Seeder
         foreach ($rhModules as $module) {
             foreach ($module['operations'] as $operation) {
                 if (in_array($operation, ['show', 'create'])) {
-                    $permissionName = Helper::formatarString($module['name']) . "-$operation";
+                    $permissionName = Helper::formatarString($module['name'])."-$operation";
                     $permission = Permission::where('name', $permissionName)->first();
                     if ($permission) {
                         $technicianPermissionIds[] = $permission->id;

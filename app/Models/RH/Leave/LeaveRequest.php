@@ -4,8 +4,8 @@ namespace App\Models\RH\Leave;
 
 use App\Models\RH\Employee\Employee;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LeaveRequest extends Model
@@ -20,6 +20,7 @@ class LeaveRequest extends Model
         'leave_plan_id',
         'start_date',
         'end_date',
+        'return_date',
         'total_days',
         'reason',
         'status',
@@ -33,6 +34,7 @@ class LeaveRequest extends Model
         return [
             'start_date' => 'date',
             'end_date' => 'date',
+            'return_date' => 'date',
             'approved_at' => 'datetime',
         ];
     }

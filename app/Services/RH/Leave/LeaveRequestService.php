@@ -17,13 +17,53 @@ class LeaveRequestService extends AbstractService
         protected LeavePlanService $planService,
         protected LeaveApprovalService $approvalService,
         protected LeaveEntitlementService $entitlementService,
+        protected HolidayService $holidayService,
     ) {
         parent::__construct($repository);
     }
+
+    public function update(array $data, int $id): LeaveRequest
+    {
+        return DB::transaction(function () use ($data, $id) {
+            $leaveRequest = LeaveRequest::with('leavePlan')->findOrFail($id);
+            $oldPlanId = $leaveRequest->leave_plan_id;
+
+            if (isset($data['start_date']) || isset($data['end_date'])) {
+                $start = $data['start_date'] ?? $leaveRequest->start_date->format('Y-m-d');
+                $end = $data['end_date'] ?? $leaveRequest->end_date->format('Y-m-d');
+                $employeeId = $data['employee_id'] ?? $leaveRequest->employee_id;
+
+                $data['total_days'] = $this->calculateBusinessDays($start, $end);
+                $data['return_date'] = $this->calculateReturnDate($end);
+                $this->checkDateConflict($employeeId, $start, $end, $leaveRequest->id);
+            }
+
+            if (isset($data['start_date'])) {
+                $year = Carbon::parse($data['start_date'])->year;
+                $plan = $this->planService->findOrCreateForRequest(
+                    $leaveRequest->employee_id,
+                    $year,
+                    $leaveRequest->leave_type_id
+                );
+                $this->planService->syncBalance($plan->id);
+                $data['leave_plan_id'] = $plan->id;
+            }
+
+            $updated = $this->repository->update($data, $id);
+
+            if ($oldPlanId && $oldPlanId !== ($data['leave_plan_id'] ?? $oldPlanId)) {
+                $this->planService->syncBalance($oldPlanId);
+            }
+
+            return $updated->fresh(['employee', 'leaveType', 'leavePlan', 'approvals']);
+        });
+    }
+
     public function submit(array $data): LeaveRequest
     {
         return DB::transaction(function () use ($data) {
             $data['total_days'] = $this->calculateBusinessDays($data['start_date'], $data['end_date']);
+            $data['return_date'] = $this->calculateReturnDate($data['end_date']);
             $data['status'] = 'pending';
 
             $this->checkDateConflict(
@@ -48,8 +88,8 @@ class LeaveRequestService extends AbstractService
                 $typeName = $plan->leaveType?->name ?? 'esta licença';
                 $yearsOfService = $this->entitlementService->yearsOfService($plan->employee);
                 throw new \DomainException(
-                    "Saldo insuficiente de {$typeName} para {$year}. " .
-                    "Tempo de serviço: {$this->formatServiceTime($yearsOfService)}. " .
+                    "Saldo insuficiente de {$typeName} para {$year}. ".
+                    "Tempo de serviço: {$this->formatServiceTime($yearsOfService)}. ".
                     "Disponível: {$remaining} dia(s), solicitado: {$data['total_days']} dia(s)."
                 );
             }
@@ -75,18 +115,19 @@ class LeaveRequestService extends AbstractService
             $notifiables[] = $department->responsible;
         }
 
-        if (!empty($notifiables)) {
+        if (! empty($notifiables)) {
             Notification::send($notifiables, new LeaveRequestSubmittedNotification($leaveRequest));
         }
     }
 
-    private function checkDateConflict(int $employeeId, string $startDate, string $endDate): void
+    private function checkDateConflict(int $employeeId, string $startDate, string $endDate, ?int $ignoreId = null): void
     {
         $start = Carbon::parse($startDate);
         $end = Carbon::parse($endDate);
 
         $conflict = LeaveRequest::where('employee_id', $employeeId)
             ->whereIn('status', ['pending', 'approved'])
+            ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
             ->where(function ($q) use ($start, $end) {
                 $q->whereBetween('start_date', [$start, $end])
                     ->orWhereBetween('end_date', [$start, $end])
@@ -113,12 +154,23 @@ class LeaveRequestService extends AbstractService
         $days = 0;
 
         for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
-            if ($d->isWeekday()) {
+            if ($d->isWeekday() && ! $this->holidayService->isHoliday($d)) {
                 $days++;
             }
         }
 
         return $days;
+    }
+
+    public function calculateReturnDate(string $endDate): string
+    {
+        $day = Carbon::parse($endDate)->addDay();
+
+        while ($day->isWeekend() || $this->holidayService->isHoliday($day)) {
+            $day->addDay();
+        }
+
+        return $day->format('Y-m-d');
     }
 
     public function annualEntitlement(int $employeeId): array
@@ -181,6 +233,7 @@ class LeaveRequestService extends AbstractService
     {
         if ($years < 1) {
             $months = max(1, (int) round($years * 12));
+
             return "{$months} mês(es)";
         }
 
@@ -189,10 +242,10 @@ class LeaveRequestService extends AbstractService
         $parts = [];
 
         if ($wholeYears > 0) {
-            $parts[] = $wholeYears . ' ano(s)';
+            $parts[] = $wholeYears.' ano(s)';
         }
         if ($months > 0) {
-            $parts[] = $months . ' mês(es)';
+            $parts[] = $months.' mês(es)';
         }
 
         return implode(' e ', $parts);

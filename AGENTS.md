@@ -205,6 +205,19 @@
 | Notificações | `DocumentExpiryNotification` com comando `rh:check-document-expiry` |
 | API | `/api/v1/rh/employees/{id}/documents` |
 
+## FLUXO 14 — Feriados e Dia de Voltar ✅
+| Item | Status |
+|------|--------|
+| `holidays` | tabela com `name`, `date`, `recurrent`, `is_active` (SoftDeletes) |
+| CRUD | Repository + Service + Controller + FormRequest (padrão Abstract) |
+| Sincronização | `syncFromNager()` via `date.nager.at` — nomes sempre em português (`localName` + mapa de tradução inglês→PT) |
+| Endpoint | `POST /api/rh/leaves/holidays/sync` (`year`/`country`, default AO) |
+| Comando | `php artisan rh:sync-holidays {--year=} {--country=AO}` |
+| Seeder | `HolidaySeeder` tenta a API para ano actual+seguinte, com fallback estático (Lei 20/93) |
+| Dia de voltar | `return_date` em `leave_requests` — próximo dia útil após `end_date`, saltando fins-de-semana e feriados (`LeaveRequestService::calculateReturnDate()`) |
+| Permissões | `RH Feriados` (`rh-feriados-show/create/edit/delete`) |
+| API | `/api/rh/leaves/holidays` |
+
 ## FLUXO 15 — Títulos de Vencimento (Payslips) ✅
 | Item | Status |
 |------|--------|

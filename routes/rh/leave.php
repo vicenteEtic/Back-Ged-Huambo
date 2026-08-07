@@ -1,9 +1,10 @@
 <?php
 
+use App\Http\Controllers\RH\Leave\HolidayController;
 use App\Http\Controllers\RH\Leave\LeaveApprovalController;
 use App\Http\Controllers\RH\Leave\LeavePlanController;
-use App\Http\Controllers\RH\Leave\LeaveTypeController;
 use App\Http\Controllers\RH\Leave\LeaveRequestController;
+use App\Http\Controllers\RH\Leave\LeaveTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [LeaveRequestController::class, 'index'])->name('leave.index')->middleware(['can:rh-ferias-show']);
@@ -33,6 +34,15 @@ Route::prefix('plans')->group(function () {
     Route::put('{id}', [LeavePlanController::class, 'update'])->name('leave_plan.update')->middleware(['can:rh-ferias-edit']);
     Route::delete('{id}', [LeavePlanController::class, 'destroy'])->name('leave_plan.destroy')->middleware(['can:rh-ferias-delete']);
     Route::post('{id}/sync-balance', [LeavePlanController::class, 'syncBalance'])->name('leave_plan.sync')->middleware(['can:rh-ferias-edit']);
+});
+
+Route::prefix('holidays')->group(function () {
+    Route::get('/', [HolidayController::class, 'index'])->name('holiday.index')->middleware(['can:rh-feriados-show']);
+    Route::post('/', [HolidayController::class, 'store'])->name('holiday.store')->middleware(['can:rh-feriados-create']);
+    Route::post('sync', [HolidayController::class, 'sync'])->name('holiday.sync')->middleware(['can:rh-feriados-create']);
+    Route::get('{id}', [HolidayController::class, 'show'])->name('holiday.show')->middleware(['can:rh-feriados-show']);
+    Route::put('{id}', [HolidayController::class, 'update'])->name('holiday.update')->middleware(['can:rh-feriados-edit']);
+    Route::delete('{id}', [HolidayController::class, 'destroy'])->name('holiday.destroy')->middleware(['can:rh-feriados-delete']);
 });
 
 Route::prefix('approvals')->group(function () {

@@ -2,19 +2,22 @@
 
 namespace Tests\Feature\RH\Leave;
 
-use Tests\Feature\RH\RhTestCase;
+use App\Models\RH\Department\Department;
+use App\Models\RH\Employee\Employee;
+use App\Models\RH\Leave\Holiday;
+use App\Models\RH\Leave\LeavePlan;
 use App\Models\RH\Leave\LeaveRequest;
 use App\Models\RH\Leave\LeaveType;
-use App\Models\RH\Leave\LeavePlan;
-use App\Models\RH\Employee\Employee;
-use App\Models\RH\Department\Department;
 use App\Models\RH\Position\Position;
-use App\Models\User;
+use Carbon\Carbon;
+use Tests\Feature\RH\RhTestCase;
 
 class LeaveRequestTest extends RhTestCase
 {
     protected Employee $employee;
+
     protected LeaveType $leaveType;
+
     protected LeavePlan $leavePlan;
 
     protected function setUp(): void
@@ -68,7 +71,7 @@ class LeaveRequestTest extends RhTestCase
             'leave_plan_id' => $this->leavePlan->id,
         ]);
 
-        $response = $this->getJsonAuth('/api/rh/leaves/leave-requests/' . $leave->id);
+        $response = $this->getJsonAuth('/api/rh/leaves/leave-requests/'.$leave->id);
         $response->assertStatus(200);
     }
 
@@ -86,7 +89,7 @@ class LeaveRequestTest extends RhTestCase
             'leave_plan_id' => $this->leavePlan->id,
         ])->toArray();
 
-        $response = $this->putJsonAuth('/api/rh/leaves/leave-requests/' . $leave->id, $data);
+        $response = $this->putJsonAuth('/api/rh/leaves/leave-requests/'.$leave->id, $data);
         $response->assertStatus(200);
     }
 
@@ -98,7 +101,7 @@ class LeaveRequestTest extends RhTestCase
             'leave_plan_id' => $this->leavePlan->id,
         ]);
 
-        $response = $this->deleteJsonAuth('/api/rh/leaves/leave-requests/' . $leave->id);
+        $response = $this->deleteJsonAuth('/api/rh/leaves/leave-requests/'.$leave->id);
         $response->assertStatus(204);
     }
 
@@ -110,7 +113,80 @@ class LeaveRequestTest extends RhTestCase
             'leave_plan_id' => $this->leavePlan->id,
         ]);
 
-        $response = $this->getJsonAuth('/api/rh/leaves/leave-requests/' . $leave->id . '/balance');
+        $response = $this->getJsonAuth('/api/rh/leaves/leave-requests/'.$leave->id.'/balance');
         $response->assertStatus(200);
+    }
+
+    public function test_submit_excludes_holidays_from_business_days()
+    {
+        $start = now()->next(Carbon::MONDAY);
+        $end = $start->copy()->addDays(4);
+
+        Holiday::create([
+            'name' => 'Feriado Teste',
+            'date' => $start->copy()->addDays(2)->format('Y-m-d'),
+            'recurrent' => false,
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJsonAuth('/api/rh/leaves/leave-requests', [
+            'employee_id' => $this->employee->id,
+            'leave_type_id' => $this->leaveType->id,
+            'start_date' => $start->format('Y-m-d'),
+            'end_date' => $end->format('Y-m-d'),
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('total_days', 4);
+    }
+
+    public function test_submit_computes_return_date_skipping_weekends_and_holidays()
+    {
+        $holiday = now()->addWeeks(3)->next(Carbon::MONDAY);
+        Holiday::create([
+            'name' => 'Feriado Teste',
+            'date' => $holiday->format('Y-m-d'),
+            'recurrent' => false,
+            'is_active' => true,
+        ]);
+
+        $end = $holiday->copy()->subDays(3);
+
+        $response = $this->postJsonAuth('/api/rh/leaves/leave-requests', [
+            'employee_id' => $this->employee->id,
+            'leave_type_id' => $this->leaveType->id,
+            'start_date' => $end->copy()->subDays(2)->format('Y-m-d'),
+            'end_date' => $end->format('Y-m-d'),
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertEquals(
+            $holiday->copy()->addDay()->startOfDay()->timestamp,
+            Carbon::parse($response->json('return_date'))->timestamp
+        );
+    }
+
+    public function test_update_recalculates_total_days()
+    {
+        $leave = LeaveRequest::factory()->create([
+            'employee_id' => $this->employee->id,
+            'leave_type_id' => $this->leaveType->id,
+            'leave_plan_id' => $this->leavePlan->id,
+            'start_date' => now()->format('Y-m-d'),
+            'end_date' => now()->format('Y-m-d'),
+            'total_days' => 1,
+            'status' => 'pending',
+        ]);
+
+        $start = now()->addDays(30)->next(Carbon::MONDAY);
+        $end = $start->copy()->addDays(2);
+
+        $response = $this->putJsonAuth('/api/rh/leaves/leave-requests/'.$leave->id, [
+            'start_date' => $start->format('Y-m-d'),
+            'end_date' => $end->format('Y-m-d'),
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('total_days', 3);
     }
 }

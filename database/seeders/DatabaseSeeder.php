@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -22,7 +21,8 @@ class DatabaseSeeder extends Seeder
         $this->call(ProgressionRuleSeed::class);
         $this->call(AreaSeed::class);
         $this->call(IrtBracketSeeder::class);
+        $this->call(HolidaySeeder::class);
         $this->call(DeclarationTypeSeeder::class);
-      
+
     }
 }
