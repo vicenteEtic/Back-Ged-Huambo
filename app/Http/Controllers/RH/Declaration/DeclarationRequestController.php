@@ -49,9 +49,13 @@ class DeclarationRequestController extends AbstractController
             $validated = $request->validate([
                 'declaration_type_id' => 'required|integer|exists:declaration_types,id',
                 'employee_id' => 'required|integer|exists:employees,id',
+                'institution_name' => 'nullable|string|max:255',
+                'institution_type' => 'nullable|string|max:100',
+                'purpose' => 'nullable|string',
+                'additional_info' => 'nullable|string',
             ]);
 
-            return response()->json($this->service->preview($validated['declaration_type_id'], $validated['employee_id']));
+            return response()->json($this->service->preview($validated['declaration_type_id'], $validated['employee_id'], $validated));
         } catch (ValidationException $e) {
             return response()->json(['error' => 'Erro de validação.', 'message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (ModelNotFoundException $e) {

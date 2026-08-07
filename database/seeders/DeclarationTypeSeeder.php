@@ -16,20 +16,10 @@ class DeclarationTypeSeeder extends Seeder
                 [
                     'name' => $case->label(),
                     'description' => $case->description(),
-                    'requires_approval' => $this->requiresApproval($case->value),
+                    'requires_approval' => $case->requiresApproval(),
                     'is_active' => true,
                 ]
             );
         }
-    }
-
-    private function requiresApproval(string $code): bool
-    {
-        return in_array($code, [
-            'vencimento',
-            'ausencia_disciplinar',
-            'aposentacao',
-            'compatibilidade',
-        ]);
     }
 }
