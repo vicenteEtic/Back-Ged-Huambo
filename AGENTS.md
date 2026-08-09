@@ -260,6 +260,22 @@
 | Pesquisa avançada | `GET /search?q=&type=&status=&confidentiality=` |
 | API | `/api/v1/rh/archive` |
 
+## FLUXO 20 — Emissão de Declarações (campos dinâmicos + DOCX) ✅
+| Item | Status |
+|------|--------|
+| 17 tipos de declaração | `DeclarationTypeEnum` + seeder com `code/name/description/requires_approval` |
+| Formulário dinâmico | `GET /api/rh/declarations/types/{code}/fields` devolve campos comuns + específicos do tipo (metadados em `config/declaracoes.php`) |
+| Base de dados | **Todos** os campos de declaração como colunas **nuláveis** em `declaration_requests` (37 colunas: comuns, quase-comuns e específicos) |
+| `salario_extenso` | gerado automaticamente a partir de `salario_numero` (`App\Support\NumberToWordsPt`, PT) |
+| `data_emissao` por extenso | "aos 30 de Março de 2026" (`App\Support\DeclarationText::dateSentence`) |
+| Género derivado | `sexo` determina Senhor/Senhora, o/a, do/da, funcionário(a) |
+| Geração `.docx` | `DeclarationDocxService` (phpoffice/phpword) com cabeçalho oficial REPÚBLICA DE ANGOLA / GOVERNO DA PROVÍNCIA DO HUAMBO / Gabinete de Recursos Humanos |
+| Download | `GET /api/rh/declarations/{id}/download` (Content-Type `application/vnd...wordprocessingml.document`) |
+| API | `/api/rh/declarations` (+ `types/{code}/fields`, `{id}/download`) |
+| Validação | enums `sexo`, `tipo_salario`, `tipo_correccao`; campos salariais numéricos |
+
+> Nota: `informacao_salarial` usa `salario_numero` (base) + `salario_numero_liquido`/`salario_extenso_liquido` para o líquido.
+
 ## Dashboard e Relatórios ✅
 | Item | Descrição |
 |------|-----------|

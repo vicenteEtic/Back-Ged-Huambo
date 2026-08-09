@@ -4,6 +4,8 @@ namespace App\Http\Controllers\RH\Declaration;
 
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Declaration\DeclarationRequestForm;
+use App\Models\RH\Declaration\DeclarationRequest;
+use App\Services\RH\Declaration\DeclarationDocxService;
 use App\Services\RH\Declaration\DeclarationRequestService;
 use DomainException;
 use Exception;
@@ -16,11 +18,15 @@ use Illuminate\Validation\ValidationException;
 class DeclarationRequestController extends AbstractController
 {
     protected ?string $logType = 'rh';
+
     protected ?string $nameEntity = 'Solicitação de Declaração';
+
     protected ?string $fieldName = 'id';
 
-    public function __construct(DeclarationRequestService $service)
-    {
+    public function __construct(
+        DeclarationRequestService $service,
+        protected DeclarationDocxService $docxService,
+    ) {
         $this->service = $service;
     }
 
@@ -28,9 +34,10 @@ class DeclarationRequestController extends AbstractController
     {
         return $this->handleStore(function () use ($request) {
             $declaration = $this->service->submit($request->validated());
+
             return $this->logToDatabase(
                 type: 'rh', level: 'info',
-                customMessage: 'Solicitação de declaração ' . $declaration->reference_number . ' submetida por ' . auth()->user()->first_name
+                customMessage: 'Solicitação de declaração '.$declaration->reference_number.' submetida por '.auth()->user()->first_name
             ) ? $declaration : $declaration;
         });
     }
@@ -38,7 +45,7 @@ class DeclarationRequestController extends AbstractController
     public function update(DeclarationRequestForm $request, $id)
     {
         return $this->handleUpdate(
-            fn() => $this->service->update($request->validated(), $id),
+            fn () => $this->service->update($request->validated(), $id),
             $id,
         );
     }
@@ -62,6 +69,7 @@ class DeclarationRequestController extends AbstractController
             return response()->json(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             Log::error('Erro ao gerar pré-visualização de declaração', ['message' => $e->getMessage()]);
+
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -74,6 +82,7 @@ class DeclarationRequestController extends AbstractController
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             Log::error('Erro ao gerar pré-visualização de declaração', ['message' => $e->getMessage()]);
+
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -83,6 +92,7 @@ class DeclarationRequestController extends AbstractController
         try {
             $request->validate(['comment' => 'nullable|string']);
             $model = $this->service->approve($id, auth()->id(), $request->comment);
+
             return response()->json($model);
         } catch (ValidationException $e) {
             return response()->json(['error' => 'Erro de validação.', 'message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -92,6 +102,7 @@ class DeclarationRequestController extends AbstractController
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Exception $e) {
             Log::error('Erro ao aprovar solicitação de declaração', ['message' => $e->getMessage()]);
+
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -101,6 +112,7 @@ class DeclarationRequestController extends AbstractController
         try {
             $request->validate(['reason' => 'required|string']);
             $model = $this->service->reject($id, auth()->id(), $request->reason);
+
             return response()->json($model);
         } catch (ValidationException $e) {
             return response()->json(['error' => 'Erro de validação.', 'message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -110,6 +122,7 @@ class DeclarationRequestController extends AbstractController
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Exception $e) {
             Log::error('Erro ao rejeitar solicitação de declaração', ['message' => $e->getMessage()]);
+
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -118,6 +131,7 @@ class DeclarationRequestController extends AbstractController
     {
         try {
             $model = $this->service->issue($id, auth()->id());
+
             return response()->json($model);
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
@@ -125,6 +139,7 @@ class DeclarationRequestController extends AbstractController
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Exception $e) {
             Log::error('Erro ao emitir declaração', ['message' => $e->getMessage()]);
+
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -135,6 +150,33 @@ class DeclarationRequestController extends AbstractController
             return response()->json($this->service->pending());
         } catch (Exception $e) {
             Log::error('Erro ao listar solicitações pendentes de declaração', ['message' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function download(int $id)
+    {
+        try {
+            $declaration = DeclarationRequest::with('declarationType')->findOrFail($id);
+
+            if ($declaration->status === 'rejected') {
+                return response()->json(['error' => 'Não é possível descarregar uma declaração rejeitada.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            $docx = $this->docxService->generate($declaration);
+
+            return response($docx, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'Content-Disposition' => 'attachment; filename="'.$this->docxService->fileName($declaration).'"',
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (DomainException $e) {
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (Exception $e) {
+            Log::error('Erro ao gerar documento .docx da declaração', ['message' => $e->getMessage()]);
+
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

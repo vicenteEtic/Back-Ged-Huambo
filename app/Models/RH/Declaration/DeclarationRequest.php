@@ -4,8 +4,8 @@ namespace App\Models\RH\Declaration;
 
 use App\Models\RH\Employee\Employee;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DeclarationRequest extends Model
@@ -37,8 +37,19 @@ class DeclarationRequest extends Model
             $next = (int) $matches[1] + 1;
         }
 
-        return 'DEC-' . str_pad($next, 5, '0', STR_PAD_LEFT);
+        return 'DEC-'.str_pad($next, 5, '0', STR_PAD_LEFT);
     }
+
+    public const FIELD_LIST = [
+        'nome_completo', 'sexo', 'data_emissao', 'numero_declaracao', 'assinante_nome', 'assinante_cargo',
+        'categoria_funcao', 'local_servico', 'vinculo', 'banco', 'tipo_salario', 'salario_numero',
+        'salario_extenso', 'salario_numero_liquido', 'salario_extenso_liquido',
+        'tratamento', 'cargo', 'tempo_servico', 'data_admissao', 'data_admissao_completa',
+        'numero_conta', 'conta_consignacao', 'numero_bi', 'numero_agente', 'telefone', 'email',
+        'morada', 'balcao_domicilio', 'finalidade', 'entidade_empregadora', 'entidade_pagadora',
+        'dia_pagamento', 'embaixada', 'cidade_embaixada', 'local_residencia', 'tipo_correccao',
+        'departamento_emissor',
+    ];
 
     protected $fillable = [
         'reference_number',
@@ -57,6 +68,7 @@ class DeclarationRequest extends Model
         'approved_at',
         'rejection_reason',
         'notes',
+        ...self::FIELD_LIST,
     ];
 
     protected function casts(): array
@@ -65,6 +77,9 @@ class DeclarationRequest extends Model
             'content' => 'array',
             'issued_at' => 'datetime',
             'approved_at' => 'datetime',
+            'data_emissao' => 'date',
+            'salario_numero' => 'decimal:2',
+            'salario_numero_liquido' => 'decimal:2',
         ];
     }
 

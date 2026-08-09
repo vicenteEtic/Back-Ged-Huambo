@@ -94,6 +94,22 @@ enum DeclarationTypeEnum: string
         return in_array($this->value, self::APPROVAL_REQUIRED);
     }
 
+    /**
+     * Campos específicos do tipo (para além dos comuns).
+     */
+    public function fields(): array
+    {
+        return config('declaracoes.types.'.$this->value, []);
+    }
+
+    /**
+     * Todos os campos do formulário: comuns + específicos do tipo.
+     */
+    public function formFields(): array
+    {
+        return array_merge(config('declaracoes.common_fields', []), $this->fields());
+    }
+
     public static function values(): array
     {
         return array_column(self::cases(), 'value');
@@ -101,6 +117,6 @@ enum DeclarationTypeEnum: string
 
     public static function labels(): array
     {
-        return array_map(fn($case) => $case->label(), self::cases());
+        return array_map(fn ($case) => $case->label(), self::cases());
     }
 }

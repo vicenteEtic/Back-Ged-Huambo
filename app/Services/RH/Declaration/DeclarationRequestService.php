@@ -9,6 +9,8 @@ use App\Notifications\RH\DeclarationRequestNotification;
 use App\Repositories\RH\Declaration\DeclarationRequestRepository;
 use App\Services\AbstractService;
 use App\Services\RH\Career\CareerService;
+use App\Support\DeclarationText;
+use App\Support\NumberToWordsPt;
 use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +18,18 @@ use Illuminate\Support\Facades\Notification;
 
 class DeclarationRequestService extends AbstractService
 {
+    /**
+     * Campos de formulário que não aparecem directamente no documento
+     * (são tratados/combinados pela lógica salarial).
+     */
+    private const NON_DOCUMENT_FIELDS = [
+        'salario_numero',
+        'salario_extenso',
+        'salario_numero_liquido',
+        'salario_extenso_liquido',
+        'tipo_salario',
+    ];
+
     public function __construct(
         DeclarationRequestRepository $repository,
         protected CareerService $careerService,
@@ -31,6 +45,8 @@ class DeclarationRequestService extends AbstractService
 
             $declarationType = $this->findType($typeId);
             $employee = $this->findEmployee($employeeId);
+
+            $data = $this->applyDerivedValues($data, $employee);
 
             $data['status'] = $declarationType->requires_approval ? 'pending' : 'approved';
             $data['content'] = $this->generateContent($declarationType->code, $employee, $data);
@@ -49,6 +65,8 @@ class DeclarationRequestService extends AbstractService
     {
         $declarationType = $this->findType($typeId);
         $employee = $this->findEmployee($employeeId);
+
+        $context = $this->applyDerivedValues($context ?? [], $employee);
 
         return [
             'declaration_type' => [
@@ -71,7 +89,7 @@ class DeclarationRequestService extends AbstractService
             'content' => $this->generateContent(
                 $request->declarationType->code,
                 $request->employee,
-                $request->only(['purpose', 'institution_name', 'institution_type', 'additional_info'])
+                $this->requestFields($request)
             ),
         ];
     }
@@ -137,11 +155,17 @@ class DeclarationRequestService extends AbstractService
                 $request->issued_number = $this->generateIssuedNumber($request);
             }
 
+            $fields = $this->requestFields($request);
+
+            if (empty($fields['data_emissao'])) {
+                $fields['data_emissao'] = now()->toDateString();
+            }
+
             $request->update([
                 'content' => $this->generateContent(
                     $request->declarationType->code,
                     $request->employee,
-                    $request->only(['purpose', 'institution_name', 'institution_type', 'additional_info'])
+                    $fields
                 ),
                 'status' => 'issued',
                 'issued_by' => $userId,
@@ -168,12 +192,17 @@ class DeclarationRequestService extends AbstractService
             ->latest('generated_at')
             ->first();
 
+        $context = $context ?? [];
+        $declaration = $this->extractDeclarationFields($context);
+        $context = $this->applyDerivedValues($context, $employee);
+
         $data = [
             'type' => $code,
             'generated_at' => now()->toDateTimeString(),
             'employee' => $this->employeeData($employee),
             'career' => $career,
             'remuneration' => $this->remunerationData($employee, $payslip),
+            'declaration' => $declaration,
         ];
 
         return match ($code) {
@@ -205,8 +234,8 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Tutela de Menor',
-            "Declara-se, para efeitos de tutela de menor, que {$employee->full_name} exerce funções na instituição desde {$this->dateLabel($employee->hire_date)}.",
-            array_merge($this->commonFields($data, $employee), $this->remunerationFields($data['remuneration']))
+            "Declara-se, para efeitos de tutela de menor, que {$this->subject($data, $employee)} exerce funções na instituição desde {$this->dateLabel($employee->hire_date)}.",
+            $this->typeFields('tutela_menor', $data)
         );
     }
 
@@ -217,9 +246,9 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Correcção de Nome (SIGFE)',
-            "Declara-se que {$employee->full_name} é funcionário(a) da instituição, para efeitos de correcção de nome junto do SIGFE.",
-            array_merge($this->commonFields($data, $employee), [
-                'Documento de identificação' => ($employee->document_type ?? 'N/A') . ' ' . ($employee->document_number ?? ''),
+            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data).' da instituição, para efeitos de correcção de nome junto do SIGFE.',
+            array_merge($this->typeFields('correccao_nome_sigfe', $data), [
+                'Documento de identificação' => ($employee->document_type ?? 'N/A').' '.($employee->document_number ?? ''),
                 'NIF' => $employee->nif ?? 'N/A',
                 'Data de nascimento' => $this->dateLabel($employee->date_of_birth),
             ])
@@ -233,8 +262,8 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Junta Médica',
-            "Declara-se que {$employee->full_name} se encontra ao serviço da instituição desde {$this->dateLabel($employee->hire_date)}, para instrução de processo de junta médica.",
-            array_merge($this->commonFields($data, $employee), [
+            "Declara-se que {$this->subject($data, $employee)} se encontra ao serviço da instituição desde {$this->dateLabel($employee->hire_date)}, para instrução de processo de junta médica.",
+            array_merge($this->typeFields('junta_medica', $data), [
                 'Data de nascimento' => $this->dateLabel($employee->date_of_birth),
                 'Tempo de serviço acumulado' => $data['career']['total_service']['formatted'] ?? 'N/A',
             ])
@@ -248,8 +277,8 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Actualização de Categoria',
-            "Declara-se que {$employee->full_name} desempenha funções na categoria de " . ($data['employee']['category'] ?? 'N/A') . ", para efeitos de actualização de categoria.",
-            array_merge($this->commonFields($data, $employee), $this->careerFields($data))
+            "Declara-se que {$this->subject($data, $employee)} desempenha funções na categoria de ".($data['employee']['category'] ?? 'N/A').', para efeitos de actualização de categoria.',
+            array_merge($this->salaryFields('actualizacao_categoria', $data), $this->careerFields($data))
         );
     }
 
@@ -260,20 +289,22 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Mudança de Domicílio Bancário',
-            "Declara-se que {$employee->full_name} é funcionário(a) da instituição, com vencimento processado pela folha de salários, para efeitos de mudança de domicílio bancário.",
-            array_merge($this->commonFields($data, $employee), $this->bankFields($employee))
+            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data).' da instituição, com vencimento processado pela folha de salários, para efeitos de mudança de domicílio bancário.',
+            array_merge($this->typeFields('mudanca_domicilio_bancario', $data), $this->bankFields($employee))
         );
     }
 
     private function informacaoSalarialDeclaration(array $data, Employee $employee, ?array $context): array
     {
+        $salary = $data['declaration']['salario_numero'] ?? $data['remuneration']['base_salary'];
+
         return $this->buildDeclaration(
             $data,
             $employee,
             $context,
             'Declaração de Informação Salarial',
-            "Declara-se que {$employee->full_name} aufere, de vencimento base, o valor de {$this->money($data['remuneration']['base_salary'])}, para os efeitos tidos e achados por convenientes.",
-            array_merge($this->commonFields($data, $employee), $this->remunerationFields($data['remuneration']))
+            "Declara-se que {$this->subject($data, $employee)}, ".$this->funcionario($data)." da instituição, aufere de vencimento base o valor de {$this->money($salary)}, para os efeitos tidos e achados por convenientes.",
+            $this->salaryFields('informacao_salarial', $data)
         );
     }
 
@@ -284,32 +315,36 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Concurso Público (Ensino Superior)',
-            "Declara-se que {$employee->full_name} é funcionário(a) da instituição, para efeitos de candidatura a concurso público no ensino superior.",
-            array_merge($this->commonFields($data, $employee), $this->careerFields($data))
+            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data).' da instituição, para efeitos de candidatura a concurso público no ensino superior.',
+            array_merge($this->typeFields('concurso_publico', $data), $this->careerFields($data))
         );
     }
 
     private function obtencaoVistoDeclaration(array $data, Employee $employee, ?array $context): array
     {
+        $embaixada = $data['declaration']['embaixada'] ?? null;
+
         return $this->buildDeclaration(
             $data,
             $employee,
             $context,
             'Declaração para Obtenção de Visto',
-            "Declara-se que {$employee->full_name} é funcionário(a) da instituição desde {$this->dateLabel($employee->hire_date)}, para efeitos de obtenção de visto.",
-            array_merge($this->commonFields($data, $employee), $this->remunerationFields($data['remuneration']))
+            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data)." da instituição desde {$this->dateLabel($employee->hire_date)}, para efeitos de obtenção de visto".($embaixada ? " junto da {$embaixada}" : '').'.',
+            $this->salaryFields('obtencao_visto', $data)
         );
     }
 
     private function aquisicaoResidenciaDeclaration(array $data, Employee $employee, ?array $context): array
     {
+        $local = $data['declaration']['local_residencia'] ?? null;
+
         return $this->buildDeclaration(
             $data,
             $employee,
             $context,
             'Declaração para Aquisição de Residência',
-            "Declara-se que {$employee->full_name} é funcionário(a) da instituição desde {$this->dateLabel($employee->hire_date)}, para efeitos de aquisição de residência.",
-            array_merge($this->commonFields($data, $employee), $this->remunerationFields($data['remuneration']))
+            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data)." da instituição desde {$this->dateLabel($employee->hire_date)}, para efeitos de aquisição de residência".($local ? " em {$local}" : '').'.',
+            $this->salaryFields('aquisicao_residencia', $data)
         );
     }
 
@@ -320,8 +355,8 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Adiantamento de Salário',
-            "Declara-se que {$employee->full_name} aufere a remuneração abaixo indicada, para efeitos de pedido de adiantamento de salário junto de instituição bancária.",
-            array_merge($this->commonFields($data, $employee), $this->remunerationFields($data['remuneration']))
+            "Declara-se que {$this->subject($data, $employee)} aufere a remuneração abaixo indicada, para efeitos de pedido de adiantamento de salário junto de instituição bancária.",
+            $this->salaryFields('adiantamento_salario', $data)
         );
     }
 
@@ -332,8 +367,8 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Crédito de Salário (BPC)',
-            "Declara-se que {$employee->full_name} é funcionário(a) da instituição e aufere a remuneração abaixo indicada, para efeitos de obtenção de crédito de salário junto do BPC.",
-            array_merge($this->commonFields($data, $employee), $this->remunerationFields($data['remuneration']))
+            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data).' da instituição e aufere a remuneração abaixo indicada, para efeitos de obtenção de crédito de salário junto do BPC.',
+            $this->salaryFields('bpc_salario', $data)
         );
     }
 
@@ -344,8 +379,8 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Consignação de Salários',
-            "Declara-se que {$employee->full_name} aufere a remuneração abaixo indicada, para efeitos de consignação de salários junto de instituição bancária.",
-            array_merge($this->commonFields($data, $employee), $this->remunerationFields($data['remuneration']))
+            "Declara-se que {$this->subject($data, $employee)} aufere a remuneração abaixo indicada, para efeitos de consignação de salários junto de instituição bancária.",
+            $this->salaryFields('consignacao_salarios', $data)
         );
     }
 
@@ -356,8 +391,8 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Crédito Express',
-            "Declara-se que {$employee->full_name} é funcionário(a) da instituição, para efeitos de obtenção de crédito express junto de instituição bancária.",
-            array_merge($this->commonFields($data, $employee), $this->remunerationFields($data['remuneration']))
+            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data).' da instituição, para efeitos de obtenção de crédito express junto de instituição bancária.',
+            $this->salaryFields('credito_express', $data)
         );
     }
 
@@ -368,8 +403,8 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Crédito Pessoal',
-            "Declara-se que {$employee->full_name} é funcionário(a) da instituição, para efeitos de obtenção de crédito pessoal junto de instituição bancária.",
-            array_merge($this->commonFields($data, $employee), $this->remunerationFields($data['remuneration']))
+            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data).' da instituição, para efeitos de obtenção de crédito pessoal junto de instituição bancária.',
+            $this->salaryFields('credito_pessoal', $data)
         );
     }
 
@@ -380,8 +415,8 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Actualização de Conta Bancária',
-            "Declara-se que {$employee->full_name} é funcionário(a) da instituição, com vencimento processado pela folha de salários, para efeitos de actualização de conta bancária.",
-            array_merge($this->commonFields($data, $employee), $this->bankFields($employee))
+            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data).' da instituição, com vencimento processado pela folha de salários, para efeitos de actualização de conta bancária.',
+            array_merge($this->salaryFields('actualizacao_conta_bancaria', $data), $this->bankFields($employee))
         );
     }
 
@@ -392,8 +427,8 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Obtenção de Cartão de Débito',
-            "Declara-se que {$employee->full_name} é funcionário(a) da instituição, para efeitos de obtenção de cartão de débito junto de instituição bancária.",
-            array_merge($this->commonFields($data, $employee), $this->bankFields($employee))
+            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data).' da instituição, para efeitos de obtenção de cartão de débito junto de instituição bancária.',
+            $this->salaryFields('cartao_debito', $data)
         );
     }
 
@@ -404,19 +439,117 @@ class DeclarationRequestService extends AbstractService
             $employee,
             $context,
             'Declaração para Transferência/Domiciliação de Salário',
-            "Declara-se que {$employee->full_name} é funcionário(a) da instituição, para efeitos de transferência/domiciliação de salário junto de instituição bancária.",
-            array_merge($this->commonFields($data, $employee), $this->remunerationFields($data['remuneration']))
+            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data).' da instituição, para efeitos de transferência/domiciliação de salário junto de instituição bancária.',
+            $this->salaryFields('transferencia_domiciliacao_salario', $data)
         );
     }
 
     private function buildDeclaration(array $data, Employee $employee, ?array $context, string $title, string $statement, array $fields): array
     {
+        $declaration = $data['declaration'];
+        $dataEmissao = $declaration['data_emissao'] ?? now()->toDateString();
+
         return array_merge($data, [
             'title' => $title,
             'statement' => $statement,
             'fields' => $this->withContextFields($fields, $context),
             'institution' => $context['institution_name'] ?? null,
+            'numero_declaracao' => $declaration['numero_declaracao'] ?? null,
+            'data_emissao' => $dataEmissao,
+            'data_emissao_extenso' => DeclarationText::dateSentence($dataEmissao),
+            'assinante_cargo' => $declaration['assinante_cargo'] ?? 'O DIRECTOR',
+            'assinante_nome' => $declaration['assinante_nome'] ?? '',
+            'sexo' => $declaration['sexo'] ?? $employee->gender,
         ]);
+    }
+
+    /**
+     * Campos específicos do tipo, preenchidos a partir dos dados do pedido.
+     * Os campos salariais são tratados à parte (ver salaryFields).
+     */
+    private function typeFields(string $code, array $data): array
+    {
+        $fields = [];
+
+        foreach (config('declaracoes.types.'.$code, []) as $key) {
+            if (in_array($key, self::NON_DOCUMENT_FIELDS, true)) {
+                continue;
+            }
+
+            $value = $data['declaration'][$key] ?? null;
+
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $label = config('declaracoes.fields.'.$key.'.label', $key);
+            $fields[$label] = $this->formatFieldValue($key, $value);
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Campos salariais do tipo; usa os valores do pedido ou cai para o cálculo automático.
+     */
+    private function salaryFields(string $code, array $data): array
+    {
+        $declaration = $data['declaration'];
+        $fields = $this->typeFields($code, $data);
+
+        if (empty($declaration['salario_numero'])) {
+            return array_merge($fields, $this->remunerationFields($data['remuneration']));
+        }
+
+        $tipo = $declaration['tipo_salario'] ?? 'base';
+        $label = $this->salaryLabel($tipo);
+
+        $fields[$label] = $this->money($declaration['salario_numero']);
+        $fields[$label.' (por extenso)'] = ucfirst(
+            $declaration['salario_extenso'] ?? NumberToWordsPt::moneyToWords($declaration['salario_numero'])
+        );
+
+        if (! empty($declaration['salario_numero_liquido'])) {
+            $fields['Salário líquido'] = $this->money($declaration['salario_numero_liquido']);
+            $fields['Salário líquido (por extenso)'] = ucfirst(
+                $declaration['salario_extenso_liquido'] ?? NumberToWordsPt::moneyToWords($declaration['salario_numero_liquido'])
+            );
+        }
+
+        return $fields;
+    }
+
+    private function salaryLabel(string $tipo): string
+    {
+        return match ($tipo) {
+            'liquido' => 'Salário líquido',
+            'base_e_liquido' => 'Salário base',
+            default => 'Salário',
+        };
+    }
+
+    private function formatFieldValue(string $key, $value): string
+    {
+        return match ($key) {
+            'salario_numero', 'salario_numero_liquido' => $this->money($value),
+            'salario_extenso', 'salario_extenso_liquido' => ucfirst((string) $value),
+            'data_emissao', 'data_admissao_completa' => DeclarationText::dateLonghand($value) ?? (string) $value,
+            default => (string) $value,
+        };
+    }
+
+    private function subject(array $data, Employee $employee): string
+    {
+        $declaration = $data['declaration'];
+        $gender = DeclarationText::gender($declaration['sexo'] ?? $employee->gender);
+        $name = mb_strtoupper($declaration['nome_completo'] ?? $employee->full_name);
+
+        return $gender['tratamento'].' '.$name;
+    }
+
+    private function funcionario(array $data): string
+    {
+        return DeclarationText::funcionario($data['declaration']['sexo'] ?? null);
     }
 
     private function commonFields(array $data, Employee $employee): array
@@ -462,15 +595,61 @@ class DeclarationRequestService extends AbstractService
 
     private function withContextFields(array $fields, ?array $context): array
     {
-        if (!empty($context['institution_name'])) {
+        if (! empty($context['institution_name'])) {
             $fields['Instituição'] = $context['institution_name'];
         }
 
-        if (!empty($context['purpose'])) {
+        if (! empty($context['purpose'])) {
             $fields['Finalidade'] = $context['purpose'];
         }
 
         return $fields;
+    }
+
+    private function extractDeclarationFields(array $context): array
+    {
+        $declaration = [];
+
+        foreach (DeclarationRequest::FIELD_LIST as $key) {
+            if (isset($context[$key]) && $context[$key] !== null && $context[$key] !== '') {
+                $declaration[$key] = $context[$key];
+            }
+        }
+
+        return $declaration;
+    }
+
+    /**
+     * Preenche valores derivados: data de emissão, extenso do salário, dados do funcionário.
+     */
+    private function applyDerivedValues(array $data, Employee $employee): array
+    {
+        $data['nome_completo'] = $data['nome_completo'] ?? $employee->full_name;
+        $data['sexo'] = $data['sexo'] ?? $employee->gender;
+        $data['data_emissao'] = $data['data_emissao'] ?? now()->toDateString();
+
+        if (! empty($data['salario_numero']) && empty($data['salario_extenso'])) {
+            $data['salario_extenso'] = NumberToWordsPt::moneyToWords($data['salario_numero']);
+        }
+
+        if (! empty($data['salario_numero_liquido']) && empty($data['salario_extenso_liquido'])) {
+            $data['salario_extenso_liquido'] = NumberToWordsPt::moneyToWords($data['salario_numero_liquido']);
+        }
+
+        return $data;
+    }
+
+    private function requestFields(DeclarationRequest $request): array
+    {
+        return $request->only(array_merge(
+            [
+                'purpose',
+                'institution_name',
+                'institution_type',
+                'additional_info',
+            ],
+            DeclarationRequest::FIELD_LIST
+        ));
     }
 
     private function employeeData(Employee $employee): array
@@ -494,7 +673,7 @@ class DeclarationRequestService extends AbstractService
 
     private function remunerationData(Employee $employee, ?Payslip $payslip): array
     {
-        if (!$payslip) {
+        if (! $payslip) {
             return [
                 'base_salary' => $employee->base_salary ?? 0,
                 'transport_allowance' => 0,
@@ -524,18 +703,20 @@ class DeclarationRequestService extends AbstractService
     private function findType(int $typeId)
     {
         $type = \App\Models\RH\Declaration\DeclarationType::find($typeId);
-        if (!$type) {
+        if (! $type) {
             throw new ModelNotFoundException('Tipo de declaração não encontrado.');
         }
+
         return $type;
     }
 
     private function findEmployee(int $employeeId): Employee
     {
         $employee = Employee::find($employeeId);
-        if (!$employee) {
+        if (! $employee) {
             throw new ModelNotFoundException('Funcionário não encontrado.');
         }
+
         return $employee;
     }
 
@@ -549,7 +730,7 @@ class DeclarationRequestService extends AbstractService
             $notifiables[] = $department->responsible;
         }
 
-        if (!empty($notifiables)) {
+        if (! empty($notifiables)) {
             Notification::send($notifiables, new DeclarationRequestNotification($request, 'submitted'));
         }
     }
@@ -557,7 +738,7 @@ class DeclarationRequestService extends AbstractService
     private function notifyEmployee(DeclarationRequest $request, string $action, ?string $comment): void
     {
         $user = $request->employee?->user;
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
@@ -567,7 +748,8 @@ class DeclarationRequestService extends AbstractService
     private function generateIssuedNumber(DeclarationRequest $request): string
     {
         $typeCode = strtoupper(substr($request->declarationType?->code ?? 'DEC', 0, 4));
-        return $typeCode . '-' . $request->reference_number;
+
+        return $typeCode.'-'.$request->reference_number;
     }
 
     private function dateLabel(?\Illuminate\Support\Carbon $date): ?string
@@ -590,6 +772,6 @@ class DeclarationRequestService extends AbstractService
 
     private function money($value): string
     {
-        return number_format((float) ($value ?? 0), 2, ',', '.') . ' Kz';
+        return number_format((float) ($value ?? 0), 2, ',', '.').' Kz';
     }
 }
