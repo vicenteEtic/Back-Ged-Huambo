@@ -14,6 +14,16 @@
 return [
 
     /*
+    | Valores por omissão preenchidos automaticamente pelo backend.
+    */
+    'defaults' => [
+        'institution_name' => 'Governo da Província do Huambo',
+        'entidade_empregadora' => 'Governo da Província do Huambo',
+        'departamento_emissor' => 'Gabinete de Recursos Humanos',
+        'assinante_cargo' => 'O DIRECTOR',
+    ],
+
+    /*
     | Campos comuns — presentes em TODOS os tipos de declaração.
     */
     'common_fields' => [
@@ -138,7 +148,8 @@ return [
             'label' => 'Número da declaração',
             'type' => 'text',
             'group' => 'comum',
-            'placeholder' => 'N.º 45/026',
+            'derived' => true,
+            'description' => 'Gerado automaticamente pelo sistema (ex.: 0001/GAB-RH/2026).',
         ],
         'assinante_nome' => [
             'label' => 'Nome do assinante',

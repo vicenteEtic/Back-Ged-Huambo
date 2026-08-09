@@ -6,14 +6,16 @@ use App\Models\RH\Declaration\DeclarationRequest;
 use App\Models\RH\Declaration\DeclarationType;
 use App\Models\RH\Department\Department;
 use App\Models\RH\Employee\Employee;
+use App\Models\RH\Payroll\Payslip;
 use App\Models\RH\Position\Position;
-use Illuminate\Support\Facades\Storage;
 use Tests\Feature\RH\RhTestCase;
 
 class DeclarationFieldsTest extends RhTestCase
 {
     protected Department $department;
+
     protected Position $position;
+
     protected Employee $employee;
 
     protected function setUp(): void
@@ -34,7 +36,7 @@ class DeclarationFieldsTest extends RhTestCase
     {
         $type = DeclarationType::factory()->create(['code' => 'credito_express']);
 
-        $response = $this->getJsonAuth('/api/rh/declarations/types/' . $type->code . '/fields');
+        $response = $this->getJsonAuth('/api/rh/declarations/types/'.$type->code.'/fields');
 
         $response->assertStatus(200)
             ->assertJsonPath('type.code', 'credito_express')
@@ -96,6 +98,57 @@ class DeclarationFieldsTest extends RhTestCase
         );
     }
 
+    public function test_submit_prefills_employee_data_and_auto_generates_declaration_number(): void
+    {
+        $type = DeclarationType::factory()->create(['code' => 'informacao_salarial']);
+
+        $employee = Employee::factory()->create([
+            'full_name' => 'MARIA FERNANDA DOS SANTOS',
+            'gender' => 'feminino',
+            'base_salary' => 900000.00,
+            'hire_date' => '2015-04-10',
+            'bank_name' => 'BAI',
+            'bank_iban' => 'AO0600000000000000000000000000001',
+            'contract_type' => 'efectivo',
+            'document_type' => 'bi',
+            'document_number' => '002345678901',
+            'department_id' => $this->department->id,
+            'position_id' => $this->position->id,
+        ]);
+
+        Payslip::factory()->create([
+            'employee_id' => $employee->id,
+            'net_pay' => 750000.00,
+        ]);
+
+        $response = $this->postJsonAuth('/api/rh/declarations', [
+            'employee_id' => $employee->id,
+            'declaration_type_id' => $type->id,
+        ]);
+
+        $response->assertStatus(201);
+
+        $declaration = DeclarationRequest::find($response->json('id'));
+
+        $this->assertMatchesRegularExpression('/^\d{4}\/GAB-RH\/'.date('Y').'$/', $declaration->numero_declaracao);
+        $this->assertSame('MARIA FERNANDA DOS SANTOS', $declaration->nome_completo);
+        $this->assertSame('feminino', $declaration->sexo);
+        $this->assertSame('900000.00', (string) $declaration->salario_numero);
+        $this->assertSame('novecentos mil kwanzas', $declaration->salario_extenso);
+        $this->assertSame('750000.00', (string) $declaration->salario_numero_liquido);
+        $this->assertSame('BAI', $declaration->banco);
+        $this->assertSame('Contrato de Trabalho por Tempo Indeterminado', $declaration->vinculo);
+        $this->assertSame('002345678901', $declaration->numero_bi);
+        $this->assertSame($this->position->name, $declaration->cargo);
+        $this->assertNotNull($declaration->categoria_funcao);
+        $this->assertSame('desde Abril de 2015', $declaration->data_admissao);
+        $this->assertSame('2015-04-10', $declaration->data_admissao_completa);
+
+        $content = $declaration->content;
+        $this->assertSame('900.000,00 Kz', $content['fields']['Salário']);
+        $this->assertSame('750.000,00 Kz', $content['fields']['Salário líquido']);
+    }
+
     public function test_submit_validates_enum_fields(): void
     {
         $type = DeclarationType::factory()->create(['code' => 'cartao_debito']);
@@ -128,7 +181,7 @@ class DeclarationFieldsTest extends RhTestCase
             ],
         ]);
 
-        $response = $this->getJsonAuth('/api/rh/declarations/' . $declaration->id . '/download');
+        $response = $this->getJsonAuth('/api/rh/declarations/'.$declaration->id.'/download');
 
         $response->assertStatus(200)
             ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -148,7 +201,7 @@ class DeclarationFieldsTest extends RhTestCase
             'status' => 'rejected',
         ]);
 
-        $this->getJsonAuth('/api/rh/declarations/' . $declaration->id . '/download')
+        $this->getJsonAuth('/api/rh/declarations/'.$declaration->id.'/download')
             ->assertStatus(422);
     }
 }

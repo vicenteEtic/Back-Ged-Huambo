@@ -620,13 +620,39 @@ class DeclarationRequestService extends AbstractService
     }
 
     /**
-     * Preenche valores derivados: data de emissão, extenso do salário, dados do funcionário.
+     * Preenche valores derivados e dados do funcionário vindos da base de dados.
+     * Os valores enviados pelo frontend têm sempre prioridade.
      */
     private function applyDerivedValues(array $data, Employee $employee): array
     {
+        $employee->loadMissing(['position', 'department', 'careerCategory', 'careerRegime']);
+
+        $defaults = config('declaracoes.defaults', []);
+
         $data['nome_completo'] = $data['nome_completo'] ?? $employee->full_name;
-        $data['sexo'] = $data['sexo'] ?? $employee->gender;
+        $data['sexo'] = $data['sexo'] ?? $this->normalizeGender($employee->gender);
         $data['data_emissao'] = $data['data_emissao'] ?? now()->toDateString();
+        $data['numero_declaracao'] = $data['numero_declaracao'] ?? $this->generateDeclarationNumber();
+
+        $data['categoria_funcao'] = $data['categoria_funcao'] ?? $employee->careerCategory?->name ?? $employee->position?->name;
+        $data['cargo'] = $data['cargo'] ?? $employee->position?->name;
+        $data['local_servico'] = $data['local_servico'] ?? $employee->department?->name;
+        $data['vinculo'] = $data['vinculo'] ?? $this->contractTypeLabel($employee->contract_type);
+        $data['banco'] = $data['banco'] ?? $employee->bank_name;
+        $data['numero_conta'] = $data['numero_conta'] ?? $employee->bank_iban;
+        $data['tipo_salario'] = $data['tipo_salario'] ?? 'base';
+        $data['salario_numero'] = $data['salario_numero'] ?? $employee->base_salary;
+        $data['salario_numero_liquido'] = $data['salario_numero_liquido'] ?? $this->netSalary($employee);
+        $data['data_admissao'] = $data['data_admissao'] ?? $this->admissionLabel($employee->hire_date);
+        $data['data_admissao_completa'] = $data['data_admissao_completa'] ?? $employee->hire_date?->toDateString();
+        $data['numero_bi'] = $data['numero_bi'] ?? $this->documentNumberLabel($employee);
+        $data['telefone'] = $data['telefone'] ?? $employee->phone;
+        $data['email'] = $data['email'] ?? $employee->personal_email;
+        $data['morada'] = $data['morada'] ?? $employee->address;
+        $data['tratamento'] = $data['tratamento'] ?? DeclarationText::gender($data['sexo'])['tratamento'];
+        $data['tempo_servico'] = $data['tempo_servico'] ?? $this->serviceTimeLabel($employee);
+        $data['entidade_empregadora'] = $data['entidade_empregadora'] ?? ($defaults['entidade_empregadora'] ?? null);
+        $data['departamento_emissor'] = $data['departamento_emissor'] ?? ($defaults['departamento_emissor'] ?? null);
 
         if (! empty($data['salario_numero']) && empty($data['salario_extenso'])) {
             $data['salario_extenso'] = NumberToWordsPt::moneyToWords($data['salario_numero']);
@@ -637,6 +663,93 @@ class DeclarationRequestService extends AbstractService
         }
 
         return $data;
+    }
+
+    private function generateDeclarationNumber(): string
+    {
+        $year = now()->year;
+        $suffix = '/GAB-RH/'.$year;
+
+        $max = DeclarationRequest::withTrashed()
+            ->whereNotNull('numero_declaracao')
+            ->where('numero_declaracao', 'like', '%'.$suffix)
+            ->pluck('numero_declaracao')
+            ->map(fn ($value) => preg_match('/^(\d+)\/GAB-RH\/\d+$/', (string) $value, $m) ? (int) $m[1] : 0)
+            ->max();
+
+        return str_pad(($max ?? 0) + 1, 4, '0', STR_PAD_LEFT).'/GAB-RH/'.$year;
+    }
+
+    private function normalizeGender(?string $gender): ?string
+    {
+        return match (mb_strtolower((string) $gender)) {
+            'male', 'masculino', 'm' => 'masculino',
+            'female', 'feminino', 'f' => 'feminino',
+            default => $gender ?: null,
+        };
+    }
+
+    private function contractTypeLabel(?string $type): ?string
+    {
+        return match ($type) {
+            'efectivo', 'efetivo', 'indeterminado' => 'Contrato de Trabalho por Tempo Indeterminado',
+            'prestacao_servicos', 'prestacao_serviços' => 'Contrato de Prestação de Serviços',
+            'determinado', 'temporario' => 'Contrato de Trabalho por Tempo Determinado',
+            'estagiario', 'estagiário' => 'Estagiário',
+            'comissao', 'comissao_servico' => 'Comissão de Serviço',
+            default => $type ?: null,
+        };
+    }
+
+    private function serviceTimeLabel(Employee $employee): ?string
+    {
+        if (! $employee->hire_date) {
+            return null;
+        }
+
+        $diff = $employee->hire_date->diff(now());
+        $parts = [];
+
+        if ($diff->y > 0) {
+            $parts[] = $diff->y.' ano'.($diff->y > 1 ? 's' : '');
+        }
+
+        if ($diff->m > 0) {
+            $parts[] = $diff->m.' mes'.($diff->m > 1 ? 'es' : '');
+        }
+
+        return empty($parts) ? null : 'há '.implode(' e ', $parts);
+    }
+
+    private function admissionLabel(?\Illuminate\Support\Carbon $date): ?string
+    {
+        if (! $date) {
+            return null;
+        }
+
+        return 'desde '.DeclarationText::monthYear($date);
+    }
+
+    private function documentNumberLabel(Employee $employee): ?string
+    {
+        if (empty($employee->document_type) || empty($employee->document_number)) {
+            return null;
+        }
+
+        $tipo = mb_strtolower($employee->document_type);
+
+        return (str_contains($tipo, 'bi') || str_contains($tipo, 'bilhete'))
+            ? $employee->document_number
+            : null;
+    }
+
+    private function netSalary(Employee $employee): ?float
+    {
+        $payslip = Payslip::where('employee_id', $employee->id)
+            ->latest('generated_at')
+            ->first();
+
+        return $payslip?->net_pay;
     }
 
     private function requestFields(DeclarationRequest $request): array

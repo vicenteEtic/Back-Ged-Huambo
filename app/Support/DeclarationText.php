@@ -59,6 +59,20 @@ class DeclarationText
     }
 
     /**
+     * Mês e ano por extenso: "Março de 2022".
+     */
+    public static function monthYear(Carbon|string|null $date): ?string
+    {
+        if (empty($date)) {
+            return null;
+        }
+
+        $date = $date instanceof Carbon ? $date : Carbon::parse($date);
+
+        return self::MONTHS[$date->month].' de '.$date->year;
+    }
+
+    /**
      * Textos derivados do sexo do funcionário.
      */
     public static function gender(?string $sexo): array

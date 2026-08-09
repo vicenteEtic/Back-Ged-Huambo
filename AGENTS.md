@@ -265,6 +265,8 @@
 |------|--------|
 | 17 tipos de declaração | `DeclarationTypeEnum` + seeder com `code/name/description/requires_approval` |
 | Formulário dinâmico | `GET /api/rh/declarations/types/{code}/fields` devolve campos comuns + específicos do tipo (metadados em `config/declaracoes.php`) |
+| `numero_declaracao` | **auto-gerado** pelo backend: sequência anual `0001/GAB-RH/2026` (campo marcado `derived` no config — o frontend não o envia) |
+| Prefill da BD | `nome_completo`, `sexo`, `categoria_funcao`, `cargo`, `local_servico`, `vinculo`, `banco`, `numero_conta`, `salario_numero` (base), `salario_numero_liquido` (payslip), `data_admissao`, `numero_bi`, `telefone`, `email`, `morada`, `tratamento`, `tempo_servico`, `entidade_empregadora`, `departamento_emissor` são preenchidos do funcionário (valores enviados têm prioridade) |
 | Base de dados | **Todos** os campos de declaração como colunas **nuláveis** em `declaration_requests` (37 colunas: comuns, quase-comuns e específicos) |
 | `salario_extenso` | gerado automaticamente a partir de `salario_numero` (`App\Support\NumberToWordsPt`, PT) |
 | `data_emissao` por extenso | "aos 30 de Março de 2026" (`App\Support\DeclarationText::dateSentence`) |
