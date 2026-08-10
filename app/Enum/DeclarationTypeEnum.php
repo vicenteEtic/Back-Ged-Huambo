@@ -95,7 +95,7 @@ enum DeclarationTypeEnum: string
     }
 
     /**
-     * Campos específicos do tipo (para além dos comuns).
+     * Campos específicos do tipo de declaração.
      */
     public function fields(): array
     {
@@ -103,11 +103,12 @@ enum DeclarationTypeEnum: string
     }
 
     /**
-     * Todos os campos do formulário: comuns + específicos do tipo.
+     * Todos os campos do formulário: apenas os específicos do tipo.
+     * Os campos comuns são auto-preenchidos pelo backend.
      */
     public function formFields(): array
     {
-        return array_merge(config('declaracoes.common_fields', []), $this->fields());
+        return $this->fields();
     }
 
     public static function values(): array

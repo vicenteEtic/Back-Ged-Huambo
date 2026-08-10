@@ -9,6 +9,8 @@
 | Serve de fonte para o formulário dinâmico (frontend), para a validação
 | e para a geração do conteúdo/documento.
 |
+| Os field keys estão em inglês e correspondem a colunas em declaration_requests.
+|
 */
 
 return [
@@ -18,104 +20,100 @@ return [
     */
     'defaults' => [
         'institution_name' => 'Governo da Província do Huambo',
-        'entidade_empregadora' => 'Governo da Província do Huambo',
-        'departamento_emissor' => 'Gabinete de Recursos Humanos',
-        'assinante_cargo' => 'O DIRECTOR',
+        'employer_entity' => 'Governo da Província do Huambo',
+        'issuing_department' => 'Gabinete de Recursos Humanos',
+        'signer_role' => 'O DIRECTOR',
     ],
 
     /*
-    | Campos comuns — presentes em TODOS os tipos de declaração.
+    | Campos comuns (full_name, gender, issue_date, declaration_number, signer)
+    | são auto-preenchidos pelo backend a partir do funcionário e do sistema.
+    | Não devem constar no formulário dinâmico — apenas nos campos específicos de cada tipo.
     */
-    'common_fields' => [
-        'nome_completo',
-        'sexo',
-        'data_emissao',
-        'numero_declaracao',
-        'assinante_nome',
-        'assinante_cargo',
-    ],
 
     /*
     | Campos quase-comuns — usados em muitos tipos, mas não em todos.
     */
     'quase_comuns_fields' => [
-        'categoria_funcao',
-        'local_servico',
-        'vinculo',
-        'banco',
-        'tipo_salario',
-        'salario_numero',
-        'salario_extenso',
-        'salario_numero_liquido',
-        'salario_extenso_liquido',
+        'position_category',
+        'workplace',
+        'employment_bond',
+        'bank',
+        'salary_type',
+        'salary_amount',
+        'salary_words',
+        'net_salary_amount',
+        'net_salary_words',
     ],
 
     /*
-    | Mapeamento: tipo de declaração -> campos específicos (para além dos comuns).
+    | Mapeamento: tipo de declaração -> campos do formulário (apenas os específicos do documento).
+    | Os campos comuns (full_name, gender, issue_date, declaration_number, signer) são derivados
+    | automaticamente pelo backend e não fazem parte do formulário.
     */
     'types' => [
         'informacao_salarial' => [
-            'tratamento', 'cargo', 'vinculo', 'tipo_salario', 'salario_numero', 'salario_extenso',
-            'salario_numero_liquido', 'salario_extenso_liquido',
+            'salutation', 'position', 'employment_bond', 'salary_type', 'salary_amount', 'salary_words',
+            'net_salary_amount', 'net_salary_words',
         ],
         'actualizacao_categoria' => [
-            'tratamento', 'cargo', 'vinculo', 'tipo_salario', 'salario_numero', 'salario_extenso',
+            'salutation', 'position', 'employment_bond', 'salary_type', 'salary_amount', 'salary_words',
         ],
         'actualizacao_conta_bancaria' => [
-            'categoria_funcao', 'local_servico', 'vinculo', 'banco', 'tipo_salario',
-            'salario_numero', 'salario_extenso',
+            'position_category', 'workplace', 'employment_bond', 'bank', 'salary_type',
+            'salary_amount', 'salary_words',
         ],
         'adiantamento_salario' => [
-            'categoria_funcao', 'local_servico', 'tempo_servico', 'data_admissao', 'tipo_salario',
-            'salario_numero', 'salario_extenso', 'numero_conta', 'banco',
-            'numero_bi', 'entidade_empregadora', 'data_admissao_completa',
-            'conta_consignacao', 'entidade_pagadora',
+            'position_category', 'workplace', 'service_time', 'admission_label', 'salary_type',
+            'salary_amount', 'salary_words', 'account_number', 'bank',
+            'id_card_number', 'employer_entity', 'admission_date',
+            'consignment_account', 'paying_entity',
         ],
         'aquisicao_residencia' => [
-            'local_residencia', 'categoria_funcao', 'tipo_salario', 'salario_numero', 'salario_extenso',
+            'residence', 'position_category', 'salary_type', 'salary_amount', 'salary_words',
         ],
         'concurso_publico' => [
-            'cargo', 'vinculo', 'departamento_emissor', 'assinante_cargo',
+            'position', 'employment_bond', 'issuing_department', 'signer_role',
         ],
         'consignacao_salarios' => [
-            'numero_conta', 'numero_bi', 'telefone', 'email', 'morada', 'balcao_domicilio',
-            'categoria_funcao', 'vinculo', 'salario_numero', 'finalidade',
+            'account_number', 'id_card_number', 'phone', 'email', 'address', 'domicile_branch',
+            'position_category', 'employment_bond', 'salary_amount', 'credit_purpose',
         ],
         'correccao_nome_sigfe' => [
-            'tipo_correccao', 'categoria_funcao', 'local_servico', 'vinculo',
+            'correction_type', 'position_category', 'workplace', 'employment_bond',
         ],
         'bpc_salario' => [
-            'categoria_funcao', 'local_servico', 'data_admissao', 'tipo_salario',
-            'salario_numero', 'salario_extenso', 'numero_conta', 'finalidade',
+            'position_category', 'workplace', 'admission_label', 'salary_type',
+            'salary_amount', 'salary_words', 'account_number', 'credit_purpose',
         ],
         'credito_express' => [
-            'numero_bi', 'entidade_empregadora', 'categoria_funcao', 'data_admissao_completa',
-            'salario_numero', 'salario_extenso', 'entidade_pagadora', 'dia_pagamento', 'conta_consignacao',
+            'id_card_number', 'employer_entity', 'position_category', 'admission_date',
+            'salary_amount', 'salary_words', 'paying_entity', 'payment_day', 'consignment_account',
         ],
         'credito_pessoal' => [
-            'numero_bi', 'entidade_empregadora', 'local_servico', 'categoria_funcao',
-            'data_admissao_completa', 'salario_numero', 'salario_extenso',
-            'entidade_pagadora', 'dia_pagamento', 'conta_consignacao',
+            'id_card_number', 'employer_entity', 'workplace', 'position_category',
+            'admission_date', 'salary_amount', 'salary_words',
+            'paying_entity', 'payment_day', 'consignment_account',
         ],
         'junta_medica' => [
-            'categoria_funcao', 'local_servico', 'vinculo',
+            'position_category', 'workplace', 'employment_bond',
         ],
         'mudanca_domicilio_bancario' => [
-            'categoria_funcao', 'local_servico', 'vinculo',
+            'position_category', 'workplace', 'employment_bond',
         ],
         'cartao_debito' => [
-            'cargo', 'vinculo', 'tipo_salario', 'salario_numero', 'salario_extenso', 'banco',
+            'position', 'employment_bond', 'salary_type', 'salary_amount', 'salary_words', 'bank',
         ],
         'obtencao_visto' => [
-            'embaixada', 'cidade_embaixada', 'categoria_funcao', 'vinculo', 'tipo_salario',
-            'salario_numero', 'salario_extenso',
+            'embassy', 'embassy_city', 'position_category', 'employment_bond', 'salary_type',
+            'salary_amount', 'salary_words',
         ],
         'transferencia_domiciliacao_salario' => [
-            'numero_agente', 'tempo_servico', 'categoria_funcao', 'salario_numero', 'salario_extenso',
-            'numero_conta', 'banco', 'finalidade',
+            'agent_number', 'service_time', 'position_category', 'salary_amount', 'salary_words',
+            'account_number', 'bank', 'credit_purpose',
         ],
         'tutela_menor' => [
-            'categoria_funcao', 'local_servico', 'vinculo',
+            'position_category', 'workplace', 'employment_bond',
         ],
     ],
 
@@ -123,74 +121,80 @@ return [
     | Metadados de cada campo (rótulo, tipo de input, opções, grupo).
     */
     'fields' => [
-        // Comuns
-        'nome_completo' => [
-            'label' => 'Nome completo',
+        // Common
+        'full_name' => [
+            'label' => 'Full name',
             'type' => 'text',
             'group' => 'comum',
-            'placeholder' => 'Nome completo em maiúsculas',
+            'placeholder' => 'Full name in capital letters',
             'required' => true,
         ],
-        'sexo' => [
-            'label' => 'Sexo',
+        'gender' => [
+            'label' => 'Gender',
             'type' => 'select',
             'group' => 'comum',
-            'options' => ['masculino' => 'Masculino', 'feminino' => 'Feminino'],
+            'options' => ['masculino' => 'Male', 'feminino' => 'Female'],
             'required' => true,
         ],
-        'data_emissao' => [
-            'label' => 'Data de emissão',
+        'issue_date' => [
+            'label' => 'Issue date',
             'type' => 'date',
             'group' => 'comum',
             'required' => true,
         ],
-        'numero_declaracao' => [
-            'label' => 'Número da declaração',
+        'declaration_number' => [
+            'label' => 'Declaration number',
             'type' => 'text',
             'group' => 'comum',
             'derived' => true,
-            'description' => 'Gerado automaticamente pelo sistema (ex.: 0001/GAB-RH/2026).',
+            'description' => 'Generated automatically by the system (e.g.: 0001/GAB-RH/2026).',
         ],
-        'assinante_nome' => [
-            'label' => 'Nome do assinante',
+        'signer_name' => [
+            'label' => 'Signer name',
             'type' => 'text',
             'group' => 'comum',
-            'placeholder' => 'Director do Gabinete de Recursos Humanos',
+            'placeholder' => 'Director of the Human Resources Office',
         ],
-        'assinante_cargo' => [
-            'label' => 'Cargo do assinante',
+        'signer_role' => [
+            'label' => 'Signer role',
             'type' => 'text',
             'group' => 'comum',
-            'placeholder' => 'O DIRECTOR',
+            'placeholder' => 'THE DIRECTOR',
         ],
 
-        // Quase-comuns
-        'categoria_funcao' => [
-            'label' => 'Categoria/Função',
+        // Almost-common
+        'position_category' => [
+            'label' => 'Position/Category',
             'type' => 'text',
             'group' => 'quase_comum',
-            'placeholder' => 'Técnico Superior de 1ª Classe',
+            'placeholder' => 'Senior Technician 1st Class',
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s career category.',
         ],
-        'local_servico' => [
-            'label' => 'Local de serviço',
+        'workplace' => [
+            'label' => 'Workplace',
             'type' => 'text',
             'group' => 'quase_comum',
-            'placeholder' => 'Gabinete Jurídico e de Intercâmbio',
+            'placeholder' => 'Legal and Exchange Office',
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s department.',
         ],
-        'vinculo' => [
-            'label' => 'Vínculo',
+        'employment_bond' => [
+            'label' => 'Employment bond',
             'type' => 'select',
             'group' => 'quase_comum',
             'options' => [
-                'Contrato de Trabalho por Tempo Indeterminado' => 'Contrato de Trabalho por Tempo Indeterminado',
-                'Comissão de Serviço' => 'Comissão de Serviço',
-                'Contrato de Trabalho por Tempo Determinado' => 'Contrato de Trabalho por Tempo Determinado',
-                'Contrato de Prestação de Serviços' => 'Contrato de Prestação de Serviços',
-                'Estagiário' => 'Estagiário',
+                'Contrato de Trabalho por Tempo Indeterminado' => 'Open-ended employment contract',
+                'Comissão de Serviço' => 'Service commission',
+                'Contrato de Trabalho por Tempo Determinado' => 'Fixed-term employment contract',
+                'Contrato de Prestação de Serviços' => 'Service provision contract',
+                'Estagiário' => 'Intern',
             ],
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s contract type.',
         ],
-        'banco' => [
-            'label' => 'Banco',
+        'bank' => [
+            'label' => 'Bank',
             'type' => 'select',
             'group' => 'quase_comum',
             'options' => [
@@ -202,172 +206,204 @@ return [
                 'BCA' => 'BCA',
                 'Banco Nacional de Angola' => 'Banco Nacional de Angola',
             ],
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s bank.',
         ],
-        'tipo_salario' => [
-            'label' => 'Tipo de salário',
+        'salary_type' => [
+            'label' => 'Salary type',
             'type' => 'select',
             'group' => 'quase_comum',
             'options' => [
                 'base' => 'Base',
-                'liquido' => 'Líquido',
-                'base_e_liquido' => 'Base e líquido',
+                'liquido' => 'Net',
+                'base_e_liquido' => 'Base and net',
             ],
+            'derived' => true,
+            'description' => 'Filled automatically from the employee record.',
         ],
-        'salario_numero' => [
-            'label' => 'Salário (valor numérico)',
+        'salary_amount' => [
+            'label' => 'Salary (numeric value)',
             'type' => 'number',
             'group' => 'quase_comum',
             'step' => '0.01',
             'min' => '0',
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s base salary.',
         ],
-        'salario_extenso' => [
-            'label' => 'Salário (por extenso)',
+        'salary_words' => [
+            'label' => 'Salary (in words)',
             'type' => 'text',
             'group' => 'quase_comum',
             'derived' => true,
         ],
-        'salario_numero_liquido' => [
-            'label' => 'Salário líquido (valor numérico)',
+        'net_salary_amount' => [
+            'label' => 'Net salary (numeric value)',
             'type' => 'number',
             'group' => 'quase_comum',
             'step' => '0.01',
             'min' => '0',
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s latest net pay.',
         ],
-        'salario_extenso_liquido' => [
-            'label' => 'Salário líquido (por extenso)',
+        'net_salary_words' => [
+            'label' => 'Net salary (in words)',
             'type' => 'text',
             'group' => 'quase_comum',
             'derived' => true,
         ],
 
-        // Específicos
-        'tratamento' => [
-            'label' => 'Tratamento',
+        // Specific
+        'salutation' => [
+            'label' => 'Salutation',
             'type' => 'text',
             'group' => 'especifico',
-            'placeholder' => 'Sua Excelência, Eng.º',
+            'placeholder' => 'Your Excellency, Eng.',
+            'derived' => true,
+            'description' => 'Filled automatically based on the employee\'s gender.',
         ],
-        'cargo' => [
-            'label' => 'Cargo',
+        'position' => [
+            'label' => 'Position',
             'type' => 'text',
             'group' => 'especifico',
-            'placeholder' => 'Chefe de Departamento de Gestão de Carreiras',
+            'placeholder' => 'Head of Career Management Department',
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s position.',
         ],
-        'tempo_servico' => [
-            'label' => 'Tempo de serviço',
+        'service_time' => [
+            'label' => 'Service time',
             'type' => 'text',
             'group' => 'especifico',
-            'placeholder' => 'há 12 anos',
+            'placeholder' => '12 years',
+            'derived' => true,
+            'description' => 'Filled automatically from the employee\'s hire date.',
         ],
-        'data_admissao' => [
-            'label' => 'Data de admissão (mês e ano)',
+        'admission_label' => [
+            'label' => 'Hire date (month and year)',
             'type' => 'text',
             'group' => 'especifico',
-            'placeholder' => 'desde Março de 2022',
+            'placeholder' => 'since March 2022',
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s hire date.',
         ],
-        'data_admissao_completa' => [
-            'label' => 'Data de admissão (completa)',
+        'admission_date' => [
+            'label' => 'Hire date (full)',
             'type' => 'date',
             'group' => 'especifico',
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s hire date.',
         ],
-        'numero_conta' => [
-            'label' => 'Número de conta',
+        'account_number' => [
+            'label' => 'Account number',
+            'type' => 'text',
+            'group' => 'especifico',
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s IBAN/account number.',
+        ],
+        'consignment_account' => [
+            'label' => 'Consignment account',
             'type' => 'text',
             'group' => 'especifico',
         ],
-        'conta_consignacao' => [
-            'label' => 'Conta de consignação',
+        'id_card_number' => [
+            'label' => 'Identity Card number',
             'type' => 'text',
             'group' => 'especifico',
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s document number.',
         ],
-        'numero_bi' => [
-            'label' => 'Número do Bilhete de Identidade',
+        'agent_number' => [
+            'label' => 'Agent number',
             'type' => 'text',
             'group' => 'especifico',
+            'placeholder' => 'Agent no. 90963989',
         ],
-        'numero_agente' => [
-            'label' => 'Número de agente',
+        'phone' => [
+            'label' => 'Phone',
             'type' => 'text',
             'group' => 'especifico',
-            'placeholder' => 'Agente n.º 90963989',
-        ],
-        'telefone' => [
-            'label' => 'Telefone',
-            'type' => 'text',
-            'group' => 'especifico',
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s phone number.',
         ],
         'email' => [
             'label' => 'Email',
             'type' => 'email',
             'group' => 'especifico',
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s email.',
         ],
-        'morada' => [
-            'label' => 'Morada',
+        'address' => [
+            'label' => 'Address',
             'type' => 'textarea',
             'group' => 'especifico',
+            'derived' => true,
+            'description' => 'Filled automatically with the employee\'s address.',
         ],
-        'balcao_domicilio' => [
-            'label' => 'Balcão de domicílio',
+        'domicile_branch' => [
+            'label' => 'Domicile branch',
             'type' => 'text',
             'group' => 'especifico',
-            'placeholder' => 'Agência Cidade Alta',
+            'placeholder' => 'Cidade Alta branch',
         ],
-        'finalidade' => [
-            'label' => 'Finalidade',
+        'credit_purpose' => [
+            'label' => 'Credit purpose',
             'type' => 'text',
             'group' => 'especifico',
-            'placeholder' => 'Despesas Pessoais',
+            'placeholder' => 'Personal expenses',
         ],
-        'entidade_empregadora' => [
-            'label' => 'Entidade empregadora',
+        'employer_entity' => [
+            'label' => 'Employer entity',
+            'type' => 'text',
+            'group' => 'especifico',
+            'placeholder' => 'Governo da Província do Huambo',
+            'derived' => true,
+            'description' => 'Filled automatically with the default employer entity.',
+        ],
+        'paying_entity' => [
+            'label' => 'Paying entity',
             'type' => 'text',
             'group' => 'especifico',
             'placeholder' => 'Governo da Província do Huambo',
         ],
-        'entidade_pagadora' => [
-            'label' => 'Entidade pagadora',
+        'payment_day' => [
+            'label' => 'Payment day',
             'type' => 'text',
             'group' => 'especifico',
-            'placeholder' => 'Governo da Província do Huambo',
+            'placeholder' => 'until the 30th of each month',
         ],
-        'dia_pagamento' => [
-            'label' => 'Dia de pagamento',
+        'embassy' => [
+            'label' => 'Embassy',
             'type' => 'text',
             'group' => 'especifico',
-            'placeholder' => 'até ao dia 30 de cada mês',
+            'placeholder' => 'Embassy of Portugal',
         ],
-        'embaixada' => [
-            'label' => 'Embaixada',
-            'type' => 'text',
-            'group' => 'especifico',
-            'placeholder' => 'Embaixada de Portugal',
-        ],
-        'cidade_embaixada' => [
-            'label' => 'Cidade da embaixada',
+        'embassy_city' => [
+            'label' => 'Embassy city',
             'type' => 'text',
             'group' => 'especifico',
             'placeholder' => 'Luanda',
         ],
-        'local_residencia' => [
-            'label' => 'Local de residência',
+        'residence' => [
+            'label' => 'Place of residence',
             'type' => 'text',
             'group' => 'especifico',
-            'placeholder' => 'Centralidade Halavala, do Município do Bailundo',
+            'placeholder' => 'Halavala Centrality, Bailundo Municipality',
         ],
-        'tipo_correccao' => [
-            'label' => 'Tipo de correcção',
+        'correction_type' => [
+            'label' => 'Correction type',
             'type' => 'select',
             'group' => 'especifico',
             'options' => [
-                'correccao' => 'Correcção',
-                'acrescimo' => 'Acréscimo',
+                'correccao' => 'Correction',
+                'acrescimo' => 'Increase',
             ],
         ],
-        'departamento_emissor' => [
-            'label' => 'Departamento emissor',
+        'issuing_department' => [
+            'label' => 'Issuing department',
             'type' => 'text',
             'group' => 'especifico',
-            'placeholder' => 'Departamento de Gestão de Carreiras e Capacitação Técnica',
+            'placeholder' => 'Career Management and Technical Training Department',
+            'derived' => true,
+            'description' => 'Filled automatically with the default issuing department.',
         ],
     ],
 ];

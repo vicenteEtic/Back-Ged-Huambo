@@ -54,11 +54,17 @@ class DeclarationTypeController extends AbstractController
             $fields = [];
 
             foreach ($type->formFields() as $key) {
-                $fields[$key] = config('declaracoes.fields.'.$key, [
+                $meta = config('declaracoes.fields.'.$key, [
                     'label' => ucfirst(str_replace('_', ' ', $key)),
                     'type' => 'text',
                     'group' => 'especifico',
                 ]);
+
+                if (! empty($meta['derived'])) {
+                    continue;
+                }
+
+                $fields[$key] = $meta;
             }
 
             return response()->json([
@@ -67,7 +73,6 @@ class DeclarationTypeController extends AbstractController
                     'name' => $type->label(),
                     'description' => $type->description(),
                 ],
-                'common_fields' => config('declaracoes.common_fields'),
                 'fields' => $fields,
             ]);
         } catch (Exception $e) {

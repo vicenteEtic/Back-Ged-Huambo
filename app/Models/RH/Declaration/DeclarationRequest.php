@@ -41,14 +41,14 @@ class DeclarationRequest extends Model
     }
 
     public const FIELD_LIST = [
-        'nome_completo', 'sexo', 'data_emissao', 'numero_declaracao', 'assinante_nome', 'assinante_cargo',
-        'categoria_funcao', 'local_servico', 'vinculo', 'banco', 'tipo_salario', 'salario_numero',
-        'salario_extenso', 'salario_numero_liquido', 'salario_extenso_liquido',
-        'tratamento', 'cargo', 'tempo_servico', 'data_admissao', 'data_admissao_completa',
-        'numero_conta', 'conta_consignacao', 'numero_bi', 'numero_agente', 'telefone', 'email',
-        'morada', 'balcao_domicilio', 'finalidade', 'entidade_empregadora', 'entidade_pagadora',
-        'dia_pagamento', 'embaixada', 'cidade_embaixada', 'local_residencia', 'tipo_correccao',
-        'departamento_emissor',
+        'full_name', 'gender', 'issue_date', 'declaration_number', 'signer_name', 'signer_role',
+        'position_category', 'workplace', 'employment_bond', 'bank', 'salary_type', 'salary_amount',
+        'salary_words', 'net_salary_amount', 'net_salary_words',
+        'salutation', 'position', 'service_time', 'admission_label', 'admission_date',
+        'account_number', 'consignment_account', 'id_card_number', 'agent_number', 'phone', 'email',
+        'address', 'domicile_branch', 'credit_purpose', 'employer_entity', 'paying_entity',
+        'payment_day', 'embassy', 'embassy_city', 'residence', 'correction_type',
+        'issuing_department',
     ];
 
     protected $fillable = [
@@ -77,9 +77,9 @@ class DeclarationRequest extends Model
             'content' => 'array',
             'issued_at' => 'datetime',
             'approved_at' => 'datetime',
-            'data_emissao' => 'date',
-            'salario_numero' => 'decimal:2',
-            'salario_numero_liquido' => 'decimal:2',
+            'issue_date' => 'date',
+            'salary_amount' => 'decimal:2',
+            'net_salary_amount' => 'decimal:2',
         ];
     }
 

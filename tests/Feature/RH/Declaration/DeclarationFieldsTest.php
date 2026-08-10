@@ -32,7 +32,7 @@ class DeclarationFieldsTest extends RhTestCase
         ]);
     }
 
-    public function test_type_fields_returns_common_and_specific_fields(): void
+    public function test_type_fields_returns_specific_fields(): void
     {
         $type = DeclarationType::factory()->create(['code' => 'credito_express']);
 
@@ -40,11 +40,11 @@ class DeclarationFieldsTest extends RhTestCase
 
         $response->assertStatus(200)
             ->assertJsonPath('type.code', 'credito_express')
-            ->assertJsonPath('common_fields.0', 'nome_completo')
+            ->assertJsonMissingPath('common_fields')
             ->assertJsonStructure(['fields' => [
-                'numero_bi' => ['label', 'type'],
-                'entidade_empregadora' => ['label', 'type'],
-                'data_admissao_completa' => ['label', 'type'],
+                'paying_entity' => ['label', 'type'],
+                'payment_day' => ['label', 'type'],
+                'consignment_account' => ['label', 'type'],
             ]]);
     }
 
@@ -54,6 +54,40 @@ class DeclarationFieldsTest extends RhTestCase
             ->assertStatus(404);
     }
 
+    public function test_salary_fields_are_excluded_from_form(): void
+    {
+        $type = DeclarationType::factory()->create(['code' => 'informacao_salarial']);
+
+        $response = $this->getJsonAuth('/api/rh/declarations/types/'.$type->code.'/fields');
+
+        $response->assertStatus(200);
+
+        foreach (['salary_type', 'salary_amount', 'net_salary_amount', 'salary_words', 'net_salary_words'] as $key) {
+            $response->assertJsonMissingPath('fields.'.$key);
+        }
+    }
+
+    public function test_employee_derived_fields_are_excluded_from_form(): void
+    {
+        $byType = [
+            'adiantamento_salario' => ['position_category', 'workplace', 'bank', 'id_card_number'],
+            'correccao_nome_sigfe' => ['employment_bond'],
+            'informacao_salarial' => ['position'],
+            'concurso_publico' => ['issuing_department'],
+        ];
+
+        foreach ($byType as $code => $keys) {
+            $type = DeclarationType::factory()->create(['code' => $code]);
+
+            $response = $this->getJsonAuth('/api/rh/declarations/types/'.$type->code.'/fields');
+            $response->assertStatus(200);
+
+            foreach ($keys as $key) {
+                $response->assertJsonMissingPath('fields.'.$key);
+            }
+        }
+    }
+
     public function test_submit_stores_all_fields_and_generates_salary_extenso(): void
     {
         $type = DeclarationType::factory()->create(['code' => 'credito_express']);
@@ -61,40 +95,40 @@ class DeclarationFieldsTest extends RhTestCase
         $response = $this->postJsonAuth('/api/rh/declarations', [
             'employee_id' => $this->employee->id,
             'declaration_type_id' => $type->id,
-            'numero_bi' => '002456789012',
-            'entidade_empregadora' => 'Governo da Província do Huambo',
-            'entidade_pagadora' => 'Governo da Província do Huambo',
-            'data_admissao_completa' => '2008-02-12',
-            'dia_pagamento' => 'até ao dia 30 de cada mês',
-            'conta_consignacao' => 'BFA-123456789',
-            'salario_numero' => 1250000.50,
-            'categoria_funcao' => 'Técnico Superior de 1ª Classe',
-            'sexo' => 'feminino',
+            'id_card_number' => '002456789012',
+            'employer_entity' => 'Governo da Província do Huambo',
+            'paying_entity' => 'Governo da Província do Huambo',
+            'admission_date' => '2008-02-12',
+            'payment_day' => 'até ao dia 30 de cada mês',
+            'consignment_account' => 'BFA-123456789',
+            'salary_amount' => 1250000.50,
+            'position_category' => 'Técnico Superior de 1ª Classe',
+            'gender' => 'feminino',
         ]);
 
         $response->assertStatus(201);
 
         $declaration = DeclarationRequest::find($response->json('id'));
 
-        $this->assertSame('002456789012', $declaration->numero_bi);
-        $this->assertSame('Governo da Província do Huambo', $declaration->entidade_empregadora);
-        $this->assertSame('1250000.50', (string) $declaration->salario_numero);
+        $this->assertSame('002456789012', $declaration->id_card_number);
+        $this->assertSame('Governo da Província do Huambo', $declaration->employer_entity);
+        $this->assertSame('1250000.50', (string) $declaration->salary_amount);
         $this->assertSame(
             'um milhão duzentos e cinquenta mil kwanzas e cinquenta centavos',
-            $declaration->salario_extenso
+            $declaration->salary_words
         );
-        $this->assertSame($this->employee->full_name, $declaration->nome_completo);
-        $this->assertSame('feminino', $declaration->sexo);
-        $this->assertNotNull($declaration->data_emissao);
+        $this->assertSame($this->employee->full_name, $declaration->full_name);
+        $this->assertSame('feminino', $declaration->gender);
+        $this->assertNotNull($declaration->issue_date);
 
         $content = $declaration->content;
         $this->assertArrayHasKey('statement', $content);
-        $this->assertArrayHasKey('data_emissao_extenso', $content);
+        $this->assertArrayHasKey('issue_date_extenso', $content);
         $this->assertStringContainsString('Senhora', $content['statement']);
-        $this->assertSame('1.250.000,50 Kz', $content['fields']['Salário']);
+        $this->assertSame('1.250.000,50 Kz', $content['fields']['Salary']);
         $this->assertSame(
             'Um milhão duzentos e cinquenta mil kwanzas e cinquenta centavos',
-            $content['fields']['Salário (por extenso)']
+            $content['fields']['Salary (in words)']
         );
     }
 
@@ -130,23 +164,23 @@ class DeclarationFieldsTest extends RhTestCase
 
         $declaration = DeclarationRequest::find($response->json('id'));
 
-        $this->assertMatchesRegularExpression('/^\d{4}\/GAB-RH\/'.date('Y').'$/', $declaration->numero_declaracao);
-        $this->assertSame('MARIA FERNANDA DOS SANTOS', $declaration->nome_completo);
-        $this->assertSame('feminino', $declaration->sexo);
-        $this->assertSame('900000.00', (string) $declaration->salario_numero);
-        $this->assertSame('novecentos mil kwanzas', $declaration->salario_extenso);
-        $this->assertSame('750000.00', (string) $declaration->salario_numero_liquido);
-        $this->assertSame('BAI', $declaration->banco);
-        $this->assertSame('Contrato de Trabalho por Tempo Indeterminado', $declaration->vinculo);
-        $this->assertSame('002345678901', $declaration->numero_bi);
-        $this->assertSame($this->position->name, $declaration->cargo);
-        $this->assertNotNull($declaration->categoria_funcao);
-        $this->assertSame('desde Abril de 2015', $declaration->data_admissao);
-        $this->assertSame('2015-04-10', $declaration->data_admissao_completa);
+        $this->assertMatchesRegularExpression('/^\d{4}\/GAB-RH\/'.date('Y').'$/', $declaration->declaration_number);
+        $this->assertSame('MARIA FERNANDA DOS SANTOS', $declaration->full_name);
+        $this->assertSame('feminino', $declaration->gender);
+        $this->assertSame('900000.00', (string) $declaration->salary_amount);
+        $this->assertSame('novecentos mil kwanzas', $declaration->salary_words);
+        $this->assertSame('750000.00', (string) $declaration->net_salary_amount);
+        $this->assertSame('BAI', $declaration->bank);
+        $this->assertSame('Contrato de Trabalho por Tempo Indeterminado', $declaration->employment_bond);
+        $this->assertSame('002345678901', $declaration->id_card_number);
+        $this->assertSame($this->position->name, $declaration->position);
+        $this->assertNotNull($declaration->position_category);
+        $this->assertSame('desde Abril de 2015', $declaration->admission_label);
+        $this->assertSame('2015-04-10', $declaration->admission_date);
 
         $content = $declaration->content;
-        $this->assertSame('900.000,00 Kz', $content['fields']['Salário']);
-        $this->assertSame('750.000,00 Kz', $content['fields']['Salário líquido']);
+        $this->assertSame('900.000,00 Kz', $content['fields']['Salary']);
+        $this->assertSame('750.000,00 Kz', $content['fields']['Net salary']);
     }
 
     public function test_submit_validates_enum_fields(): void
@@ -156,8 +190,8 @@ class DeclarationFieldsTest extends RhTestCase
         $this->postJsonAuth('/api/rh/declarations', [
             'employee_id' => $this->employee->id,
             'declaration_type_id' => $type->id,
-            'sexo' => 'outro',
-            'tipo_salario' => 'inválido',
+            'gender' => 'outro',
+            'salary_type' => 'inválido',
         ])->assertStatus(422);
     }
 
@@ -169,11 +203,11 @@ class DeclarationFieldsTest extends RhTestCase
             'employee_id' => $this->employee->id,
             'declaration_type_id' => $type->id,
             'status' => 'issued',
-            'numero_declaracao' => 'N.º 45/026',
-            'data_emissao' => '2026-03-30',
-            'assinante_cargo' => 'O DIRECTOR',
-            'assinante_nome' => 'Carlos Tchipindo',
-            'sexo' => 'masculino',
+            'declaration_number' => 'N.º 45/026',
+            'issue_date' => '2026-03-30',
+            'signer_role' => 'O DIRECTOR',
+            'signer_name' => 'Carlos Tchipindo',
+            'gender' => 'masculino',
             'content' => [
                 'title' => 'Declaração de Informação Salarial',
                 'statement' => 'Declara-se que o Senhor JOÃO MANUEL aufere...',

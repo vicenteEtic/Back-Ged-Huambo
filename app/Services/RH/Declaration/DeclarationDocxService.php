@@ -16,7 +16,7 @@ class DeclarationDocxService
     public function fileName(DeclarationRequest $request): string
     {
         $type = $request->declarationType?->name ?? 'declaracao';
-        $number = $request->numero_declaracao ?? $request->issued_number ?? $request->reference_number;
+        $number = $request->declaration_number ?? $request->issued_number ?? $request->reference_number;
 
         return 'Declaracao_'.strtoupper(substr($type, 0, 30)).'_'.$number.'.docx';
     }
@@ -54,17 +54,17 @@ class DeclarationDocxService
     protected function documentData(DeclarationRequest $request): array
     {
         $content = $request->content ?? [];
-        $dataEmissao = $request->data_emissao ?? $request->issued_at?->toDateString() ?? now()->toDateString();
+        $dataEmissao = $request->issue_date ?? $request->issued_at?->toDateString() ?? now()->toDateString();
 
         return [
-            'numero_declaracao' => $request->numero_declaracao ?? $request->issued_number,
-            'data_emissao' => $dataEmissao,
-            'data_emissao_extenso' => DeclarationText::dateSentence($dataEmissao),
+            'declaration_number' => $request->declaration_number ?? $request->issued_number,
+            'issue_date' => $dataEmissao,
+            'issue_date_extenso' => DeclarationText::dateSentence($dataEmissao),
             'title' => $content['title'] ?? '',
             'statement' => $content['statement'] ?? '',
             'fields' => $content['fields'] ?? [],
-            'assinante_cargo' => $request->assinante_cargo ?? 'O DIRECTOR',
-            'assinante_nome' => $request->assinante_nome ?? '',
+            'signer_role' => $request->signer_role ?? 'O DIRECTOR',
+            'signer_name' => $request->signer_name ?? '',
         ];
     }
 
@@ -90,13 +90,13 @@ class DeclarationDocxService
         $table->addRow();
 
         $table->addCell(5000)->addText(
-            strtoupper($data['numero_declaracao'] ?? ''),
+            strtoupper($data['declaration_number'] ?? ''),
             ['bold' => true, 'size' => 11, 'name' => self::FONT],
             ['alignment' => Jc::LEFT]
         );
 
         $table->addCell(5000)->addText(
-            ucfirst($data['data_emissao_extenso'] ?? ''),
+            ucfirst($data['issue_date_extenso'] ?? ''),
             ['size' => 11, 'name' => self::FONT],
             ['alignment' => Jc::RIGHT]
         );
@@ -160,13 +160,13 @@ class DeclarationDocxService
         $section->addText('', [], ['spaceAfter' => 240]);
 
         $section->addText(
-            $data['assinante_cargo'] ?? 'O DIRECTOR',
+            $data['signer_role'] ?? 'O DIRECTOR',
             ['bold' => true, 'size' => 11, 'name' => self::FONT],
             ['alignment' => Jc::RIGHT, 'spaceBefore' => 600]
         );
 
         $section->addText(
-            $data['assinante_nome'] ?? '',
+            $data['signer_name'] ?? '',
             ['size' => 11, 'name' => self::FONT],
             ['alignment' => Jc::RIGHT]
         );

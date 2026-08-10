@@ -23,11 +23,11 @@ class DeclarationRequestService extends AbstractService
      * (são tratados/combinados pela lógica salarial).
      */
     private const NON_DOCUMENT_FIELDS = [
-        'salario_numero',
-        'salario_extenso',
-        'salario_numero_liquido',
-        'salario_extenso_liquido',
-        'tipo_salario',
+        'salary_amount',
+        'salary_words',
+        'net_salary_amount',
+        'net_salary_words',
+        'salary_type',
     ];
 
     public function __construct(
@@ -157,8 +157,8 @@ class DeclarationRequestService extends AbstractService
 
             $fields = $this->requestFields($request);
 
-            if (empty($fields['data_emissao'])) {
-                $fields['data_emissao'] = now()->toDateString();
+            if (empty($fields['issue_date'])) {
+                $fields['issue_date'] = now()->toDateString();
             }
 
             $request->update([
@@ -296,7 +296,7 @@ class DeclarationRequestService extends AbstractService
 
     private function informacaoSalarialDeclaration(array $data, Employee $employee, ?array $context): array
     {
-        $salary = $data['declaration']['salario_numero'] ?? $data['remuneration']['base_salary'];
+        $salary = $data['declaration']['salary_amount'] ?? $data['remuneration']['base_salary'];
 
         return $this->buildDeclaration(
             $data,
@@ -322,21 +322,21 @@ class DeclarationRequestService extends AbstractService
 
     private function obtencaoVistoDeclaration(array $data, Employee $employee, ?array $context): array
     {
-        $embaixada = $data['declaration']['embaixada'] ?? null;
+        $embassy = $data['declaration']['embassy'] ?? null;
 
         return $this->buildDeclaration(
             $data,
             $employee,
             $context,
             'Declaração para Obtenção de Visto',
-            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data)." da instituição desde {$this->dateLabel($employee->hire_date)}, para efeitos de obtenção de visto".($embaixada ? " junto da {$embaixada}" : '').'.',
+            "Declara-se que {$this->subject($data, $employee)} é ".$this->funcionario($data)." da instituição desde {$this->dateLabel($employee->hire_date)}, para efeitos de obtenção de visto".($embassy ? " junto da {$embassy}" : '').'.',
             $this->salaryFields('obtencao_visto', $data)
         );
     }
 
     private function aquisicaoResidenciaDeclaration(array $data, Employee $employee, ?array $context): array
     {
-        $local = $data['declaration']['local_residencia'] ?? null;
+        $local = $data['declaration']['residence'] ?? null;
 
         return $this->buildDeclaration(
             $data,
@@ -447,19 +447,19 @@ class DeclarationRequestService extends AbstractService
     private function buildDeclaration(array $data, Employee $employee, ?array $context, string $title, string $statement, array $fields): array
     {
         $declaration = $data['declaration'];
-        $dataEmissao = $declaration['data_emissao'] ?? now()->toDateString();
+        $dataEmissao = $declaration['issue_date'] ?? now()->toDateString();
 
         return array_merge($data, [
             'title' => $title,
             'statement' => $statement,
             'fields' => $this->withContextFields($fields, $context),
             'institution' => $context['institution_name'] ?? null,
-            'numero_declaracao' => $declaration['numero_declaracao'] ?? null,
-            'data_emissao' => $dataEmissao,
-            'data_emissao_extenso' => DeclarationText::dateSentence($dataEmissao),
-            'assinante_cargo' => $declaration['assinante_cargo'] ?? 'O DIRECTOR',
-            'assinante_nome' => $declaration['assinante_nome'] ?? '',
-            'sexo' => $declaration['sexo'] ?? $employee->gender,
+            'declaration_number' => $declaration['declaration_number'] ?? null,
+            'issue_date' => $dataEmissao,
+            'issue_date_extenso' => DeclarationText::dateSentence($dataEmissao),
+            'signer_role' => $declaration['signer_role'] ?? 'O DIRECTOR',
+            'signer_name' => $declaration['signer_name'] ?? '',
+            'gender' => $declaration['gender'] ?? $employee->gender,
         ]);
     }
 
@@ -497,22 +497,22 @@ class DeclarationRequestService extends AbstractService
         $declaration = $data['declaration'];
         $fields = $this->typeFields($code, $data);
 
-        if (empty($declaration['salario_numero'])) {
+        if (empty($declaration['salary_amount'])) {
             return array_merge($fields, $this->remunerationFields($data['remuneration']));
         }
 
-        $tipo = $declaration['tipo_salario'] ?? 'base';
+        $tipo = $declaration['salary_type'] ?? 'base';
         $label = $this->salaryLabel($tipo);
 
-        $fields[$label] = $this->money($declaration['salario_numero']);
-        $fields[$label.' (por extenso)'] = ucfirst(
-            $declaration['salario_extenso'] ?? NumberToWordsPt::moneyToWords($declaration['salario_numero'])
+        $fields[$label] = $this->money($declaration['salary_amount']);
+        $fields[$label.' (in words)'] = ucfirst(
+            $declaration['salary_words'] ?? NumberToWordsPt::moneyToWords($declaration['salary_amount'])
         );
 
-        if (! empty($declaration['salario_numero_liquido'])) {
-            $fields['Salário líquido'] = $this->money($declaration['salario_numero_liquido']);
-            $fields['Salário líquido (por extenso)'] = ucfirst(
-                $declaration['salario_extenso_liquido'] ?? NumberToWordsPt::moneyToWords($declaration['salario_numero_liquido'])
+        if (! empty($declaration['net_salary_amount'])) {
+            $fields['Net salary'] = $this->money($declaration['net_salary_amount']);
+            $fields['Net salary (in words)'] = ucfirst(
+                $declaration['net_salary_words'] ?? NumberToWordsPt::moneyToWords($declaration['net_salary_amount'])
             );
         }
 
@@ -522,18 +522,18 @@ class DeclarationRequestService extends AbstractService
     private function salaryLabel(string $tipo): string
     {
         return match ($tipo) {
-            'liquido' => 'Salário líquido',
-            'base_e_liquido' => 'Salário base',
-            default => 'Salário',
+            'liquido' => 'Net salary',
+            'base_e_liquido' => 'Base salary',
+            default => 'Salary',
         };
     }
 
     private function formatFieldValue(string $key, $value): string
     {
         return match ($key) {
-            'salario_numero', 'salario_numero_liquido' => $this->money($value),
-            'salario_extenso', 'salario_extenso_liquido' => ucfirst((string) $value),
-            'data_emissao', 'data_admissao_completa' => DeclarationText::dateLonghand($value) ?? (string) $value,
+            'salary_amount', 'net_salary_amount' => $this->money($value),
+            'salary_words', 'net_salary_words' => ucfirst((string) $value),
+            'issue_date', 'admission_date' => DeclarationText::dateLonghand($value) ?? (string) $value,
             default => (string) $value,
         };
     }
@@ -541,54 +541,54 @@ class DeclarationRequestService extends AbstractService
     private function subject(array $data, Employee $employee): string
     {
         $declaration = $data['declaration'];
-        $gender = DeclarationText::gender($declaration['sexo'] ?? $employee->gender);
-        $name = mb_strtoupper($declaration['nome_completo'] ?? $employee->full_name);
+        $gender = DeclarationText::gender($declaration['gender'] ?? $employee->gender);
+        $name = mb_strtoupper($declaration['full_name'] ?? $employee->full_name);
 
         return $gender['tratamento'].' '.$name;
     }
 
     private function funcionario(array $data): string
     {
-        return DeclarationText::funcionario($data['declaration']['sexo'] ?? null);
+        return DeclarationText::funcionario($data['declaration']['gender'] ?? null);
     }
 
     private function commonFields(array $data, Employee $employee): array
     {
         return [
-            'Cargo' => $data['employee']['position'] ?? 'N/A',
-            'Departamento' => $data['employee']['department'] ?? 'N/A',
-            'Data de admissão' => $this->dateLabel($employee->hire_date),
-            'Situação funcional' => $this->statusLabel($employee->status),
+            'Position' => $data['employee']['position'] ?? 'N/A',
+            'Department' => $data['employee']['department'] ?? 'N/A',
+            'Hire date' => $this->dateLabel($employee->hire_date),
+            'Employment status' => $this->statusLabel($employee->status),
         ];
     }
 
     private function careerFields(array $data): array
     {
         return [
-            'Carreira' => $data['employee']['category'] ?? 'N/A',
-            'Categoria' => $data['employee']['category'] ?? 'N/A',
-            'Tempo na categoria' => $data['career']['time_in_category']['formatted'] ?? 'N/A',
-            'Tempo de serviço acumulado' => $data['career']['total_service']['formatted'] ?? 'N/A',
+            'Career' => $data['employee']['category'] ?? 'N/A',
+            'Category' => $data['employee']['category'] ?? 'N/A',
+            'Time in category' => $data['career']['time_in_category']['formatted'] ?? 'N/A',
+            'Total service time' => $data['career']['total_service']['formatted'] ?? 'N/A',
         ];
     }
 
     private function remunerationFields(array $remuneration): array
     {
         return [
-            'Salário base' => $this->money($remuneration['base_salary']),
-            'Subsídio de transporte' => $this->money($remuneration['transport_allowance']),
-            'Subsídio de alimentação' => $this->money($remuneration['meal_allowance']),
-            'Outros rendimentos' => $this->money($remuneration['other_earnings']),
-            'Descontos (INSS/IRT)' => $this->money($remuneration['total_deductions']),
-            'Remuneração líquida' => $this->money($remuneration['net_pay']),
-            'Período de referência' => $remuneration['period_reference'] ?? 'N/A',
+            'Base salary' => $this->money($remuneration['base_salary']),
+            'Transport allowance' => $this->money($remuneration['transport_allowance']),
+            'Meal allowance' => $this->money($remuneration['meal_allowance']),
+            'Other earnings' => $this->money($remuneration['other_earnings']),
+            'Deductions (INSS/IRT)' => $this->money($remuneration['total_deductions']),
+            'Net pay' => $this->money($remuneration['net_pay']),
+            'Reference period' => $remuneration['period_reference'] ?? 'N/A',
         ];
     }
 
     private function bankFields(Employee $employee): array
     {
         return [
-            'Banco' => $employee->bank_name ?? 'N/A',
+            'Bank' => $employee->bank_name ?? 'N/A',
             'IBAN' => $employee->bank_iban ?? 'N/A',
         ];
     }
@@ -596,11 +596,11 @@ class DeclarationRequestService extends AbstractService
     private function withContextFields(array $fields, ?array $context): array
     {
         if (! empty($context['institution_name'])) {
-            $fields['Instituição'] = $context['institution_name'];
+            $fields['Institution'] = $context['institution_name'];
         }
 
         if (! empty($context['purpose'])) {
-            $fields['Finalidade'] = $context['purpose'];
+            $fields['Purpose'] = $context['purpose'];
         }
 
         return $fields;
@@ -629,37 +629,37 @@ class DeclarationRequestService extends AbstractService
 
         $defaults = config('declaracoes.defaults', []);
 
-        $data['nome_completo'] = $data['nome_completo'] ?? $employee->full_name;
-        $data['sexo'] = $data['sexo'] ?? $this->normalizeGender($employee->gender);
-        $data['data_emissao'] = $data['data_emissao'] ?? now()->toDateString();
-        $data['numero_declaracao'] = $data['numero_declaracao'] ?? $this->generateDeclarationNumber();
+        $data['full_name'] = $data['full_name'] ?? $employee->full_name;
+        $data['gender'] = $data['gender'] ?? $this->normalizeGender($employee->gender);
+        $data['issue_date'] = $data['issue_date'] ?? now()->toDateString();
+        $data['declaration_number'] = $data['declaration_number'] ?? $this->generateDeclarationNumber();
 
-        $data['categoria_funcao'] = $data['categoria_funcao'] ?? $employee->careerCategory?->name ?? $employee->position?->name;
-        $data['cargo'] = $data['cargo'] ?? $employee->position?->name;
-        $data['local_servico'] = $data['local_servico'] ?? $employee->department?->name;
-        $data['vinculo'] = $data['vinculo'] ?? $this->contractTypeLabel($employee->contract_type);
-        $data['banco'] = $data['banco'] ?? $employee->bank_name;
-        $data['numero_conta'] = $data['numero_conta'] ?? $employee->bank_iban;
-        $data['tipo_salario'] = $data['tipo_salario'] ?? 'base';
-        $data['salario_numero'] = $data['salario_numero'] ?? $employee->base_salary;
-        $data['salario_numero_liquido'] = $data['salario_numero_liquido'] ?? $this->netSalary($employee);
-        $data['data_admissao'] = $data['data_admissao'] ?? $this->admissionLabel($employee->hire_date);
-        $data['data_admissao_completa'] = $data['data_admissao_completa'] ?? $employee->hire_date?->toDateString();
-        $data['numero_bi'] = $data['numero_bi'] ?? $this->documentNumberLabel($employee);
-        $data['telefone'] = $data['telefone'] ?? $employee->phone;
+        $data['position_category'] = $data['position_category'] ?? $employee->careerCategory?->name ?? $employee->position?->name;
+        $data['position'] = $data['position'] ?? $employee->position?->name;
+        $data['workplace'] = $data['workplace'] ?? $employee->department?->name;
+        $data['employment_bond'] = $data['employment_bond'] ?? $this->contractTypeLabel($employee->contract_type);
+        $data['bank'] = $data['bank'] ?? $employee->bank_name;
+        $data['account_number'] = $data['account_number'] ?? $employee->bank_iban;
+        $data['salary_type'] = $data['salary_type'] ?? 'base';
+        $data['salary_amount'] = $data['salary_amount'] ?? $employee->base_salary;
+        $data['net_salary_amount'] = $data['net_salary_amount'] ?? $this->netSalary($employee);
+        $data['admission_label'] = $data['admission_label'] ?? $this->admissionLabel($employee->hire_date);
+        $data['admission_date'] = $data['admission_date'] ?? $employee->hire_date?->toDateString();
+        $data['id_card_number'] = $data['id_card_number'] ?? $this->documentNumberLabel($employee);
+        $data['phone'] = $data['phone'] ?? $employee->phone;
         $data['email'] = $data['email'] ?? $employee->personal_email;
-        $data['morada'] = $data['morada'] ?? $employee->address;
-        $data['tratamento'] = $data['tratamento'] ?? DeclarationText::gender($data['sexo'])['tratamento'];
-        $data['tempo_servico'] = $data['tempo_servico'] ?? $this->serviceTimeLabel($employee);
-        $data['entidade_empregadora'] = $data['entidade_empregadora'] ?? ($defaults['entidade_empregadora'] ?? null);
-        $data['departamento_emissor'] = $data['departamento_emissor'] ?? ($defaults['departamento_emissor'] ?? null);
+        $data['address'] = $data['address'] ?? $employee->address;
+        $data['salutation'] = $data['salutation'] ?? DeclarationText::gender($data['gender'])['tratamento'];
+        $data['service_time'] = $data['service_time'] ?? $this->serviceTimeLabel($employee);
+        $data['employer_entity'] = $data['employer_entity'] ?? ($defaults['employer_entity'] ?? null);
+        $data['issuing_department'] = $data['issuing_department'] ?? ($defaults['issuing_department'] ?? null);
 
-        if (! empty($data['salario_numero']) && empty($data['salario_extenso'])) {
-            $data['salario_extenso'] = NumberToWordsPt::moneyToWords($data['salario_numero']);
+        if (! empty($data['salary_amount']) && empty($data['salary_words'])) {
+            $data['salary_words'] = NumberToWordsPt::moneyToWords($data['salary_amount']);
         }
 
-        if (! empty($data['salario_numero_liquido']) && empty($data['salario_extenso_liquido'])) {
-            $data['salario_extenso_liquido'] = NumberToWordsPt::moneyToWords($data['salario_numero_liquido']);
+        if (! empty($data['net_salary_amount']) && empty($data['net_salary_words'])) {
+            $data['net_salary_words'] = NumberToWordsPt::moneyToWords($data['net_salary_amount']);
         }
 
         return $data;
@@ -671,9 +671,9 @@ class DeclarationRequestService extends AbstractService
         $suffix = '/GAB-RH/'.$year;
 
         $max = DeclarationRequest::withTrashed()
-            ->whereNotNull('numero_declaracao')
-            ->where('numero_declaracao', 'like', '%'.$suffix)
-            ->pluck('numero_declaracao')
+            ->whereNotNull('declaration_number')
+            ->where('declaration_number', 'like', '%'.$suffix)
+            ->pluck('declaration_number')
             ->map(fn ($value) => preg_match('/^(\d+)\/GAB-RH\/\d+$/', (string) $value, $m) ? (int) $m[1] : 0)
             ->max();
 
