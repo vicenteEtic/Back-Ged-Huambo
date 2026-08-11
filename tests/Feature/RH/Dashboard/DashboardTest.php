@@ -57,6 +57,53 @@ class DashboardTest extends RhTestCase
         $response->assertStatus(200);
     }
 
+    public function test_document_expiry_window_returns_only_documents_between_days()
+    {
+        $employee = Employee::query()->first();
+
+        EmployeeDocument::factory()->create([
+            'employee_id' => $employee->id,
+            'expiry_date' => now()->addDays(10)->toDateString(),
+        ]);
+        $expected = EmployeeDocument::factory()->create([
+            'employee_id' => $employee->id,
+            'expiry_date' => now()->addDays(20)->toDateString(),
+        ]);
+        EmployeeDocument::factory()->create([
+            'employee_id' => $employee->id,
+            'expiry_date' => now()->addDays(40)->toDateString(),
+        ]);
+
+        $response = $this->getJsonAuth('/api/rh/dashboard/document-expiry-window');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('from_days', 15)
+            ->assertJsonPath('to_days', 30)
+            ->assertJsonPath('documents.0.id', $expected->id)
+            ->assertJsonPath('documents.0.employee.full_name', $employee->full_name);
+    }
+
+    public function test_document_expiry_window_accepts_custom_range()
+    {
+        $employee = Employee::query()->first();
+
+        $expected = EmployeeDocument::factory()->create([
+            'employee_id' => $employee->id,
+            'expiry_date' => now()->addDays(5)->toDateString(),
+        ]);
+        EmployeeDocument::factory()->create([
+            'employee_id' => $employee->id,
+            'expiry_date' => now()->addDays(20)->toDateString(),
+        ]);
+
+        $response = $this->getJsonAuth('/api/rh/dashboard/document-expiry-window?from_days=1&to_days=10');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('documents.0.id', $expected->id);
+    }
+
     public function test_can_get_turnover()
     {
         $response = $this->getJsonAuth('/api/rh/dashboard/turnover');

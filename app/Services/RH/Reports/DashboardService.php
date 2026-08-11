@@ -137,6 +137,41 @@ class DashboardService
             ->toArray();
     }
 
+    /**
+     * Funcionários com documentos a expirar dentro de uma janela de dias (por omissão: 15 a 30 dias).
+     */
+    public function documentsExpiringBetween(int $fromDays = 15, int $toDays = 30): array
+    {
+        $today = now()->startOfDay();
+        $start = $today->copy()->addDays($fromDays);
+        $end = $today->copy()->addDays($toDays);
+
+        $documents = EmployeeDocument::whereBetween('expiry_date', [$start, $end])
+            ->with(['employee:id,full_name,employee_number,department_id', 'employee.department:id,name', 'documentType'])
+            ->orderBy('expiry_date')
+            ->get()
+            ->map(function (EmployeeDocument $document) use ($today) {
+                return [
+                    'id' => $document->id,
+                    'name' => $document->name,
+                    'document_type' => $document->documentType?->name ?? $document->document_type,
+                    'expiry_date' => $document->expiry_date?->toDateString(),
+                    'days_left' => $today->diffInDays($document->expiry_date),
+                    'is_verified' => $document->is_verified,
+                    'employee' => $document->employee,
+                ];
+            })
+            ->values()
+            ->all();
+
+        return [
+            'from_days' => $fromDays,
+            'to_days' => $toDays,
+            'total' => count($documents),
+            'documents' => $documents,
+        ];
+    }
+
     public function turnover(?int $year = null): array
     {
         $year = $year ?? now()->year;

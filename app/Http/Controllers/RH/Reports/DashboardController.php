@@ -62,6 +62,19 @@ class DashboardController extends Controller
         }
     }
 
+    public function documentExpiryWindow()
+    {
+        try {
+            return response()->json($this->dashboardService->documentsExpiringBetween(
+                (int) request('from_days', 15),
+                (int) request('to_days', 30)
+            ));
+        } catch (Exception $e) {
+            Log::error('Erro ao carregar documentos a vencer na janela de dias', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
     public function turnover()
     {
         try {
