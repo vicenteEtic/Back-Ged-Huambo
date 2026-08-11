@@ -51,22 +51,20 @@ class EmployeeRequest extends BaseFormRequest
 
     /**
      * Validação adicional: o funcionário deve ter, pelo menos, 18 anos
-     * completos na data de admissão.
+     * completos na data de admissão e na data de efetivação.
      */
     public function after(): array
     {
         return [
             function ($validator) {
                 $birth = $this->input('date_of_birth');
-                $hire = $this->input('hire_date');
 
-                if (blank($birth) || blank($hire)) {
+                if (blank($birth)) {
                     return;
                 }
 
                 try {
                     $birthDate = Carbon::parse($birth);
-                    $hireDate = Carbon::parse($hire);
                 } catch (\Exception $e) {
                     return;
                 }
@@ -77,16 +75,40 @@ class EmployeeRequest extends BaseFormRequest
                     return;
                 }
 
-                if ($hireDate->lte($birthDate)) {
-                    $validator->errors()->add('hire_date', 'A data de admissão deve ser posterior à data de nascimento.');
-
-                    return;
+                $hire = $this->input('hire_date');
+                if (filled($hire)) {
+                    $this->validateAgeAt($validator, $birthDate, $hire, 'hire_date', 'admissão');
                 }
 
-                if ($birthDate->diffInYears($hireDate, false) < 18) {
-                    $validator->errors()->add('hire_date', 'O funcionário deve ter pelo menos 18 anos na data de admissão.');
+                $effective = $this->input('effective_date');
+                if (filled($effective)) {
+                    $this->validateAgeAt($validator, $birthDate, $effective, 'effective_date', 'efetivação');
                 }
             },
         ];
+    }
+
+    private function validateAgeAt($validator, Carbon $birthDate, string $date, string $field, string $label): void
+    {
+        try {
+            $parsed = Carbon::parse($date);
+        } catch (\Exception $e) {
+            return;
+        }
+
+        if ($parsed->lte($birthDate)) {
+            $validator->errors()->add($field, "A data de {$label} deve ser posterior à data de nascimento.");
+
+            return;
+        }
+
+        $age = (int) $birthDate->diffInYears($parsed);
+
+        if ($age < 18) {
+            $validator->errors()->add(
+                $field,
+                "O funcionário deve ter, pelo menos, 18 anos completos na data de {$label} ({$parsed->format('d/m/Y')}). Idade nessa data: {$age} anos."
+            );
+        }
     }
 }

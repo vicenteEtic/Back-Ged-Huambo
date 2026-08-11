@@ -133,6 +133,29 @@ class EmployeeTest extends RhTestCase
             ->assertJsonValidationErrors('hire_date');
     }
 
+    public function test_effective_date_requires_employee_aged_at_least_18(): void
+    {
+        $response = $this->postJsonAuth('/api/rh/employees', $this->employeePayload([
+            'date_of_birth' => '2005-10-19',
+            'hire_date' => '2025-01-01',
+            'effective_date' => '2021-01-27',
+        ]));
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors('effective_date');
+    }
+
+    public function test_effective_date_allows_employee_aged_at_least_18(): void
+    {
+        $response = $this->postJsonAuth('/api/rh/employees', $this->employeePayload([
+            'date_of_birth' => '2005-10-19',
+            'hire_date' => '2025-01-01',
+            'effective_date' => '2024-10-19',
+        ]));
+
+        $response->assertStatus(201);
+    }
+
     public function test_update_allows_changing_metadata_without_age_check(): void
     {
         $department = Department::factory()->create();

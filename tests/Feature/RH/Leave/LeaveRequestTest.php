@@ -32,7 +32,7 @@ class LeaveRequestTest extends RhTestCase
             'user_id' => $this->user->id,
         ]);
 
-        $this->leaveType = LeaveType::factory()->create();
+        $this->leaveType = LeaveType::factory()->create(['default_days' => 30]);
         $this->leavePlan = LeavePlan::factory()->create([
             'employee_id' => $this->employee->id,
             'year' => now()->year,

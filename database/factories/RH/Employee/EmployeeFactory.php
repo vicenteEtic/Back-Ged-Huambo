@@ -15,11 +15,15 @@ class EmployeeFactory extends Factory
 
     public function definition(): array
     {
+        $dateOfBirth = fake()->dateTimeBetween('-55 years', '-19 years');
+        $minHire = (clone $dateOfBirth)->modify('+18 years');
+        $hireDate = fake()->dateTimeBetween($minHire, '-6 months');
+
         return [
             'user_id' => User::factory(),
             'employee_number' => 'EMP-' . fake()->unique()->numerify('#####'),
             'full_name' => fake()->name(),
-            'date_of_birth' => fake()->date('Y-m-d', '2000-01-01'),
+            'date_of_birth' => $dateOfBirth->format('Y-m-d'),
             'gender' => fake()->randomElement(['male', 'female']),
             'marital_status' => fake()->randomElement(['single', 'married', 'divorced']),
             'nationality' => 'Angolana',
@@ -31,7 +35,8 @@ class EmployeeFactory extends Factory
             'address' => fake()->address(),
             'department_id' => Department::factory(),
             'position_id' => Position::factory(),
-            'hire_date' => fake()->date('Y-m-d', '-2 years'),
+            'hire_date' => $hireDate->format('Y-m-d'),
+            'effective_date' => fake()->dateTimeBetween($hireDate, 'now')->format('Y-m-d'),
             'contract_type' => fake()->randomElement(['efectivo', 'prestacao_servicos', 'estagiario']),
             'base_salary' => fake()->randomFloat(2, 100000, 1000000),
             'bank_name' => fake()->randomElement(['BAI', 'BFA', 'BIC', 'BCA']),
