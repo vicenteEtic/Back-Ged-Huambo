@@ -62,4 +62,14 @@ class RetirementController extends AbstractController
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
+
+    public function upcoming()
+    {
+        try {
+            return response()->json($this->retirementService->upcomingRetirees((int) request('within_years', 5)));
+        } catch (Exception $e) {
+            Log::error('Erro ao listar futuros aposentandos', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

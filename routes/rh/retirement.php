@@ -10,6 +10,8 @@ Route::prefix('eligibility')->group(function () {
     Route::get('{employee_id}', [RetirementController::class, 'eligibility'])->middleware(['can:rh-reforma-show']);
 });
 
+Route::get('upcoming', [RetirementController::class, 'upcoming'])->middleware(['can:rh-reforma-show']);
+
 Route::prefix('processes')->group(function () {
     Route::get('/', [RetirementController::class, 'index'])->middleware(['can:rh-reforma-show']);
     Route::post('/', [RetirementController::class, 'store'])->middleware(['can:rh-reforma-create']);

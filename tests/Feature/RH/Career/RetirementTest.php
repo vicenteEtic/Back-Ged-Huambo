@@ -25,6 +25,7 @@ class RetirementTest extends RhTestCase
             'department_id' => $department->id,
             'position_id' => $position->id,
             'user_id' => $this->user->id,
+            'date_of_birth' => now()->subYears(30)->toDateString(),
         ]);
     }
 
@@ -107,5 +108,59 @@ class RetirementTest extends RhTestCase
 
         $response = $this->getJsonAuth('/api/rh/retirement/processes/by-employee/' . $this->employee->id);
         $response->assertStatus(200);
+    }
+
+    public function test_upcoming_returns_employees_approaching_retirement()
+    {
+        $department = Department::factory()->create();
+        $position = Position::factory()->create(['department_id' => $department->id]);
+
+        $eligible = Employee::factory()->create([
+            'department_id' => $department->id,
+            'position_id' => $position->id,
+            'date_of_birth' => now()->subYears(62)->toDateString(),
+            'status' => 'active',
+        ]);
+        $near = Employee::factory()->create([
+            'department_id' => $department->id,
+            'position_id' => $position->id,
+            'date_of_birth' => now()->subYears(57)->toDateString(),
+            'status' => 'active',
+        ]);
+        $far = Employee::factory()->create([
+            'department_id' => $department->id,
+            'position_id' => $position->id,
+            'date_of_birth' => now()->subYears(50)->toDateString(),
+            'status' => 'active',
+        ]);
+
+        $response = $this->getJsonAuth('/api/rh/retirement/upcoming');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('eligible_now', 1)
+            ->assertJsonPath('employees.0.id', $eligible->id)
+            ->assertJsonPath('employees.1.id', $near->id)
+            ->assertJsonMissingPath('employees.2.id');
+    }
+
+    public function test_upcoming_respects_custom_window()
+    {
+        $department = Department::factory()->create();
+        $position = Position::factory()->create(['department_id' => $department->id]);
+
+        $near = Employee::factory()->create([
+            'department_id' => $department->id,
+            'position_id' => $position->id,
+            'date_of_birth' => now()->subYears(59)->toDateString(),
+            'status' => 'active',
+        ]);
+
+        $response = $this->getJsonAuth('/api/rh/retirement/upcoming?within_years=2');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('within_years', 2)
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('employees.0.id', $near->id);
     }
 }
