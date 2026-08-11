@@ -15,21 +15,30 @@ class EmployeeDocument extends Model
 
     protected $fillable = [
         'employee_id',
+        'document_type_id',
         'document_type',
         'name',
         'description',
         'file_path',
         'expiry_date',
+        'issue_date',
+        'place_of_issue',
         'is_verified',
     ];
 
     protected $casts = [
         'expiry_date' => 'date',
+        'issue_date' => 'date',
         'is_verified' => 'boolean',
     ];
 
     public function employee()
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function documentType()
+    {
+        return $this->belongsTo(DocumentType::class);
     }
 }

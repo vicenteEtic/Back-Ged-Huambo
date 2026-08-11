@@ -21,6 +21,7 @@ Route::prefix('leave-types')->group(function () {
 Route::prefix('leave-requests')->group(function () {
     Route::get('/', [LeaveRequestController::class, 'index'])->name('leave_request.index')->middleware(['can:rh-ferias-show']);
     Route::post('/', [LeaveRequestController::class, 'store'])->name('leave_request.store')->middleware(['can:rh-ferias-create']);
+    Route::get('calculate-return', [LeaveRequestController::class, 'calculateReturn'])->name('leave_request.calculate_return')->middleware(['can:rh-ferias-show']);
     Route::get('{id}', [LeaveRequestController::class, 'show'])->name('leave_request.show')->middleware(['can:rh-ferias-show']);
     Route::put('{id}', [LeaveRequestController::class, 'update'])->name('leave_request.update')->middleware(['can:rh-ferias-edit']);
     Route::delete('{id}', [LeaveRequestController::class, 'destroy'])->name('leave_request.destroy')->middleware(['can:rh-ferias-delete']);

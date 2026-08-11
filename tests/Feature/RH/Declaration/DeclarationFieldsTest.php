@@ -125,10 +125,10 @@ class DeclarationFieldsTest extends RhTestCase
         $this->assertArrayHasKey('statement', $content);
         $this->assertArrayHasKey('issue_date_extenso', $content);
         $this->assertStringContainsString('Senhora', $content['statement']);
-        $this->assertSame('1.250.000,50 Kz', $content['fields']['Salary']);
+        $this->assertSame('1.250.000,50 Kz', $content['fields']['Salário']);
         $this->assertSame(
             'Um milhão duzentos e cinquenta mil kwanzas e cinquenta centavos',
-            $content['fields']['Salary (in words)']
+            $content['fields']['Salário (por extenso)']
         );
     }
 
@@ -179,8 +179,8 @@ class DeclarationFieldsTest extends RhTestCase
         $this->assertSame('2015-04-10', $declaration->admission_date);
 
         $content = $declaration->content;
-        $this->assertSame('900.000,00 Kz', $content['fields']['Salary']);
-        $this->assertSame('750.000,00 Kz', $content['fields']['Net salary']);
+        $this->assertSame('900.000,00 Kz', $content['fields']['Salário']);
+        $this->assertSame('750.000,00 Kz', $content['fields']['Salário líquido']);
     }
 
     public function test_submit_validates_enum_fields(): void

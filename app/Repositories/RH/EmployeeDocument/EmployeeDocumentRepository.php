@@ -34,19 +34,28 @@ class EmployeeDocumentRepository extends AbstractRepository
                     throw new \Exception('Formato de ficheiros inválido.');
                 }
 
+                $documentType = null;
+
+                if (! empty($data['document_type_id'])) {
+                    $documentType = \App\Models\RH\EmployeeDocument\DocumentType::find($data['document_type_id']);
+                }
+
                 $created = [];
 
                 foreach ($files as $file) {
                     $path = $file->store('' . $data['employee_id'] . '/employee-documents', 'public');
 
                     $created[] = $this->model->create([
-                        'employee_id'   => $data['employee_id'],
-                        'document_type' => $data['document_type'] ?? $this->guessDocumentType($file),
-                        'name'          => $data['name'] ?? $file->getClientOriginalName(),
-                        'description'   => $data['description'] ?? null,
-                        'file_path'     => 'storage/'.$path,
-                        'expiry_date'   => $data['expiry_date'] ?? null,
-                        'is_verified'   => $data['is_verified'] ?? false,
+                        'employee_id'      => $data['employee_id'],
+                        'document_type_id' => $data['document_type_id'] ?? null,
+                        'document_type'    => $documentType?->name ?? $data['document_type'] ?? $this->guessDocumentType($file),
+                        'name'             => $data['name'] ?? $file->getClientOriginalName(),
+                        'description'      => $data['description'] ?? null,
+                        'file_path'        => 'storage/'.$path,
+                        'expiry_date'      => $data['expiry_date'] ?? null,
+                        'issue_date'       => $data['issue_date'] ?? null,
+                        'place_of_issue'   => $data['place_of_issue'] ?? null,
+                        'is_verified'      => $data['is_verified'] ?? false,
                     ]);
                 }
 
@@ -58,6 +67,26 @@ class EmployeeDocumentRepository extends AbstractRepository
             }
             throw $e;
         }
+    }
+
+    public function update(array $data, int $id)
+    {
+        if (! empty($data['document_type_id'])) {
+            $type = \App\Models\RH\EmployeeDocument\DocumentType::find($data['document_type_id']);
+            if ($type) {
+                $data['document_type'] = $type->name;
+            }
+        }
+
+        return parent::update($data, $id);
+    }
+
+    public function findBy(array $criteria)
+    {
+        return $this->model->query()
+            ->with(['employee', 'documentType'])
+            ->where($criteria)
+            ->get();
     }
 
     protected function guessDocumentType(UploadedFile $file): string

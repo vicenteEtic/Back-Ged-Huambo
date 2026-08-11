@@ -15,18 +15,31 @@ class LeavePlan extends Model
     protected $table = 'leave_plans';
 
     protected $fillable = [
-        'employee_id', 'year', 'leave_type_id', 'total_days_entitled',
-        'days_used', 'days_pending', 'observations', 'created_by',
+        'employee_id', 'year', 'expected_month', 'leave_type_id', 'total_days_entitled',
+        'days_used', 'days_pending', 'observations', 'upcoming_notified_at', 'created_by',
     ];
 
     protected function casts(): array
     {
         return [
             'year' => 'integer',
+            'expected_month' => 'integer',
             'total_days_entitled' => 'decimal:1',
             'days_used' => 'decimal:1',
             'days_pending' => 'decimal:1',
+            'upcoming_notified_at' => 'datetime',
         ];
+    }
+
+    public const MONTHS = [
+        1 => 'Janeiro', 2 => 'Fevereiro', 3 => 'Março', 4 => 'Abril',
+        5 => 'Maio', 6 => 'Junho', 7 => 'Julho', 8 => 'Agosto',
+        9 => 'Setembro', 10 => 'Outubro', 11 => 'Novembro', 12 => 'Dezembro',
+    ];
+
+    public function getExpectedMonthLabelAttribute(): ?string
+    {
+        return isset($this->expected_month) ? self::MONTHS[$this->expected_month] : null;
     }
 
     public function employee()

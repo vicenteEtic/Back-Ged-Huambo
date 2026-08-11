@@ -505,13 +505,13 @@ class DeclarationRequestService extends AbstractService
         $label = $this->salaryLabel($tipo);
 
         $fields[$label] = $this->money($declaration['salary_amount']);
-        $fields[$label.' (in words)'] = ucfirst(
+        $fields[$label.' (por extenso)'] = ucfirst(
             $declaration['salary_words'] ?? NumberToWordsPt::moneyToWords($declaration['salary_amount'])
         );
 
         if (! empty($declaration['net_salary_amount'])) {
-            $fields['Net salary'] = $this->money($declaration['net_salary_amount']);
-            $fields['Net salary (in words)'] = ucfirst(
+            $fields['Salário líquido'] = $this->money($declaration['net_salary_amount']);
+            $fields['Salário líquido (por extenso)'] = ucfirst(
                 $declaration['net_salary_words'] ?? NumberToWordsPt::moneyToWords($declaration['net_salary_amount'])
             );
         }
@@ -522,9 +522,9 @@ class DeclarationRequestService extends AbstractService
     private function salaryLabel(string $tipo): string
     {
         return match ($tipo) {
-            'liquido' => 'Net salary',
-            'base_e_liquido' => 'Base salary',
-            default => 'Salary',
+            'liquido' => 'Salário líquido',
+            'base_e_liquido' => 'Salário base',
+            default => 'Salário',
         };
     }
 
@@ -555,40 +555,40 @@ class DeclarationRequestService extends AbstractService
     private function commonFields(array $data, Employee $employee): array
     {
         return [
-            'Position' => $data['employee']['position'] ?? 'N/A',
-            'Department' => $data['employee']['department'] ?? 'N/A',
-            'Hire date' => $this->dateLabel($employee->hire_date),
-            'Employment status' => $this->statusLabel($employee->status),
+            'Cargo' => $data['employee']['position'] ?? 'N/A',
+            'Departamento' => $data['employee']['department'] ?? 'N/A',
+            'Data de admissão' => $this->dateLabel($employee->hire_date),
+            'Situação laboral' => $this->statusLabel($employee->status),
         ];
     }
 
     private function careerFields(array $data): array
     {
         return [
-            'Career' => $data['employee']['category'] ?? 'N/A',
-            'Category' => $data['employee']['category'] ?? 'N/A',
-            'Time in category' => $data['career']['time_in_category']['formatted'] ?? 'N/A',
-            'Total service time' => $data['career']['total_service']['formatted'] ?? 'N/A',
+            'Carreira' => $data['employee']['category'] ?? 'N/A',
+            'Categoria' => $data['employee']['category'] ?? 'N/A',
+            'Tempo na categoria' => $data['career']['time_in_category']['formatted'] ?? 'N/A',
+            'Tempo total de serviço' => $data['career']['total_service']['formatted'] ?? 'N/A',
         ];
     }
 
     private function remunerationFields(array $remuneration): array
     {
         return [
-            'Base salary' => $this->money($remuneration['base_salary']),
-            'Transport allowance' => $this->money($remuneration['transport_allowance']),
-            'Meal allowance' => $this->money($remuneration['meal_allowance']),
-            'Other earnings' => $this->money($remuneration['other_earnings']),
-            'Deductions (INSS/IRT)' => $this->money($remuneration['total_deductions']),
-            'Net pay' => $this->money($remuneration['net_pay']),
-            'Reference period' => $remuneration['period_reference'] ?? 'N/A',
+            'Salário base' => $this->money($remuneration['base_salary']),
+            'Subsídio de transporte' => $this->money($remuneration['transport_allowance']),
+            'Subsídio de alimentação' => $this->money($remuneration['meal_allowance']),
+            'Outros rendimentos' => $this->money($remuneration['other_earnings']),
+            'Descontos (INSS/IRT)' => $this->money($remuneration['total_deductions']),
+            'Vencimento líquido' => $this->money($remuneration['net_pay']),
+            'Período de referência' => $remuneration['period_reference'] ?? 'N/A',
         ];
     }
 
     private function bankFields(Employee $employee): array
     {
         return [
-            'Bank' => $employee->bank_name ?? 'N/A',
+            'Banco' => $employee->bank_name ?? 'N/A',
             'IBAN' => $employee->bank_iban ?? 'N/A',
         ];
     }
@@ -596,11 +596,11 @@ class DeclarationRequestService extends AbstractService
     private function withContextFields(array $fields, ?array $context): array
     {
         if (! empty($context['institution_name'])) {
-            $fields['Institution'] = $context['institution_name'];
+            $fields['Instituição'] = $context['institution_name'];
         }
 
         if (! empty($context['purpose'])) {
-            $fields['Purpose'] = $context['purpose'];
+            $fields['Finalidade'] = $context['purpose'];
         }
 
         return $fields;

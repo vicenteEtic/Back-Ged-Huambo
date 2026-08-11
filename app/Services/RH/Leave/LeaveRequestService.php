@@ -28,6 +28,12 @@ class LeaveRequestService extends AbstractService
             $leaveRequest = LeaveRequest::with('leavePlan')->findOrFail($id);
             $oldPlanId = $leaveRequest->leave_plan_id;
 
+            if (isset($data['days']) && ! isset($data['end_date'])) {
+                $start = $data['start_date'] ?? $leaveRequest->start_date->format('Y-m-d');
+                $data['end_date'] = $this->calculateReturnByDays($start, $data['days'])['end_date'];
+            }
+            unset($data['days']);
+
             if (isset($data['start_date']) || isset($data['end_date'])) {
                 $start = $data['start_date'] ?? $leaveRequest->start_date->format('Y-m-d');
                 $end = $data['end_date'] ?? $leaveRequest->end_date->format('Y-m-d');
@@ -62,6 +68,11 @@ class LeaveRequestService extends AbstractService
     public function submit(array $data): LeaveRequest
     {
         return DB::transaction(function () use ($data) {
+            if (isset($data['days']) && ! isset($data['end_date'])) {
+                $data['end_date'] = $this->calculateReturnByDays($data['start_date'], $data['days'])['end_date'];
+            }
+            unset($data['days']);
+
             $data['total_days'] = $this->calculateBusinessDays($data['start_date'], $data['end_date']);
             $data['return_date'] = $this->calculateReturnDate($data['end_date']);
             $data['status'] = 'pending';
@@ -190,6 +201,33 @@ class LeaveRequestService extends AbstractService
         }
 
         return $day->format('Y-m-d');
+    }
+
+    public function calculateReturnByDays(string $startDate, int $days): array
+    {
+        $start = Carbon::parse($startDate);
+        $current = $start->copy();
+        $counted = 0;
+
+        while ($counted < $days) {
+            if ($current->isWeekday() && ! $this->holidayService->isHoliday($current)) {
+                $counted++;
+            }
+            $current->addDay();
+        }
+
+        $endDate = $current->copy()->subDay();
+        $holidays = $this->holidayService->holidaysBetween($start, $endDate);
+
+        return [
+            'start_date' => $start->format('Y-m-d'),
+            'days' => $days,
+            'end_date' => $endDate->format('Y-m-d'),
+            'return_date' => $this->calculateReturnDate($endDate->format('Y-m-d')),
+            'holidays_count' => count($holidays),
+            'holidays' => $holidays,
+            'calendar_days' => $start->diffInDays($endDate) + 1,
+        ];
     }
 
     public function annualEntitlement(int $employeeId, ?int $leaveTypeId = null): array

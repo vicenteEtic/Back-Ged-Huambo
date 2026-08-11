@@ -4,6 +4,7 @@ namespace App\Http\Controllers\RH\Leave;
 
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Leave\LeaveRequestForm;
+use App\Http\Requests\RH\Leave\LeaveReturnCalculationRequest;
 use App\Models\RH\Leave\LeaveRequest;
 use App\Services\RH\Leave\LeaveRequestService;
 use Exception;
@@ -57,6 +58,22 @@ class LeaveRequestController extends AbstractController
             Log::error('Erro ao obter saldo de férias', ['message' => $e->getMessage()]);
 
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    public function calculateReturn(LeaveReturnCalculationRequest $request)
+    {
+        try {
+            $result = $this->leaveService->calculateReturnByDays(
+                $request->validated()['start_date'],
+                (int) $request->validated()['days'],
+            );
+
+            return response()->json($result);
+        } catch (Exception $e) {
+            Log::error('Erro ao calcular data de regresso', ['message' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

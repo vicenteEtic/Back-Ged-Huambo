@@ -15,6 +15,7 @@ class LeavePlanFactory extends Factory
         return [
             'employee_id' => Employee::factory(),
             'year' => now()->year,
+            'expected_month' => fake()->numberBetween(1, 12),
             'total_days_entitled' => 22,
             'days_used' => 0,
             'days_pending' => 0,

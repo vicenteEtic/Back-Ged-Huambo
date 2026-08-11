@@ -19,7 +19,8 @@ class LeaveRequestForm extends BaseFormRequest
             'leave_type_id' => [$this->requiredOnCreate(), 'integer', 'exists:leave_types,id'],
             'leave_plan_id' => ['nullable', 'integer', 'exists:leave_plans,id'],
             'start_date' => [$this->requiredOnCreate(), 'date'],
-            'end_date' => [$this->requiredOnCreate(), 'date', 'after_or_equal:start_date'],
+            'end_date' => ['sometimes', 'date', 'after_or_equal:start_date'],
+            'days' => ['sometimes', 'integer', 'min:1', 'max:366'],
             'reason' => ['nullable', 'string'],
         ];
 

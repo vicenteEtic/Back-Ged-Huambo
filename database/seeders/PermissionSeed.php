@@ -46,6 +46,7 @@ class PermissionSeed extends Seeder
             ['name' => 'RH Cargos', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Funcionários', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Documentos', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Tipos de Documento', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Férias', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Feriados', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Ponto', 'operations' => ['show', 'create', 'edit', 'delete']],
@@ -66,6 +67,7 @@ class PermissionSeed extends Seeder
             ['name' => 'RH Arquivo', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Relatórios', 'operations' => ['show']],
             ['name' => 'RH Declarações', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Valores em Atraso', 'operations' => ['show', 'create', 'edit', 'delete']],
 
             // Áreas e Permissões
             ['name' => 'Áreas', 'operations' => ['show', 'create', 'edit', 'delete']],

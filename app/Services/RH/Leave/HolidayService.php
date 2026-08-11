@@ -119,6 +119,46 @@ class HolidayService extends AbstractService
     }
 
     /**
+     * Devolve os feriados existentes num intervalo (inclusive), com nome e data.
+     */
+    public function holidaysBetween(Carbon $start, Carbon $end): array
+    {
+        $holidays = [];
+
+        for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
+            if (! $this->isHoliday($d)) {
+                continue;
+            }
+
+            $holidays[] = [
+                'date' => $d->format('Y-m-d'),
+                'name' => $this->holidayName($d),
+            ];
+        }
+
+        return $holidays;
+    }
+
+    public function holidayName(Carbon $date): string
+    {
+        if ($this->isGoodFriday($date)) {
+            return 'Sexta-Feira Santa';
+        }
+
+        foreach ($this->all() as $holiday) {
+            $matches = $holiday->recurrent
+                ? $holiday->date->month === $date->month && $holiday->date->day === $date->day
+                : $holiday->date->isSameDay($date);
+
+            if ($matches) {
+                return $holiday->name;
+            }
+        }
+
+        return 'Feriado';
+    }
+
+    /**
      * Sexta-feira Santa (feriado móvel) = domingo de Páscoa - 2 dias.
      */
     public function isGoodFriday(Carbon $date): bool

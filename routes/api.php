@@ -26,6 +26,8 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::get('process-movement-types', [EnumController::class, 'processMovementTypes']);
         Route::get('department-types', [EnumController::class, 'departmentTypes']);
         Route::get('declaration-types', [EnumController::class, 'declarationTypes']);
+        Route::get('overdue-value-types', [EnumController::class, 'overdueValueTypes']);
+        Route::get('overdue-value-statuses', [EnumController::class, 'overdueValueStatuses']);
     });
 
     Route::prefix('permission')->group(base_path('routes/user/permission/permission.php'));
@@ -38,6 +40,7 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
     Route::prefix('rh')->group(function () {
         Route::prefix('departments')->group(base_path('routes/rh/department.php'));
         Route::prefix('positions')->group(base_path('routes/rh/position.php'));
+        Route::prefix('document-types')->group(base_path('routes/rh/document_type.php'));
         Route::prefix('employees')->group(function () {
             Route::get('/{employee_id}/documents', [EmployeeDocumentController::class, 'findBy'])->name('employee_document.findBy')->middleware(['can:rh-documentos-show']);
             Route::prefix('documents')->group(base_path('routes/rh/employee_document.php'));
@@ -68,6 +71,7 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::prefix('department-permissions')->group(base_path('routes/rh/department_permission.php'));
         Route::prefix('dashboard')->group(base_path('routes/rh/reports.php'));
         Route::prefix('declarations')->group(base_path('routes/rh/declaration.php'));
+        Route::prefix('overdue-values')->group(base_path('routes/rh/overdue_value.php'));
 
         Route::get('model-relations', [ModelRelationsController::class, 'index']);
         Route::get('model-relations/{model}', [ModelRelationsController::class, 'show']);

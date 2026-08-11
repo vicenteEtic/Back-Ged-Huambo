@@ -21,6 +21,15 @@ class LeavePlanService extends AbstractService
 
         $data = $this->resolveEntitlement($data);
 
+        $existing = LeavePlan::where('employee_id', $data['employee_id'])
+            ->where('year', $data['year'])
+            ->where('leave_type_id', $data['leave_type_id'] ?? null)
+            ->first();
+
+        if ($existing && array_key_exists('expected_month', $data) && $existing->expected_month !== $data['expected_month']) {
+            $data['upcoming_notified_at'] = null;
+        }
+
         return LeavePlan::updateOrCreate(
             ['employee_id' => $data['employee_id'], 'year' => $data['year'], 'leave_type_id' => $data['leave_type_id'] ?? null],
             $data

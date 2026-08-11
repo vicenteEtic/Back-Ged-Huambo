@@ -117,6 +117,92 @@ class LeaveRequestTest extends RhTestCase
         $response->assertStatus(200);
     }
 
+    public function test_can_calculate_return_date_by_days()
+    {
+        $start = now()->next(Carbon::MONDAY);
+
+        Holiday::create([
+            'name' => 'Feriado Teste',
+            'date' => $start->copy()->addDays(2)->format('Y-m-d'),
+            'recurrent' => false,
+            'is_active' => true,
+        ]);
+
+        $response = $this->getJsonAuth(
+            '/api/rh/leaves/leave-requests/calculate-return?start_date='.$start->format('Y-m-d').'&days=10'
+        );
+
+        $response->assertStatus(200);
+
+        $this->assertEquals($start->format('Y-m-d'), $response->json('start_date'));
+        $this->assertEquals(10, $response->json('days'));
+        $this->assertEquals($start->copy()->addDays(14)->format('Y-m-d'), $response->json('end_date'));
+        $this->assertEquals($start->copy()->addDays(15)->format('Y-m-d'), $response->json('return_date'));
+        $this->assertEquals(1, $response->json('holidays_count'));
+        $this->assertEquals($start->copy()->addDays(2)->format('Y-m-d'), $response->json('holidays.0.date'));
+        $this->assertEquals('Feriado Teste', $response->json('holidays.0.name'));
+        $this->assertEquals(15, $response->json('calendar_days'));
+    }
+
+    public function test_calculate_return_validates_days()
+    {
+        $start = now()->next(Carbon::MONDAY);
+
+        $response = $this->getJsonAuth(
+            '/api/rh/leaves/leave-requests/calculate-return?start_date='.$start->format('Y-m-d').'&days=0'
+        );
+
+        $response->assertStatus(422);
+    }
+
+    public function test_submit_computes_end_date_from_days()
+    {
+        $start = now()->next(Carbon::MONDAY);
+
+        $response = $this->postJsonAuth('/api/rh/leaves/leave-requests', [
+            'employee_id' => $this->employee->id,
+            'leave_type_id' => $this->leaveType->id,
+            'start_date' => $start->format('Y-m-d'),
+            'days' => 5,
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('total_days', 5);
+
+        $this->assertEquals(
+            $start->copy()->addDays(4)->startOfDay()->timestamp,
+            Carbon::parse($response->json('end_date'))->timestamp
+        );
+        $this->assertEquals(
+            $start->copy()->addDays(7)->startOfDay()->timestamp,
+            Carbon::parse($response->json('return_date'))->timestamp
+        );
+    }
+
+    public function test_submit_with_days_skips_weekend()
+    {
+        $start = now()->next(Carbon::MONDAY);
+
+        $response = $this->postJsonAuth('/api/rh/leaves/leave-requests', [
+            'employee_id' => $this->employee->id,
+            'leave_type_id' => $this->leaveType->id,
+            'start_date' => $start->format('Y-m-d'),
+            'days' => 10,
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('total_days', 10);
+
+        $this->assertEquals(
+            $start->copy()->addDays(11)->startOfDay()->timestamp,
+            Carbon::parse($response->json('end_date'))->timestamp
+        );
+        $this->assertEquals(
+            $start->copy()->addDays(14)->startOfDay()->timestamp,
+            Carbon::parse($response->json('return_date'))->timestamp
+        );
+    }
+
     public function test_submit_excludes_holidays_from_business_days()
     {
         $start = now()->next(Carbon::MONDAY);

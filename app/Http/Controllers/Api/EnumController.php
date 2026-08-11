@@ -10,6 +10,8 @@ use App\Enum\DocumentConfidentiality;
 use App\Enum\DocumentSharePermission;
 use App\Enum\DocumentStatus;
 use App\Enum\FunctionalHistoryType;
+use App\Enum\OverdueValueStatus;
+use App\Enum\OverdueValueType;
 use App\Enum\ProgressionType;
 use Illuminate\Http\JsonResponse;
 
@@ -254,6 +256,26 @@ class EnumController
                 'value' => $case->value,
                 'label' => $case->label(),
                 'description' => $case->description(),
+            ]),
+        ]);
+    }
+
+    public function overdueValueTypes(): JsonResponse
+    {
+        return response()->json([
+            'data' => collect(OverdueValueType::cases())->map(fn($case) => [
+                'value' => $case->value,
+                'label' => $case->label(),
+            ]),
+        ]);
+    }
+
+    public function overdueValueStatuses(): JsonResponse
+    {
+        return response()->json([
+            'data' => collect(OverdueValueStatus::cases())->map(fn($case) => [
+                'value' => $case->value,
+                'label' => $case->label(),
             ]),
         ]);
     }

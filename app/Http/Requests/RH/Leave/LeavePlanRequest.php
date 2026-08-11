@@ -17,6 +17,7 @@ class LeavePlanRequest extends BaseFormRequest
         return [
             'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
             'year' => [$this->requiredOnCreate(), 'integer', 'min:2000', 'max:2100'],
+            'expected_month' => ['nullable', 'integer', 'min:1', 'max:12'],
             'leave_type_id' => ['nullable', 'integer', 'exists:leave_types,id'],
             'total_days_entitled' => ['nullable', 'numeric', 'min:0', 'max:365'],
             'days_used' => ['numeric', 'min:0'],
