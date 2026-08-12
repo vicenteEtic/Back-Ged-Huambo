@@ -5,6 +5,7 @@ namespace App\Http\Requests\RH\Attendance;
 use App\Enum\AttendanceStatus;
 use App\Http\Requests\BaseFormRequest;
 use App\Support\TimeNormalizer;
+use Carbon\Carbon;
 
 class AttendanceRequest extends BaseFormRequest
 {
@@ -20,6 +21,9 @@ class AttendanceRequest extends BaseFormRequest
         }
         if ($this->has('check_out')) {
             $this->merge(['check_out' => TimeNormalizer::normalize($this->input('check_out'))]);
+        }
+        if ($this->has('date')) {
+            $this->merge(['date' => Carbon::parse($this->input('date'))->format('Y-m-d')]);
         }
     }
 

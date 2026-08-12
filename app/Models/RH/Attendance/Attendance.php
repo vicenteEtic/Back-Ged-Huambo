@@ -34,7 +34,7 @@ class Attendance extends Model
     protected function casts(): array
     {
         return [
-            'date' => 'date',
+            'date' => 'date:Y-m-d',
             'hours_worked' => 'decimal:2',
             'late_minutes' => 'integer',
             'overtime_minutes' => 'integer',

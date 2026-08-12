@@ -101,6 +101,7 @@ class AttendanceService extends AbstractService
     public function registerCheckIn(int $employeeId, string $date, string $time): Attendance
     {
         return DB::transaction(function () use ($employeeId, $date, $time) {
+            $date = Carbon::parse($date)->format('Y-m-d');
             $shift = $this->resolveShift($employeeId, $date);
             $expectedIn = $shift ? Carbon::parse($shift->start_time) : null;
             $actualIn = Carbon::parse(TimeNormalizer::normalize($time) ?? $time);
@@ -133,6 +134,7 @@ class AttendanceService extends AbstractService
     public function registerCheckOut(int $employeeId, string $date, string $time): Attendance
     {
         return DB::transaction(function () use ($employeeId, $date, $time) {
+            $date = Carbon::parse($date)->format('Y-m-d');
             $record = Attendance::where('employee_id', $employeeId)->where('date', $date)->firstOrFail();
             $shift = $record->shift;
 
@@ -161,6 +163,8 @@ class AttendanceService extends AbstractService
 
     public function registerAbsence(int $employeeId, string $date, string $type, ?string $reason = null, bool $justified = false): Attendance
     {
+        $date = Carbon::parse($date)->format('Y-m-d');
+
         return Attendance::updateOrCreate(
             ['employee_id' => $employeeId, 'date' => $date],
             [
@@ -212,7 +216,9 @@ class AttendanceService extends AbstractService
                         throw new \Exception("Funcionário não encontrado: {$row['employee_number']}");
                     }
 
-                    $date = $row['date'] ?? now()->toDateString();
+                    $date = !empty($row['date'])
+                        ? Carbon::parse($row['date'])->format('Y-m-d')
+                        : now()->toDateString();
                     $record = Attendance::firstOrNew(['employee_id' => $employee->id, 'date' => $date]);
 
                     if (!empty($row['check_in'])) {
