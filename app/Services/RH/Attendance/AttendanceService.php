@@ -8,6 +8,7 @@ use App\Models\RH\Attendance\Shift;
 use App\Models\RH\Attendance\ShiftAssignment;
 use App\Repositories\RH\Attendance\AttendanceRepository;
 use App\Services\AbstractService;
+use App\Support\TimeNormalizer;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -48,12 +49,15 @@ class AttendanceService extends AbstractService
 
     private function applyCalculations(array $data): array
     {
-        $checkIn = $data['check_in'] ?? null;
-        $checkOut = $data['check_out'] ?? null;
+        $checkIn = TimeNormalizer::normalize($data['check_in'] ?? null);
+        $checkOut = TimeNormalizer::normalize($data['check_out'] ?? null);
 
         if (!$checkIn && !$checkOut) {
             return $data;
         }
+
+        $data['check_in'] = $checkIn;
+        $data['check_out'] = $checkOut;
 
         $shift = null;
         if (!empty($data['shift_id'])) {
@@ -99,7 +103,7 @@ class AttendanceService extends AbstractService
         return DB::transaction(function () use ($employeeId, $date, $time) {
             $shift = $this->resolveShift($employeeId, $date);
             $expectedIn = $shift ? Carbon::parse($shift->start_time) : null;
-            $actualIn = Carbon::parse($time);
+            $actualIn = Carbon::parse(TimeNormalizer::normalize($time) ?? $time);
             $lateMinutes = 0;
 
             if ($expectedIn) {
@@ -112,7 +116,7 @@ class AttendanceService extends AbstractService
             $data = [
                 'employee_id' => $employeeId,
                 'date' => $date,
-                'check_in' => $time,
+                'check_in' => TimeNormalizer::normalize($time),
                 'status' => $lateMinutes > 0 ? 'late' : 'present',
                 'shift_id' => $shift?->id,
                 'expected_check_in' => $shift?->start_time,
@@ -132,8 +136,8 @@ class AttendanceService extends AbstractService
             $record = Attendance::where('employee_id', $employeeId)->where('date', $date)->firstOrFail();
             $shift = $record->shift;
 
-            $checkIn = Carbon::parse($record->check_in);
-            $checkOut = Carbon::parse($time);
+            $checkIn = Carbon::parse(TimeNormalizer::normalize($record->check_in) ?? $record->check_in);
+            $checkOut = Carbon::parse(TimeNormalizer::normalize($time) ?? $time);
             $hoursWorked = round($checkIn->diffInMinutes($checkOut) / 60, 2);
 
             $overtimeMinutes = 0;
@@ -145,7 +149,7 @@ class AttendanceService extends AbstractService
             }
 
             $record->update([
-                'check_out' => $time,
+                'check_out' => TimeNormalizer::normalize($time),
                 'hours_worked' => $hoursWorked,
                 'overtime_minutes' => $overtimeMinutes,
                 'expected_check_out' => $shift?->end_time,
@@ -212,10 +216,10 @@ class AttendanceService extends AbstractService
                     $record = Attendance::firstOrNew(['employee_id' => $employee->id, 'date' => $date]);
 
                     if (!empty($row['check_in'])) {
-                        $record->check_in = $row['check_in'];
+                        $record->check_in = TimeNormalizer::normalize($row['check_in']);
                     }
                     if (!empty($row['check_out'])) {
-                        $record->check_out = $row['check_out'];
+                        $record->check_out = TimeNormalizer::normalize($row['check_out']);
                     }
 
                     if ($record->check_in && $record->check_out) {

@@ -4,12 +4,23 @@ namespace App\Http\Requests\RH\Attendance;
 
 use App\Enum\AttendanceStatus;
 use App\Http\Requests\BaseFormRequest;
+use App\Support\TimeNormalizer;
 
 class AttendanceRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {
         return true;
+    }
+
+    public function prepareForValidation(): void
+    {
+        if ($this->has('check_in')) {
+            $this->merge(['check_in' => TimeNormalizer::normalize($this->input('check_in'))]);
+        }
+        if ($this->has('check_out')) {
+            $this->merge(['check_out' => TimeNormalizer::normalize($this->input('check_out'))]);
+        }
     }
 
     public function rules(): array

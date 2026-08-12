@@ -5,6 +5,7 @@ namespace App\Http\Controllers\RH\Attendance;
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Attendance\AttendanceRequest;
 use App\Services\RH\Attendance\AttendanceService;
+use App\Support\TimeNormalizer;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -41,6 +42,7 @@ class AttendanceController extends AbstractController
     public function checkIn(Request $request)
     {
         try {
+            $request->merge(['check_in' => TimeNormalizer::normalize($request->input('check_in'))]);
             $request->validate([
                 'employee_id' => 'required|exists:employees,id',
                 'date' => 'required|date',
@@ -59,6 +61,7 @@ class AttendanceController extends AbstractController
     public function checkOut(Request $request)
     {
         try {
+            $request->merge(['check_out' => TimeNormalizer::normalize($request->input('check_out'))]);
             $request->validate([
                 'employee_id' => 'required|exists:employees,id',
                 'date' => 'required|date',
@@ -110,6 +113,15 @@ class AttendanceController extends AbstractController
     public function importBiometric(Request $request)
     {
         try {
+            $rows = collect($request->rows ?? [])->map(function ($row) {
+                $row['check_in'] = TimeNormalizer::normalize($row['check_in'] ?? null);
+                $row['check_out'] = TimeNormalizer::normalize($row['check_out'] ?? null);
+
+                return $row;
+            })->all();
+
+            $request->merge(['rows' => $rows]);
+
             $request->validate([
                 'rows' => 'required|array',
                 'rows.*.employee_number' => 'required|string',
