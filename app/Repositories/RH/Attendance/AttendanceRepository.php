@@ -14,9 +14,20 @@ class AttendanceRepository extends AbstractRepository
 
     public function store(array $data): Attendance
     {
-        return $this->model->updateOrCreate(
-            ['employee_id' => $data['employee_id'], 'date' => $data['date']],
-            $data
-        );
+        $record = $this->model->withTrashed()
+            ->where('employee_id', $data['employee_id'])
+            ->where('date', $data['date'])
+            ->first();
+
+        if ($record) {
+            if ($record->trashed()) {
+                $record->restore();
+            }
+            $record->fill($data)->save();
+
+            return $record;
+        }
+
+        return $this->model->create($data);
     }
 }

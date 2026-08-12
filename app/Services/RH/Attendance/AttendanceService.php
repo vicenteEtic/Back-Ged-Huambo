@@ -124,10 +124,7 @@ class AttendanceService extends AbstractService
                 'late_minutes' => $lateMinutes,
             ];
 
-            return Attendance::updateOrCreate(
-                ['employee_id' => $employeeId, 'date' => $date],
-                $data
-            );
+            return $this->upsertForDate($employeeId, $date, $data);
         });
     }
 
@@ -165,15 +162,33 @@ class AttendanceService extends AbstractService
     {
         $date = Carbon::parse($date)->format('Y-m-d');
 
-        return Attendance::updateOrCreate(
-            ['employee_id' => $employeeId, 'date' => $date],
-            [
-                'status' => 'absent',
-                'absence_type' => $type,
-                'absence_reason' => $reason,
-                'is_justified' => $justified,
-            ]
-        );
+        return $this->upsertForDate($employeeId, $date, [
+            'employee_id' => $employeeId,
+            'date' => $date,
+            'status' => 'absent',
+            'absence_type' => $type,
+            'absence_reason' => $reason,
+            'is_justified' => $justified,
+        ]);
+    }
+
+    private function upsertForDate(int $employeeId, string $date, array $data): Attendance
+    {
+        $record = Attendance::withTrashed()
+            ->where('employee_id', $employeeId)
+            ->where('date', $date)
+            ->first();
+
+        if ($record) {
+            if ($record->trashed()) {
+                $record->restore();
+            }
+            $record->fill($data)->save();
+
+            return $record;
+        }
+
+        return Attendance::create($data);
     }
 
     public function monthlyReport(int $employeeId, int $year, int $month): array
