@@ -12,7 +12,7 @@
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ARTISAN="${ROOT}/artisan"
+cd "${ROOT}" || exit 1
 
 MARK_DATE=""
 ONLY_RH=false
@@ -31,7 +31,7 @@ run() {
     echo "=================================================="
     echo ">>> ${label}"
     echo "=================================================="
-    php "${ARTISAN}" "$@"
+    docker compose exec -T php php artisan "$@"
     local code=$?
     if [ $code -ne 0 ]; then
         echo "!!! Falha ao executar: ${label} (código ${code})"
