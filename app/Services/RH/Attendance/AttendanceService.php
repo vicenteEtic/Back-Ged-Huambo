@@ -258,6 +258,20 @@ class AttendanceService extends AbstractService
             ];
         })->values();
 
+        $types = \App\Models\RH\Attendance\AbsenceType::whereIn('code', $records->pluck('absence_type')->unique()->filter())
+            ->get(['code', 'name'])
+            ->keyBy('code');
+
+        $byType = $records->groupBy('absence_type')->map(function ($items, $type) use ($types) {
+            return [
+                'type' => $type,
+                'name' => $types->get($type)?->name ?? $type,
+                'total' => $items->count(),
+                'justified' => $items->where('is_justified', true)->count(),
+                'unjustified' => $items->where('is_justified', false)->count(),
+            ];
+        })->values();
+
         return [
             'year' => $year,
             'month' => $month,
@@ -268,6 +282,7 @@ class AttendanceService extends AbstractService
             'total_absences' => $records->count(),
             'total_employees' => $byEmployee->count(),
             'by_employee' => $byEmployee,
+            'by_type' => $byType,
         ];
     }
 
@@ -307,7 +322,7 @@ class AttendanceService extends AbstractService
                 'employee_id' => $employee->id,
                 'date' => $date,
                 'status' => 'absent',
-                'absence_type' => 'unjustified',
+                'absence_type' => 'injustificada',
                 'absence_reason' => 'Falta registada automaticamente por ausência de ponto no dia.',
                 'is_justified' => false,
             ]);

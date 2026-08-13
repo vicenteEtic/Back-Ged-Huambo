@@ -3,6 +3,7 @@
 namespace Tests\Feature\RH\Attendance;
 
 use Tests\Feature\RH\RhTestCase;
+use App\Models\RH\Attendance\AbsenceType;
 use App\Models\RH\Attendance\Attendance;
 use App\Models\RH\Attendance\Shift;
 use App\Models\RH\Attendance\ShiftAssignment;
@@ -131,10 +132,12 @@ class AttendanceTest extends RhTestCase
 
     public function test_can_register_absence()
     {
+        AbsenceType::factory()->create(['code' => 'doenca']);
+
         $data = [
             'employee_id' => $this->employee->id,
             'date' => now()->format('Y-m-d'),
-            'absence_type' => 'justified',
+            'absence_type' => 'doenca',
             'reason' => 'Doença',
         ];
 

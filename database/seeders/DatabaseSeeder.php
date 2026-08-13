@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call(PermissionSeed::class);
         $this->call(PositionSeed::class);
         $this->call(LeaveTypeSeeder::class);
+        $this->call(AbsenceTypeSeed::class);
         $this->call(DisciplinaryTypeSeed::class);
         $this->call(ProgressionRuleSeed::class);
         $this->call(AreaSeed::class);

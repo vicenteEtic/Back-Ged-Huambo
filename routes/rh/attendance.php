@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\RH\Attendance\AbsenceJustificationController;
+use App\Http\Controllers\RH\Attendance\AbsenceTypeController;
 use App\Http\Controllers\RH\Attendance\AttendanceController;
 use App\Http\Controllers\RH\Attendance\ShiftAssignmentController;
 use App\Http\Controllers\RH\Attendance\ShiftController;
@@ -25,6 +26,14 @@ Route::prefix('assignments')->group(function () {
     Route::delete('{id}', [ShiftAssignmentController::class, 'destroy'])->name('shift_assignment.destroy')->middleware(['can:rh-ponto-delete']);
 });
 
+Route::prefix('absence-types')->group(function () {
+    Route::get('/', [AbsenceTypeController::class, 'index'])->name('absence_type.index')->middleware(['can:rh-ponto-show']);
+    Route::post('/', [AbsenceTypeController::class, 'store'])->name('absence_type.store')->middleware(['can:rh-ponto-create']);
+    Route::get('{id}', [AbsenceTypeController::class, 'show'])->name('absence_type.show')->middleware(['can:rh-ponto-show']);
+    Route::put('{id}', [AbsenceTypeController::class, 'update'])->name('absence_type.update')->middleware(['can:rh-ponto-edit']);
+    Route::delete('{id}', [AbsenceTypeController::class, 'destroy'])->name('absence_type.destroy')->middleware(['can:rh-ponto-delete']);
+});
+
 Route::prefix('records')->group(function () {
     Route::get('/', [AttendanceController::class, 'index'])->name('attendance.index')->middleware(['can:rh-ponto-show']);
     Route::post('/', [AttendanceController::class, 'store'])->name('attendance.store')->middleware(['can:rh-ponto-create']);
@@ -36,6 +45,7 @@ Route::prefix('records')->group(function () {
 Route::post('check-in', [AttendanceController::class, 'checkIn'])->name('attendance.checkin')->middleware(['can:rh-ponto-create']);
 Route::post('check-out', [AttendanceController::class, 'checkOut'])->name('attendance.checkout')->middleware(['can:rh-ponto-create']);
 Route::post('import-biometric', [AttendanceController::class, 'importBiometric'])->name('attendance.import')->middleware(['can:rh-ponto-create']);
+Route::get('absences/types', [AttendanceController::class, 'absenceTypes'])->name('attendance.absence_types')->middleware(['can:rh-ponto-show']);
 Route::get('absences', [AttendanceController::class, 'absences'])->name('attendance.absences')->middleware(['can:rh-ponto-show']);
 
 Route::prefix('absences/justifications')->group(function () {

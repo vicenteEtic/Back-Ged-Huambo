@@ -43,7 +43,7 @@ class AttendanceFactory extends Factory
             'check_in' => null,
             'check_out' => null,
             'status' => 'absent',
-            'absence_type' => fake()->randomElement(['justified', 'unjustified']),
+            'absence_type' => fake()->randomElement(['doenca', 'luto', 'casamento', 'injustificada', 'outro']),
             'absence_reason' => fake()->sentence(),
         ]);
     }

@@ -16,7 +16,7 @@ class AbsenceJustificationRequest extends BaseFormRequest
         return [
             'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
             'date' => [$this->requiredOnCreate(), 'date'],
-            'absence_type' => ['nullable', 'string', 'max:100'],
+            'absence_type' => ['nullable', 'exists:absence_types,code'],
             'reason' => [$this->requiredOnCreate(), 'string'],
             'proof' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
             'status' => ['nullable', 'string', 'in:pending,approved,rejected'],

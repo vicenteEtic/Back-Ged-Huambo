@@ -4,6 +4,7 @@ namespace App\Http\Controllers\RH\Attendance;
 
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Attendance\AttendanceRequest;
+use App\Models\RH\Attendance\AbsenceType;
 use App\Services\RH\Attendance\AttendanceService;
 use App\Support\TimeNormalizer;
 use Exception;
@@ -87,6 +88,17 @@ class AttendanceController extends AbstractController
             Log::error('Erro ao gerar relatório', ['message' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
+    }
+
+    public function absenceTypes(Request $request)
+    {
+        $types = AbsenceType::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'description']);
+
+        return response()->json([
+            'types' => $types,
+        ]);
     }
 
     public function absences(Request $request)
