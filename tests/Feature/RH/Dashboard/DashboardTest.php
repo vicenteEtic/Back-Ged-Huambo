@@ -57,6 +57,29 @@ class DashboardTest extends RhTestCase
         $response->assertStatus(200);
     }
 
+    public function test_document_expiry_window_defaults_to_today_up_to_30_days()
+    {
+        $employee = Employee::query()->first();
+
+        $expected = EmployeeDocument::factory()->create([
+            'employee_id' => $employee->id,
+            'expiry_date' => now()->addDays(10)->toDateString(),
+        ]);
+        EmployeeDocument::factory()->create([
+            'employee_id' => $employee->id,
+            'expiry_date' => now()->addDays(40)->toDateString(),
+        ]);
+
+        $response = $this->getJsonAuth('/api/rh/dashboard/document-expiry-window');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('from_days', 0)
+            ->assertJsonPath('to_days', 30)
+            ->assertJsonPath('documents.0.id', $expected->id)
+            ->assertJsonPath('documents.0.employee.full_name', $employee->full_name);
+    }
+
     public function test_document_expiry_window_returns_only_documents_between_days()
     {
         $employee = Employee::query()->first();
@@ -74,7 +97,7 @@ class DashboardTest extends RhTestCase
             'expiry_date' => now()->addDays(40)->toDateString(),
         ]);
 
-        $response = $this->getJsonAuth('/api/rh/dashboard/document-expiry-window');
+        $response = $this->getJsonAuth('/api/rh/dashboard/document-expiry-window?from_days=15&to_days=30');
 
         $response->assertStatus(200)
             ->assertJsonPath('total', 1)

@@ -138,9 +138,9 @@ class DashboardService
     }
 
     /**
-     * Funcionários com documentos a expirar dentro de uma janela de dias (por omissão: 15 a 30 dias).
+     * Funcionários com documentos a expirar dentro de uma janela de dias (por omissão: de hoje até 30 dias).
      */
-    public function documentsExpiringBetween(int $fromDays = 15, int $toDays = 30): array
+    public function documentsExpiringBetween(int $fromDays = 0, int $toDays = 30): array
     {
         $today = now()->startOfDay();
         $start = $today->copy()->addDays($fromDays);

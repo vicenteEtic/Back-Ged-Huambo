@@ -66,7 +66,7 @@ class DashboardController extends Controller
     {
         try {
             return response()->json($this->dashboardService->documentsExpiringBetween(
-                (int) request('from_days', 15),
+                (int) request('from_days', 0),
                 (int) request('to_days', 30)
             ));
         } catch (Exception $e) {
