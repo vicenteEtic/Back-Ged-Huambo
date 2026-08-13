@@ -6,16 +6,20 @@ use App\Models\RH\Attendance\Attendance;
 use App\Models\RH\Attendance\AttendanceImportLog;
 use App\Models\RH\Attendance\Shift;
 use App\Models\RH\Attendance\ShiftAssignment;
+use App\Models\RH\Employee\Employee;
 use App\Repositories\RH\Attendance\AttendanceRepository;
 use App\Services\AbstractService;
+use App\Services\RH\Leave\HolidayService;
 use App\Support\TimeNormalizer;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class AttendanceService extends AbstractService
 {
-    public function __construct(AttendanceRepository $repository)
-    {
+    public function __construct(
+        AttendanceRepository $repository,
+        private readonly ?HolidayService $holidayService = null
+    ) {
         parent::__construct($repository);
     }
 
@@ -214,6 +218,103 @@ class AttendanceService extends AbstractService
         ];
 
         return $summary;
+    }
+
+    /**
+     * Lista as faltas de um mês, agrupadas por funcionário.
+     * Permite filtrar por funcionário e por departamento.
+     */
+    public function absences(?int $year = null, ?int $month = null, ?int $employeeId = null, ?int $departmentId = null): array
+    {
+        $year = $year ?? now()->year;
+        $month = $month ?? now()->month;
+
+        $query = Attendance::where('status', 'absent')
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month);
+
+        if ($employeeId) {
+            $query->where('employee_id', $employeeId);
+        }
+
+        $records = $query->with(['employee', 'employee.department'])
+            ->orderBy('date')
+            ->get();
+
+        if ($departmentId) {
+            $records = $records->filter(fn ($record) => $record->employee?->department_id === $departmentId);
+        }
+
+        $byEmployee = $records->groupBy('employee_id')->map(function ($items) {
+            $first = $items->first();
+
+            return [
+                'employee_id' => $first->employee_id,
+                'employee' => $first->employee,
+                'total_absences' => $items->count(),
+                'justified' => $items->where('is_justified', true)->count(),
+                'unjustified' => $items->where('is_justified', false)->count(),
+                'dates' => $items->pluck('date')->map(fn ($d) => $d->format('Y-m-d'))->values(),
+            ];
+        })->values();
+
+        return [
+            'year' => $year,
+            'month' => $month,
+            'filters' => [
+                'employee_id' => $employeeId,
+                'department_id' => $departmentId,
+            ],
+            'total_absences' => $records->count(),
+            'total_employees' => $byEmployee->count(),
+            'by_employee' => $byEmployee,
+        ];
+    }
+
+    /**
+     * Marca automaticamente como falta todos os funcionários activos que não
+     * possuem registo de ponto na data indicada (default: ontem).
+     * Dias não úteis (fim-de-semana/feriado) são ignorados.
+     */
+    public function markAbsentForDate(string $date): array
+    {
+        $date = Carbon::parse($date)->format('Y-m-d');
+
+        $target = Carbon::parse($date);
+
+        if ($target->isWeekend()) {
+            return ['marked' => 0, 'skipped' => 'weekend', 'date' => $date];
+        }
+
+        if ($this->holidayService?->isHoliday($target) ?? false) {
+            return ['marked' => 0, 'skipped' => 'holiday', 'date' => $date];
+        }
+
+        $employees = Employee::where('status', 'active')
+            ->where('hire_date', '<=', $date)
+            ->get();
+
+        $withRecord = Attendance::whereDate('date', $date)
+            ->pluck('employee_id');
+
+        $marked = 0;
+        foreach ($employees as $employee) {
+            if ($withRecord->contains($employee->id)) {
+                continue;
+            }
+
+            Attendance::create([
+                'employee_id' => $employee->id,
+                'date' => $date,
+                'status' => 'absent',
+                'absence_type' => 'unjustified',
+                'absence_reason' => 'Falta registada automaticamente por ausência de ponto no dia.',
+                'is_justified' => false,
+            ]);
+            $marked++;
+        }
+
+        return ['marked' => $marked, 'skipped' => null, 'date' => $date, 'total_employees' => $employees->count()];
     }
 
     public function importBiometric(array $rows, string $filename): AttendanceImportLog

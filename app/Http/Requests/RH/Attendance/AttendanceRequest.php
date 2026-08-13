@@ -36,9 +36,6 @@ class AttendanceRequest extends BaseFormRequest
             'check_in' => ['nullable', 'date_format:H:i:s'],
             'check_out' => ['nullable', 'date_format:H:i:s'],
             'status' => ['string', 'in:' . implode(',', AttendanceStatus::values())],
-            'absence_type' => ['nullable', 'string', 'max:100'],
-            'absence_reason' => ['nullable', 'string'],
-            'is_justified' => ['boolean'],
             'notes' => ['nullable', 'string'],
         ];
     }

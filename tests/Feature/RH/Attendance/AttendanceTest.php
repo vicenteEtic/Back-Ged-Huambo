@@ -135,11 +135,11 @@ class AttendanceTest extends RhTestCase
             'employee_id' => $this->employee->id,
             'date' => now()->format('Y-m-d'),
             'absence_type' => 'justified',
-            'absence_reason' => 'Doença',
+            'reason' => 'Doença',
         ];
 
-        $response = $this->postJsonAuth('/api/rh/attendance/absence', $data);
-        $response->assertStatus(200);
+        $response = $this->postJsonAuth('/api/rh/attendance/absences/justifications', $data);
+        $response->assertStatus(201);
     }
 
     public function test_can_import_biometric()

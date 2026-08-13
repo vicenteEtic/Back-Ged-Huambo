@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\RH\Attendance\AbsenceJustificationController;
 use App\Http\Controllers\RH\Attendance\AttendanceController;
 use App\Http\Controllers\RH\Attendance\ShiftAssignmentController;
 use App\Http\Controllers\RH\Attendance\ShiftController;
@@ -34,8 +35,20 @@ Route::prefix('records')->group(function () {
 
 Route::post('check-in', [AttendanceController::class, 'checkIn'])->name('attendance.checkin')->middleware(['can:rh-ponto-create']);
 Route::post('check-out', [AttendanceController::class, 'checkOut'])->name('attendance.checkout')->middleware(['can:rh-ponto-create']);
-Route::post('absence', [AttendanceController::class, 'absence'])->name('attendance.absence')->middleware(['can:rh-ponto-create']);
 Route::post('import-biometric', [AttendanceController::class, 'importBiometric'])->name('attendance.import')->middleware(['can:rh-ponto-create']);
+Route::get('absences', [AttendanceController::class, 'absences'])->name('attendance.absences')->middleware(['can:rh-ponto-show']);
+
+Route::prefix('absences/justifications')->group(function () {
+    Route::get('/', [AbsenceJustificationController::class, 'index'])->name('attendance.absence_justification.index')->middleware(['can:rh-ponto-show']);
+    Route::post('/', [AbsenceJustificationController::class, 'store'])->name('attendance.absence_justification.store')->middleware(['can:rh-ponto-create']);
+    Route::get('{id}', [AbsenceJustificationController::class, 'show'])->name('attendance.absence_justification.show')->middleware(['can:rh-ponto-show']);
+    Route::put('{id}', [AbsenceJustificationController::class, 'update'])->name('attendance.absence_justification.update')->middleware(['can:rh-ponto-edit']);
+    Route::delete('{id}', [AbsenceJustificationController::class, 'destroy'])->name('attendance.absence_justification.destroy')->middleware(['can:rh-ponto-delete']);
+    Route::post('{id}/approve', [AbsenceJustificationController::class, 'approve'])->name('attendance.absence_justification.approve')->middleware(['can:rh-ponto-edit']);
+    Route::post('{id}/reject', [AbsenceJustificationController::class, 'reject'])->name('attendance.absence_justification.reject')->middleware(['can:rh-ponto-edit']);
+    Route::get('{id}/proof', [AbsenceJustificationController::class, 'downloadProof'])->name('attendance.absence_justification.proof')->middleware(['can:rh-ponto-show']);
+});
+
 Route::get('reports/{employee_id}', [AttendanceController::class, 'monthlyReport'])->name('attendance.report')->middleware(['can:rh-ponto-show']);
 
 Route::get('{id}', [AttendanceController::class, 'show'])->name('attendance.root.show')->middleware(['can:rh-ponto-show']);

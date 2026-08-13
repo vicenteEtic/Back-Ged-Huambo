@@ -77,27 +77,6 @@ class AttendanceController extends AbstractController
         }
     }
 
-    public function absence(Request $request)
-    {
-        try {
-            $request->validate([
-                'employee_id' => 'required|exists:employees,id',
-                'date' => 'required|date',
-                'absence_type' => 'required|string|max:100',
-                'absence_reason' => 'nullable|string',
-                'is_justified' => 'boolean',
-            ]);
-            $attendance = $this->attendanceService->registerAbsence(
-                $request->employee_id, $request->date, $request->absence_type,
-                $request->absence_reason, $request->boolean('is_justified')
-            );
-            return response()->json($attendance);
-        } catch (Exception $e) {
-            Log::error('Erro ao registar ausência', ['message' => $e->getMessage()]);
-            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-    }
-
     public function monthlyReport(Request $request, int $employeeId)
     {
         try {
@@ -106,6 +85,21 @@ class AttendanceController extends AbstractController
             return response()->json($this->attendanceService->monthlyReport($employeeId, $year, $month));
         } catch (Exception $e) {
             Log::error('Erro ao gerar relatório', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    public function absences(Request $request)
+    {
+        try {
+            $year = $request->integer('year') ?: now()->year;
+            $month = $request->integer('month') ?: now()->month;
+            $employeeId = $request->input('employee_id') ? (int) $request->input('employee_id') : null;
+            $departmentId = $request->input('department_id') ? (int) $request->input('department_id') : null;
+
+            return response()->json($this->attendanceService->absences($year, $month, $employeeId, $departmentId));
+        } catch (Exception $e) {
+            Log::error('Erro ao listar faltas', ['message' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
