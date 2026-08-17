@@ -144,9 +144,12 @@ class FileUploadService
 
     private function runGhostscript(string $inputPath, string $outputPath): bool
     {
-        $quality = $this->config['pdf']['quality'];
-        $dpi = $this->config['pdf']['dpi'];
-        $imageQuality = $this->config['pdf']['image_quality'];
+        $allowedQualities = ['screen', 'ebook', 'printer', 'prepress', 'default'];
+        $quality = in_array($this->config['pdf']['quality'], $allowedQualities)
+            ? $this->config['pdf']['quality']
+            : 'ebook';
+        $dpi = (int) $this->config['pdf']['dpi'];
+        $imageQuality = (int) $this->config['pdf']['image_quality'];
 
         $command = sprintf(
             'gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/%s '
@@ -160,7 +163,7 @@ class FileUploadService
             . '-dGrayImageDownsampleThreshold=1.0 '
             . '-dJPEGQFactor=%d '
             . '-sOutputFile=%s %s 2>&1',
-            escapeshellarg($quality),
+            $quality,
             $dpi,
             $dpi,
             $dpi,
@@ -170,6 +173,13 @@ class FileUploadService
         );
 
         exec($command, $output, $exitCode);
+
+        if ($exitCode !== 0) {
+            Log::warning('[Upload] Ghostscript falhou', [
+                'comando' => $command,
+                'saida' => implode("\n", $output),
+            ]);
+        }
 
         return $exitCode === 0;
     }
