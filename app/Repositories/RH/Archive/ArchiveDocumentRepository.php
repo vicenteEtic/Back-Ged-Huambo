@@ -4,13 +4,16 @@ namespace App\Repositories\RH\Archive;
 
 use App\Models\RH\Archive\ArchiveDocument;
 use App\Repositories\AbstractRepository;
+use App\Services\Upload\FileUploadService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 class ArchiveDocumentRepository extends AbstractRepository
 {
-    public function __construct(ArchiveDocument $model)
-    {
+    public function __construct(
+        ArchiveDocument $model,
+        private FileUploadService $uploadService,
+    ) {
         parent::__construct($model);
     }
 
@@ -23,12 +26,14 @@ class ArchiveDocumentRepository extends AbstractRepository
 
                 if ($file instanceof UploadedFile) {
                     $employeeId = $data['employee_id'] ?? 'general';
-                    $path = $file->store($employeeId . '/archive-documents', 'public');
+                    $directory = $employeeId . '/archive-documents';
 
-                    $data['file_path'] = 'storage/'.$path;
-                    $data['file_type'] = $this->guessFileType($file);
-                    $data['file_size'] = $file->getSize();
-                    $data['mime_type'] = $file->getMimeType();
+                    $result = $this->uploadService->processUploadedFile($file, $directory);
+
+                    $data['file_path'] = 'storage/' . $result['path'];
+                    $data['file_type'] = $this->uploadService->getUploadMimeType($file);
+                    $data['file_size'] = $result['final_size'];
+                    $data['mime_type'] = $result['mime_type'];
                 }
 
                 if (isset($data['metadata']) && is_string($data['metadata'])) {
@@ -46,19 +51,5 @@ class ArchiveDocumentRepository extends AbstractRepository
             }
             throw $e;
         }
-    }
-
-    protected function guessFileType(UploadedFile $file): string
-    {
-        $mime = $file->getMimeType();
-
-        return match (true) {
-            str_contains($mime, 'pdf') => 'PDF',
-            str_contains($mime, 'image') => 'Imagem',
-            str_contains($mime, 'word') || str_contains($mime, 'document') => 'Documento Word',
-            str_contains($mime, 'excel') || str_contains($mime, 'spreadsheet') => 'Folha de cálculo',
-            str_contains($mime, 'text') => 'Texto',
-            default => $mime,
-        };
     }
 }

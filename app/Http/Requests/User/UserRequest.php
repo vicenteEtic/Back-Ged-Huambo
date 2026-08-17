@@ -23,12 +23,12 @@ class UserRequest extends BaseFormRequest
     {
         $id = $this->route('id') ?? null;
         return [
-            'first_name' => ['required', 'string', 'max:255'],
-            'last_name' => ['required', 'string', 'max:255'],
+            'first_name' => [$this->requiredOnCreate(), 'string', 'max:255'],
+            'last_name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
-            'email' => ['required', 'email', 'max:255', "unique:users,email,{$id},id"],
+            'email' => [$this->requiredOnCreate(), 'email', 'max:255', "unique:users,email,{$id},id"],
             'is_active' => ['nullable', 'boolean'],
-            'role_id' => ['required', 'integer', 'exists:role,id'],
+            'role_id' => [$this->requiredOnCreate(), 'integer', 'exists:role,id'],
             ...($id === null ? [
                
             ] : []),

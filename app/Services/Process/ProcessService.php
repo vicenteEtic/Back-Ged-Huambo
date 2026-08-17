@@ -9,6 +9,7 @@ use App\Models\Process\ProcessDocument;
 use App\Models\Process\ProcessMovement;
 use App\Repositories\Process\ProcessRepository;
 use App\Services\AbstractService;
+use App\Services\Upload\FileUploadService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
@@ -17,6 +18,7 @@ class ProcessService extends AbstractService
     public function __construct(
         ProcessRepository $repository,
         protected ProcessAssignmentService $assignmentService,
+        private FileUploadService $uploadService,
     ) {
         parent::__construct($repository);
     }
@@ -393,34 +395,21 @@ class ProcessService extends AbstractService
 
         foreach ($files as $file) {
             if ($file instanceof UploadedFile) {
-                $path = $file->store($processId . '/process-documents', 'public');
+                $directory = $processId . '/process-documents';
+                $result = $this->uploadService->processUploadedFile($file, $directory);
 
                 ProcessDocument::create([
                     'process_id' => $processId,
-                    'document_type' => $documentType ?? $this->guessDocumentType($file),
+                    'document_type' => $documentType ?? $this->uploadService->getUploadMimeType($file),
                     'name' => $file->getClientOriginalName(),
-                    'file_path' => $path,
+                    'file_path' => $result['path'],
                     'file_type' => $file->getClientOriginalExtension(),
-                    'file_size' => $file->getSize(),
-                    'mime_type' => $file->getMimeType(),
+                    'file_size' => $result['final_size'],
+                    'mime_type' => $result['mime_type'],
                     'uploaded_by' => auth()->id(),
                 ]);
             }
         }
-    }
-
-    protected function guessDocumentType(UploadedFile $file): string
-    {
-        $mime = $file->getMimeType();
-
-        return match (true) {
-            str_contains($mime, 'pdf') => 'PDF',
-            str_contains($mime, 'image') => 'Imagem',
-            str_contains($mime, 'word') || str_contains($mime, 'document') => 'Documento Word',
-            str_contains($mime, 'excel') || str_contains($mime, 'spreadsheet') => 'Folha de cálculo',
-            str_contains($mime, 'text') => 'Texto',
-            default => $mime,
-        };
     }
 
     protected function registerMovement(

@@ -4,17 +4,19 @@ namespace App\Repositories\RH\EmployeeDocument;
 
 use App\Models\RH\EmployeeDocument\EmployeeDocument;
 use App\Repositories\AbstractRepository;
+use App\Services\Upload\FileUploadService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 class EmployeeDocumentRepository extends AbstractRepository
 {
-    public function __construct(EmployeeDocument $model)
-    {
+    public function __construct(
+        EmployeeDocument $model,
+        private FileUploadService $uploadService,
+    ) {
         parent::__construct($model);
     }
-
 
     public function store(array $data): mixed
     {
@@ -41,17 +43,18 @@ class EmployeeDocumentRepository extends AbstractRepository
                 }
 
                 $created = [];
+                $directory = $data['employee_id'] . '/employee-documents';
 
                 foreach ($files as $file) {
-                    $path = $file->store('' . $data['employee_id'] . '/employee-documents', 'public');
+                    $result = $this->uploadService->processUploadedFile($file, $directory);
 
                     $created[] = $this->model->create([
                         'employee_id'      => $data['employee_id'],
                         'document_type_id' => $data['document_type_id'] ?? null,
-                        'document_type'    => $documentType?->name ?? $data['document_type'] ?? $this->guessDocumentType($file),
+                        'document_type'    => $documentType?->name ?? $data['document_type'] ?? $this->uploadService->getUploadMimeType($file),
                         'name'             => $data['name'] ?? $file->getClientOriginalName(),
                         'description'      => $data['description'] ?? null,
-                        'file_path'        => 'storage/'.$path,
+                        'file_path'        => 'storage/' . $result['path'],
                         'expiry_date'      => $data['expiry_date'] ?? null,
                         'issue_date'       => $data['issue_date'] ?? null,
                         'place_of_issue'   => $data['place_of_issue'] ?? null,
@@ -87,19 +90,5 @@ class EmployeeDocumentRepository extends AbstractRepository
             ->with(['employee', 'documentType'])
             ->where($criteria)
             ->get();
-    }
-
-    protected function guessDocumentType(UploadedFile $file): string
-    {
-        $mime = $file->getMimeType();
-
-        return match (true) {
-            str_contains($mime, 'pdf') => 'PDF',
-            str_contains($mime, 'image') => 'Imagem',
-            str_contains($mime, 'word') || str_contains($mime, 'document') => 'Documento Word',
-            str_contains($mime, 'excel') || str_contains($mime, 'spreadsheet') => 'Folha de cálculo',
-            str_contains($mime, 'text') => 'Texto',
-            default => $mime,
-        };
     }
 }

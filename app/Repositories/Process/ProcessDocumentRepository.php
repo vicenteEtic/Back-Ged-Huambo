@@ -4,14 +4,17 @@ namespace App\Repositories\Process;
 
 use App\Models\Process\ProcessDocument;
 use App\Repositories\AbstractRepository;
+use App\Services\Upload\FileUploadService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 class ProcessDocumentRepository extends AbstractRepository
 {
-    public function __construct(ProcessDocument $model)
-    {
+    public function __construct(
+        ProcessDocument $model,
+        private FileUploadService $uploadService,
+    ) {
         parent::__construct($model);
     }
 
@@ -33,19 +36,20 @@ class ProcessDocumentRepository extends AbstractRepository
                 }
 
                 $created = [];
+                $directory = $data['process_id'] . '/process-documents';
 
                 foreach ($files as $file) {
-                    $path = $file->store($data['process_id'] . '/process-documents', 'public');
+                    $result = $this->uploadService->processUploadedFile($file, $directory);
 
                     $created[] = $this->model->create([
                         'process_id' => $data['process_id'],
-                        'document_type' => $data['document_type'] ?? $this->guessDocumentType($file),
+                        'document_type' => $data['document_type'] ?? $this->uploadService->getUploadMimeType($file),
                         'name' => $data['name'] ?? $file->getClientOriginalName(),
                         'description' => $data['description'] ?? null,
-                        'file_path' => $path,
+                        'file_path' => $result['path'],
                         'file_type' => $file->getClientOriginalExtension(),
-                        'file_size' => $file->getSize(),
-                        'mime_type' => $file->getMimeType(),
+                        'file_size' => $result['final_size'],
+                        'mime_type' => $result['mime_type'],
                         'uploaded_by' => auth()->id(),
                     ]);
                 }
@@ -66,19 +70,5 @@ class ProcessDocumentRepository extends AbstractRepository
             ->with('uploader')
             ->orderByDesc('created_at')
             ->get();
-    }
-
-    protected function guessDocumentType(UploadedFile $file): string
-    {
-        $mime = $file->getMimeType();
-
-        return match (true) {
-            str_contains($mime, 'pdf') => 'PDF',
-            str_contains($mime, 'image') => 'Imagem',
-            str_contains($mime, 'word') || str_contains($mime, 'document') => 'Documento Word',
-            str_contains($mime, 'excel') || str_contains($mime, 'spreadsheet') => 'Folha de cálculo',
-            str_contains($mime, 'text') => 'Texto',
-            default => $mime,
-        };
     }
 }

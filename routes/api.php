@@ -35,6 +35,8 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
 
     Route::prefix('user')->group(base_path('routes/user/user.php'));
 
+    Route::prefix('upload')->group(base_path('routes/upload/upload.php'));
+
     Route::prefix('logs')->group(base_path('routes/logs/logs.php'));
 
     Route::prefix('rh')->group(function () {
@@ -83,4 +85,3 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
 Route::post('/auth/login', [UserController::class, 'login']);
 Route::prefix('auth')->group(base_path('routes/user/auth.php'));
 //Route::post('auth/2fa', [UserController::class, 'verify2fa']);
-

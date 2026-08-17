@@ -3,6 +3,7 @@
 namespace App\Models\RH\Department;
 
 use App\Models\Concerns\HasAutoCode;
+use App\Models\RH\Employee\Employee;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -29,6 +30,18 @@ class Department extends Model
     public function responsible()
     {
         return $this->belongsTo(User::class, 'responsible_id');
+    }
+
+    public function responsibleEmployee()
+    {
+        return $this->hasOneThrough(
+            Employee::class,
+            User::class,
+            'id',
+            'user_id',
+            'responsible_id',
+            'id'
+        );
     }
 
     public function parent()

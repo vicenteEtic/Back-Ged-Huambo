@@ -6,14 +6,17 @@ use App\Models\RH\Attendance\AbsenceJustification;
 use App\Models\RH\Attendance\Attendance;
 use App\Repositories\RH\Attendance\AbsenceJustificationRepository;
 use App\Services\AbstractService;
+use App\Services\Upload\FileUploadService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class AbsenceJustificationService extends AbstractService
 {
-    public function __construct(AbsenceJustificationRepository $repository)
-    {
+    public function __construct(
+        AbsenceJustificationRepository $repository,
+        private FileUploadService $uploadService,
+    ) {
         parent::__construct($repository);
     }
 
@@ -33,7 +36,8 @@ class AbsenceJustificationService extends AbstractService
             $data['attendance_id'] = $attendance->id;
 
             if ($proof) {
-                $data['proof_path'] = $proof->store('absence-justifications/'.$data['employee_id'], 'public');
+                $result = $this->uploadService->processUploadedFile($proof, 'absence-justifications/' . $data['employee_id']);
+                $data['proof_path'] = $result['path'];
             }
 
             $model = $this->repository->store($data);
@@ -63,7 +67,8 @@ class AbsenceJustificationService extends AbstractService
                 if ($model->proof_path) {
                     Storage::disk('public')->delete($model->proof_path);
                 }
-                $data['proof_path'] = $proof->store('absence-justifications/'.$model->employee_id, 'public');
+                $result = $this->uploadService->processUploadedFile($proof, 'absence-justifications/' . $model->employee_id);
+                $data['proof_path'] = $result['path'];
             }
 
             return $this->repository->update($data, $id);

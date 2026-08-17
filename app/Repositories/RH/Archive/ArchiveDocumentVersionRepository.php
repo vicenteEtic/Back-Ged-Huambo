@@ -4,13 +4,16 @@ namespace App\Repositories\RH\Archive;
 
 use App\Models\RH\Archive\ArchiveDocumentVersion;
 use App\Repositories\AbstractRepository;
+use App\Services\Upload\FileUploadService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 class ArchiveDocumentVersionRepository extends AbstractRepository
 {
-    public function __construct(ArchiveDocumentVersion $model)
-    {
+    public function __construct(
+        ArchiveDocumentVersion $model,
+        private FileUploadService $uploadService,
+    ) {
         parent::__construct($model);
     }
 
@@ -23,11 +26,13 @@ class ArchiveDocumentVersionRepository extends AbstractRepository
 
                 if ($file instanceof UploadedFile) {
                     $archiveDocumentId = $data['archive_document_id'];
-                    $path = $file->store($archiveDocumentId . '/archive-document-versions', 'public');
+                    $directory = $archiveDocumentId . '/archive-document-versions';
 
-                    $data['file_path'] = $path;
-                    $data['file_size'] = $file->getSize();
-                    $data['mime_type'] = $file->getMimeType();
+                    $result = $this->uploadService->processUploadedFile($file, $directory);
+
+                    $data['file_path'] = $result['path'];
+                    $data['file_size'] = $result['final_size'];
+                    $data['mime_type'] = $result['mime_type'];
                 }
 
                 return $this->model->create($data);
