@@ -152,8 +152,17 @@ class FileUploadService
         $imageQuality = (int) $this->config['pdf']['image_quality'];
 
         $command = sprintf(
-            'gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/%s '
+            'gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 '
+            . '-dPDFSETTINGS=/%s '
             . '-dNOPAUSE -dQUIET -dBATCH '
+            . '-dEncodeColorImages=true '
+            . '-dEncodeGrayImages=true '
+            . '-dEncodeMonoImages=true '
+            . '-dAutoFilterColorImages=false '
+            . '-dAutoFilterGrayImages=false '
+            . '-dColorImageFilter=/DCTEncode '
+            . '-dGrayImageFilter=/DCTEncode '
+            . '-dMonoImageFilter=/CCITTFaxEncode '
             . '-dColorImageResolution=%d '
             . '-dGrayImageResolution=%d '
             . '-dMonoImageResolution=%d '
@@ -163,14 +172,13 @@ class FileUploadService
             . '-dColorImageDownsampleThreshold=1.0 '
             . '-dGrayImageDownsampleThreshold=1.0 '
             . '-dMonoImageDownsampleThreshold=1.0 '
-            . '-dAutoFilterColorImages=false '
-            . '-dAutoFilterGrayImages=false '
-            . '-dColorImageFilter=/DCTEncode '
-            . '-dGrayImageFilter=/DCTEncode '
+            . '-dColorImageDownsampleType=/Bicubic '
+            . '-dGrayImageDownsampleType=/Bicubic '
             . '-dJPEGQFactor=%d '
             . '-dCompressFonts=true '
             . '-dSubsetFonts=true '
             . '-dCompressPages=true '
+            . '-dEmbedAllFonts=true '
             . '-sOutputFile=%s %s 2>&1',
             $quality,
             $dpi,
