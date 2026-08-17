@@ -9,7 +9,6 @@ use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class EmployeeDocumentController extends AbstractController
 {
@@ -75,18 +74,16 @@ class EmployeeDocumentController extends AbstractController
                 return response()->json(['error' => 'Documento sem ficheiro associado.'], Response::HTTP_NOT_FOUND);
             }
 
-            $disk = Storage::disk('public');
-            $relativePath = ltrim($document->file_path, 'storage/');
+            $filePath = public_path($document->file_path);
 
-            if (!$disk->exists($relativePath)) {
+            if (!file_exists($filePath)) {
                 return response()->json(['error' => 'Ficheiro não encontrado no servidor.'], Response::HTTP_NOT_FOUND);
             }
 
-            $fullPath = $disk->path($relativePath);
-            $mimeType = $disk->mimeType($relativePath);
-            $fileName = basename($fullPath);
+            $mimeType = mime_content_type($filePath);
+            $fileName = basename($filePath);
 
-            return response()->file($fullPath, [
+            return response()->file($filePath, [
                 'Content-Type' => $mimeType,
                 'Content-Disposition' => 'inline; filename="' . $fileName . '"',
             ]);

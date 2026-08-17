@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
         libonig-dev \
         supervisor \
         procps \
+        ghostscript \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install zip pdo_mysql mbstring exif bcmath gd pcntl \
     && rm -rf /var/lib/apt/lists/*
