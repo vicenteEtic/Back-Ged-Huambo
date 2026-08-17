@@ -12,9 +12,9 @@ return [
     ],
 
     'pdf' => [
-        'quality' => env('GS_PDF_QUALITY', 'ebook'),
-        'dpi' => env('GS_DPI', 150),
-        'image_quality' => env('GS_IMAGE_QUALITY', 80),
+        'quality' => env('GS_PDF_QUALITY', 'screen'),
+        'dpi' => env('GS_DPI', 72),
+        'image_quality' => env('GS_IMAGE_QUALITY', 60),
     ],
 
     'image' => [

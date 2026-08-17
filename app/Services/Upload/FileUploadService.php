@@ -159,9 +159,18 @@ class FileUploadService
             . '-dMonoImageResolution=%d '
             . '-dDownsampleColorImages=true '
             . '-dDownsampleGrayImages=true '
+            . '-dDownsampleMonoImages=true '
             . '-dColorImageDownsampleThreshold=1.0 '
             . '-dGrayImageDownsampleThreshold=1.0 '
+            . '-dMonoImageDownsampleThreshold=1.0 '
+            . '-dAutoFilterColorImages=false '
+            . '-dAutoFilterGrayImages=false '
+            . '-dColorImageFilter=/DCTEncode '
+            . '-dGrayImageFilter=/DCTEncode '
             . '-dJPEGQFactor=%d '
+            . '-dCompressFonts=true '
+            . '-dSubsetFonts=true '
+            . '-dCompressPages=true '
             . '-sOutputFile=%s %s 2>&1',
             $quality,
             $dpi,
