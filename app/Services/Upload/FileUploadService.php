@@ -116,7 +116,7 @@ class FileUploadService
         $tempOutput = tempnam(sys_get_temp_dir(), 'upload_pdf_out_');
 
         try {
-            $file->move(dirname($tempInput), basename($tempInput));
+            file_put_contents($tempInput, file_get_contents($file->getRealPath()));
 
             if ($this->isGhostscriptAvailable()) {
                 $result = $this->runGhostscript($tempInput, $tempOutput);
@@ -134,7 +134,7 @@ class FileUploadService
             }
 
             $destPath = $directory ? "{$directory}/{$fileName}" : $fileName;
-            $file->storeAs($directory, $fileName, $this->disk);
+            Storage::disk($this->disk)->put($destPath, file_get_contents($tempInput));
             return $destPath;
         } finally {
             @unlink($tempInput);
@@ -183,7 +183,7 @@ class FileUploadService
         $tempInput = tempnam(sys_get_temp_dir(), 'upload_img_in_');
 
         try {
-            $file->move(dirname($tempInput), basename($tempInput));
+            file_put_contents($tempInput, file_get_contents($file->getRealPath()));
 
             if ($this->isImagickAvailable()) {
                 $compressed = $this->compressWithImagick($tempInput, $mimeType);
@@ -195,8 +195,9 @@ class FileUploadService
                 }
             }
 
-            $file->storeAs($directory, $fileName, $this->disk);
-            return $directory ? "{$directory}/{$fileName}" : $fileName;
+            $destPath = $directory ? "{$directory}/{$fileName}" : $fileName;
+            Storage::disk($this->disk)->put($destPath, file_get_contents($tempInput));
+            return $destPath;
         } finally {
             @unlink($tempInput);
         }
