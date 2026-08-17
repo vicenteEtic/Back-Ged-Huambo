@@ -274,8 +274,10 @@ class FileUploadService
 
     public function storeOriginal(UploadedFile $file, string $directory, string $fileName): string
     {
-        $file->storeAs($directory, $fileName, $this->disk);
-        return $directory ? "{$directory}/{$fileName}" : $fileName;
+        $content = file_get_contents($file->getRealPath());
+        $destPath = $directory ? "{$directory}/{$fileName}" : $fileName;
+        Storage::disk($this->disk)->put($destPath, $content);
+        return $destPath;
     }
 
     public function createZipFromFiles(array $filePaths, string $zipName, string $directory = ''): array
@@ -328,7 +330,7 @@ class FileUploadService
 
         foreach ($files as $file) {
             $tempPath = tempnam(sys_get_temp_dir(), 'upload_zip_content_');
-            $file->moveUsingStream($tempPath);
+            file_put_contents($tempPath, file_get_contents($file->getRealPath()));
             $tempFiles[] = $tempPath;
             $zip->addFile($tempPath, $file->getClientOriginalName());
         }
