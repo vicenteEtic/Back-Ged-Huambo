@@ -8,53 +8,88 @@ use Illuminate\Database\Seeder;
 
 class PositionSeed extends Seeder
 {
+    /**
+     * Quadro de carreiras por categoria.
+     * Formato: [categoria, nome, código, nível (ordem no quadro), salário base (Kz)]
+     */
     public function run(): void
     {
-        $departments = Department::pluck('id', 'code');
-
         $positions = [
-            ['name' => 'Governador Provincial',                        'code' => 'GOV-PROV',  'level' => 1,  'dept' => 'GAB-GOV'],
-            ['name' => 'Vice-Governador',                              'code' => 'VICE-GOV',  'level' => 2,  'dept' => 'GAB-GOV'],
-            ['name' => 'Secretário-Geral',                             'code' => 'SEC-GERAL', 'level' => 3,  'dept' => 'SEC-GERAL'],
-            ['name' => 'Diretor de Gabinete',                          'code' => 'DIR-GAB',   'level' => 4,  'dept' => 'GAB-GOV'],
-            ['name' => 'Diretor Provincial',                           'code' => 'DIR-PROV',  'level' => 5,  'dept' => 'SEC-GERAL'],
-            ['name' => 'Diretor Nacional (quando destacado)',          'code' => 'DIR-NAC',   'level' => 5,  'dept' => 'SEC-GERAL'],
-            ['name' => 'Chefe de Departamento',                        'code' => 'CHEF-DEP',  'level' => 6,  'dept' => 'SEC-GERAL'],
-            ['name' => 'Chefe de Secção',                              'code' => 'CHEF-SEC',  'level' => 7,  'dept' => 'SEC-GERAL'],
-            ['name' => 'Técnico Superior',                             'code' => 'TEC-SUP',   'level' => 8,  'dept' => 'SEC-GERAL'],
-            ['name' => 'Técnico Médio',                                'code' => 'TEC-MED',   'level' => 9,  'dept' => 'SEC-GERAL'],
-            ['name' => 'Assistente Técnico',                           'code' => 'ASS-TEC',   'level' => 10, 'dept' => 'SEC-GERAL'],
-            ['name' => 'Assistente Administrativo',                    'code' => 'ASS-ADM',   'level' => 10, 'dept' => 'SEC-GERAL'],
-            ['name' => 'Escriturário',                                 'code' => 'ESCRIT',    'level' => 11, 'dept' => 'SEC-GERAL'],
-            ['name' => 'Motorista',                                    'code' => 'MOTOR',     'level' => 11, 'dept' => 'SEC-GERAL'],
-            ['name' => 'Auxiliar Administrativo',                      'code' => 'AUX-ADM',   'level' => 11, 'dept' => 'SEC-GERAL'],
-            ['name' => 'Rececionista',                                 'code' => 'RECEP',     'level' => 12, 'dept' => 'SEC-GERAL'],
-            ['name' => 'Contínuo',                                     'code' => 'CONTIN',    'level' => 12, 'dept' => 'SEC-GERAL'],
-            ['name' => 'Operador de Informática',                      'code' => 'OP-INFO',   'level' => 13, 'dept' => 'SEC-GERAL'],
-            ['name' => 'Técnico de Recursos Humanos',                  'code' => 'TEC-RH',    'level' => 13, 'dept' => 'GAB-RH'],
-            ['name' => 'Técnico de Finanças e Contabilidade',          'code' => 'TEC-FIN',   'level' => 13, 'dept' => 'SEC-GERAL'],
-            ['name' => 'Técnico Jurídico',                             'code' => 'TEC-JUR',   'level' => 13, 'dept' => 'GAB-JUR'],
-            ['name' => 'Técnico de Planeamento',                       'code' => 'TEC-PLAN',  'level' => 13, 'dept' => 'SEC-GERAL'],
-            ['name' => 'Técnico de Informática',                       'code' => 'TEC-INFO',  'level' => 13, 'dept' => 'SEC-GERAL'],
-            ['name' => 'Técnico de Património',                        'code' => 'TEC-PATR',  'level' => 13, 'dept' => 'SEC-GERAL'],
-            ['name' => 'Técnico de Protocolo',                         'code' => 'TEC-PROT',  'level' => 13, 'dept' => 'GAB-GOV'],
-            ['name' => 'Técnico de Comunicação Institucional',         'code' => 'TEC-COM',   'level' => 13, 'dept' => 'GAB-COM'],
+            // ASSESSOR
+            ['ASSESSOR',         'Assessor Principal',                    'ASS-PRINCIPAL',    579055.80],
+            ['ASSESSOR',         'Primeiro Assessor',                     'ASS-PRIMEIRO',     542864.82],
+            ['ASSESSOR',         'Assessor',                              'ASS-1',            506673.83],
+
+            // TÉCNICO SUPERIOR
+            ['TÉCNICO SUPERIOR', 'Técnico Superior Principal',            'TSUP-PRINC',       0],
+            ['TÉCNICO SUPERIOR', 'Técnico Superior de 1ª Classe',         'TSUP-C1',          0],
+            ['TÉCNICO SUPERIOR', 'Técnico Superior de 2ª Classe',         'TSUP-C2',          0],
+            ['TÉCNICO SUPERIOR', 'Especialista Principal',                'TSUP-ESP-PRINC',   325718.89],
+            ['TÉCNICO SUPERIOR', 'Especialista de 1ª Classe',             'TSUP-ESP-C1',      289527.90],
+            ['TÉCNICO SUPERIOR', 'Especialista de 2ª Classe',             'TSUP-ESP-C2',      253336.91],
+
+            // TÉCNICO
+            ['TÉCNICO',          'Técnico de 1ª Classe',                  'TEC-C1',           241273.25],
+            ['TÉCNICO',          'Técnico de 2ª Classe',                  'TEC-C2',           223177.76],
+            ['TÉCNICO',          'Técnico de 3ª Classe',                  'TEC-C3',           217145.93],
+
+            // TÉCNICO MÉDIO
+            ['TÉCNICO MÉDIO',    'Técnico Médio Principal de 1ª Classe',  'TMED-PRINC-C1',    211114.10],
+            ['TÉCNICO MÉDIO',    'Técnico Médio Principal de 2ª Classe',  'TMED-PRINC-C2',    205082.26],
+            ['TÉCNICO MÉDIO',    'Técnico Médio Principal de 3ª Classe',  'TMED-PRINC-C3',    180954.94],
+            ['TÉCNICO MÉDIO',    'Técnico Médio de 1ª Classe',            'TMED-C1',          168891.28],
+            ['TÉCNICO MÉDIO',    'Técnico Médio de 2ª Classe',            'TMED-C2',          156827.61],
+            ['TÉCNICO MÉDIO',    'Técnico Médio de 3ª Classe',            'TMED-C3',          144763.95],
+
+            // ADMINISTRATIVO
+            ['ADMINISTRATIVO',   'Oficial Administrativo Principal',      'ADM-OFIC-PRINC',   141951.04],
+            ['ADMINISTRATIVO',   '1º Oficial Administrativo',             'ADM-OFIC-1',       140727.33],
+            ['ADMINISTRATIVO',   '2º Oficial Administrativo',             'ADM-OFIC-2',       132161.32],
+            ['ADMINISTRATIVO',   '3º Oficial Administrativo',             'ADM-OFIC-3',       127266.45],
+            ['ADMINISTRATIVO',   'Escriturário-Dactilógrafo',             'ADM-ESCRIT-DACT',  117476.73],
+
+            // AUXILIAR
+            ['AUXILIAR',         'Motorista de Pesados Principal',        'AUX-MOT-PES-PRINC', 132161.32],
+            ['AUXILIAR',         'Motorista de Ligeiros de 1ª Classe',    'AUX-MOT-LIG-C1',    122371.59],
+            ['AUXILIAR',         'Telefonista Principal',                 'AUX-TEL-PRINC',     117476.73],
+            ['AUXILIAR',         'Telefonista Principal de 1ª Classe',    'AUX-TEL-PRINC-C1',  112581.86],
+            ['AUXILIAR',         'Telefonista Principal de 2ª Classe',    'AUX-TEL-PRINC-C2',  107687.00],
+            ['AUXILIAR',         'Auxiliar Administrativo Principal',     'AUX-ADM-PRINC',     112581.86],
+            ['AUXILIAR',         'Auxiliar Administrativo de 1ª Classe',  'AUX-ADM-C1',        107687.00],
+            ['AUXILIAR',         'Auxiliar Administrativo de 2ª Classe',  'AUX-ADM-C2',        102792.14],
+            ['AUXILIAR',         'Auxiliar de Limpeza Principal',         'AUX-LIMP-PRINC',    107687.00],
+            ['AUXILIAR',         'Auxiliar de Limpeza de 1ª Classe',      'AUX-LIMP-C1',       102792.14],
+            ['AUXILIAR',         'Auxiliar de Limpeza de 2ª Classe',      'AUX-LIMP-C2',       97897.27],
         ];
 
-        foreach ($positions as $position) {
+        $departments = Department::pluck('id', 'code');
+        $departmentId = $departments['SEC-GERAL'] ?? $departments->first();
+
+        if (!$departmentId) {
+            $this->command->warn('Nenhum departamento encontrado — cria os departamentos antes dos cargos.');
+            return;
+        }
+
+        foreach ($positions as $i => [$category, $name, $code, $salary]) {
             Position::updateOrCreate(
-                ['code' => $position['code']],
+                ['code' => $code],
                 [
-                    'name' => $position['name'],
-                    'department_id' => $departments[$position['dept']],
-                    'level' => $position['level'],
-                    'description' => "Cargo de {$position['name']}",
+                    'name' => $name,
+                    'department_id' => $departmentId,
+                    'level' => $i + 1,
+                    'base_salary' => $salary,
+                    'description' => "Categoria: {$category}",
                     'is_active' => true,
-                    'base_salary' => 0,
                 ]
             );
 
-            $this->command->info("Cargo '{$position['name']}' criado/actualizado.");
+            $this->command->info("Cargo '{$name}' criado/actualizado.");
+        }
+
+        // Remove cargos que não fazem parte do quadro actual
+        $removed = Position::whereNotIn('code', array_column($positions, 2))->delete();
+        if ($removed > 0) {
+            $this->command->info("{$removed} cargo(s) fora do quadro removido(s).");
         }
     }
 }
