@@ -16,6 +16,22 @@ services:
     ports:
       - '9011:9000'
 
+  horizon:
+    container_name: ged-huambo-horizon
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    restart: always
+    volumes:
+      - ./:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - ged-huambo-network
+    depends_on:
+      - php
+      - redis
+    command: php artisan horizon
+
   nginx:
     container_name: ged-huambo-nginx
     build:
