@@ -335,10 +335,10 @@
 - Template `MakeFullModuleCommand`: gerar controllers com mensagens em PT
 
 ### Convenção employee_number
-- `employee_number` é **auto-gerado** pelo model `Employee` no `boot()` (método `creating`)
-- Formato: `EMP-00001`, `EMP-00002`, etc. (sequencial, 5 dígitos)
-- **NÃO** enviar `employee_number` no request — é ignorado se fornecido
-- Campo removido do `EmployeeRequest` (não validado)
+- `employee_number` (código do agente) é **cadastrado manualmente** pelo utilizador
+- **NÃO** é gerado pelo sistema — o `boot()` do model `Employee` não gera nada
+- Obrigatório na criação (`requiredOnCreate`), único, máx. 50 caracteres
+- Na edição é `sometimes` — só actualiza se enviado
 
 ### Convenção Route Parameter
 - Todas as rotas RH usam `{id}` como parâmetro (ex: `Route::put('{id}', ...)`)

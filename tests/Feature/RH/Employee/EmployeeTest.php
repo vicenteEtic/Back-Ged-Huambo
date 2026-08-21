@@ -84,6 +84,7 @@ class EmployeeTest extends RhTestCase
         $position = Position::factory()->create(['department_id' => $department->id]);
 
         return array_merge([
+            'employee_number' => 'AGT-' . fake()->unique()->numerify('#####'),
             'department_id' => $department->id,
             'position_id' => $position->id,
             'full_name' => 'Teste Admissão',
