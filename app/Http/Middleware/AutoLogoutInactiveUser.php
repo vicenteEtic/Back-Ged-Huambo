@@ -24,7 +24,8 @@ class AutoLogoutInactiveUser
                     $lastActivity = Carbon::parse($lastActivity);
                 }
 
-                $diffInMinutes = now()->diffInSeconds($lastActivity) / 60;
+                // Carbon 3 retorna valor assinado (negativo se $lastActivity está no passado)
+                $diffInMinutes = abs(now()->diffInSeconds($lastActivity)) / 60;
 
                 Log::info("AUTO LOGOUT: Última atividade há {$diffInMinutes} minutos (timeout {$timeout})");
 
