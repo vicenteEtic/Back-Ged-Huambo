@@ -43,6 +43,7 @@ Route::middleware(['auth:sanctum', 'auto.logout', 'track.activity'])->group(func
         Route::prefix('departments')->group(base_path('routes/rh/department.php'));
         Route::prefix('positions')->group(base_path('routes/rh/position.php'));
         Route::prefix('document-types')->group(base_path('routes/rh/document_type.php'));
+        Route::prefix('categories')->group(base_path('routes/rh/category.php'));
         Route::prefix('employees')->group(function () {
             Route::get('/{employee_id}/documents', [EmployeeDocumentController::class, 'findBy'])->name('employee_document.findBy')->middleware(['can:rh-documentos-show']);
             Route::prefix('documents')->group(base_path('routes/rh/employee_document.php'));

@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call(DepartmentSeed::class);
         $this->call(PermissionSeed::class);
+        $this->call(CategorySeed::class);
         $this->call(PositionSeed::class);
         $this->call(LeaveTypeSeeder::class);
         $this->call(AbsenceTypeSeed::class);

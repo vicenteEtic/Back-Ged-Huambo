@@ -340,14 +340,15 @@
 - Obrigatório na criação (`requiredOnCreate`), único, máx. 50 caracteres
 - Na edição é `sometimes` — só actualiza se enviado
 
-### Convenção Cargo vs Categoria (Aug 2026)
-- `positions.type` distingue: `'cargo'` (função: Diretor, Chefe de Departamento, Governador…) vs `'categoria'` (quadro de carreiras: Técnico de 3.ª Classe…)
-- `employees.position_id` = **Cargo** (opcional; desvincular enviando `null` no PUT)
-- `employees.category` = **Categoria** (FK positions, opcional; desvinculável por `null`)
-- Um funcionário pode ter Cargo=Diretor e Categoria=Técnico de 3.ª simultaneamente
-- `PositionSeed`: quadro marcado como categoria; cargos em `self::CARGOS` nunca são apagados pelo cleanup do quadro
-- Frontend filtra listas: `filter[type]=cargo` / `filter[type]=categoria` (FilterHandlerV2 EQUALS)
-- `career_regime` (Regime de Turno no funcionário) foi **removido**: coluna dropada, fora de model/request/serviços
+### Convenção Cargo vs Categoria (Aug 2026 — tabela `categories` própria)
+- **`categories`** = quadro de carreiras (Técnico Superior de 1.ª Classe, Assessor…), com `group` (ASSESSOR, TÉCNICO…), `level`, `base_salary`
+- **`positions`** = apenas cargos/funções de chefia (`type='cargo'`: Governador, Director, Chefe de Departamento…) — coluna `type` mantém-se com default `'cargo'`; validação só aceita `'cargo'`
+- `employees.position_id` = **Cargo** (FK positions; desvincular enviando `null` no PUT)
+- `employees.category` = **Categoria** (FK **categories**, opcional; desvinculável por `null`)
+- Um funcionário pode ter Cargo=Diretor e Categoria=Técnico Superior simultaneamente
+- Migration move as antigas posições `type='categoria'` para `categories` preservando IDs (FKs continuam válidas)
+- Seeders: `CategorySeed` (34 categorias do quadro) + `PositionSeed` (7 cargos)
+- CRUD categorias: `/api/rh/categories` com permissões `RH Categorias` (`rh-categorias-show/create/edit/delete`)
 
 ### Convenção Documentos do Funcionário (Aug 2026)
 - Campo `name` (Nome do Documento) **não é aceite da API** — removido dos FormRequests

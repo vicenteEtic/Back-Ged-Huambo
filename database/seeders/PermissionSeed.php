@@ -44,6 +44,7 @@ class PermissionSeed extends Seeder
             // RH
             ['name' => 'RH Departamentos', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Cargos', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Categorias', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Funcionários', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Documentos', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Tipos de Documento', 'operations' => ['show', 'create', 'edit', 'delete']],

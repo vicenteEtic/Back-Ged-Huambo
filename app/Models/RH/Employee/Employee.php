@@ -5,6 +5,7 @@ namespace App\Models\RH\Employee;
 use App\Models\RH\Department\Department;
 use App\Models\RH\Attendance\Attendance;
 use App\Models\RH\Attendance\ShiftAssignment;
+use App\Models\RH\Category\Category;
 use App\Models\RH\FunctionalHistory\FunctionalHistory;
 use App\Models\RH\Leave\LeavePlan;
 use App\Models\RH\Performance\PerformanceEvaluation;
@@ -90,7 +91,7 @@ class Employee extends Model
 
     public function careerCategory()
     {
-        return $this->belongsTo(Position::class, 'category');
+        return $this->belongsTo(Category::class, 'category');
     }
 
     public function functionalHistory()

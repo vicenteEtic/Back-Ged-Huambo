@@ -2,6 +2,7 @@
 
 namespace Database\Factories\RH\Employee;
 
+use App\Models\RH\Category\Category;
 use App\Models\RH\Department\Department;
 use App\Models\RH\Employee\Employee;
 use App\Models\RH\Position\Position;
@@ -41,7 +42,7 @@ class EmployeeFactory extends Factory
             'bank_name' => fake()->randomElement(['BAI', 'BFA', 'BIC', 'BCA']),
             'bank_iban' => 'AO06' . fake()->numerify('########################'),
             'status' => 'active',
-            'category' => Position::factory(),
+            'category' => Category::factory(),
         ];
     }
 }

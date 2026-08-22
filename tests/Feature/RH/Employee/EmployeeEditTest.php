@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\RH\Employee;
 
+use App\Models\RH\Category\Category;
 use App\Models\RH\Department\Department;
 use App\Models\RH\Employee\Employee;
 use App\Models\RH\Position\Position;
@@ -71,7 +72,7 @@ class EmployeeEditTest extends RhTestCase
 
     public function test_can_disassociate_category_from_employee()
     {
-        $employee = $this->createEmployee(['category' => Position::factory()]);
+        $employee = $this->createEmployee(['category' => Category::factory()]);
         $this->assertNotNull($employee->category);
 
         $this->putJsonAuth("/api/rh/employees/{$employee->id}", [

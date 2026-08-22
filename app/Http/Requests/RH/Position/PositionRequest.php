@@ -16,7 +16,7 @@ class PositionRequest extends BaseFormRequest
         $id = $this->route('id');
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
-            'type' => ['nullable', 'in:cargo,categoria'],
+            'type' => ['nullable', 'in:cargo'],
             'description' => ['nullable', 'string'],
             'department_id' => [$this->requiredOnCreate(), 'integer', 'exists:departments,id'],
             'level' => ['integer', 'min:1'],

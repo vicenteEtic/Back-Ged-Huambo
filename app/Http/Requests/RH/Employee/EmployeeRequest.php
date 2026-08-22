@@ -31,7 +31,7 @@ class EmployeeRequest extends BaseFormRequest
             'address' => ['nullable', 'string'],
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'position_id' => ['nullable', 'integer', 'exists:positions,id'],
-            'category' => ['nullable', 'integer', 'exists:positions,id'],
+            'category' => ['nullable', 'integer', 'exists:categories,id'],
             'hire_date' => ['nullable', 'date'],
             'effective_date' => ['nullable', 'date'],
             'contract_type' => ['nullable', 'string', 'max:50'],
