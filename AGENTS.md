@@ -159,7 +159,7 @@
 ## FLUXO 8 — Gestão de Carreiras ✅
 | Item | Status |
 |------|--------|
-| `career_service_times` | migration com campos `institution_entry_date`, `category`, `career_regime` em employees |
+| `career_service_times` | migration com campos `institution_entry_date`, `category` em employees (`career_regime` removido em Aug 2026) |
 | `CareerService` | cálculo de tempo total, tempo na categoria, cargo, instituição |
 | API | `GET /api/v1/rh/career`, `GET /api/v1/rh/career/{id}` |
 
@@ -339,6 +339,20 @@
 - **NÃO** é gerado pelo sistema — o `boot()` do model `Employee` não gera nada
 - Obrigatório na criação (`requiredOnCreate`), único, máx. 50 caracteres
 - Na edição é `sometimes` — só actualiza se enviado
+
+### Convenção Cargo vs Categoria (Aug 2026)
+- `positions.type` distingue: `'cargo'` (função: Diretor, Chefe de Departamento, Governador…) vs `'categoria'` (quadro de carreiras: Técnico de 3.ª Classe…)
+- `employees.position_id` = **Cargo** (opcional; desvincular enviando `null` no PUT)
+- `employees.category` = **Categoria** (FK positions, opcional; desvinculável por `null`)
+- Um funcionário pode ter Cargo=Diretor e Categoria=Técnico de 3.ª simultaneamente
+- `PositionSeed`: quadro marcado como categoria; cargos em `self::CARGOS` nunca são apagados pelo cleanup do quadro
+- Frontend filtra listas: `filter[type]=cargo` / `filter[type]=categoria` (FilterHandlerV2 EQUALS)
+- `career_regime` (Regime de Turno no funcionário) foi **removido**: coluna dropada, fora de model/request/serviços
+
+### Convenção Documentos do Funcionário (Aug 2026)
+- Campo `name` (Nome do Documento) **não é aceite da API** — removido dos FormRequests
+- Nome determinado pelo sistema: nome do `document_type` se existir; senão nome original do ficheiro
+- Datas: `issue_date` = emissão, `expiry_date` = validade (guardadas por chave; swap de datas seria bug do frontend)
 
 ### Convenção Route Parameter
 - Todas as rotas RH usam `{id}` como parâmetro (ex: `Route::put('{id}', ...)`)

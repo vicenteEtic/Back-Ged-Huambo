@@ -51,8 +51,8 @@ class EmployeeDocumentRepository extends AbstractRepository
                     $created[] = $this->model->create([
                         'employee_id'      => $data['employee_id'],
                         'document_type_id' => $data['document_type_id'] ?? null,
-                        'document_type'    => $documentType?->name ?? $data['document_type'] ?? $this->uploadService->getUploadMimeType($file),
-                        'name'             => $data['name'] ?? $file->getClientOriginalName(),
+                        'document_type'    => $documentType?->name ?? $data['document_type'] ?? $file->getMimeType(),
+                        'name'             => $documentType?->name ?? $data['document_type'] ?? $file->getClientOriginalName(),
                         'description'      => $data['description'] ?? null,
                         'file_path'        => 'storage/' . $result['path'],
                         'expiry_date'      => $data['expiry_date'] ?? null,

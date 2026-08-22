@@ -19,7 +19,6 @@ class EmployeeDocumentRequest extends BaseFormRequest
             'document_type_id' => ['nullable', 'integer', 'exists:document_types,id'],
             'document_type' => ['nullable', 'string', 'max:100'],
             'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
-            'name' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'file_path' => [$this->requiredOnCreate(), 'array'],
             'file_path.*' => ['file', 'max:1048576'],

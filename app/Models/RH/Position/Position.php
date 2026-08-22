@@ -12,6 +12,9 @@ class Position extends Model
 {
     use HasFactory, SoftDeletes, HasAutoCode;
 
+    public const TYPE_CARGO = 'cargo';
+    public const TYPE_CATEGORIA = 'categoria';
+
     protected static $codePrefix = 'POS';
 
     protected $table = 'positions';
@@ -19,6 +22,7 @@ class Position extends Model
     protected $fillable = [
         'name',
         'code',
+        'type',
         'description',
         'department_id',
         'level',
@@ -32,5 +36,15 @@ class Position extends Model
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function scopeCargos($query)
+    {
+        return $query->where('type', self::TYPE_CARGO);
+    }
+
+    public function scopeCategorias($query)
+    {
+        return $query->where('type', self::TYPE_CATEGORIA);
     }
 }

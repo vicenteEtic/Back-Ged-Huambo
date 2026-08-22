@@ -79,8 +79,8 @@ class EmployeeService extends AbstractService
 
             EmployeeDocument::create([
                 'employee_id' => $employeeId,
-                'document_type' => $doc['document_type'] ?? $this->uploadService->getUploadMimeType($file),
-                'name' => $doc['name'] ?? $file->getClientOriginalName(),
+                'document_type' => $doc['document_type'] ?? $file->getMimeType(),
+                'name' => $doc['document_type'] ?? $file->getClientOriginalName(),
                 'description' => $doc['description'] ?? null,
                 'file_path' => $result['path'],
                 'expiry_date' => $doc['expiry_date'] ?? null,

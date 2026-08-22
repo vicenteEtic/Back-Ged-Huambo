@@ -18,7 +18,7 @@ class CareerController extends Controller
     public function show(int $employeeId)
     {
         try {
-            $employee = Employee::with(['position', 'department', 'careerCategory', 'careerRegime', 'functionalHistory'])
+            $employee = Employee::with(['position', 'department', 'careerCategory', 'functionalHistory'])
                 ->findOrFail($employeeId);
 
             return response()->json($this->careerService->calculate($employee));

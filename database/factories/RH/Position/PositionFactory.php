@@ -12,9 +12,9 @@ class PositionFactory extends Factory
 
     public function definition(): array
     {
-        return [
-            'name' => fake()->jobTitle(),
+        return [            'name' => fake()->jobTitle(),
             'code' => strtoupper(fake()->unique()->lexify('POS???')),
+            'type' => Position::TYPE_CATEGORIA,
             'description' => fake()->sentence(),
             'department_id' => Department::factory(),
             'level' => fake()->numberBetween(1, 10),
@@ -24,5 +24,14 @@ class PositionFactory extends Factory
             'requirements' => fake()->paragraph(),
             'is_active' => true,
         ];
+    }
+
+    public function cargo(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => Position::TYPE_CARGO,
+            'base_salary' => 0,
+            'description' => 'Cargo funcional',
+        ]);
     }
 }

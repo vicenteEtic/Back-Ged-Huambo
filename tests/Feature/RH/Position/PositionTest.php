@@ -43,4 +43,18 @@ class PositionTest extends RhTestCase
         $response = $this->deleteJsonAuth(route('position.destroy', $item->id));
         $response->assertStatus(204);
     }
+
+    public function test_can_create_cargo_type(): void
+    {
+        $data = $this->model::factory()->make(['type' => 'cargo'])->toArray();
+        $response = $this->postJsonAuth(route('position.store'), $data);
+        $response->assertStatus(201)->assertJsonPath('type', 'cargo');
+    }
+
+    public function test_rejects_invalid_type(): void
+    {
+        $data = $this->model::factory()->make(['type' => 'funcao_qualquer'])->toArray();
+        $response = $this->postJsonAuth(route('position.store'), $data);
+        $response->assertStatus(422)->assertJsonValidationErrors('type');
+    }
 }

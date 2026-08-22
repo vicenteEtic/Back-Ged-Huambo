@@ -4,7 +4,6 @@ namespace App\Models\RH\Employee;
 
 use App\Models\RH\Department\Department;
 use App\Models\RH\Attendance\Attendance;
-use App\Models\RH\Attendance\Shift;
 use App\Models\RH\Attendance\ShiftAssignment;
 use App\Models\RH\FunctionalHistory\FunctionalHistory;
 use App\Models\RH\Leave\LeavePlan;
@@ -43,7 +42,6 @@ class Employee extends Model
             'institution_entry_date' => 'date',
             'date_of_birth' => 'date',
             'category' => 'integer',
-            'career_regime' => 'integer',
         ];
     }
 
@@ -73,7 +71,6 @@ class Employee extends Model
         'photo_url',
         'institution_entry_date',
         'category',
-        'career_regime',
     ];
 
     public function user()
@@ -94,11 +91,6 @@ class Employee extends Model
     public function careerCategory()
     {
         return $this->belongsTo(Position::class, 'category');
-    }
-
-    public function careerRegime()
-    {
-        return $this->belongsTo(Shift::class, 'career_regime');
     }
 
     public function functionalHistory()

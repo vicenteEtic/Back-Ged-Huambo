@@ -186,7 +186,7 @@ class DeclarationRequestService extends AbstractService
 
     public function generateContent(string $code, Employee $employee, ?array $context = null): array
     {
-        $employee->load(['position', 'department', 'careerCategory', 'careerRegime']);
+        $employee->load(['position', 'department', 'careerCategory']);
         $career = $this->careerService->calculate($employee);
         $payslip = Payslip::where('employee_id', $employee->id)
             ->latest('generated_at')
@@ -625,7 +625,7 @@ class DeclarationRequestService extends AbstractService
      */
     private function applyDerivedValues(array $data, Employee $employee): array
     {
-        $employee->loadMissing(['position', 'department', 'careerCategory', 'careerRegime']);
+        $employee->loadMissing(['position', 'department', 'careerCategory']);
 
         $defaults = config('declaracoes.defaults', []);
 
@@ -778,7 +778,6 @@ class DeclarationRequestService extends AbstractService
             'position' => $employee->position?->name,
             'department' => $employee->department?->name,
             'category' => $employee->careerCategory?->name,
-            'career_regime' => $employee->careerRegime?->name,
             'status' => $employee->status,
             'status_label' => $this->statusLabel($employee->status),
         ];

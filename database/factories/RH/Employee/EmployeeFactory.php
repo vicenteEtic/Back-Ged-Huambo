@@ -2,7 +2,6 @@
 
 namespace Database\Factories\RH\Employee;
 
-use App\Models\RH\Attendance\Shift;
 use App\Models\RH\Department\Department;
 use App\Models\RH\Employee\Employee;
 use App\Models\RH\Position\Position;
@@ -43,7 +42,6 @@ class EmployeeFactory extends Factory
             'bank_iban' => 'AO06' . fake()->numerify('########################'),
             'status' => 'active',
             'category' => Position::factory(),
-            'career_regime' => Shift::factory(),
         ];
     }
 }

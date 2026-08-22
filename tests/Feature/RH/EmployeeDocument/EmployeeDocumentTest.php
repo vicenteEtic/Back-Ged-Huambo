@@ -75,7 +75,6 @@ class EmployeeDocumentTest extends RhTestCase
         $response = $this->postJsonAuth(route('employee_document.store', ['employee_id' => $employee->id]), [
             'employee_id' => $employee->id,
             'document_type_id' => $type->id,
-            'name' => 'Bilhete de Identidade',
             'issue_date' => '2022-03-10',
             'expiry_date' => '2032-03-10',
             'place_of_issue' => 'Huambo',
@@ -87,8 +86,42 @@ class EmployeeDocumentTest extends RhTestCase
         $document = $this->model::find($response->json('0.id') ?? $response->json('id'));
         $this->assertSame($type->id, $document->document_type_id);
         $this->assertSame('Bilhete de Identidade', $document->document_type);
+        $this->assertSame('Bilhete de Identidade', $document->name);
         $this->assertSame('2022-03-10', $document->issue_date?->toDateString());
         $this->assertSame('2032-03-10', $document->expiry_date?->toDateString());
         $this->assertSame('Huambo', $document->place_of_issue);
+    }
+
+    public function test_name_is_determined_by_the_system_and_ignores_client_input(): void
+    {
+        $employee = Employee::factory()->create();
+        $type = DocumentType::factory()->create(['code' => 'CART', 'name' => 'Carta de Condução']);
+
+        $response = $this->postJsonAuth(route('employee_document.store', ['employee_id' => $employee->id]), [
+            'employee_id' => $employee->id,
+            'document_type_id' => $type->id,
+            'name' => 'Nome que o técnico escreveu',
+            'file_path' => [UploadedFile::fake()->create('carta.pdf')],
+        ]);
+
+        $response->assertStatus(201);
+
+        $document = $this->model::find($response->json('0.id') ?? $response->json('id'));
+        $this->assertSame('Carta de Condução', $document->name);
+    }
+
+    public function test_name_falls_back_to_original_filename_without_type(): void
+    {
+        $employee = Employee::factory()->create();
+
+        $response = $this->postJsonAuth(route('employee_document.store', ['employee_id' => $employee->id]), [
+            'employee_id' => $employee->id,
+            'file_path' => [UploadedFile::fake()->create('meu-ficheiro.pdf')],
+        ]);
+
+        $response->assertStatus(201);
+
+        $document = $this->model::find($response->json('0.id') ?? $response->json('id'));
+        $this->assertSame('meu-ficheiro.pdf', $document->name);
     }
 }

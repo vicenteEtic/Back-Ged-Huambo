@@ -57,6 +57,30 @@ class EmployeeEditTest extends RhTestCase
         $this->assertNull($employee->fresh()->user_id);
     }
 
+    public function test_can_disassociate_position_from_employee()
+    {
+        $employee = $this->createEmployee();
+        $this->assertNotNull($employee->position_id);
+
+        $this->putJsonAuth("/api/rh/employees/{$employee->id}", [
+            'position_id' => null,
+        ])->assertStatus(200);
+
+        $this->assertNull($employee->fresh()->position_id);
+    }
+
+    public function test_can_disassociate_category_from_employee()
+    {
+        $employee = $this->createEmployee(['category' => Position::factory()]);
+        $this->assertNotNull($employee->category);
+
+        $this->putJsonAuth("/api/rh/employees/{$employee->id}", [
+            'category' => null,
+        ])->assertStatus(200);
+
+        $this->assertNull($employee->fresh()->category);
+    }
+
     public function test_cannot_associate_nonexistent_user()
     {
         $employee = $this->createEmployee();
