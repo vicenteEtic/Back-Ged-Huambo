@@ -59,6 +59,41 @@ class EmployeeTest extends RhTestCase
         $this->assertStringNotContainsString('storage/storage', $url);
     }
 
+    public function test_photo_can_be_viewed_like_document_files()
+    {
+        if (!file_exists(public_path('storage'))) {
+            (new \Illuminate\Filesystem\Filesystem)->link(storage_path('app/public'), public_path('storage'));
+        }
+
+        $department = Department::factory()->create();
+        $position = Position::factory()->create(['department_id' => $department->id]);
+        $user = User::factory()->create();
+
+        $data = Employee::factory()->make([
+            'department_id' => $department->id,
+            'position_id' => $position->id,
+            'user_id' => $user->id,
+        ])->toArray();
+        $data['photo_url'] = \Illuminate\Http\Testing\File::fake()->image('foto.jpg');
+
+        $response = $this->postJsonAuth('/api/rh/employees', $data);
+        $response->assertStatus(201);
+
+        $employee = Employee::find($response->json('id') ?? $response->json('0.id'));
+
+        $photo = $this->getJsonAuth("/api/rh/employees/{$employee->id}/photo");
+        $photo->assertStatus(200);
+        $this->assertStringContainsString('image/', $photo->headers->get('Content-Type'));
+    }
+
+    public function test_photo_returns_404_when_employee_has_no_photo()
+    {
+        $employee = Employee::factory()->create(['photo_url' => null]);
+
+        $photo = $this->getJsonAuth("/api/rh/employees/{$employee->id}/photo");
+        $photo->assertStatus(404);
+    }
+
     public function test_can_show()
     {
         $department = Department::factory()->create();
