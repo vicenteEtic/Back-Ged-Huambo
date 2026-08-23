@@ -31,7 +31,7 @@ class PayrollItemRequest extends BaseFormRequest
             'payroll_period_id' => ['required', 'integer', 'exists:payroll_periods,id'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.employee_id' => ['required', 'integer', 'exists:employees,id'],
-            'items.*.base_salary' => ['required', 'numeric', 'min:0'],
+            'items.*.base_salary' => ['nullable', 'numeric', 'min:0'],
             'items.*.transport_allowance' => ['nullable', 'numeric', 'min:0'],
             'items.*.meal_allowance' => ['nullable', 'numeric', 'min:0'],
             'items.*.overtime' => ['nullable', 'numeric', 'min:0'],

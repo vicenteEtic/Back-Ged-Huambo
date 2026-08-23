@@ -5,6 +5,7 @@ namespace App\Http\Controllers\RH\Payroll;
 use App\Http\Controllers\AbstractController;
 use App\Http\Requests\RH\Payroll\PayrollItemRequest;
 use App\Helpers\PayrollCalculator;
+use App\Models\RH\Employee\Employee;
 use App\Services\RH\Payroll\PayrollItemService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -41,6 +42,30 @@ class PayrollItemController extends AbstractController
         return $input;
     }
 
+    /**
+     * Salário base: valor enviado tem prioridade; sem valor, usa o salário
+     * base da categoria do funcionário (quadro de carreiras) e, em último
+     * caso, o salário base registado no próprio funcionário.
+     */
+    private function resolveBaseSalary(array $item, ?int $fallbackEmployeeId = null): array
+    {
+        if (isset($item['base_salary']) && is_numeric($item['base_salary'])) {
+            return $item;
+        }
+
+        $employeeId = $item['employee_id'] ?? $fallbackEmployeeId;
+
+        if (!$employeeId) {
+            return $item;
+        }
+
+        $employee = Employee::with('careerCategory')->find($employeeId);
+
+        $item['base_salary'] = (float) ($employee?->careerCategory?->base_salary ?: $employee?->base_salary ?? 0);
+
+        return $item;
+    }
+
     public function store(PayrollItemRequest $request)
     {
         try {
@@ -54,6 +79,8 @@ class PayrollItemController extends AbstractController
 
                 foreach ($validated['items'] as $item) {
                     $item['payroll_period_id'] = $periodId;
+
+                    $item = $this->resolveBaseSalary($item);
 
                     $input = collect($item)->except(self::$computedFields)->toArray();
                     $input = $this->normalizeNumericFields($input);
@@ -85,7 +112,10 @@ class PayrollItemController extends AbstractController
         try {
             $this->logRequest();
 
+            $existing = $this->service->show($id);
+
             $input = collect($request->validated())->except(self::$computedFields)->toArray();
+            $input = $this->resolveBaseSalary($input, $existing->employee_id);
             $input = $this->normalizeNumericFields($input);
             $data = PayrollCalculator::calculate($input);
 

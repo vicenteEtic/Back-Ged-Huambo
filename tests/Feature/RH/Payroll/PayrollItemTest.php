@@ -17,7 +17,16 @@ class PayrollItemTest extends RhTestCase
 
     public function test_can_create(): void
     {
-        $data = $this->model::factory()->make()->toArray();
+        $period = \App\Models\RH\Payroll\PayrollPeriod::factory()->create();
+        $employee = \App\Models\RH\Employee\Employee::factory()->create();
+
+        $data = [
+            'payroll_period_id' => $period->id,
+            'items' => [
+                ['employee_id' => $employee->id, 'base_salary' => 150000],
+            ],
+        ];
+
         $response = $this->postJsonAuth(route('payroll_item.store'), $data);
         $response->assertStatus(201);
     }

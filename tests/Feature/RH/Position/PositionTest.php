@@ -51,10 +51,21 @@ class PositionTest extends RhTestCase
         $response->assertStatus(201)->assertJsonPath('type', 'cargo');
     }
 
-    public function test_rejects_invalid_type(): void
+    public function test_ignores_fields_other_than_name(): void
     {
-        $data = $this->model::factory()->make(['type' => 'funcao_qualquer'])->toArray();
-        $response = $this->postJsonAuth(route('position.store'), $data);
-        $response->assertStatus(422)->assertJsonValidationErrors('type');
+        $response = $this->postJsonAuth(route('position.store'), [
+            'name' => 'Cargo Teste',
+            'base_salary' => 999999,
+            'department_id' => 1,
+            'type' => 'funcao_qualquer',
+            'requirements' => 'x',
+        ]);
+
+        $response->assertStatus(201);
+        $item = $this->model::find($response->json('id') ?? $response->json('0.id'));
+        $this->assertSame('cargo', $item->type);
+        $this->assertEquals(0, $item->base_salary);
+        $this->assertNull($item->department_id);
+        $this->assertNotNull($item->code);
     }
 }
