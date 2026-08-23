@@ -60,8 +60,9 @@ class EmployeeService extends AbstractService
             return;
         }
 
-        $result = $this->uploadService->processUploadedFile($photo, 'employees/photos');
-        $employee->photo_url = $result['path'];
+        $directory = $employee->id . '/photos';
+        $result = $this->uploadService->processUploadedFile($photo, $directory);
+        $employee->photo_url = 'storage/' . $result['path'];
         $employee->save();
     }
 

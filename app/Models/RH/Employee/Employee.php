@@ -32,7 +32,10 @@ class Employee extends Model
             return $value;
         }
 
-        return FrontUrl::base().'/storage/'.$value;
+        // Aceita valores com ou sem prefixo 'storage/' (padrão dos documentos)
+        $path = preg_replace('#^/?storage/#', '', $value);
+
+        return FrontUrl::base().'/storage/'.$path;
     }
 
     protected function casts(): array

@@ -32,6 +32,33 @@ class EmployeeTest extends RhTestCase
         $response->assertStatus(201);
     }
 
+    public function test_photo_is_stored_with_storage_prefix_like_documents()
+    {
+        $department = Department::factory()->create();
+        $position = Position::factory()->create(['department_id' => $department->id]);
+        $user = User::factory()->create();
+
+        $data = Employee::factory()->make([
+            'department_id' => $department->id,
+            'position_id' => $position->id,
+            'user_id' => $user->id,
+        ])->toArray();
+
+        $data['photo_url'] = \Illuminate\Http\Testing\File::fake()->image('foto.jpg');
+
+        $response = $this->postJsonAuth('/api/rh/employees', $data);
+        $response->assertStatus(201);
+
+        $employee = Employee::find($response->json('id') ?? $response->json('0.id'));
+        $this->assertNotNull($employee->photo_url);
+        $this->assertStringStartsWith('storage/', $employee->getRawOriginal('photo_url'));
+        $this->assertStringContainsString("/{$employee->id}/photos/", $employee->getRawOriginal('photo_url'));
+
+        $url = $employee->photo_url;
+        $this->assertStringContainsString("/storage/{$employee->id}/photos/", $url);
+        $this->assertStringNotContainsString('storage/storage', $url);
+    }
+
     public function test_can_show()
     {
         $department = Department::factory()->create();
