@@ -39,7 +39,36 @@ class EmployeeRequest extends BaseFormRequest
             'bank_name' => ['nullable', 'string', 'max:255'],
             'bank_iban' => ['nullable', 'string', 'max:50'],
             'status' => ['string', 'max:30'],
-            'photo_url' => ['nullable', 'file', 'max:1048576'],
+            'photo_url' => [
+                'nullable',
+                function ($attribute, $value, \Closure $fail) {
+                    if (is_string($value)) {
+                        // Reenvio do valor actual (caminho em storage) é aceite;
+                        // lixo como /tmp/phpXXX ou URLs são rejeitados
+                        if (!preg_match('#^storage/.+#', trim($value))) {
+                            $fail('A fotografia deve ser um ficheiro enviado (multipart) ou um caminho válido em storage.');
+                        }
+
+                        return;
+                    }
+
+                    if (!$value instanceof \Illuminate\Http\UploadedFile) {
+                        $fail('A fotografia deve ser um ficheiro enviado (multipart).');
+
+                        return;
+                    }
+
+                    if ($value->getError() !== UPLOAD_ERR_OK) {
+                        $fail('O upload da fotografia falhou.');
+
+                        return;
+                    }
+
+                    if ($value->getSize() > 1048576) {
+                        $fail('A fotografia não pode exceder 1MB.');
+                    }
+                },
+            ],
             'documents' => ['nullable', 'array'],
             'documents.*.document_type' => ['nullable', 'string', 'max:100'],
             'documents.*.description' => ['nullable', 'string'],

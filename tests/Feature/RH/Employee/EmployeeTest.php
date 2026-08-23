@@ -94,6 +94,48 @@ class EmployeeTest extends RhTestCase
         $photo->assertStatus(404);
     }
 
+    public function test_photo_tmp_path_string_is_rejected_and_does_not_break_the_edit()
+    {
+        $employee = Employee::factory()->create();
+
+        $response = $this->putJsonAuth("/api/rh/employees/{$employee->id}", [
+            'full_name' => 'Nome Actualizado',
+            'photo_url' => '/tmp/phpg35e5s',
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors('photo_url');
+    }
+
+    public function test_edit_can_replace_photo_with_new_file()
+    {
+        $employee = Employee::factory()->create();
+        $oldPhoto = $employee->getRawOriginal('photo_url');
+
+        $update = $this->putJsonAuth("/api/rh/employees/{$employee->id}", [
+            'photo_url' => \Illuminate\Http\Testing\File::fake()->image('nova.jpg'),
+        ]);
+        $update->assertStatus(200);
+
+        $newPhoto = $employee->fresh()->getRawOriginal('photo_url');
+        $this->assertNotEquals($oldPhoto, $newPhoto);
+        $this->assertStringStartsWith("storage/{$employee->id}/photos/", $newPhoto);
+    }
+
+    public function test_edit_accepts_current_storage_path_without_touching_the_file()
+    {
+        $target = Employee::factory()->create(['photo_url' => 'storage/9/photos/existente.jpg']);
+        $currentPath = $target->getRawOriginal('photo_url');
+
+        $response = $this->putJsonAuth("/api/rh/employees/{$target->id}", [
+            'full_name' => 'Sem mudar a foto',
+            'photo_url' => $currentPath,
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertSame($currentPath, $target->fresh()->getRawOriginal('photo_url'));
+        $this->assertSame('Sem mudar a foto', $target->fresh()->full_name);
+    }
+
     public function test_can_show()
     {
         $department = Department::factory()->create();

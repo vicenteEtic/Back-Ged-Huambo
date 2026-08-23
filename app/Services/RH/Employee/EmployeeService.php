@@ -56,14 +56,25 @@ class EmployeeService extends AbstractService
 
     protected function storePhoto($employee, $photo): void
     {
-        if (!$photo instanceof UploadedFile) {
+        if ($photo instanceof UploadedFile) {
+            $directory = $employee->id . '/photos';
+            $result = $this->uploadService->processUploadedFile($photo, $directory);
+            $employee->photo_url = 'storage/' . $result['path'];
+            $employee->save();
+
             return;
         }
 
-        $directory = $employee->id . '/photos';
-        $result = $this->uploadService->processUploadedFile($photo, $directory);
-        $employee->photo_url = 'storage/' . $result['path'];
-        $employee->save();
+        // String: só caminhos em storage são aceites (ex.: reenvio do valor actual).
+        // Lixo como /tmp/phpXXX é ignorado — a foto actual é preservada.
+        if (is_string($photo) && preg_match('#^storage/.+#', trim($photo))) {
+            $path = trim($photo);
+
+            if ($employee->getRawOriginal('photo_url') !== $path) {
+                $employee->photo_url = $path;
+                $employee->save();
+            }
+        }
     }
 
     protected function storeDocuments(int $employeeId, array $documents): void
