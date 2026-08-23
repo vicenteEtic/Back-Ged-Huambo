@@ -18,10 +18,9 @@ class PositionSeed extends Seeder
         ['Governador',              'CAR-GOVS'],
         ['Vice-Governador',         'CAR-VICE-GOVS'],
         ['Director',                'CAR-DIR'],
-        ['Director-Geral',          'CAR-DIR-GERAL'],
-        ['Chefe de Departamento',   'CAR-CHEF-DEP'],
         ['Chefe de Secção',         'CAR-CHEF-SEC'],
-        ['Assistente',              'CAR-ASSIST'],
+        ['Chefe de Departamento',   'CAR-CHEF-DEP'],
+        ['Nenhum',                  'CAR-NENHUM'],
     ];
 
     public function run(): void
@@ -49,6 +48,14 @@ class PositionSeed extends Seeder
             );
 
             $this->command->info("Cargo '{$name}' criado/actualizado.");
+        }
+
+        // Remove cargos fora da lista actual (soft delete — histórico preservado)
+        $removed = Position::where('type', Position::TYPE_CARGO)
+            ->whereNotIn('code', array_column(self::CARGOS, 1))
+            ->delete();
+        if ($removed > 0) {
+            $this->command->info("{$removed} cargo(s) fora da lista removido(s).");
         }
     }
 }
