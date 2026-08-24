@@ -24,6 +24,7 @@ class Department extends Model
         'description',
         'responsible_id',
         'parent_id',
+        'area_id',
         'is_active',
     ];
 
@@ -54,9 +55,9 @@ class Department extends Model
         return $this->hasMany(self::class, 'parent_id');
     }
 
-    public function areas()
+    public function area()
     {
-        return $this->hasMany(\App\Models\RH\Area\Area::class);
+        return $this->belongsTo(\App\Models\RH\Area\Area::class);
     }
 
     public function departmentPermissions()

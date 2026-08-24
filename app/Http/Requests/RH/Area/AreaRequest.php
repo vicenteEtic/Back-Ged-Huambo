@@ -15,7 +15,6 @@ class AreaRequest extends BaseFormRequest
     {
         $id = $this->route('id');
         return [
-            'department_id' => [$this->requiredOnCreate(), 'integer', 'exists:departments,id'],
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'responsible_id' => ['nullable', 'integer', 'exists:users,id'],

@@ -3,7 +3,6 @@
 namespace Database\Factories\RH\Area;
 
 use App\Models\RH\Area\Area;
-use App\Models\RH\Department\Department;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -14,7 +13,6 @@ class AreaFactory extends Factory
     public function definition(): array
     {
         return [
-            'department_id' => Department::factory(),
             'name' => fake()->unique()->words(2, true),
             'code' => strtoupper(fake()->unique()->lexify('AREA???')),
             'description' => fake()->sentence(),

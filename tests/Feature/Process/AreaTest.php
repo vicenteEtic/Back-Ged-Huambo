@@ -14,10 +14,17 @@ class AreaTest extends RhTestCase
         $response->assertStatus(200);
     }
 
-    public function test_can_create(): void
+    public function test_can_create_without_department(): void
     {
-        $dept = Department::factory()->create();
-        $data = Area::factory()->make(['department_id' => $dept->id])->toArray();
+        $data = Area::factory()->make()->toArray();
+
+        $response = $this->postJsonAuth(route('area.store'), $data);
+        $response->assertStatus(201);
+    }
+
+    public function test_area_ignores_department_id(): void
+    {
+        $data = Area::factory()->make(['department_id' => 999999])->toArray();
 
         $response = $this->postJsonAuth(route('area.store'), $data);
         $response->assertStatus(201);
@@ -47,12 +54,35 @@ class AreaTest extends RhTestCase
         $response->assertStatus(204);
     }
 
-    public function test_can_list_by_department(): void
+    public function test_department_can_be_associated_with_area(): void
     {
+        $area = Area::factory()->create();
         $dept = Department::factory()->create();
-        Area::factory()->count(3)->create(['department_id' => $dept->id]);
+
+        $response = $this->putJsonAuth("/api/rh/departments/{$dept->id}", [
+            'area_id' => $area->id,
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertSame($area->id, $dept->fresh()->area_id);
+    }
+
+    public function test_one_area_can_have_multiple_departments(): void
+    {
+        $area = Area::factory()->create();
+
+        Department::factory()->count(3)->create(['area_id' => $area->id]);
+
+        $this->assertCount(3, $area->fresh()->departments);
+    }
+
+    public function test_by_department_returns_the_area_of_the_department(): void
+    {
+        $area = Area::factory()->create();
+        $dept = Department::factory()->create(['area_id' => $area->id]);
 
         $response = $this->getJsonAuth(route('area.byDepartment', $dept->id));
         $response->assertStatus(200);
+        $response->assertJsonPath('0.id', $area->id);
     }
 }

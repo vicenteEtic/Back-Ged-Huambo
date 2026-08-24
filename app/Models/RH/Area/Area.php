@@ -18,7 +18,6 @@ class Area extends Model
     protected $table = 'areas';
 
     protected $fillable = [
-        'department_id',
         'name',
         'code',
         'description',
@@ -33,9 +32,9 @@ class Area extends Model
         ];
     }
 
-    public function department()
+    public function departments()
     {
-        return $this->belongsTo(Department::class);
+        return $this->hasMany(Department::class);
     }
 
     public function responsible()

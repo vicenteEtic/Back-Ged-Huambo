@@ -37,8 +37,8 @@ class ProcessWorkflowTest extends RhTestCase
     {
         $expediente = Department::factory()->expediente()->create();
         $targetDept = Department::factory()->gabinete()->create();
-        $area1 = Area::factory()->create(['department_id' => $targetDept->id]);
-        $area2 = Area::factory()->create(['department_id' => $targetDept->id]);
+        $area1 = Area::factory()->create();
+        $area2 = Area::factory()->create();
         $tech1 = User::factory()->create();
         $tech2 = User::factory()->create();
         $user = $this->user;
@@ -78,7 +78,7 @@ class ProcessWorkflowTest extends RhTestCase
     {
         $expediente = Department::factory()->expediente()->create();
         $dept = Department::factory()->gabinete()->create();
-        $area = Area::factory()->create(['department_id' => $dept->id]);
+        $area = Area::factory()->create();
         $user = $this->user;
 
         $process = Process::factory()->create([
