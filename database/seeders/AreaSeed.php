@@ -31,5 +31,11 @@ class AreaSeed extends Seeder
 
             $this->command->info("Área '{$area['name']}' ({$area['code']}) criada/actualizada.");
         }
+
+        $removidas = Area::whereNotIn('code', array_column($areas, 'code'))->get();
+        foreach ($removidas as $area) {
+            $area->delete();
+            $this->command->warn("Área '{$area->name}' ({$area->code}) removida — não pertence ao quadro oficial.");
+        }
     }
 }
