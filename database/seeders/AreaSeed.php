@@ -15,8 +15,8 @@ class AreaSeed extends Seeder
             ['name' => 'Gabinete de Comunicação Social',                                      'code' => 'GAB-COM',   'type' => 'gabinete'],
             ['name' => 'Gabinete de Recursos Humanos',                                        'code' => 'GAB-RH',    'type' => 'gabinete'],
             ['name' => 'Gabinete do Governador',                                              'code' => 'GAB-GOV',   'type' => 'gabinete'],
-            ['name' => 'Vice-Governador para o Sector Político, Social e Económico',          'code' => 'VICE-PSE',  'type' => 'vice_governador'],
-            ['name' => 'Vice-Governador para os Serviços Técnicos e Infraestruturas',         'code' => 'VICE-STI',  'type' => 'vice_governador'],
+            ['name' => 'Gabinete do Vice-Governador para o Sector Político, Social e Económico',          'code' => 'VICE-PSE',  'type' => 'vice_governador'],
+            ['name' => 'Gabinete do Vice-Governador para os Serviços Técnicos e Infraestruturas',         'code' => 'VICE-STI',  'type' => 'vice_governador'],
         ];
 
         foreach ($areas as $area) {
