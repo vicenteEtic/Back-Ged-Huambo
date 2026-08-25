@@ -71,7 +71,7 @@ class PermissionSeed extends Seeder
             ['name' => 'RH Valores em Atraso', 'operations' => ['show', 'create', 'edit', 'delete']],
 
             // Áreas e Permissões
-            ['name' => 'RH Áreas', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'Áreas', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Permissões Departamento', 'operations' => ['show', 'create', 'delete']],
 
             // Processos (Gestão de Expediente)
@@ -91,12 +91,7 @@ class PermissionSeed extends Seeder
 
         $permissionIds = [];
 
-        // Legado: permissões de áreas sem prefixo RH (módulo renomeado para "RH Áreas")
-        Permission::where('name', 'like', 'areas-%')->get()->each(function ($p) {
-            $p->roles()->detach();
-            $p->delete();
-            echo "Permissão legada {$p->name} removida.\n";
-        });
+     
 
         foreach ($modules as $module) {
             foreach ($module['operations'] as $operation) {
