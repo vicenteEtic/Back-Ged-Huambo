@@ -131,37 +131,58 @@ class DashboardService
         $deadline = $today->copy()->addDays($days);
 
         $documents = EmployeeDocument::whereNotNull('expiry_date')
-            ->whereDate('expiry_date', '<=', $deadline)
+            ->whereBetween('expiry_date', [$today, $deadline])
             ->with(['employee:id,full_name'])
             ->orderBy('expiry_date')
             ->get()
-            ->map(function (EmployeeDocument $document) use ($today) {
-                $expired = $document->expiry_date && $document->expiry_date->lt($today);
-
-                return [
-                    'id' => $document->id,
-                    'name' => $document->name,
-                    'description' => $document->description,
-                    'employee_id' => $document->employee_id,
-                    'employee' => $document->employee,
-                    'expiry_date' => $document->expiry_date?->toDateString(),
-                    'status' => $expired ? 'expirado' : 'a_expirar',
-                    'days_left' => $today->diffInDays($document->expiry_date),
-                ];
-            })
+            ->map(fn (EmployeeDocument $document) => [
+                'id' => $document->id,
+                'name' => $document->name,
+                'description' => $document->description,
+                'employee_id' => $document->employee_id,
+                'employee' => $document->employee,
+                'expiry_date' => $document->expiry_date?->toDateString(),
+                'status' => 'a_expirar',
+                'days_left' => $today->diffInDays($document->expiry_date),
+            ])
             ->values()
             ->all();
 
-        return $documents;
+        $expired = EmployeeDocument::whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '<', $today)
+            ->with(['employee:id,full_name'])
+            ->orderByDesc('expiry_date')
+            ->get()
+            ->map(fn (EmployeeDocument $document) => [
+                'id' => $document->id,
+                'name' => $document->name,
+                'description' => $document->description,
+                'employee_id' => $document->employee_id,
+                'employee' => $document->employee,
+                'expiry_date' => $document->expiry_date?->toDateString(),
+                'status' => 'expirado',
+                'days_left' => $today->diffInDays($document->expiry_date),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'days' => $days,
+            'total' => count($documents),
+            'documents' => $documents,
+            'expired_total' => count($expired),
+            'expired_documents' => $expired,
+        ];
     }
 
     /**
-     * Funcionários com documentos a expirar dentro de uma janela de dias (por omissão: de hoje até 30 dias).
+     * Funcionários a expirar dentro de uma janela de dias (por omissão: hoje até 30 dias).
+     * Os documentos já vencidos são devolvidos separadamente em `expired_documents`.
      */
     public function documentsExpiringBetween(int $fromDays = 0, int $toDays = 30): array
     {
         $today = now()->startOfDay();
-        $start = $fromDays <= 0 ? Carbon::create(2000, 1, 1) : $today->copy()->addDays($fromDays);
+        $start = $today->copy()->addDays($fromDays);
         $end = $today->copy()->addDays($toDays);
 
         $documents = EmployeeDocument::whereNotNull('expiry_date')
@@ -169,21 +190,36 @@ class DashboardService
             ->with(['employee:id,full_name,employee_number,department_id', 'employee.department:id,name', 'documentType'])
             ->orderBy('expiry_date')
             ->get()
-            ->map(function (EmployeeDocument $document) use ($today) {
-                $expired = $document->expiry_date && $document->expiry_date->lt($today);
+            ->map(fn (EmployeeDocument $document) => [
+                'id' => $document->id,
+                'name' => $document->name,
+                'description' => $document->description,
+                'document_type' => $document->documentType?->name ?? $document->document_type,
+                'expiry_date' => $document->expiry_date?->toDateString(),
+                'days_left' => $today->diffInDays($document->expiry_date),
+                'status' => 'a_expirar',
+                'is_verified' => $document->is_verified,
+                'employee' => $document->employee,
+            ])
+            ->values()
+            ->all();
 
-                return [
-                    'id' => $document->id,
-                    'name' => $document->name,
-                    'description' => $document->description,
-                    'document_type' => $document->documentType?->name ?? $document->document_type,
-                    'expiry_date' => $document->expiry_date?->toDateString(),
-                    'days_left' => $today->diffInDays($document->expiry_date),
-                    'status' => $expired ? 'expirado' : 'a_expirar',
-                    'is_verified' => $document->is_verified,
-                    'employee' => $document->employee,
-                ];
-            })
+        $expired = EmployeeDocument::whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '<', $today)
+            ->with(['employee:id,full_name,employee_number,department_id', 'employee.department:id,name', 'documentType'])
+            ->orderByDesc('expiry_date')
+            ->get()
+            ->map(fn (EmployeeDocument $document) => [
+                'id' => $document->id,
+                'name' => $document->name,
+                'description' => $document->description,
+                'document_type' => $document->documentType?->name ?? $document->document_type,
+                'expiry_date' => $document->expiry_date?->toDateString(),
+                'days_left' => $today->diffInDays($document->expiry_date),
+                'status' => 'expirado',
+                'is_verified' => $document->is_verified,
+                'employee' => $document->employee,
+            ])
             ->values()
             ->all();
 
@@ -192,6 +228,8 @@ class DashboardService
             'to_days' => $toDays,
             'total' => count($documents),
             'documents' => $documents,
+            'expired_total' => count($expired),
+            'expired_documents' => $expired,
         ];
     }
 

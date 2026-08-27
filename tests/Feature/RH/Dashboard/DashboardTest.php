@@ -57,7 +57,7 @@ class DashboardTest extends RhTestCase
         $response->assertStatus(200);
     }
 
-    public function test_document_expiry_alert_includes_already_expired_documents()
+    public function test_document_expiry_alert_keeps_expired_documents_separate()
     {
         $employee = Employee::query()->first();
 
@@ -77,18 +77,11 @@ class DashboardTest extends RhTestCase
         $response = $this->getJsonAuth('/api/rh/dashboard/document-expiry-alert?days=30');
 
         $response->assertStatus(200)
-            ->assertJsonCount(2);
-
-        $statuses = collect($response->json())->pluck('status')->sort()->values();
-        $this->assertSame(['a_expirar', 'expirado'], $statuses->all());
-
-        $expiredInResponse = collect($response->json())
-            ->firstWhere('id', $expired->id);
-        $this->assertSame('expirado', $expiredInResponse['status'] ?? null);
-
-        $expiringInResponse = collect($response->json())
-            ->firstWhere('id', $expiring->id);
-        $this->assertSame('a_expirar', $expiringInResponse['status'] ?? null);
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('expired_total', 1)
+            ->assertJsonPath('documents.0.id', $expiring->id)
+            ->assertJsonPath('expired_documents.0.id', $expired->id)
+            ->assertJsonPath('expired_documents.0.status', 'expirado');
     }
 
     public function test_document_expiry_window_defaults_to_today_up_to_30_days()
@@ -114,7 +107,7 @@ class DashboardTest extends RhTestCase
             ->assertJsonPath('documents.0.employee.full_name', $employee->full_name);
     }
 
-    public function test_document_expiry_window_includes_already_expired_by_default()
+    public function test_document_expiry_window_keeps_expired_documents_separate()
     {
         $employee = Employee::query()->first();
 
@@ -130,18 +123,11 @@ class DashboardTest extends RhTestCase
         $response = $this->getJsonAuth('/api/rh/dashboard/document-expiry-window');
 
         $response->assertStatus(200)
-            ->assertJsonPath('total', 2);
-
-        $statuses = collect($response->json('documents'))->pluck('status')->sort()->values();
-        $this->assertSame(['a_expirar', 'expirado'], $statuses->all());
-
-        $expiredInResponse = collect($response->json('documents'))
-            ->firstWhere('id', $expired->id);
-        $this->assertSame('expirado', $expiredInResponse['status'] ?? null);
-
-        $expiringInResponse = collect($response->json('documents'))
-            ->firstWhere('id', $expiring->id);
-        $this->assertSame('a_expirar', $expiringInResponse['status'] ?? null);
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('expired_total', 1)
+            ->assertJsonPath('documents.0.id', $expiring->id)
+            ->assertJsonPath('expired_documents.0.id', $expired->id)
+            ->assertJsonPath('expired_documents.0.status', 'expirado');
     }
 
     public function test_document_expiry_window_returns_only_documents_between_days()
