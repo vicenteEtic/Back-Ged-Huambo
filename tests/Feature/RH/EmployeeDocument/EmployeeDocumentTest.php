@@ -44,6 +44,64 @@ class EmployeeDocumentTest extends RhTestCase
         $response->assertStatus(200);
     }
 
+    public function test_update_with_full_payload_persists_description(): void
+    {
+        $employee = Employee::factory()->create();
+        $type = DocumentType::factory()->withValidity()->create(['code' => 'BI', 'name' => 'Bilhete de Identidade']);
+        $item = $this->model::factory()->create([
+            'employee_id' => $employee->id,
+            'document_type_id' => $type->id,
+            'description' => 'descrição antiga',
+        ]);
+
+        $response = $this->putJsonAuth(
+            route('employee_document.update', ['employee_id' => $item->employee_id, 'id' => $item->id]),
+            [
+                'document_type_id' => $type->id,
+                'description' => 'documento',
+                'expiry_date' => '2019-03-30',
+                'issue_date' => '2014-03-31',
+                'place_of_issue' => 'Huambo',
+                'is_verified' => 1,
+            ]
+        );
+
+        $response->assertStatus(200);
+
+        $item->refresh();
+        $this->assertSame('documento', $item->description);
+    }
+
+    public function test_update_description_only_persists_description(): void
+    {
+        $item = $this->model::factory()->create(['description' => 'descrição original']);
+
+        $response = $this->putJsonAuth(
+            route('employee_document.update', ['employee_id' => $item->employee_id, 'id' => $item->id]),
+            ['description' => 'nova descrição']
+        );
+
+        $response->assertStatus(200);
+
+        $item->refresh();
+        $this->assertSame('nova descrição', $item->description);
+    }
+
+    public function test_update_description_can_be_cleared(): void
+    {
+        $item = $this->model::factory()->create(['description' => 'descrição para limpar']);
+
+        $response = $this->putJsonAuth(
+            route('employee_document.update', ['employee_id' => $item->employee_id, 'id' => $item->id]),
+            ['description' => null]
+        );
+
+        $response->assertStatus(200);
+
+        $item->refresh();
+        $this->assertNull($item->description);
+    }
+
     public function test_can_destroy(): void
     {
         $item = $this->model::factory()->create();

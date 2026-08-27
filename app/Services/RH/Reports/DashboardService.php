@@ -130,11 +130,29 @@ class DashboardService
         $today = now()->startOfDay();
         $deadline = $today->copy()->addDays($days);
 
-        return EmployeeDocument::whereBetween('expiry_date', [$today, $deadline])
+        $documents = EmployeeDocument::whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '<=', $deadline)
             ->with(['employee:id,full_name'])
             ->orderBy('expiry_date')
             ->get()
-            ->toArray();
+            ->map(function (EmployeeDocument $document) use ($today) {
+                $expired = $document->expiry_date && $document->expiry_date->lt($today);
+
+                return [
+                    'id' => $document->id,
+                    'name' => $document->name,
+                    'description' => $document->description,
+                    'employee_id' => $document->employee_id,
+                    'employee' => $document->employee,
+                    'expiry_date' => $document->expiry_date?->toDateString(),
+                    'status' => $expired ? 'expirado' : 'a_expirar',
+                    'days_left' => $today->diffInDays($document->expiry_date),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return $documents;
     }
 
     /**
