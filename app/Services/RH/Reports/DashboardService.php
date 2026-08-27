@@ -161,20 +161,25 @@ class DashboardService
     public function documentsExpiringBetween(int $fromDays = 0, int $toDays = 30): array
     {
         $today = now()->startOfDay();
-        $start = $today->copy()->addDays($fromDays);
+        $start = $fromDays <= 0 ? Carbon::create(2000, 1, 1) : $today->copy()->addDays($fromDays);
         $end = $today->copy()->addDays($toDays);
 
-        $documents = EmployeeDocument::whereBetween('expiry_date', [$start, $end])
+        $documents = EmployeeDocument::whereNotNull('expiry_date')
+            ->whereBetween('expiry_date', [$start, $end])
             ->with(['employee:id,full_name,employee_number,department_id', 'employee.department:id,name', 'documentType'])
             ->orderBy('expiry_date')
             ->get()
             ->map(function (EmployeeDocument $document) use ($today) {
+                $expired = $document->expiry_date && $document->expiry_date->lt($today);
+
                 return [
                     'id' => $document->id,
                     'name' => $document->name,
+                    'description' => $document->description,
                     'document_type' => $document->documentType?->name ?? $document->document_type,
                     'expiry_date' => $document->expiry_date?->toDateString(),
                     'days_left' => $today->diffInDays($document->expiry_date),
+                    'status' => $expired ? 'expirado' : 'a_expirar',
                     'is_verified' => $document->is_verified,
                     'employee' => $document->employee,
                 ];

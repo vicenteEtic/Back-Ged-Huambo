@@ -114,6 +114,36 @@ class DashboardTest extends RhTestCase
             ->assertJsonPath('documents.0.employee.full_name', $employee->full_name);
     }
 
+    public function test_document_expiry_window_includes_already_expired_by_default()
+    {
+        $employee = Employee::query()->first();
+
+        $expired = EmployeeDocument::factory()->create([
+            'employee_id' => $employee->id,
+            'expiry_date' => now()->subYears(5)->toDateString(),
+        ]);
+        $expiring = EmployeeDocument::factory()->create([
+            'employee_id' => $employee->id,
+            'expiry_date' => now()->addDays(10)->toDateString(),
+        ]);
+
+        $response = $this->getJsonAuth('/api/rh/dashboard/document-expiry-window');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('total', 2);
+
+        $statuses = collect($response->json('documents'))->pluck('status')->sort()->values();
+        $this->assertSame(['a_expirar', 'expirado'], $statuses->all());
+
+        $expiredInResponse = collect($response->json('documents'))
+            ->firstWhere('id', $expired->id);
+        $this->assertSame('expirado', $expiredInResponse['status'] ?? null);
+
+        $expiringInResponse = collect($response->json('documents'))
+            ->firstWhere('id', $expiring->id);
+        $this->assertSame('a_expirar', $expiringInResponse['status'] ?? null);
+    }
+
     public function test_document_expiry_window_returns_only_documents_between_days()
     {
         $employee = Employee::query()->first();
