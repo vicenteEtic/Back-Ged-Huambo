@@ -57,33 +57,6 @@ class DashboardTest extends RhTestCase
         $response->assertStatus(200);
     }
 
-    public function test_document_expiry_alert_keeps_expired_documents_separate()
-    {
-        $employee = Employee::query()->first();
-
-        $expired = EmployeeDocument::factory()->create([
-            'employee_id' => $employee->id,
-            'expiry_date' => now()->subYears(5)->toDateString(),
-        ]);
-        $expiring = EmployeeDocument::factory()->create([
-            'employee_id' => $employee->id,
-            'expiry_date' => now()->addDays(10)->toDateString(),
-        ]);
-        EmployeeDocument::factory()->create([
-            'employee_id' => $employee->id,
-            'expiry_date' => now()->addDays(90)->toDateString(),
-        ]);
-
-        $response = $this->getJsonAuth('/api/rh/dashboard/document-expiry-alert?days=30');
-
-        $response->assertStatus(200)
-            ->assertJsonPath('total', 1)
-            ->assertJsonPath('expired_total', 1)
-            ->assertJsonPath('documents.0.id', $expiring->id)
-            ->assertJsonPath('expired_documents.0.id', $expired->id)
-            ->assertJsonPath('expired_documents.0.status', 'expirado');
-    }
-
     public function test_document_expiry_window_defaults_to_today_up_to_30_days()
     {
         $employee = Employee::query()->first();
@@ -105,29 +78,6 @@ class DashboardTest extends RhTestCase
             ->assertJsonPath('to_days', 30)
             ->assertJsonPath('documents.0.id', $expected->id)
             ->assertJsonPath('documents.0.employee.full_name', $employee->full_name);
-    }
-
-    public function test_document_expiry_window_keeps_expired_documents_separate()
-    {
-        $employee = Employee::query()->first();
-
-        $expired = EmployeeDocument::factory()->create([
-            'employee_id' => $employee->id,
-            'expiry_date' => now()->subYears(5)->toDateString(),
-        ]);
-        $expiring = EmployeeDocument::factory()->create([
-            'employee_id' => $employee->id,
-            'expiry_date' => now()->addDays(10)->toDateString(),
-        ]);
-
-        $response = $this->getJsonAuth('/api/rh/dashboard/document-expiry-window');
-
-        $response->assertStatus(200)
-            ->assertJsonPath('total', 1)
-            ->assertJsonPath('expired_total', 1)
-            ->assertJsonPath('documents.0.id', $expiring->id)
-            ->assertJsonPath('expired_documents.0.id', $expired->id)
-            ->assertJsonPath('expired_documents.0.status', 'expirado');
     }
 
     public function test_document_expiry_window_returns_only_documents_between_days()
