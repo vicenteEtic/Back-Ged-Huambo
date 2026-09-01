@@ -21,6 +21,7 @@ class EmployeeDocument extends Model
         'description',
         'file_path',
         'expiry_date',
+        'is_lifetime',
         'issue_date',
         'place_of_issue',
         'is_verified',
@@ -29,8 +30,20 @@ class EmployeeDocument extends Model
     protected $casts = [
         'expiry_date' => 'date',
         'issue_date' => 'date',
+        'is_lifetime' => 'boolean',
         'is_verified' => 'boolean',
     ];
+
+    protected $appends = ['expiry_date_display'];
+
+    public function getExpiryDateDisplayAttribute(): ?string
+    {
+        if ($this->is_lifetime) {
+            return 'Vitalício';
+        }
+
+        return optional($this->expiry_date)->format('d/m/Y');
+    }
 
     public function employee()
     {

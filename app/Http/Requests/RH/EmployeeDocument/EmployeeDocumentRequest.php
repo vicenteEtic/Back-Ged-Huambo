@@ -23,6 +23,7 @@ class EmployeeDocumentRequest extends BaseFormRequest
             'file_path' => [$this->requiredOnCreate(), 'array'],
             'file_path.*' => ['file', 'max:1048576'],
             'expiry_date' => ['nullable', 'date'],
+            'is_lifetime' => ['boolean'],
             'issue_date' => ['nullable', 'date'],
             'place_of_issue' => ['nullable', 'string', 'max:255'],
             'is_verified' => ['boolean'],
@@ -38,6 +39,11 @@ class EmployeeDocumentRequest extends BaseFormRequest
         return [
             function ($validator) {
                 $typeId = $this->input('document_type_id');
+                $isLifetime = filter_var($this->input('is_lifetime', false), FILTER_VALIDATE_BOOLEAN);
+
+                if ($isLifetime) {
+                    return;
+                }
 
                 if (blank($typeId)) {
                     return;

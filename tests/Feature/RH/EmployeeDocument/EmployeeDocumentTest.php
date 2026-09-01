@@ -182,4 +182,86 @@ class EmployeeDocumentTest extends RhTestCase
         $document = $this->model::find($response->json('0.id') ?? $response->json('id'));
         $this->assertSame('meu-ficheiro.pdf', $document->name);
     }
+
+    public function test_lifetime_document_does_not_require_expiry_date(): void
+    {
+        $employee = Employee::factory()->create();
+        $type = DocumentType::factory()->withValidity()->create(['code' => 'BI', 'name' => 'Bilhete de Identidade']);
+
+        $response = $this->postJsonAuth(route('employee_document.store', ['employee_id' => $employee->id]), [
+            'employee_id' => $employee->id,
+            'document_type_id' => $type->id,
+            'issue_date' => '2022-03-10',
+            'is_lifetime' => true,
+            'file_path' => [UploadedFile::fake()->create('bi.pdf')],
+        ]);
+
+        $response->assertStatus(201);
+
+        $document = $this->model::find($response->json('0.id') ?? $response->json('id'));
+        $this->assertTrue($document->is_lifetime);
+        $this->assertNull($document->expiry_date);
+        $this->assertSame('Vitalício', $document->expiry_date_display);
+    }
+
+    public function test_non_lifetime_document_requires_expiry_date_when_type_has_expiry(): void
+    {
+        $employee = Employee::factory()->create();
+        $type = DocumentType::factory()->withValidity()->create(['code' => 'BI', 'name' => 'Bilhete de Identidade']);
+
+        $response = $this->postJsonAuth(route('employee_document.store', ['employee_id' => $employee->id]), [
+            'employee_id' => $employee->id,
+            'document_type_id' => $type->id,
+            'is_lifetime' => false,
+            'file_path' => [UploadedFile::fake()->create('bi.pdf')],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['expiry_date']);
+    }
+
+    public function test_update_to_lifetime_clears_expiry_date(): void
+    {
+        $employee = Employee::factory()->create();
+        $type = DocumentType::factory()->withValidity()->create(['code' => 'BI', 'name' => 'Bilhete de Identidade']);
+        $item = $this->model::factory()->create([
+            'employee_id' => $employee->id,
+            'document_type_id' => $type->id,
+            'expiry_date' => '2032-03-10',
+            'is_lifetime' => false,
+        ]);
+
+        $response = $this->putJsonAuth(
+            route('employee_document.update', ['employee_id' => $item->employee_id, 'id' => $item->id]),
+            ['is_lifetime' => true]
+        );
+
+        $response->assertStatus(200);
+
+        $item->refresh();
+        $this->assertTrue($item->is_lifetime);
+        $this->assertNull($item->expiry_date);
+    }
+
+    public function test_removing_lifetime_restores_expiry_date_requirement(): void
+    {
+        $employee = Employee::factory()->create();
+        $type = DocumentType::factory()->withValidity()->create(['code' => 'BI', 'name' => 'Bilhete de Identidade']);
+        $item = $this->model::factory()->create([
+            'employee_id' => $employee->id,
+            'document_type_id' => $type->id,
+            'expiry_date' => null,
+            'is_lifetime' => true,
+        ]);
+
+        $response = $this->putJsonAuth(
+            route('employee_document.update', ['employee_id' => $item->employee_id, 'id' => $item->id]),
+            ['is_lifetime' => false]
+        );
+
+        $response->assertStatus(200);
+
+        $item->refresh();
+        $this->assertFalse($item->is_lifetime);
+    }
 }
