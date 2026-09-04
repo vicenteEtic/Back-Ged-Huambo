@@ -45,6 +45,8 @@ class EmployeeDocumentRepository extends AbstractRepository
                 $created = [];
                 $directory = $data['employee_id'] . '/employee-documents';
 
+                $isLifetime = filter_var($data['is_lifetime'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
                 foreach ($files as $file) {
                     $result = $this->uploadService->processUploadedFile($file, $directory);
 
@@ -55,7 +57,8 @@ class EmployeeDocumentRepository extends AbstractRepository
                         'name'             => $documentType?->name ?? $data['document_type'] ?? $file->getClientOriginalName(),
                         'description'      => $data['description'] ?? null,
                         'file_path'        => 'storage/' . $result['path'],
-                        'expiry_date'      => $data['expiry_date'] ?? null,
+                        'expiry_date'      => $isLifetime ? null : ($data['expiry_date'] ?? null),
+                        'is_lifetime'      => $isLifetime,
                         'issue_date'       => $data['issue_date'] ?? null,
                         'place_of_issue'   => $data['place_of_issue'] ?? null,
                         'is_verified'      => $data['is_verified'] ?? false,
@@ -79,6 +82,14 @@ class EmployeeDocumentRepository extends AbstractRepository
             if ($type) {
                 $data['document_type'] = $type->name;
             }
+        }
+
+        $isLifetime = filter_var($data['is_lifetime'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        if ($isLifetime) {
+            $data['expiry_date'] = null;
+        } else {
+            $data['is_lifetime'] = false;
         }
 
         return parent::update($data, $id);
