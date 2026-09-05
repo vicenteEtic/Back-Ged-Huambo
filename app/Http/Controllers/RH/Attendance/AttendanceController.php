@@ -269,17 +269,15 @@ class AttendanceController extends AbstractController
 
     /**
      * Endpoint de compatibilidade para o módulo de turnos (shifts/shift_assignments),
-     * removido em Set 2026. O frontend legado ainda o invoca; devolve lista vazia.
+     * removido em Set 2026. O frontend legado ainda o invoca; devolve a listagem
+     * vazia no mesmo formato da listagem clássica.
      */
     public function removedFeature(Request $request)
     {
         try {
             $this->logRequest();
 
-            return response()->json([
-                'data' => [],
-                'meta' => ['total' => 0, 'message' => 'Os turnos foram removidos (Set 2026).'],
-            ]);
+            return response()->json([]);
         } catch (Exception $e) {
             $this->logRequest($e);
             Log::error('Erro ao consultar funcionalidade removida', ['message' => $e->getMessage()]);

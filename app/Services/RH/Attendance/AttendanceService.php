@@ -311,10 +311,12 @@ class AttendanceService extends AbstractService
         $year = $year ?? now()->year;
         $month = $month ?? now()->month;
 
-        $query = Attendance::where('status', 'absent')
+        $query = Attendance::query()
             ->with(['employee', 'employee.department', 'dispensa.type'])
+            ->where('status', 'absent')
             ->whereYear('date', $year)
-            ->whereMonth('date', $month);
+            ->whereMonth('date', $month)
+            ->orderBy('date');
 
         if ($employeeId) {
             $query->where('employee_id', $employeeId);
@@ -324,14 +326,11 @@ class AttendanceService extends AbstractService
             $query->whereHas('employee', fn ($q) => $q->where('department_id', $departmentId));
         }
 
-        $query->orderBy('date');
+        $all = $query->get();
 
-        $records = $paginate ? $query->paginate($paginate) : $query->take(100)->get();
         $records = $paginate
-            ? $records->through($this->recordPresenter())
-            : $records->transform($this->recordPresenter());
-
-        $collection = $records->items ?? $records;
+            ? $query->paginate($paginate)->through($this->recordPresenter())
+            : $all->take(100)->map($this->recordPresenter());
 
         $result = [
             'year' => $year,
@@ -340,25 +339,13 @@ class AttendanceService extends AbstractService
                 'employee_id' => $employeeId,
                 'department_id' => $departmentId,
             ],
-            'total_absences' => $paginate ? $records->total() : count($collection),
+            'total_absences' => $all->count(),
             'records' => $records,
         ];
 
         // O resumo agrupado (por funcionário/tipo) só é devolvido quando há filtro
         if ($employeeId !== null || $departmentId !== null) {
-            $aggregate = $collection;
-
-            if ($paginate) {
-                $aggregate = Attendance::with(['employee', 'employee.department'])
-                    ->where('status', 'absent')
-                    ->whereYear('date', $year)
-                    ->whereMonth('date', $month)
-                    ->when($employeeId, fn ($q) => $q->where('employee_id', $employeeId))
-                    ->when($departmentId, fn ($q) => $q->whereHas('employee', fn ($q2) => $q2->where('department_id', $departmentId)))
-                    ->get();
-            }
-
-            $byEmployee = collect($aggregate)->groupBy('employee_id')->map(function ($items) {
+            $byEmployee = $all->groupBy('employee_id')->map(function ($items) {
                 $first = $items->first();
 
                 return [
@@ -371,11 +358,11 @@ class AttendanceService extends AbstractService
                 ];
             })->values();
 
-            $types = \App\Models\RH\Attendance\AbsenceType::whereIn('code', collect($aggregate)->pluck('absence_type')->unique()->filter())
+            $types = \App\Models\RH\Attendance\AbsenceType::whereIn('code', $all->pluck('absence_type')->unique()->filter())
                 ->get(['code', 'name'])
                 ->keyBy('code');
 
-            $byType = collect($aggregate)->groupBy('absence_type')->map(function ($items, $type) use ($types) {
+            $byType = $all->groupBy('absence_type')->map(function ($items, $type) use ($types) {
                 return [
                     'type' => $type,
                     'name' => $types->get($type)?->name ?? $type,
