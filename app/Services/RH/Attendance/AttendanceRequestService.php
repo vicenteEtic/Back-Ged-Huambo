@@ -75,8 +75,10 @@ class AttendanceRequestService extends AbstractService
         return Dispensa::documentLabels();
     }
 
-    public function index(array $filters, ?int $paginate = null)
+    public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
     {
+        $filters = $filterParams ?? [];
+
         $query = AttendanceRequest::query()
             ->with(['employee', 'type', 'documents'])
             ->orderBy('created_at', 'desc');

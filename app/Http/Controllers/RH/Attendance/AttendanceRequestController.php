@@ -39,7 +39,7 @@ class AttendanceRequestController
             $filters = $request->only(['status', 'employee_id', 'date', 'start_date', 'end_date']);
             $paginate = $request->input('paginate');
 
-            return response()->json($this->service->index($filters, $paginate));
+            return response()->json($this->service->index($paginate, $filters));
         } catch (Exception $e) {
             Log::error('Erro ao listar solicitações de dispensa', ['message' => $e->getMessage()]);
 
