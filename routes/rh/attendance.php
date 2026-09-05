@@ -31,8 +31,21 @@ Route::post('check-in', [AttendanceController::class, 'checkIn'])->name('attenda
 Route::post('check-out', [AttendanceController::class, 'checkOut'])->name('attendance.checkout')->middleware(['can:rh-ponto-create']);
 Route::post('import-biometric', [AttendanceController::class, 'importBiometric'])->name('attendance.import')->middleware(['can:rh-ponto-create']);
 Route::get('employees-for-point', [AttendanceController::class, 'employeesForPoint'])->name('attendance.employees_for_point')->middleware(['can:rh-ponto-create']);
-Route::get('shifts', [AttendanceController::class, 'removedFeature'])->name('attendance.shifts.compat')->middleware(['can:rh-ponto-show']);
-Route::get('assignments', [AttendanceController::class, 'removedFeature'])->name('attendance.assignments.compat')->middleware(['can:rh-ponto-show']);
+Route::prefix('shifts')->group(function () {
+    Route::get('/', [AttendanceController::class, 'removedFeature'])->name('attendance.shifts.index.compat')->middleware(['can:rh-ponto-show']);
+    Route::post('/', [AttendanceController::class, 'removedStore'])->name('attendance.shifts.store.compat')->middleware(['can:rh-ponto-create']);
+    Route::get('{id}', [AttendanceController::class, 'removedShow'])->name('attendance.shifts.show.compat')->middleware(['can:rh-ponto-show']);
+    Route::put('{id}', [AttendanceController::class, 'removedUpdate'])->name('attendance.shifts.update.compat')->middleware(['can:rh-ponto-edit']);
+    Route::delete('{id}', [AttendanceController::class, 'removedDestroy'])->name('attendance.shifts.destroy.compat')->middleware(['can:rh-ponto-delete']);
+});
+
+Route::prefix('assignments')->group(function () {
+    Route::get('/', [AttendanceController::class, 'removedFeature'])->name('attendance.assignments.index.compat')->middleware(['can:rh-ponto-show']);
+    Route::post('/', [AttendanceController::class, 'removedStore'])->name('attendance.assignments.store.compat')->middleware(['can:rh-ponto-create']);
+    Route::get('{id}', [AttendanceController::class, 'removedShow'])->name('attendance.assignments.show.compat')->middleware(['can:rh-ponto-show']);
+    Route::put('{id}', [AttendanceController::class, 'removedUpdate'])->name('attendance.assignments.update.compat')->middleware(['can:rh-ponto-edit']);
+    Route::delete('{id}', [AttendanceController::class, 'removedDestroy'])->name('attendance.assignments.destroy.compat')->middleware(['can:rh-ponto-delete']);
+});
 Route::get('absences/types', [AttendanceController::class, 'absenceTypes'])->name('attendance.absence_types')->middleware(['can:rh-ponto-show']);
 Route::get('absences', [AttendanceController::class, 'absences'])->name('attendance.absences')->middleware(['can:rh-ponto-show']);
 

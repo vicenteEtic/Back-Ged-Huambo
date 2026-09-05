@@ -285,4 +285,35 @@ class AttendanceController extends AbstractController
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
+
+    /**
+     * Compatibilidade CRUD dos turnos removidos (Set 2026).
+     */
+    public function removedStore(Request $request)
+    {
+        $this->logRequest();
+
+        return response()->json([], Response::HTTP_CREATED);
+    }
+
+    public function removedShow(Request $request, $id = null)
+    {
+        $this->logRequest();
+
+        return response()->json([]);
+    }
+
+    public function removedUpdate(Request $request, $id)
+    {
+        $this->logRequest();
+
+        return response()->json([]);
+    }
+
+    public function removedDestroy(Request $request, $id)
+    {
+        $this->logRequest();
+
+        return response()->json(null, Response::HTTP_NO_CONTENT);
+    }
 }
