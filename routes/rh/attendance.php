@@ -31,6 +31,8 @@ Route::post('check-in', [AttendanceController::class, 'checkIn'])->name('attenda
 Route::post('check-out', [AttendanceController::class, 'checkOut'])->name('attendance.checkout')->middleware(['can:rh-ponto-create']);
 Route::post('import-biometric', [AttendanceController::class, 'importBiometric'])->name('attendance.import')->middleware(['can:rh-ponto-create']);
 Route::get('employees-for-point', [AttendanceController::class, 'employeesForPoint'])->name('attendance.employees_for_point')->middleware(['can:rh-ponto-create']);
+Route::get('shifts', [AttendanceController::class, 'removedFeature'])->name('attendance.shifts.compat')->middleware(['can:rh-ponto-show']);
+Route::get('assignments', [AttendanceController::class, 'removedFeature'])->name('attendance.assignments.compat')->middleware(['can:rh-ponto-show']);
 Route::get('absences/types', [AttendanceController::class, 'absenceTypes'])->name('attendance.absence_types')->middleware(['can:rh-ponto-show']);
 Route::get('absences', [AttendanceController::class, 'absences'])->name('attendance.absences')->middleware(['can:rh-ponto-show']);
 
