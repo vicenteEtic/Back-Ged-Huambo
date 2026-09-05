@@ -6,8 +6,8 @@ use App\Helpers\FilterHandler;
 use App\Helpers\FilterHandlerV2;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 
 abstract class AbstractRepository
 {
@@ -42,18 +42,19 @@ abstract class AbstractRepository
             }
         }
 
-        if (!empty($relationships)) {
+        if (! empty($relationships)) {
             $validRelations = $this->validateRelationships($relationships);
             $query = $query->with($validRelations);
         }
 
         // aplica counts genéricos
-        if (!empty($count)) {
+        if (! empty($count)) {
             $query = $query->withCount($count);
         }
 
         $query = $this->applyFilter($query, $filterParams);
         $query = $this->applyOrder($query, $orderByParams);
+
         return $this->paginateQuery($query, $paginate, $filterParams);
     }
 
@@ -72,6 +73,7 @@ abstract class AbstractRepository
     {
         if (isset($orderByParams)) {
             $filterHandler = new FilterHandler;
+
             return $filterHandler->applyOrder($query, $orderByParams);
         }
 
@@ -80,7 +82,7 @@ abstract class AbstractRepository
 
     protected function paginateQuery($query, $paginate = null, $filterParams = null, $count = null)
     {
-        if (!isset($paginate)) {
+        if (! isset($paginate)) {
             return $query->take(100)->get();
         }
 
@@ -107,14 +109,17 @@ abstract class AbstractRepository
         if ($fixedCondition) {
             $key = $this->model::firstWhere($fixedCondition)?->getKey();
             $fixedData = collect(['fixed' => $key ? $this->show($key) : null]);
+
             return $data->merge($fixedData);
         }
+
         return $data;
     }
 
     public function getVersionFilter(?array $filterParams)
     {
         $firstKey = array_key_first($filterParams);
+
         return is_int($firstKey) ? 2 : 1;
     }
 
@@ -123,7 +128,9 @@ abstract class AbstractRepository
      */
     protected function getFixedCondition(?array $filters): ?array
     {
-        if (empty($filters)) return null;
+        if (empty($filters)) {
+            return null;
+        }
 
         foreach ($filters as $key => $filter) {
             if (isset($filter['filterType']) && $filter['filterType'] === 'FIXED') {
@@ -151,20 +158,19 @@ abstract class AbstractRepository
     /**
      * Store a new resource or update an existing one.
      *
-     * @param array $attributes Attributes to find the record.
-     * @param array $values Values to update or create.
+     * @param  array  $attributes  Attributes to find the record.
+     * @param  array  $values  Values to update or create.
      * @return \Illuminate\Database\Eloquent\Model
      */
     public function storeOrUpdate(array $attributes, array $values = [])
     {
         return $this->model->updateOrCreate($attributes, $values);
     }
+
     public function firstOrCreate(array $attributes, array $values = [])
     {
         return $this->model->firstOrCreate($attributes, $values);
     }
-
-
 
     /**
      * Display the specified resource.
@@ -173,7 +179,7 @@ abstract class AbstractRepository
     {
         $query = $this->model->query();
 
-        if (!empty($relationships)) {
+        if (! empty($relationships)) {
             $validRelations = $this->validateRelationships($relationships);
             $query = $query->with($validRelations);
         }
@@ -197,6 +203,7 @@ abstract class AbstractRepository
         try {
             $model = $this->model->findOrFail($id);
             $model->update($data);
+
             return $model;
         } catch (QueryException $e) {
             throw new \Exception($this->translateQueryException($e));
@@ -257,7 +264,9 @@ abstract class AbstractRepository
         $invalid = [];
 
         foreach ($relationships as $relation) {
-            $method = \Illuminate\Support\Str::camel($relation);
+            // Suporta relações aninhadas (ex.: employee.department): valida o 1.º segmento
+            $base = \Illuminate\Support\Str::before($relation, '.');
+            $method = \Illuminate\Support\Str::camel($base);
             if (method_exists($this->model, $method)) {
                 $valid[] = $relation;
             } else {
@@ -265,10 +274,10 @@ abstract class AbstractRepository
             }
         }
 
-        if (!empty($invalid)) {
+        if (! empty($invalid)) {
             throw new \InvalidArgumentException(
-                'Relacionamento(s) não encontrado(s): ' . implode(', ', $invalid) .
-                '. Disponíveis: ' . implode(', ', $this->getAvailableRelations())
+                'Relacionamento(s) não encontrado(s): '.implode(', ', $invalid).
+                '. Disponíveis: '.implode(', ', $this->getAvailableRelations())
             );
         }
 
@@ -284,8 +293,8 @@ abstract class AbstractRepository
         foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
             if ($method->getDeclaringClass()->getName() === get_class($this->model)
                 && $method->getNumberOfParameters() === 0
-                && !in_array($method->getName(), ['boot', 'initialize', 'booted'])
-                && !str_starts_with($method->getName(), '__')
+                && ! in_array($method->getName(), ['boot', 'initialize', 'booted'])
+                && ! str_starts_with($method->getName(), '__')
             ) {
                 $returnType = $method->getReturnType();
                 if ($returnType instanceof \ReflectionNamedType
@@ -312,8 +321,9 @@ abstract class AbstractRepository
                 return "O valor referenciado no campo '{$matches[1]}' não existe na tabela associada.";
             }
             if (preg_match('/constraint `(.+?)` fails/i', $message, $matches)) {
-                return "Referência inválida: um dos dados referenciados não existe.";
+                return 'Referência inválida: um dos dados referenciados não existe.';
             }
+
             return 'Referência inválida: um dos dados referenciados não existe.';
         }
 
@@ -335,6 +345,7 @@ abstract class AbstractRepository
             if (preg_match("/Duplicate entry '(.+?)' for key/i", $message, $matches)) {
                 return "O valor '{$matches[1]}' já está sendo utilizado.";
             }
+
             return 'Já existe um registro com os mesmos dados.';
         }
 
@@ -342,6 +353,7 @@ abstract class AbstractRepository
             if (preg_match("/Column '(.+?)'/", $message, $matches)) {
                 return "O campo '{$matches[1]}' é obrigatório.";
             }
+
             return 'Um campo obrigatório não foi preenchido.';
         }
 
