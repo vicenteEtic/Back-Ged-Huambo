@@ -306,12 +306,13 @@ class AttendanceService extends AbstractService
      * Lista as faltas de um mês, agrupadas por funcionário.
      * Permite filtrar por funcionário e por departamento.
      */
-    public function absences(?int $year = null, ?int $month = null, ?int $employeeId = null, ?int $departmentId = null): array
+    public function absences(?int $year = null, ?int $month = null, ?int $employeeId = null, ?int $departmentId = null, ?int $paginate = null): array
     {
         $year = $year ?? now()->year;
         $month = $month ?? now()->month;
 
         $query = Attendance::where('status', 'absent')
+            ->with(['employee', 'employee.department', 'dispensa.type'])
             ->whereYear('date', $year)
             ->whereMonth('date', $month);
 
@@ -319,53 +320,77 @@ class AttendanceService extends AbstractService
             $query->where('employee_id', $employeeId);
         }
 
-        $records = $query->with(['employee', 'employee.department'])
-            ->orderBy('date')
-            ->get();
-
         if ($departmentId) {
-            $records = $records->filter(fn ($record) => $record->employee?->department_id === $departmentId);
+            $query->whereHas('employee', fn ($q) => $q->where('department_id', $departmentId));
         }
 
-        $byEmployee = $records->groupBy('employee_id')->map(function ($items) {
-            $first = $items->first();
+        $query->orderBy('date');
 
-            return [
-                'employee_id' => $first->employee_id,
-                'employee' => $first->employee,
-                'total_absences' => $items->count(),
-                'justified' => $items->where('is_justified', true)->count(),
-                'unjustified' => $items->where('is_justified', false)->count(),
-                'dates' => $items->pluck('date')->map(fn ($d) => $d->format('Y-m-d'))->values(),
-            ];
-        })->values();
+        $records = $paginate ? $query->paginate($paginate) : $query->take(100)->get();
+        $records = $paginate
+            ? $records->through($this->recordPresenter())
+            : $records->transform($this->recordPresenter());
 
-        $types = \App\Models\RH\Attendance\AbsenceType::whereIn('code', $records->pluck('absence_type')->unique()->filter())
-            ->get(['code', 'name'])
-            ->keyBy('code');
+        $collection = $records->items ?? $records;
 
-        $byType = $records->groupBy('absence_type')->map(function ($items, $type) use ($types) {
-            return [
-                'type' => $type,
-                'name' => $types->get($type)?->name ?? $type,
-                'total' => $items->count(),
-                'justified' => $items->where('is_justified', true)->count(),
-                'unjustified' => $items->where('is_justified', false)->count(),
-            ];
-        })->values();
-
-        return [
+        $result = [
             'year' => $year,
             'month' => $month,
             'filters' => [
                 'employee_id' => $employeeId,
                 'department_id' => $departmentId,
             ],
-            'total_absences' => $records->count(),
-            'total_employees' => $byEmployee->count(),
-            'by_employee' => $byEmployee,
-            'by_type' => $byType,
+            'total_absences' => $paginate ? $records->total() : count($collection),
+            'records' => $records,
         ];
+
+        // O resumo agrupado (por funcionário/tipo) só é devolvido quando há filtro
+        if ($employeeId !== null || $departmentId !== null) {
+            $aggregate = $collection;
+
+            if ($paginate) {
+                $aggregate = Attendance::with(['employee', 'employee.department'])
+                    ->where('status', 'absent')
+                    ->whereYear('date', $year)
+                    ->whereMonth('date', $month)
+                    ->when($employeeId, fn ($q) => $q->where('employee_id', $employeeId))
+                    ->when($departmentId, fn ($q) => $q->whereHas('employee', fn ($q2) => $q2->where('department_id', $departmentId)))
+                    ->get();
+            }
+
+            $byEmployee = collect($aggregate)->groupBy('employee_id')->map(function ($items) {
+                $first = $items->first();
+
+                return [
+                    'employee_id' => $first->employee_id,
+                    'employee' => $first->employee,
+                    'total_absences' => $items->count(),
+                    'justified' => $items->where('is_justified', true)->count(),
+                    'unjustified' => $items->where('is_justified', false)->count(),
+                    'dates' => $items->pluck('date')->map(fn ($d) => $d->format('Y-m-d'))->values(),
+                ];
+            })->values();
+
+            $types = \App\Models\RH\Attendance\AbsenceType::whereIn('code', collect($aggregate)->pluck('absence_type')->unique()->filter())
+                ->get(['code', 'name'])
+                ->keyBy('code');
+
+            $byType = collect($aggregate)->groupBy('absence_type')->map(function ($items, $type) use ($types) {
+                return [
+                    'type' => $type,
+                    'name' => $types->get($type)?->name ?? $type,
+                    'total' => $items->count(),
+                    'justified' => $items->where('is_justified', true)->count(),
+                    'unjustified' => $items->where('is_justified', false)->count(),
+                ];
+            })->values();
+
+            $result['total_employees'] = $byEmployee->count();
+            $result['by_employee'] = $byEmployee;
+            $result['by_type'] = $byType;
+        }
+
+        return $result;
     }
 
     /**

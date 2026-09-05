@@ -196,7 +196,15 @@ class AttendanceController extends AbstractController
             $employeeId = $request->input('employee_id') ? (int) $request->input('employee_id') : null;
             $departmentId = $request->input('department_id') ? (int) $request->input('department_id') : null;
 
-            return response()->json($this->attendanceService->absences($year, $month, $employeeId, $departmentId));
+            return response()->json($this->attendanceService->absences(
+                $year,
+                $month,
+                $employeeId,
+                $departmentId,
+                $request->integer('paginate') ?: null
+            ));
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         } catch (Exception $e) {
             Log::error('Erro ao listar faltas', ['message' => $e->getMessage()]);
 
