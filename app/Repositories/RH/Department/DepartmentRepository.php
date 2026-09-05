@@ -9,7 +9,6 @@ class DepartmentRepository extends AbstractRepository
 {
     protected array $defaultRelations = [
         'responsible',
-        'responsibleEmployee',
         'parent',
     ];
 

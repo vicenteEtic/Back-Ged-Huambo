@@ -14,10 +14,11 @@ class AreaRequest extends BaseFormRequest
     public function rules(): array
     {
         $id = $this->route('id');
+
         return [
             'name' => [$this->requiredOnCreate(), 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'responsible_id' => ['nullable', 'integer', 'exists:users,id'],
+            'responsible_id' => ['nullable', 'integer', 'exists:employees,id'],
             'is_active' => ['boolean'],
         ];
     }

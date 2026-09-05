@@ -345,6 +345,20 @@
 
 ---
 
+## Alinhamento Funcionário vs Utilizador (Set 2026)
+
+> **Regra**: nas listagens e tabelas que envolvem funcionários, o relacionamento deve ser com **employees** (funcionários) e **não** com `users` (utilizadores) — as respostas da API devem listar funcionários (nº agente, nome completo, cargo, categoria, departamento), nunca o utilizador de login.
+
+**Feito (commit pendente):**
+- **Departamentos** (`departments.responsible_id`) e **Áreas** (`areas.responsible_id`): deixaram de apontar para `users` e passam a apontar para **`employees`** (relação `responsible()` → `Employee`; `responsibleEmployee` removido).
+  - Migration `2026_09_05_100020_fix_responsible_id_to_employee.php` converte os valores existentes (**user_id → employee_id**) e re-cria as FKs (`nullOnDelete`).
+  - `DepartmentRequest`/`AreaRequest`: validação muda de `exists:users,id` para `exists:employees,id`.
+- **Plano de Férias** (`/api/rh/leaves/plans`) e **Pedidos de Férias** (`leave-requests`): os repositórios garantem as relações `employee` (+ `department`, `position`, `careerCategory`, `leaveType`) e **removem qualquer relação `user`/`*.user`** pedida pela listagem — as listagens mostram funcionários, não utilizadores.
+
+**Pendente (auditoria nos restantes módulos RH):** confirmar e corrigir, módulo a módulo, as listagens que expõem `users` no lugar de `employees` (ex.: funcionários, ponto, payslips, benefícios, avaliações, arquivo, processo). Os campos de acção/auditoria (`approved_by`, `created_by`, `reported_by`, `uploaded_by`, `interviewer_id`, `evaluator_id`, `shared_with_user_id`, etc.) **mantêm** relação a `users` — apenas os campos de entidade devem apontar a employees.
+
+---
+
 ## Stack Técnica (em uso)
 - **Padrão**: Repository + Service + Controller (AbstractRepository/AbstractService/AbstractController)
 - **Validação**: BaseFormRequest por módulo

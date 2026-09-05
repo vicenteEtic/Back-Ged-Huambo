@@ -4,14 +4,13 @@ namespace App\Models\RH\Department;
 
 use App\Models\Concerns\HasAutoCode;
 use App\Models\RH\Employee\Employee;
-use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Department extends Model
 {
-    use HasFactory, SoftDeletes, HasAutoCode;
+    use HasAutoCode, HasFactory, SoftDeletes;
 
     protected static $codePrefix = 'DEP';
 
@@ -28,21 +27,16 @@ class Department extends Model
         'is_active',
     ];
 
-    public function responsible()
+    protected function casts(): array
     {
-        return $this->belongsTo(User::class, 'responsible_id');
+        return [
+            'is_active' => 'boolean',
+        ];
     }
 
-    public function responsibleEmployee()
+    public function responsible()
     {
-        return $this->hasOneThrough(
-            Employee::class,
-            User::class,
-            'id',
-            'user_id',
-            'responsible_id',
-            'id'
-        );
+        return $this->belongsTo(Employee::class, 'responsible_id');
     }
 
     public function parent()

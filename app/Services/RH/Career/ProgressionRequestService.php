@@ -10,7 +10,6 @@ use App\Notifications\RH\ProgressionRejectedNotification;
 use App\Notifications\RH\ProgressionSubmittedNotification;
 use App\Repositories\RH\Career\ProgressionRequestRepository;
 use App\Services\AbstractService;
-use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
@@ -28,7 +27,7 @@ class ProgressionRequestService extends AbstractService
         $employee = Employee::with('department.responsible')->findOrFail($data['employee_id']);
         $rule = null;
 
-        if (!empty($data['rule_id'])) {
+        if (! empty($data['rule_id'])) {
             $rule = \App\Models\RH\Career\ProgressionRule::findOrFail($data['rule_id']);
             $data['type'] ??= $rule->type;
             $data['to_category'] ??= $rule->to_category;
@@ -45,8 +44,8 @@ class ProgressionRequestService extends AbstractService
         $progression = $this->store($data);
 
         // Notify department head
-        if ($employee->department?->responsible) {
-            Notification::send($employee->department->responsible, new ProgressionSubmittedNotification($progression));
+        if ($employee->department?->responsible?->user) {
+            Notification::send($employee->department->responsible->user, new ProgressionSubmittedNotification($progression));
         }
 
         return $progression;
@@ -104,6 +103,7 @@ class ProgressionRequestService extends AbstractService
             ]);
 
             $request->update(['status' => 'executed']);
+
             return $request->fresh();
         });
     }

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Notification;
 class CheckUpcomingLeavesCommand extends Command
 {
     protected $signature = 'rh:check-upcoming-leaves';
+
     protected $description = 'Notifica responsáveis e RH sobre funcionários que entrarão de férias no mês seguinte';
 
     public function handle(): void
@@ -43,7 +44,7 @@ class CheckUpcomingLeavesCommand extends Command
     private function notifyDepartmentResponsibles($plans, string $monthLabel, int $year): void
     {
         foreach ($plans->groupBy(fn ($p) => $p->employee?->department_id) as $departmentId => $departmentPlans) {
-            $responsible = $departmentPlans->first()->employee?->department?->responsible;
+            $responsible = $departmentPlans->first()->employee?->department?->responsible?->user;
 
             if (! $responsible) {
                 continue;

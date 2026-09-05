@@ -838,8 +838,8 @@ class DeclarationRequestService extends AbstractService
         $department = $employee?->department;
         $notifiables = [];
 
-        if ($department && $department->responsible) {
-            $notifiables[] = $department->responsible;
+        if ($department && $department->responsible?->user) {
+            $notifiables[] = $department->responsible->user;
         }
 
         if (! empty($notifiables)) {

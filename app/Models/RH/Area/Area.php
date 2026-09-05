@@ -4,14 +4,14 @@ namespace App\Models\RH\Area;
 
 use App\Models\Concerns\HasAutoCode;
 use App\Models\RH\Department\Department;
-use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\RH\Employee\Employee;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Area extends Model
 {
-    use HasFactory, SoftDeletes, HasAutoCode;
+    use HasAutoCode, HasFactory, SoftDeletes;
 
     protected static $codePrefix = 'ARE';
 
@@ -39,7 +39,7 @@ class Area extends Model
 
     public function responsible()
     {
-        return $this->belongsTo(User::class, 'responsible_id');
+        return $this->belongsTo(Employee::class, 'responsible_id');
     }
 
     public function assignments()

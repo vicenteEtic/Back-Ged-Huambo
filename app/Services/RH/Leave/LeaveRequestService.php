@@ -124,8 +124,8 @@ class LeaveRequestService extends AbstractService
 
         $notifiables = [];
 
-        if ($department && $department->responsible) {
-            $notifiables[] = $department->responsible;
+        if ($department && $department->responsible?->user) {
+            $notifiables[] = $department->responsible->user;
         }
 
         if (! empty($notifiables)) {
