@@ -19,6 +19,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // 1. Remover as FKs atuais (apontam para users) antes de converter os dados
+        foreach (self::TABLES as $table => $fkName) {
+            Schema::table($table, function (Blueprint $blueprint) use ($fkName) {
+                $blueprint->dropForeign($fkName);
+            });
+        }
+
+        // 2. Converter user_id → employee_id
         foreach (self::TABLES as $table => $fkName) {
             DB::statement("
                 UPDATE {$table} t
@@ -32,13 +40,9 @@ return new class extends Migration
                 WHERE t.responsible_id IS NOT NULL
                   AND EXISTS (SELECT 1 FROM employees e WHERE e.user_id = t.responsible_id)
             ");
-
-            Schema::table($table, function (Blueprint $blueprint) use ($fkName) {
-                $blueprint->dropForeign($fkName);
-            });
         }
 
-        // Re-criar as FKs apontando para employees
+        // 3. Re-criar as FKs apontando para employees
         Schema::table('departments', function (Blueprint $table) {
             $table->foreign('responsible_id')->references('id')->on('employees')->nullOnDelete();
         });
@@ -50,7 +54,14 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Reverter: employee_id → user_id (quando tiver user associado)
+        // 1. Remover as FKs atuais (apontam para employees)
+        foreach (self::TABLES as $table => $fkName) {
+            Schema::table($table, function (Blueprint $blueprint) use ($fkName) {
+                $blueprint->dropForeign($fkName);
+            });
+        }
+
+        // 2. Reverter: employee_id → user_id (quando tiver user associado)
         foreach (array_keys(self::TABLES) as $table) {
             DB::statement("
                 UPDATE {$table} t
@@ -64,12 +75,9 @@ return new class extends Migration
                 WHERE t.responsible_id IS NOT NULL
                   AND EXISTS (SELECT 1 FROM employees e WHERE e.id = t.responsible_id AND e.user_id IS NOT NULL)
             ");
-
-            Schema::table($table, function (Blueprint $blueprint) use ($table) {
-                $blueprint->dropForeign(self::TABLES[$table]);
-            });
         }
 
+        // 3. Re-criar as FKs apontando para users
         Schema::table('departments', function (Blueprint $table) {
             $table->foreign('responsible_id')->references('id')->on('users')->nullOnDelete();
         });
