@@ -11,6 +11,7 @@ use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends AbstractController
@@ -44,30 +45,54 @@ class AttendanceController extends AbstractController
     }
 
     /**
-     * Listagem de pontualidade e assiduidade.
-     * Padrão: registos do dia actual. Suporta filtros por dia/período/funcionário.
+     * Listagem de assiduidade (comportamento clássico).
+     * Devolve a listagem paginada de registos com as relações pedidas
+     * (ex.: employee); relações antigas como `shift` (removida em Set 2026)
+     * são ignoradas em vez de devolver erro.
      */
     public function index(Request $request)
     {
         try {
-            $this->logRequest();
+            if ($this->logRequest) {
+                $this->logRequest();
+                $this->logToDatabase(
+                    type: $this->logType,
+                    level: 'info',
+                    customMessage: 'O utilizador '.Auth::user()->first_name.' visualizou todos os registos no módulo '.$this->nameEntity,
+                );
+            }
 
-            $result = $this->attendanceService->attendanceListing(
-                $request->only(['date', 'period', 'start_date', 'end_date', 'employee_id']),
-                $request->integer('paginate') ?: null
-            );
+            $filters = $request['filters'] ?? $request['filtersV2'];
+            $relationships = $this->legacyRelationships($request['relationships']);
+            $service = $this->service->index($request['paginate'], $filters, $request['orderBy'], $relationships);
 
-            return response()->json($result);
-        } catch (ModelNotFoundException $e) {
-            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+            return response()->json($service);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         } catch (Exception $e) {
-            $this->logRequest($e);
-            Log::error('Erro ao listar assiduidade', ['message' => $e->getMessage()]);
+            if ($this->logRequest) {
+                $this->logRequest($e);
+            }
+            Log::error('Erro interno', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
-            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    /**
+     * Filtra as relações pedidas pela listagem, ignorando silenciosamente
+     * relações que já não existem no modelo (ex.: `shift`, removida em Set 2026).
+     */
+    protected function legacyRelationships($relationships): array
+    {
+        $requested = is_array($relationships) ? $relationships : [];
+
+        return array_values(array_filter($requested, static function ($relation) {
+            return method_exists(\App\Models\RH\Attendance\Attendance::class, \Illuminate\Support\Str::camel($relation));
+        }));
     }
 
     /**

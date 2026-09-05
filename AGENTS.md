@@ -200,7 +200,7 @@
 | `POST absence` | registo de falta com justificação (bloqueado p/ funcionários de férias) |
 | `POST import-biometric` | importação de CSV biométrico com logging (linhas de férias falham) |
 | `GET employees-for-point` | select de funcionários com flag `on_leave` + "Nome — De férias" (exclui gabinetes com excepção) |
-| `GET /records` (`GET /`) | **listagem de assiduidade** — padrão = dia actual; filtros `period` (today/yesterday/day_before_yesterday/this_week/last_week/this_month/last_month/last_3_months/last_6_months/this_year), `date`, `start_date`+`end_date`, `employee_id`, `paginate`; cada registo com `employee_number`; devolve `records` + `summary` + `filters` + `periods` |
+| `GET /records` (`GET /`) | **listagem clássica de assiduidade** (reposta Set 2026) — listagem paginada genérica com relações pedidas (`employee`, etc.); relações removidas (`shift`) são ignoradas; o resumo de faltas fica em `/absences` e o filtro completo em `/report` |
 | `GET /employees/{employee_id}/assiduidade` | assiduidade de um funcionário por período (`period`: 1_day/3_days/1_week/1_month/3_months/6_months/1_year, ou `date`/`start_date`+`end_date`) com `records` + `summary` + `working_days`/`on_leave_days` |
 | Excepção de gabinetes | `config/rh.php` → `App\Support\PontoExceptions` — GEPE/GAB-GOV/GAB-COM não assinam ponto no RH (excluídos também da listagem) |
 | Relatório mensal | por employee |
