@@ -72,7 +72,7 @@ class PermissionSeed extends Seeder
             ['name' => 'RH Valores em Atraso', 'operations' => ['show', 'create', 'edit', 'delete']],
 
             // Áreas e Permissões
-            ['name' => 'Áreas', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Áreas', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Permissões Departamento', 'operations' => ['show', 'create', 'delete']],
 
             // Processos (Gestão de Expediente)
