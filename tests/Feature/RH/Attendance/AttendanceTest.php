@@ -5,8 +5,6 @@ namespace Tests\Feature\RH\Attendance;
 use Tests\Feature\RH\RhTestCase;
 use App\Models\RH\Attendance\AbsenceType;
 use App\Models\RH\Attendance\Attendance;
-use App\Models\RH\Attendance\Shift;
-use App\Models\RH\Attendance\ShiftAssignment;
 use App\Models\RH\Employee\Employee;
 use App\Models\RH\Department\Department;
 use App\Models\RH\Position\Position;
@@ -15,7 +13,6 @@ use App\Models\User;
 class AttendanceTest extends RhTestCase
 {
     protected Employee $employee;
-    protected Shift $shift;
 
     protected function setUp(): void
     {
@@ -28,15 +25,12 @@ class AttendanceTest extends RhTestCase
             'position_id' => $position->id,
             'user_id' => $this->user->id,
         ]);
-
-        $this->shift = Shift::factory()->create();
     }
 
     public function test_can_list_records()
     {
         Attendance::factory()->count(3)->create([
             'employee_id' => $this->employee->id,
-            'shift_id' => $this->shift->id,
         ]);
 
         $response = $this->getJsonAuth('/api/rh/attendance/records');
@@ -47,7 +41,6 @@ class AttendanceTest extends RhTestCase
     {
         $data = Attendance::factory()->make([
             'employee_id' => $this->employee->id,
-            'shift_id' => $this->shift->id,
         ])->toArray();
 
         $response = $this->postJsonAuth('/api/rh/attendance/records', $data);
@@ -58,7 +51,6 @@ class AttendanceTest extends RhTestCase
     {
         $attendance = Attendance::factory()->create([
             'employee_id' => $this->employee->id,
-            'shift_id' => $this->shift->id,
         ]);
 
         $response = $this->getJsonAuth('/api/rh/attendance/records/' . $attendance->id);
@@ -69,12 +61,10 @@ class AttendanceTest extends RhTestCase
     {
         $attendance = Attendance::factory()->create([
             'employee_id' => $this->employee->id,
-            'shift_id' => $this->shift->id,
         ]);
 
         $data = Attendance::factory()->make([
             'employee_id' => $this->employee->id,
-            'shift_id' => $this->shift->id,
         ])->toArray();
 
         $response = $this->putJsonAuth('/api/rh/attendance/records/' . $attendance->id, $data);
@@ -85,7 +75,6 @@ class AttendanceTest extends RhTestCase
     {
         $attendance = Attendance::factory()->create([
             'employee_id' => $this->employee->id,
-            'shift_id' => $this->shift->id,
         ]);
 
         $response = $this->deleteJsonAuth('/api/rh/attendance/records/' . $attendance->id);
@@ -94,29 +83,63 @@ class AttendanceTest extends RhTestCase
 
     public function test_can_check_in()
     {
-        ShiftAssignment::factory()->create([
-            'employee_id' => $this->employee->id,
-            'shift_id' => $this->shift->id,
-        ]);
-
         $data = [
             'employee_id' => $this->employee->id,
             'date' => now()->format('Y-m-d'),
             'check_in' => '08:00:00',
+            'notes' => 'Chegou cedo para reunião',
         ];
 
         $response = $this->postJsonAuth('/api/rh/attendance/check-in', $data);
-        $response->assertStatus(200);
+        $response->assertStatus(200)
+            ->assertJsonPath('notes', 'Chegou cedo para reunião')
+            ->assertJsonPath('status', 'present')
+            ->assertJsonPath('late_minutes', 0);
+
+        $this->assertDatabaseHas('attendance', [
+            'employee_id' => $this->employee->id,
+            'date' => now()->format('Y-m-d'),
+            'notes' => 'Chegou cedo para reunião',
+        ]);
     }
 
     public function test_can_check_out()
     {
         $attendance = Attendance::factory()->create([
             'employee_id' => $this->employee->id,
-            'shift_id' => $this->shift->id,
             'date' => now()->format('Y-m-d'),
             'check_in' => '08:00',
             'check_out' => null,
+            'notes' => 'Entrada registada',
+            'status' => 'present',
+        ]);
+
+        $data = [
+            'employee_id' => $this->employee->id,
+            'date' => $attendance->date->format('Y-m-d'),
+            'check_out' => '17:00:00',
+            'notes' => 'Saída registada',
+        ];
+
+        $response = $this->postJsonAuth('/api/rh/attendance/check-out', $data);
+        $response->assertStatus(200)
+            ->assertJsonPath('notes', 'Saída registada')
+            ->assertJsonPath('overtime_minutes', 0);
+
+        $this->assertDatabaseHas('attendance', [
+            'id' => $attendance->id,
+            'notes' => 'Saída registada',
+        ]);
+    }
+
+    public function test_check_out_preserves_existing_note_when_not_sent()
+    {
+        $attendance = Attendance::factory()->create([
+            'employee_id' => $this->employee->id,
+            'date' => now()->format('Y-m-d'),
+            'check_in' => '08:00',
+            'check_out' => null,
+            'notes' => 'Observação na entrada',
             'status' => 'present',
         ]);
 
@@ -127,7 +150,13 @@ class AttendanceTest extends RhTestCase
         ];
 
         $response = $this->postJsonAuth('/api/rh/attendance/check-out', $data);
-        $response->assertStatus(200);
+        $response->assertStatus(200)
+            ->assertJsonPath('notes', 'Observação na entrada');
+
+        $this->assertDatabaseHas('attendance', [
+            'id' => $attendance->id,
+            'notes' => 'Observação na entrada',
+        ]);
     }
 
     public function test_can_register_absence()
@@ -155,43 +184,28 @@ class AttendanceTest extends RhTestCase
 
     public function test_can_get_monthly_report()
     {
-        Attendance::factory()->count(5)->create([
+        $dates = collect(range(1, now()->daysInMonth))
+            ->map(fn(int $day) => now()->startOfMonth()->addDays($day - 1)->format('Y-m-d'))
+            ->reject(fn(string $date) => $date === now()->format('Y-m-d'))
+            ->take(5)
+            ->values();
+
+        foreach ($dates as $date) {
+            Attendance::factory()->create([
+                'employee_id' => $this->employee->id,
+                'date' => $date,
+            ]);
+        }
+
+        Attendance::factory()->create([
             'employee_id' => $this->employee->id,
-            'shift_id' => $this->shift->id,
+            'date' => now()->format('Y-m-d'),
+            'notes' => 'Observação nos relatórios',
         ]);
 
         $response = $this->getJsonAuth('/api/rh/attendance/reports/' . $this->employee->id);
-        $response->assertStatus(200);
-    }
-
-    public function test_can_list_shifts()
-    {
-        $response = $this->getJsonAuth('/api/rh/attendance/shifts');
-        $response->assertStatus(200);
-    }
-
-    public function test_can_create_shift()
-    {
-        $data = Shift::factory()->make()->toArray();
-
-        $response = $this->postJsonAuth('/api/rh/attendance/shifts', $data);
-        $response->assertStatus(201);
-    }
-
-    public function test_can_list_assignments()
-    {
-        $response = $this->getJsonAuth('/api/rh/attendance/assignments');
-        $response->assertStatus(200);
-    }
-
-    public function test_can_create_assignment()
-    {
-        $data = ShiftAssignment::factory()->make([
-            'employee_id' => $this->employee->id,
-            'shift_id' => $this->shift->id,
-        ])->toArray();
-
-        $response = $this->postJsonAuth('/api/rh/attendance/assignments', $data);
-        $response->assertStatus(201);
+        $response->assertStatus(200)
+            ->assertJsonCount(6, 'records')
+            ->assertJsonFragment(['notes' => 'Observação nos relatórios']);
     }
 }

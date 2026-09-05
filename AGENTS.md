@@ -189,13 +189,20 @@
 | Balanço | endpoint por employee |
 
 ## FLUXO 12 — Ponto e Assiduidade (enhanced) ✅
+> **Nota (Set 2026)**: turnos removidos — `shifts`/`shift_assignments` eliminadas (migration `2026_09_05_000001`). O registo de ponto deixou de calcular atrasos/horas extra (valores neutros: `late_minutes`/`overtime_minutes` a 0, `expected_check_in/out`/`shift_id` nulos). A coluna `shift_id` mantém-se na tabela `attendance` com valores nulos.
+> **Nota (Set 2026) — Funcionários de férias**: funcionários com `leave_requests.status='approved'` cobrindo a data estão **bloqueados para registo de ponto** (check-in/check-out, CRUD store/update via `AttendanceRequest::notOnLeave()`, `registerAbsence`, `importBiometric` e justificação de falta manual em `AbsenceJustificationService`) e não são marcados como faltas pelo sistema automático (`markAbsentForDate` devolve `on_leave_skipped`). `GET /api/rh/attendance/employees-for-point` devolve funcionários activos com flag `on_leave`, `display_name="Nome — De férias"`, período e mensagem informativa para o select.
+> **Nota (Set 2026) — Excepção de gabinetes (livro de ponto próprio)**: GEPE, Gabinete do Governador e Comunicação Social **não assinam o livro de ponto no RH**. A regra é **configurável** em `config/rh.php` (`ponto.exempt_department_codes` por código e `ponto.exempt_department_names` por nome) e centralizada em `App\Support\PontoExceptions`. Funcionários desses departamentos **não aparecem** em `employees-for-point` (nem no registo de ponto), estão bloqueados em check-in/check-out, CRUD, `registerAbsence`, `importBiometric`, justificação manual de falta, e são ignorados pelo `markAbsentForDate` (devolve `exempt_skipped`).
 | Item | Status |
 |------|--------|
-| `shifts` | turnos com minutos de tolerância |
-| `shift_assignments` | alocação por employee com datas |
-| `POST check-in` / `POST check-out` | registo de ponto com cálculo de atrasos e horas extra |
-| `POST absence` | registo de falta com justificação |
-| `POST import-biometric` | importação de CSV biométrico com logging |
+| ~~`shifts`~~ | ~~turnos com minutos de tolerância~~ (removido Set 2026) |
+| ~~`shift_assignments`~~ | ~~alocação por employee com datas~~ (removido Set 2026) |
+| `POST check-in` / `POST check-out` | registo de ponto (sem cálculo de turno; bloqueado p/ funcionários de férias) |
+| `POST absence` | registo de falta com justificação (bloqueado p/ funcionários de férias) |
+| `POST import-biometric` | importação de CSV biométrico com logging (linhas de férias falham) |
+| `GET employees-for-point` | select de funcionários com flag `on_leave` + "Nome — De férias" (exclui gabinetes com excepção) |
+| `GET /records` (`GET /`) | **listagem de assiduidade** — padrão = dia actual; filtros `period` (today/yesterday/day_before_yesterday/this_week/last_week/this_month/last_month/last_3_months/last_6_months/this_year), `date`, `start_date`+`end_date`, `employee_id`, `paginate`; cada registo com `employee_number`; devolve `records` + `summary` + `filters` + `periods` |
+| `GET /employees/{employee_id}/assiduidade` | assiduidade de um funcionário por período (`period`: 1_day/3_days/1_week/1_month/3_months/6_months/1_year, ou `date`/`start_date`+`end_date`) com `records` + `summary` + `working_days`/`on_leave_days` |
+| Excepção de gabinetes | `config/rh.php` → `App\Support\PontoExceptions` — GEPE/GAB-GOV/GAB-COM não assinam ponto no RH (excluídos também da listagem) |
 | Relatório mensal | por employee |
 
 ## FLUXO 13 — Documentos dos Funcionários ✅
@@ -278,6 +285,37 @@
 
 > Nota: `informacao_salarial` usa `salario_numero` (base) + `salario_numero_liquido`/`salario_extenso_liquido` para o líquido.
 
+## FLUXO 21 — Solicitações de Dispensa (Solicitações/Dispensas) ✅
+| Item | Status |
+|------|--------|
+| `attendance_request_types` | **tipos cadastráveis/edítáveis via API** — tabela própria (code, name, description, `required_documents` JSON, `max_days`, `legal_ref`, is_active, sort_order); semeada por `AttendanceRequestTypeSeed` a partir de `config/rh.php` → `dispensa.types`; registry central em `App\Support\Dispensa` (DB com fallback config). Tipos: `dispensa`, `amamentacao`, `pre_natal`, `relatorio_medico` (máx. 30 dias), `acompanhamento_deficiencia`, `outro` |
+| `attendance_requests` | solicitações com `request_number` (`RD/0001/2026`), estado (pendente/em análise/aprovada/rejeitada/cancelada), benefícios, parecer, despacho |
+| `attendance_request_documents` | anexos com `document_type` (cédula da criança, título de alta, BI da mãe, requerimento, relatório médico, comprovativo) via `FileUploadService` |
+| `attendance_request_logs` | auditoria completa de todos os passos (criada, em análise, aprovada, rejeitada, cancelada, eliminada, despacho, expirada) |
+| Documentos obrigatórios | validados por tipo (`require_documents` no config) — em falta → 422 com nomes em PT |
+| Validações | período (`end >= start`), `max_days` por tipo (**30 dias** para relatório médico — art. 90.º, acima → Junta Médica), sobreposição com solicitação activa (`pending/under_review/approved`), bloqueio se funcionário de férias no período, **imutável após decidida** |
+| Regra amamentação | apenas dispensa parcial (redução diária), `benefit_start_date` = nascimento da criança, `benefit_until` = +18 meses (backend), `end_date` não pode exceder o prazo legal. **Base legal**: Lei n.º 26/22 (Lei de Bases da Função Pública) — amamentação art. 93.º n.ºs 2–3 (2 períodos de até 1h/dia, até 18 meses), pré-natais art. 93.º n.º 1, doença art. 90.º (30 dias), necessidades especiais art. 96.º |
+| Fluxo | Funcionário cria → `POST {id}/under-review` → Director RH `approve`/`reject` (com nota) → **Despacho PDF** gerado automaticamente |
+| Despacho PDF | `DespachoPdfService` (Dompdf em `packages/dompdf`) com cabeçalho Governo, identificação do funcionário (nº agente, gabinete, cargo/categoria), período, motivo, documentos, parecer, decisão APROVADO/REJEITADO e assinatura do Director de RH |
+| Assiduidade | dispensa de dia inteiro aplica estado **`dispensado`** na assiduidade (`applyToAttendance`); **não é falta** — `markAbsentForDate` devolve `dispensa_skipped` e cria registo `dispensado` |
+| Bloqueios | check-in/check-out/CRUD/`registerAbsence`/`importBiometric`/justificação manual de falta bloqueados para dispensa total aprovada na data (`App\Support\Dispensa`) |
+| Amamentação (2h) | `expected_check_out` = entrada real + (horário função pública − 2h); ex.: entrada 08:00 → saída prevista 13:00; `expected_check_in` = `work_start` |
+| "Ausente" bloqueia horários | se registo com `status=absent`, não é possível registar entrada/saída (primeiro justificar a falta) |
+| `employees-for-point` | funcionários com dispensa total aparecem com `display_name="Nome — Dispensa aprovada"`, `on_dispensa=true`, `blocked=true` e mensagem |
+| Expiração 18 meses | comando `rh:expire-breastfeeding-dispensas` (05:00 daily) desactiva o benefício + log `expired` |
+| Permissões | módulo `RH Dispensas` (`rh-dispensas-show/create/edit/delete/approve/reject/cancel/underreview/despacho`) — Director RH vê tudo; quem tem apenas `show` vê mas não decide |
+| API | `/api/rh/attendance/solicitacoes` (+ `/metadata`, `{id}/approve`, `{id}/reject`, `{id}/under-review`, `{id}/cancel`, `{id}/despacho`, `{id}/despacho/download`, `{id}/documents/{doc}/download`) |
+| API Tipos | `/api/rh/attendance/solicitacoes/tipos` (CRUD: `required_documents`, `max_days`, `legal_ref`) — permissões `rh-dispensas-*`; código imutável se existirem solicitações; remoção bloqueada em utilização (recomenda-se `is_active=false`) |
+
+## FLUXO 22 — Relatório Governamental de Pontualidade e Assiduidade ✅
+| Item | Descrição |
+|------|-----------|
+| `AttendanceReportService` | dados com os **mesmos filtros da listagem** (`period`, `date`, `start_date`+`end_date`, `employee_id`) + PDF (Dompdf) em formato Governo (cabeçalho REPÚBLICA DE ANGOLA / GOVERNO DA PROVÍNCIA DO HUAMBO / GABINETE DE RH) |
+| Individual | `employee_id` (ou `employee/{employee_id}`) → relatório por funcionário com identificação |
+| Resumo | funcionários, registos, dias úteis, presentes, atrasos, faltas justificadas/injustificadas, **dispensas**, total de horas |
+| API | `GET /api/rh/attendance/report` (dados), `GET /api/rh/attendance/report/download` (PDF), `GET /api/rh/attendance/report/employee/{id}` e `/download` |
+| Anterior | `monthlyReport` (`reports/{employee_id}`) mantém-se por compatibilidade (relatório isolado "do mês" — o frontend deve usar o novo `/report` de filtro completo) |
+
 ## Dashboard e Relatórios ✅
 | Item | Descrição |
 |------|-----------|
@@ -303,6 +341,7 @@
 | `rh:check-document-expiry` | 06:00 daily | Notifica docs a vencer (30 dias) |
 | `rh:check-pending-evaluations` | 09:00 semanal (Seg) | Notifica avaliadores sobre avaliações pendentes |
 | `rh:check-pending-leaves` | 07:00 daily | Alerta pedidos de férias pendentes > 3 dias |
+| `rh:expire-breastfeeding-dispensas` | 05:00 daily | Expira dispensas de amamentação com benefício ultrapassado (18 meses) |
 
 ---
 

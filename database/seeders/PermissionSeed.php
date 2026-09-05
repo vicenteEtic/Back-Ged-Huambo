@@ -51,6 +51,7 @@ class PermissionSeed extends Seeder
             ['name' => 'RH Férias', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Feriados', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Ponto', 'operations' => ['show', 'create', 'edit', 'delete']],
+            ['name' => 'RH Dispensas', 'operations' => ['show', 'create', 'edit', 'delete', 'approve', 'reject', 'cancel', 'underreview', 'despacho']],
             ['name' => 'RH Processamento', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Recrutamento', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Formação', 'operations' => ['show', 'create', 'edit', 'delete']],
@@ -74,8 +75,6 @@ class PermissionSeed extends Seeder
             ['name' => 'Áreas', 'operations' => ['show', 'create', 'edit', 'delete']],
             ['name' => 'RH Permissões Departamento', 'operations' => ['show', 'create', 'delete']],
 
-       
-
             // Processos (Gestão de Expediente)
             ['name' => 'Processos', 'operations' => ['show', 'create', 'edit', 'delete', 'dispatch', 'assign', 'validate', 'close']],
         ];
@@ -89,11 +88,14 @@ class PermissionSeed extends Seeder
             'assign' => 'Permite atribuir',
             'validate' => 'Permite validar',
             'close' => 'Permite encerrar',
+            'approve' => 'Permite aprovar',
+            'reject' => 'Permite rejeitar',
+            'cancel' => 'Permite cancelar',
+            'underreview' => 'Permite marcar em análise',
+            'despacho' => 'Permite ver e descarregar o despacho',
         ];
 
         $permissionIds = [];
-
-     
 
         foreach ($modules as $module) {
             foreach ($module['operations'] as $operation) {

@@ -3,28 +3,13 @@
 use App\Http\Controllers\RH\Attendance\AbsenceJustificationController;
 use App\Http\Controllers\RH\Attendance\AbsenceTypeController;
 use App\Http\Controllers\RH\Attendance\AttendanceController;
-use App\Http\Controllers\RH\Attendance\ShiftAssignmentController;
-use App\Http\Controllers\RH\Attendance\ShiftController;
+use App\Http\Controllers\RH\Attendance\AttendanceReportController;
+use App\Http\Controllers\RH\Attendance\AttendanceRequestController;
+use App\Http\Controllers\RH\Attendance\AttendanceRequestTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AttendanceController::class, 'index'])->name('attendance.root.index')->middleware(['can:rh-ponto-show']);
 Route::post('/', [AttendanceController::class, 'store'])->name('attendance.root.store')->middleware(['can:rh-ponto-create']);
-
-Route::prefix('shifts')->group(function () {
-    Route::get('/', [ShiftController::class, 'index'])->name('shift.index')->middleware(['can:rh-ponto-show']);
-    Route::post('/', [ShiftController::class, 'store'])->name('shift.store')->middleware(['can:rh-ponto-create']);
-    Route::get('{id}', [ShiftController::class, 'show'])->name('shift.show')->middleware(['can:rh-ponto-show']);
-    Route::put('{id}', [ShiftController::class, 'update'])->name('shift.update')->middleware(['can:rh-ponto-edit']);
-    Route::delete('{id}', [ShiftController::class, 'destroy'])->name('shift.destroy')->middleware(['can:rh-ponto-delete']);
-});
-
-Route::prefix('assignments')->group(function () {
-    Route::get('/', [ShiftAssignmentController::class, 'index'])->name('shift_assignment.index')->middleware(['can:rh-ponto-show']);
-    Route::post('/', [ShiftAssignmentController::class, 'store'])->name('shift_assignment.store')->middleware(['can:rh-ponto-create']);
-    Route::get('{id}', [ShiftAssignmentController::class, 'show'])->name('shift_assignment.show')->middleware(['can:rh-ponto-show']);
-    Route::put('{id}', [ShiftAssignmentController::class, 'update'])->name('shift_assignment.update')->middleware(['can:rh-ponto-edit']);
-    Route::delete('{id}', [ShiftAssignmentController::class, 'destroy'])->name('shift_assignment.destroy')->middleware(['can:rh-ponto-delete']);
-});
 
 Route::prefix('absence-types')->group(function () {
     Route::get('/', [AbsenceTypeController::class, 'index'])->name('absence_type.index')->middleware(['can:rh-ponto-show']);
@@ -45,6 +30,7 @@ Route::prefix('records')->group(function () {
 Route::post('check-in', [AttendanceController::class, 'checkIn'])->name('attendance.checkin')->middleware(['can:rh-ponto-create']);
 Route::post('check-out', [AttendanceController::class, 'checkOut'])->name('attendance.checkout')->middleware(['can:rh-ponto-create']);
 Route::post('import-biometric', [AttendanceController::class, 'importBiometric'])->name('attendance.import')->middleware(['can:rh-ponto-create']);
+Route::get('employees-for-point', [AttendanceController::class, 'employeesForPoint'])->name('attendance.employees_for_point')->middleware(['can:rh-ponto-create']);
 Route::get('absences/types', [AttendanceController::class, 'absenceTypes'])->name('attendance.absence_types')->middleware(['can:rh-ponto-show']);
 Route::get('absences', [AttendanceController::class, 'absences'])->name('attendance.absences')->middleware(['can:rh-ponto-show']);
 
@@ -60,6 +46,39 @@ Route::prefix('absences/justifications')->group(function () {
 });
 
 Route::get('reports/{employee_id}', [AttendanceController::class, 'monthlyReport'])->name('attendance.report')->middleware(['can:rh-ponto-show']);
+Route::get('employees/{employee_id}/assiduidade', [AttendanceController::class, 'employeeAssiduidade'])->name('attendance.employee_assiduidade')->middleware(['can:rh-ponto-show']);
+
+Route::prefix('report')->group(function () {
+    Route::get('/', [AttendanceReportController::class, 'data'])->name('attendance.report.data')->middleware(['can:rh-ponto-show']);
+    Route::get('download', [AttendanceReportController::class, 'download'])->name('attendance.report.download')->middleware(['can:rh-ponto-show']);
+    Route::get('employee/{employee_id}', [AttendanceReportController::class, 'data'])->name('attendance.report.employee')->middleware(['can:rh-ponto-show']);
+    Route::get('employee/{employee_id}/download', [AttendanceReportController::class, 'download'])->name('attendance.report.employee_download')->middleware(['can:rh-ponto-show']);
+});
+
+Route::prefix('solicitacoes')->group(function () {
+    Route::get('metadata', [AttendanceRequestController::class, 'metadata'])->name('attendance_request.metadata')->middleware(['can:rh-dispensas-show']);
+
+    Route::prefix('tipos')->group(function () {
+        Route::get('/', [AttendanceRequestTypeController::class, 'index'])->name('attendance_request_type.index')->middleware(['can:rh-dispensas-show']);
+        Route::post('/', [AttendanceRequestTypeController::class, 'store'])->name('attendance_request_type.store')->middleware(['can:rh-dispensas-create']);
+        Route::get('{id}', [AttendanceRequestTypeController::class, 'show'])->name('attendance_request_type.show')->middleware(['can:rh-dispensas-show']);
+        Route::put('{id}', [AttendanceRequestTypeController::class, 'update'])->name('attendance_request_type.update')->middleware(['can:rh-dispensas-edit']);
+        Route::delete('{id}', [AttendanceRequestTypeController::class, 'destroy'])->name('attendance_request_type.destroy')->middleware(['can:rh-dispensas-delete']);
+    });
+
+    Route::get('/', [AttendanceRequestController::class, 'index'])->name('attendance_request.index')->middleware(['can:rh-dispensas-show']);
+    Route::post('/', [AttendanceRequestController::class, 'store'])->name('attendance_request.store')->middleware(['can:rh-dispensas-create']);
+    Route::get('{id}', [AttendanceRequestController::class, 'show'])->name('attendance_request.show')->middleware(['can:rh-dispensas-show']);
+    Route::put('{id}', [AttendanceRequestController::class, 'update'])->name('attendance_request.update')->middleware(['can:rh-dispensas-edit']);
+    Route::delete('{id}', [AttendanceRequestController::class, 'destroy'])->name('attendance_request.destroy')->middleware(['can:rh-dispensas-delete']);
+    Route::post('{id}/under-review', [AttendanceRequestController::class, 'underReview'])->name('attendance_request.under_review')->middleware(['can:rh-dispensas-underreview']);
+    Route::post('{id}/approve', [AttendanceRequestController::class, 'approve'])->name('attendance_request.approve')->middleware(['can:rh-dispensas-approve']);
+    Route::post('{id}/reject', [AttendanceRequestController::class, 'reject'])->name('attendance_request.reject')->middleware(['can:rh-dispensas-reject']);
+    Route::post('{id}/cancel', [AttendanceRequestController::class, 'cancel'])->name('attendance_request.cancel')->middleware(['can:rh-dispensas-cancel']);
+    Route::get('{id}/despacho', [AttendanceRequestController::class, 'despacho'])->name('attendance_request.despacho')->middleware(['can:rh-dispensas-despacho']);
+    Route::get('{id}/despacho/download', [AttendanceRequestController::class, 'downloadDespacho'])->name('attendance_request.despacho_download')->middleware(['can:rh-dispensas-despacho']);
+    Route::get('{id}/documents/{documentId}/download', [AttendanceRequestController::class, 'downloadDocument'])->name('attendance_request.document_download')->middleware(['can:rh-dispensas-show']);
+});
 
 Route::get('{id}', [AttendanceController::class, 'show'])->name('attendance.root.show')->middleware(['can:rh-ponto-show']);
 Route::put('{id}', [AttendanceController::class, 'update'])->name('attendance.root.update')->middleware(['can:rh-ponto-edit']);

@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
         $this->call(HolidaySeeder::class);
         $this->call(DeclarationTypeSeeder::class);
         $this->call(DocumentTypeSeed::class);
+        $this->call(AttendanceRequestTypeSeed::class);
 
     }
 }

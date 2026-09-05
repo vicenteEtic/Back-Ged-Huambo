@@ -10,7 +10,6 @@ use App\Models\RH\Leave\LeavePlan;
 use App\Models\RH\Leave\LeaveRequest;
 use App\Models\RH\Leave\LeaveType;
 use App\Models\RH\Attendance\Attendance;
-use App\Models\RH\Attendance\Shift;
 use App\Models\RH\EmployeeDocument\EmployeeDocument;
 
 class DashboardTest extends RhTestCase

@@ -4,7 +4,6 @@ namespace App\Models\RH\Employee;
 
 use App\Models\RH\Department\Department;
 use App\Models\RH\Attendance\Attendance;
-use App\Models\RH\Attendance\ShiftAssignment;
 use App\Models\RH\Category\Category;
 use App\Models\RH\FunctionalHistory\FunctionalHistory;
 use App\Models\RH\Leave\LeavePlan;
@@ -115,11 +114,6 @@ class Employee extends Model
     public function attendance()
     {
         return $this->hasMany(Attendance::class);
-    }
-
-    public function shiftAssignments()
-    {
-        return $this->hasMany(ShiftAssignment::class);
     }
 
     public function documents()

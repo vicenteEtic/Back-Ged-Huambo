@@ -3,8 +3,8 @@
 namespace App\Models\RH\Attendance;
 
 use App\Models\RH\Employee\Employee;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Attendance extends Model
@@ -15,6 +15,7 @@ class Attendance extends Model
 
     protected $fillable = [
         'employee_id',
+        'attendance_request_id',
         'shift_id',
         'date',
         'status',
@@ -47,8 +48,8 @@ class Attendance extends Model
         return $this->belongsTo(Employee::class);
     }
 
-    public function shift()
+    public function dispensa()
     {
-        return $this->belongsTo(Shift::class);
+        return $this->belongsTo(AttendanceRequest::class, 'attendance_request_id');
     }
 }

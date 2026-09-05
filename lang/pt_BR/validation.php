@@ -276,10 +276,6 @@ return [
         'absence_reason' => 'motivo da falta',
         'is_justified' => 'justificado',
         'notes' => 'observações',
-        'shift_id' => 'turno',
-        'start_time' => 'hora de início',
-        'end_time' => 'hora de fim',
-        'grace_minutes' => 'minutos de tolerância',
         'duration_hours' => 'duração em horas',
 
         // RH - Pagamento

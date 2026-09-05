@@ -4,6 +4,10 @@ namespace App\Http\Requests\RH\Attendance;
 
 use App\Enum\AttendanceStatus;
 use App\Http\Requests\BaseFormRequest;
+use App\Models\RH\Employee\Employee;
+use App\Models\RH\Leave\LeaveRequest;
+use App\Support\Dispensa;
+use App\Support\PontoExceptions;
 use App\Support\TimeNormalizer;
 use Carbon\Carbon;
 use Illuminate\Validation\Rule;
@@ -30,27 +34,88 @@ class AttendanceRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        // id do registo atual (para updates) — ajusta o nome do parâmetro de rota se for diferente
-        $attendanceId = $this->route('attendance')?->id ?? $this->route('attendance');
+        // id do registo atual (para updates)
+        $attendanceId = $this->route('id');
 
         return [
-            'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
+            'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id', $this->notOnLeave(), $this->notExemptFromPonto(), $this->notOnFullDayDispensa()],
 
             'date' => [
                 $this->requiredOnCreate(),
                 'date',
                 'before_or_equal:today', // bloqueia datas futuras
-                Rule::unique('attendances', 'date')
+                Rule::unique('attendance', 'date')
                     ->where(fn ($query) => $query->where('employee_id', $this->input('employee_id')))
                     ->ignore($attendanceId),
             ],
 
-            'shift_id' => ['nullable', 'integer', 'exists:shifts,id'],
             'check_in' => ['nullable', 'date_format:H:i:s'],
             'check_out' => ['nullable', 'date_format:H:i:s'],
-            'status' => ['string', 'in:' . implode(',', AttendanceStatus::values())],
+            'status' => ['string', 'in:'.implode(',', AttendanceStatus::values())],
             'notes' => ['nullable', 'string'],
         ];
+    }
+
+    /**
+     * Regra de negócio: não é permitido registar ponto para funcionários de férias.
+     */
+    private function notOnLeave(): \Closure
+    {
+        return function ($attribute, $value, $fail) {
+            $date = $this->input('date');
+
+            if (! $date || ! $value) {
+                return;
+            }
+
+            $onLeave = LeaveRequest::where('employee_id', $value)
+                ->where('status', 'approved')
+                ->whereDate('start_date', '<=', $date)
+                ->whereDate('end_date', '>=', $date)
+                ->exists();
+
+            if ($onLeave) {
+                $fail('Funcionário de férias: não é permitido registar ponto nesta data.');
+            }
+        };
+    }
+
+    /**
+     * Regra de negócio: gabinetes com excepção ao livro de ponto do RH
+     * (definidos em config/rh.php) não podem ter registos de ponto.
+     */
+    private function notExemptFromPonto(): \Closure
+    {
+        return function ($attribute, $value, $fail) {
+            if (! $value) {
+                return;
+            }
+
+            $employee = Employee::with('department')->find($value);
+
+            if ($employee && PontoExceptions::isEmployeeExempt($employee)) {
+                $fail('Gabinete com excepção no livro de ponto: este funcionário não assina o ponto no RH.');
+            }
+        };
+    }
+
+    /**
+     * Regra de negócio: funcionários com dispensa aprovada (dia inteiro) na
+     * data não podem ter registos de ponto.
+     */
+    private function notOnFullDayDispensa(): \Closure
+    {
+        return function ($attribute, $value, $fail) {
+            $date = $this->input('date');
+
+            if (! $date || ! $value) {
+                return;
+            }
+
+            if (Dispensa::approvedFullDayForDate((int) $value, Carbon::parse($date)->format('Y-m-d'))) {
+                $fail('Funcionário com dispensa aprovada nesta data: não é permitido registar o ponto.');
+            }
+        };
     }
 
     public function messages(): array

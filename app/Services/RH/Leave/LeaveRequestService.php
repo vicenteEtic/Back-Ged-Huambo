@@ -177,6 +177,18 @@ class LeaveRequestService extends AbstractService
         }
     }
 
+    /**
+     * Verifica se o funcionário está de férias (licença aprovada) na data indicada.
+     */
+    public function isOnLeave(int $employeeId, string $date): bool
+    {
+        return LeaveRequest::where('employee_id', $employeeId)
+            ->where('status', 'approved')
+            ->whereDate('start_date', '<=', $date)
+            ->whereDate('end_date', '>=', $date)
+            ->exists();
+    }
+
     public function calculateBusinessDays(string $start, string $end): int
     {
         $start = Carbon::parse($start);

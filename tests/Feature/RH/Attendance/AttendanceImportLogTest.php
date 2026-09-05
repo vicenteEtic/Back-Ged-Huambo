@@ -3,8 +3,6 @@
 namespace Tests\Feature\RH\Attendance;
 
 use Tests\Feature\RH\RhTestCase;
-use App\Models\RH\Attendance\Shift;
-use App\Models\RH\Attendance\ShiftAssignment;
 use App\Models\RH\Employee\Employee;
 use App\Models\RH\Department\Department;
 use App\Models\RH\Position\Position;
@@ -19,16 +17,11 @@ class AttendanceImportLogTest extends RhTestCase
             'department_id' => $department->id,
             'position_id' => $position->id,
         ]);
-        $shift = Shift::factory()->create();
-        ShiftAssignment::factory()->create([
-            'employee_id' => $employee->id,
-            'shift_id' => $shift->id,
-        ]);
 
         $data = [
             'rows' => [
                 [
-                    'employee_number' => $employee->numero_funcionario,
+                    'employee_number' => $employee->employee_number,
                     'date' => now()->format('Y-m-d'),
                     'check_in' => '08:00:00',
                     'check_out' => '17:00:00',

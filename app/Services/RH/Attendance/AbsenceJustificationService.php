@@ -4,10 +4,15 @@ namespace App\Services\RH\Attendance;
 
 use App\Models\RH\Attendance\AbsenceJustification;
 use App\Models\RH\Attendance\Attendance;
+use App\Models\RH\Employee\Employee;
 use App\Repositories\RH\Attendance\AbsenceJustificationRepository;
 use App\Services\AbstractService;
+use App\Services\RH\Leave\LeaveRequestService;
 use App\Services\Upload\FileUploadService;
+use App\Support\Dispensa;
+use App\Support\PontoExceptions;
 use Carbon\Carbon;
+use DomainException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -16,6 +21,7 @@ class AbsenceJustificationService extends AbstractService
     public function __construct(
         AbsenceJustificationRepository $repository,
         private FileUploadService $uploadService,
+        private ?LeaveRequestService $leaveRequestService = null,
     ) {
         parent::__construct($repository);
     }
@@ -29,6 +35,21 @@ class AbsenceJustificationService extends AbstractService
             unset($data['proof']);
 
             $data['date'] = Carbon::parse($data['date'])->format('Y-m-d');
+
+            if (! empty($data['employee_id']) && ($this->leaveRequestService?->isOnLeave((int) $data['employee_id'], $data['date']) ?? false)) {
+                throw new DomainException('Funcionário de férias: não é permitido registar falta nesta data.');
+            }
+
+            if (! empty($data['employee_id']) && Dispensa::approvedFullDayForDate((int) $data['employee_id'], $data['date'])) {
+                throw new DomainException('Funcionário com dispensa aprovada nesta data: não é permitido registar falta.');
+            }
+
+            $employee = Employee::with('department')->find($data['employee_id'] ?? null);
+
+            if ($employee && PontoExceptions::isEmployeeExempt($employee)) {
+                throw new DomainException('Gabinete com excepção no livro de ponto: este funcionário não assina o ponto no RH.');
+            }
+
             $data['status'] = $data['status'] ?? 'pending';
             $data['submitted_by'] = auth()->id();
 
@@ -36,7 +57,7 @@ class AbsenceJustificationService extends AbstractService
             $data['attendance_id'] = $attendance->id;
 
             if ($proof) {
-                $result = $this->uploadService->processUploadedFile($proof, 'absence-justifications/' . $data['employee_id']);
+                $result = $this->uploadService->processUploadedFile($proof, 'absence-justifications/'.$data['employee_id']);
                 $data['proof_path'] = $result['path'];
             }
 
@@ -67,7 +88,7 @@ class AbsenceJustificationService extends AbstractService
                 if ($model->proof_path) {
                     Storage::disk('public')->delete($model->proof_path);
                 }
-                $result = $this->uploadService->processUploadedFile($proof, 'absence-justifications/' . $model->employee_id);
+                $result = $this->uploadService->processUploadedFile($proof, 'absence-justifications/'.$model->employee_id);
                 $data['proof_path'] = $result['path'];
             }
 
