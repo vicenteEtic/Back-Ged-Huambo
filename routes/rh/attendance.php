@@ -70,30 +70,37 @@ Route::prefix('report')->group(function () {
     Route::get('employee/{employee_id}/download', [AttendanceReportController::class, 'download'])->name('attendance.report.employee_download')->middleware(['can:rh-ponto-show']);
 });
 
-Route::prefix('solicitacoes')->group(function () {
-    Route::get('metadata', [AttendanceRequestController::class, 'metadata'])->name('attendance_request.metadata')->middleware(['can:rh-dispensas-show']);
+$dispatchPrefixes = ['requests', 'solicitacoes'];
 
-    Route::prefix('tipos')->group(function () {
-        Route::get('/', [AttendanceRequestTypeController::class, 'index'])->name('attendance_request_type.index')->middleware(['can:rh-dispensas-show']);
-        Route::post('/', [AttendanceRequestTypeController::class, 'store'])->name('attendance_request_type.store')->middleware(['can:rh-dispensas-create']);
-        Route::get('{id}', [AttendanceRequestTypeController::class, 'show'])->name('attendance_request_type.show')->middleware(['can:rh-dispensas-show']);
-        Route::put('{id}', [AttendanceRequestTypeController::class, 'update'])->name('attendance_request_type.update')->middleware(['can:rh-dispensas-edit']);
-        Route::delete('{id}', [AttendanceRequestTypeController::class, 'destroy'])->name('attendance_request_type.destroy')->middleware(['can:rh-dispensas-delete']);
+foreach ($dispatchPrefixes as $dispatchPrefix) {
+    $base = $dispatchPrefix === 'requests' ? 'attendance_request' : 'attendance_request.'.$dispatchPrefix;
+    $typeBase = $base.'.type';
+
+    Route::prefix($dispatchPrefix)->group(function () use ($base, $typeBase) {
+        Route::get('metadata', [AttendanceRequestController::class, 'metadata'])->name($base.'.metadata')->middleware(['can:rh-dispensas-show']);
+
+        Route::prefix('tipos')->group(function () use ($typeBase) {
+            Route::get('/', [AttendanceRequestTypeController::class, 'index'])->name($typeBase.'.index')->middleware(['can:rh-dispensas-show']);
+            Route::post('/', [AttendanceRequestTypeController::class, 'store'])->name($typeBase.'.store')->middleware(['can:rh-dispensas-create']);
+            Route::get('{id}', [AttendanceRequestTypeController::class, 'show'])->name($typeBase.'.show')->middleware(['can:rh-dispensas-show']);
+            Route::put('{id}', [AttendanceRequestTypeController::class, 'update'])->name($typeBase.'.update')->middleware(['can:rh-dispensas-edit']);
+            Route::delete('{id}', [AttendanceRequestTypeController::class, 'destroy'])->name($typeBase.'.destroy')->middleware(['can:rh-dispensas-delete']);
+        });
+
+        Route::get('/', [AttendanceRequestController::class, 'index'])->name($base.'.index')->middleware(['can:rh-dispensas-show']);
+        Route::post('/', [AttendanceRequestController::class, 'store'])->name($base.'.store')->middleware(['can:rh-dispensas-create']);
+        Route::get('{id}', [AttendanceRequestController::class, 'show'])->name($base.'.show')->middleware(['can:rh-dispensas-show']);
+        Route::put('{id}', [AttendanceRequestController::class, 'update'])->name($base.'.update')->middleware(['can:rh-dispensas-edit']);
+        Route::delete('{id}', [AttendanceRequestController::class, 'destroy'])->name($base.'.destroy')->middleware(['can:rh-dispensas-delete']);
+        Route::post('{id}/under-review', [AttendanceRequestController::class, 'underReview'])->name($base.'.under_review')->middleware(['can:rh-dispensas-underreview']);
+        Route::post('{id}/approve', [AttendanceRequestController::class, 'approve'])->name($base.'.approve')->middleware(['can:rh-dispensas-approve']);
+        Route::post('{id}/reject', [AttendanceRequestController::class, 'reject'])->name($base.'.reject')->middleware(['can:rh-dispensas-reject']);
+        Route::post('{id}/cancel', [AttendanceRequestController::class, 'cancel'])->name($base.'.cancel')->middleware(['can:rh-dispensas-cancel']);
+        Route::get('{id}/despacho', [AttendanceRequestController::class, 'despacho'])->name($base.'.despacho')->middleware(['can:rh-dispensas-despacho']);
+        Route::get('{id}/despacho/download', [AttendanceRequestController::class, 'downloadDespacho'])->name($base.'.despacho_download')->middleware(['can:rh-dispensas-despacho']);
+        Route::get('{id}/documents/{documentId}/download', [AttendanceRequestController::class, 'downloadDocument'])->name($base.'.document_download')->middleware(['can:rh-dispensas-show']);
     });
-
-    Route::get('/', [AttendanceRequestController::class, 'index'])->name('attendance_request.index')->middleware(['can:rh-dispensas-show']);
-    Route::post('/', [AttendanceRequestController::class, 'store'])->name('attendance_request.store')->middleware(['can:rh-dispensas-create']);
-    Route::get('{id}', [AttendanceRequestController::class, 'show'])->name('attendance_request.show')->middleware(['can:rh-dispensas-show']);
-    Route::put('{id}', [AttendanceRequestController::class, 'update'])->name('attendance_request.update')->middleware(['can:rh-dispensas-edit']);
-    Route::delete('{id}', [AttendanceRequestController::class, 'destroy'])->name('attendance_request.destroy')->middleware(['can:rh-dispensas-delete']);
-    Route::post('{id}/under-review', [AttendanceRequestController::class, 'underReview'])->name('attendance_request.under_review')->middleware(['can:rh-dispensas-underreview']);
-    Route::post('{id}/approve', [AttendanceRequestController::class, 'approve'])->name('attendance_request.approve')->middleware(['can:rh-dispensas-approve']);
-    Route::post('{id}/reject', [AttendanceRequestController::class, 'reject'])->name('attendance_request.reject')->middleware(['can:rh-dispensas-reject']);
-    Route::post('{id}/cancel', [AttendanceRequestController::class, 'cancel'])->name('attendance_request.cancel')->middleware(['can:rh-dispensas-cancel']);
-    Route::get('{id}/despacho', [AttendanceRequestController::class, 'despacho'])->name('attendance_request.despacho')->middleware(['can:rh-dispensas-despacho']);
-    Route::get('{id}/despacho/download', [AttendanceRequestController::class, 'downloadDespacho'])->name('attendance_request.despacho_download')->middleware(['can:rh-dispensas-despacho']);
-    Route::get('{id}/documents/{documentId}/download', [AttendanceRequestController::class, 'downloadDocument'])->name('attendance_request.document_download')->middleware(['can:rh-dispensas-show']);
-});
+}
 
 Route::get('{id}', [AttendanceController::class, 'show'])->name('attendance.root.show')->middleware(['can:rh-ponto-show']);
 Route::put('{id}', [AttendanceController::class, 'update'])->name('attendance.root.update')->middleware(['can:rh-ponto-edit']);

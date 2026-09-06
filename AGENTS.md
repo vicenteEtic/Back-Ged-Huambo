@@ -304,8 +304,8 @@
 | `employees-for-point` | funcionários com dispensa total aparecem com `display_name="Nome — Dispensa aprovada"`, `on_dispensa=true`, `blocked=true` e mensagem |
 | Expiração 18 meses | comando `rh:expire-breastfeeding-dispensas` (05:00 daily) desactiva o benefício + log `expired` |
 | Permissões | módulo `RH Dispensas` (`rh-dispensas-show/create/edit/delete/approve/reject/cancel/underreview/despacho`) — Director RH vê tudo; quem tem apenas `show` vê mas não decide |
-| API | `/api/rh/attendance/solicitacoes` (+ `/metadata`, `{id}/approve`, `{id}/reject`, `{id}/under-review`, `{id}/cancel`, `{id}/despacho`, `{id}/despacho/download`, `{id}/documents/{doc}/download`) |
-| API Tipos | `/api/rh/attendance/solicitacoes/tipos` (CRUD: `required_documents`, `max_days`, `legal_ref`) — permissões `rh-dispensas-*`; código imutável se existirem solicitações; remoção bloqueada em utilização (recomenda-se `is_active=false`) |
+| API | `/api/rh/attendance/requests` (+ `/metadata`, `{id}/approve`, `{id}/reject`, `{id}/under-review`, `{id}/cancel`, `{id}/despacho`, `{id}/despacho/download`, `{id}/documents/{doc}/download`) — `/solicitacoes` mantém-se como alias de compatibilidade |
+| API Tipos | `/api/rh/attendance/requests/tipos` (CRUD: `required_documents`, `max_days`, `legal_ref`) — permissões `rh-dispensas-*`; código imutável se existirem solicitações; remoção bloqueada em utilização (recomenda-se `is_active=false`) |
 
 ## FLUXO 22 — Relatório Governamental de Pontualidade e Assiduidade ✅
 | Item | Descrição |
