@@ -201,7 +201,7 @@
 | `POST import-biometric` | importação de CSV biométrico com logging (linhas de férias falham) |
 | `GET employees-for-point` | select de funcionários com flag `on_leave` + "Nome — De férias" (exclui gabinetes com excepção) |
 | `GET /records` (`GET /`) | **listagem clássica de assiduidade** (reposta Set 2026) — listagem paginada genérica com relações pedidas (`employee`, etc.); relações removidas (`shift`) são ignoradas; `GET /absences` devolve a listagem de faltas (+ resumo `by_employee`/`by_type` apenas quando há filtro `employee_id`/`department_id`); o relatório completo fica em `/report` |
-| `GET /employees/{employee_id}/assiduidade` | assiduidade de um funcionário por período (`period`: 1_day/3_days/1_week/1_month/3_months/6_months/1_year, ou `date`/`start_date`+`end_date`) com `records` + `summary` + `working_days`/`on_leave_days` |
+| `GET /employees/{employee_id}/attendance` | assiduidade de um funcionário por período (`period`: 1_day/3_days/1_week/1_month/3_months/6_months/1_year, ou `date`/`start_date`+`end_date`) com `records` + `summary` + `working_days`/`on_leave_days` (alias legacy `/assiduidade`) |
 | Excepção de gabinetes | `config/rh.php` → `App\Support\PontoExceptions` — GEPE/GAB-GOV/GAB-COM não assinam ponto no RH (excluídos também da listagem) |
 | Relatório mensal | por employee |
 
@@ -304,8 +304,8 @@
 | `employees-for-point` | funcionários com dispensa total aparecem com `display_name="Nome — Dispensa aprovada"`, `on_dispensa=true`, `blocked=true` e mensagem |
 | Expiração 18 meses | comando `rh:expire-breastfeeding-dispensas` (05:00 daily) desactiva o benefício + log `expired` |
 | Permissões | módulo `RH Dispensas` (`rh-dispensas-show/create/edit/delete/approve/reject/cancel/underreview/despacho`) — Director RH vê tudo; quem tem apenas `show` vê mas não decide |
-| API | `/api/rh/attendance/requests` (+ `/metadata`, `{id}/approve`, `{id}/reject`, `{id}/under-review`, `{id}/cancel`, `{id}/despacho`, `{id}/despacho/download`, `{id}/documents/{doc}/download`) — `/solicitacoes` mantém-se como alias de compatibilidade |
-| API Tipos | `/api/rh/attendance/requests/tipos` (CRUD: `required_documents`, `max_days`, `legal_ref`) — permissões `rh-dispensas-*`; código imutável se existirem solicitações; remoção bloqueada em utilização (recomenda-se `is_active=false`) |
+| API | `/api/rh/attendance/requests` (+ `/metadata`, `{id}/approve`, `{id}/reject`, `{id}/under-review`, `{id}/cancel`, `{id}/despatch`, `{id}/despatch/download`, `{id}/documents/{doc}/download`) — `/solicitacoes` e `/despacho` mantêm-se como aliases de compatibilidade |
+| API Tipos | `/api/rh/attendance/requests/types` (CRUD: `required_documents`, `max_days`, `legal_ref`) — permissões `rh-dispensas-*`; código imutável se existirem solicitações; remoção bloqueada em utilização (recomenda-se `is_active=false`); alias `/tipos` |
 
 ## FLUXO 22 — Relatório Governamental de Pontualidade e Assiduidade ✅
 | Item | Descrição |

@@ -61,7 +61,7 @@ Route::prefix('absences/justifications')->group(function () {
 });
 
 Route::get('reports/{employee_id}', [AttendanceController::class, 'monthlyReport'])->name('attendance.report')->middleware(['can:rh-ponto-show']);
-Route::get('employees/{employee_id}/assiduidade', [AttendanceController::class, 'employeeAssiduidade'])->name('attendance.employee_assiduidade')->middleware(['can:rh-ponto-show']);
+Route::get('employees/{employee_id}/attendance', [AttendanceController::class, 'employeeAssiduidade'])->name('attendance.employee_assiduidade')->middleware(['can:rh-ponto-show']);
 
 Route::prefix('report')->group(function () {
     Route::get('/', [AttendanceReportController::class, 'data'])->name('attendance.report.data')->middleware(['can:rh-ponto-show']);
@@ -79,13 +79,16 @@ foreach ($dispatchPrefixes as $dispatchPrefix) {
     Route::prefix($dispatchPrefix)->group(function () use ($base, $typeBase) {
         Route::get('metadata', [AttendanceRequestController::class, 'metadata'])->name($base.'.metadata')->middleware(['can:rh-dispensas-show']);
 
-        Route::prefix('tipos')->group(function () use ($typeBase) {
-            Route::get('/', [AttendanceRequestTypeController::class, 'index'])->name($typeBase.'.index')->middleware(['can:rh-dispensas-show']);
-            Route::post('/', [AttendanceRequestTypeController::class, 'store'])->name($typeBase.'.store')->middleware(['can:rh-dispensas-create']);
-            Route::get('{id}', [AttendanceRequestTypeController::class, 'show'])->name($typeBase.'.show')->middleware(['can:rh-dispensas-show']);
-            Route::put('{id}', [AttendanceRequestTypeController::class, 'update'])->name($typeBase.'.update')->middleware(['can:rh-dispensas-edit']);
-            Route::delete('{id}', [AttendanceRequestTypeController::class, 'destroy'])->name($typeBase.'.destroy')->middleware(['can:rh-dispensas-delete']);
-        });
+        foreach (['types', 'tipos'] as $typePrefix) {
+            Route::prefix($typePrefix)->group(function () use ($typeBase, $typePrefix) {
+                $typeName = $typePrefix === 'types' ? $typeBase : $typeBase.'.'.$typePrefix;
+                Route::get('/', [AttendanceRequestTypeController::class, 'index'])->name($typeName.'.index')->middleware(['can:rh-dispensas-show']);
+                Route::post('/', [AttendanceRequestTypeController::class, 'store'])->name($typeName.'.store')->middleware(['can:rh-dispensas-create']);
+                Route::get('{id}', [AttendanceRequestTypeController::class, 'show'])->name($typeName.'.show')->middleware(['can:rh-dispensas-show']);
+                Route::put('{id}', [AttendanceRequestTypeController::class, 'update'])->name($typeName.'.update')->middleware(['can:rh-dispensas-edit']);
+                Route::delete('{id}', [AttendanceRequestTypeController::class, 'destroy'])->name($typeName.'.destroy')->middleware(['can:rh-dispensas-delete']);
+            });
+        }
 
         Route::get('/', [AttendanceRequestController::class, 'index'])->name($base.'.index')->middleware(['can:rh-dispensas-show']);
         Route::post('/', [AttendanceRequestController::class, 'store'])->name($base.'.store')->middleware(['can:rh-dispensas-create']);
@@ -96,8 +99,11 @@ foreach ($dispatchPrefixes as $dispatchPrefix) {
         Route::post('{id}/approve', [AttendanceRequestController::class, 'approve'])->name($base.'.approve')->middleware(['can:rh-dispensas-approve']);
         Route::post('{id}/reject', [AttendanceRequestController::class, 'reject'])->name($base.'.reject')->middleware(['can:rh-dispensas-reject']);
         Route::post('{id}/cancel', [AttendanceRequestController::class, 'cancel'])->name($base.'.cancel')->middleware(['can:rh-dispensas-cancel']);
-        Route::get('{id}/despacho', [AttendanceRequestController::class, 'despacho'])->name($base.'.despacho')->middleware(['can:rh-dispensas-despacho']);
-        Route::get('{id}/despacho/download', [AttendanceRequestController::class, 'downloadDespacho'])->name($base.'.despacho_download')->middleware(['can:rh-dispensas-despacho']);
+        foreach (['despatch', 'despacho'] as $despatchPrefix) {
+            $despatchName = $despatchPrefix === 'despatch' ? $base : $base.'.'.$despatchPrefix;
+            Route::get('{id}/'.$despatchPrefix, [AttendanceRequestController::class, 'despacho'])->name($despatchName.'.despacho')->middleware(['can:rh-dispensas-despacho']);
+            Route::get('{id}/'.$despatchPrefix.'/download', [AttendanceRequestController::class, 'downloadDespacho'])->name($despatchName.'.despacho_download')->middleware(['can:rh-dispensas-despacho']);
+        }
         Route::get('{id}/documents/{documentId}/download', [AttendanceRequestController::class, 'downloadDocument'])->name($base.'.document_download')->middleware(['can:rh-dispensas-show']);
     });
 }
