@@ -130,7 +130,7 @@ class AttendanceRequestService extends AbstractService
     public function create(array $data, array $files = [], ?int $userId = null): AttendanceRequest
     {
         return DB::transaction(function () use ($data, $files, $userId) {
-            $type = $this->resolveType($data['type_code'] ?? ($data['attendance_request_type_id'] ?? null));
+            $type = $this->resolveType($data['attendance_request_type_id'] ?? $data['type_code'] ?? null);
 
             $data = $this->clean($data);
             $data = $this->normalizeDateFields($data);
@@ -176,7 +176,7 @@ class AttendanceRequestService extends AbstractService
             $request = AttendanceRequest::with('documents')->findOrFail($id);
             $this->assertEditable($request);
 
-            $typeCode = $data['type_code'] ?? $request->type?->code;
+            $typeCode = $data['attendance_request_type_id'] ?? $data['type_code'] ?? $request->type?->code;
             $type = $this->resolveType($typeCode);
 
             // Actualizações parciais: completar com valores actuais
@@ -184,7 +184,7 @@ class AttendanceRequestService extends AbstractService
             $data['start_date'] = $data['start_date'] ?? $request->start_date->toDateString();
             $data['end_date'] = $data['end_date'] ?? $request->end_date->toDateString();
 
-            if ($typeCode === 'amamentacao' && empty($data['benefit_start_date'])) {
+            if (($type['code'] ?? null) === 'amamentacao' && empty($data['benefit_start_date'])) {
                 $data['benefit_start_date'] = $request->benefit_start_date?->toDateString();
             }
 
@@ -475,9 +475,13 @@ class AttendanceRequestService extends AbstractService
 
     protected function resolveType(mixed $code): array
     {
-        $code = (string) ($code instanceof AttendanceRequestType ? $code->code : $code);
+        if ($code instanceof AttendanceRequestType) {
+            $code = $code->code;
+        }
 
-        $type = Dispensa::typeByCode($code);
+        $type = is_numeric($code)
+            ? Dispensa::typeById((int) $code)
+            : Dispensa::typeByCode((string) $code);
 
         if (! $type) {
             throw new DomainException('Tipo de solicitação inválido.');

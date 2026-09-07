@@ -19,7 +19,16 @@ class AttendanceRequestFormRequest extends BaseFormRequest
             'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
 
             'type_code' => [
-              'string'
+                'nullable',
+                'string',
+                'required_without:attendance_request_type_id',
+            ],
+
+            'attendance_request_type_id' => [
+                'nullable',
+                'integer',
+                'exists:attendance_request_types,id',
+                'required_without:type_code',
             ],
 
             'start_date' => [$this->requiredOnCreate(), 'date'],
@@ -43,6 +52,9 @@ class AttendanceRequestFormRequest extends BaseFormRequest
         return [
             'end_date.after_or_equal' => 'A data final não pode ser anterior à data inicial.',
             'type_code.in' => 'Tipo de solicitação inválido.',
+            'type_code.required_without' => 'Indique o tipo de dispensa (id ou código).',
+            'attendance_request_type_id.required_without' => 'Indique o tipo de dispensa (id ou código).',
+            'attendance_request_type_id.exists' => 'O tipo de dispensa indicado não existe.',
             'benefit_start_date.before' => 'A data de nascimento da criança deve ser anterior a hoje.',
         ];
     }

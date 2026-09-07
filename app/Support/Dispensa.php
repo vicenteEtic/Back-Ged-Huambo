@@ -51,6 +51,17 @@ class Dispensa
         return null;
     }
 
+    public static function typeById(int $id): ?array
+    {
+        foreach (self::typeRegistry() as $type) {
+            if ((int) ($type['id'] ?? 0) === $id) {
+                return $type;
+            }
+        }
+
+        return null;
+    }
+
     public static function requiredDocuments(string $code): array
     {
         return (array) (self::typeByCode($code)['required_documents'] ?? []);
