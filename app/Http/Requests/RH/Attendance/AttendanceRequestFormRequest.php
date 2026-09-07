@@ -32,7 +32,7 @@ class AttendanceRequestFormRequest extends BaseFormRequest
 
             'benefit_start_date' => ['nullable', 'date', 'before:today'],
 
-            'documents' => ['nullable', 'array', 'min:1'],
+            'documents' => ['nullable', 'array'],
             'documents.*.type' => ['nullable', 'string'],
             'documents.*.file' => ['nullable', 'file'],
         ];
