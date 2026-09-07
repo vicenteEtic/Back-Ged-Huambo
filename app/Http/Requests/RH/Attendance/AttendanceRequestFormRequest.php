@@ -19,8 +19,7 @@ class AttendanceRequestFormRequest extends BaseFormRequest
             'employee_id' => [$this->requiredOnCreate(), 'integer', 'exists:employees,id'],
 
             'type_code' => [
-                $this->requiredOnCreate(),
-                Rule::in(array_column(Dispensa::typeRegistry(), 'code')),
+              'string'
             ],
 
             'start_date' => [$this->requiredOnCreate(), 'date'],
