@@ -23,7 +23,7 @@ class DespachoPdfService
 
     public function render(AttendanceRequest $request): string
     {
-        $request->loadMissing(['employee', 'employee.department', 'employee.category', 'type', 'documents', 'decidedBy']);
+        $request->loadMissing(['employee', 'employee.department', 'employee.careerCategory', 'type', 'documents', 'decidedBy']);
 
         $html = view('rh.dispensa.despacho', [
             'request' => $request,

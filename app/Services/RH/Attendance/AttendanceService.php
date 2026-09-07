@@ -55,6 +55,13 @@ class AttendanceService extends AbstractService
         return DB::transaction(function () use ($data) {
             $data = $this->applyCalculations($data);
 
+            if (($data['status'] ?? null) === 'absent' && ! empty($data['employee_id']) && ! empty($data['date'])) {
+                $this->assertNotOnDispensa(
+                    (int) $data['employee_id'],
+                    Carbon::parse($data['date'])->format('Y-m-d')
+                );
+            }
+
             $model = $this->repository->store($data);
 
             return $model->fresh();
@@ -80,6 +87,13 @@ class AttendanceService extends AbstractService
             $data['check_out'] = $data['check_out'] ?? $record->check_out;
 
             $data = $this->applyCalculations($data);
+
+            if (($data['status'] ?? null) === 'absent') {
+                $this->assertNotOnDispensa(
+                    (int) $data['employee_id'],
+                    Carbon::parse($data['date'])->format('Y-m-d')
+                );
+            }
 
             return $this->repository->update($data, $id);
         });
@@ -199,7 +213,7 @@ class AttendanceService extends AbstractService
 
         $this->assertNotExemptFromPonto($employeeId);
         $this->assertNotOnLeave($employeeId, $date);
-        $this->assertNotOnFullDayDispensa($employeeId, $date);
+        $this->assertNotOnDispensa($employeeId, $date);
 
         return $this->upsertForDate($employeeId, $date, [
             'employee_id' => $employeeId,
@@ -260,6 +274,17 @@ class AttendanceService extends AbstractService
     {
         if (Dispensa::approvedFullDayForDate($employeeId, $date)) {
             throw new \DomainException('Funcionário com dispensa aprovada nesta data: não é permitido registar o ponto.');
+        }
+    }
+
+    /**
+     * Faltas não podem ser emitidas durante qualquer dispensa aprovada,
+     * incluindo dispensas parciais.
+     */
+    private function assertNotOnDispensa(int $employeeId, string $date): void
+    {
+        if (Dispensa::approvedForDate($employeeId, $date)) {
+            throw new \DomainException('Funcionário com dispensa aprovada nesta data: não é permitido registar falta.');
         }
     }
 
@@ -414,7 +439,6 @@ class AttendanceService extends AbstractService
         $approvedDispensas = \App\Models\RH\Attendance\AttendanceRequest::query()
             ->where('status', 'approved')
             ->where('benefit_active', true)
-            ->where('applies_full_day', true)
             ->whereDate('start_date', '<=', $date)
             ->whereDate('end_date', '>=', $date)
             ->get(['id', 'employee_id', 'reason']);

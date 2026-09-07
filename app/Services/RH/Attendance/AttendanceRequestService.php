@@ -140,7 +140,6 @@ class AttendanceRequestService extends AbstractService
             $this->assertMaxDays($type, $data);
             $this->assertNotOnLeave((int) $data['employee_id'], $data['start_date'], $data['end_date']);
             $this->assertNoOverlap((int) $data['employee_id'], $data['start_date'], $data['end_date']);
-            $this->assertDocuments(array_values($files), Dispensa::requiredDocuments($data['type_code']));
 
             $typeModel = $this->syncType($type);
 
@@ -197,12 +196,6 @@ class AttendanceRequestService extends AbstractService
             $this->assertMaxDays($type, $data);
             $this->assertNotOnLeave((int) $data['employee_id'], $data['start_date'], $data['end_date']);
             $this->assertNoOverlap((int) $data['employee_id'], $data['start_date'], $data['end_date'], $request->id);
-
-            $existingDocTypes = $request->documents->pluck('document_type')->filter()->values()->all();
-            $required = Dispensa::requiredDocuments($data['type_code'] ?? $typeCode);
-            $remaining = array_values(array_diff($required, $existingDocTypes));
-
-            $this->assertDocuments(array_values($files), $remaining);
 
             $typeModel = $this->syncType($type);
 
@@ -536,23 +529,6 @@ class AttendanceRequestService extends AbstractService
 
         if ($overlap) {
             throw new DomainException("Período sobreposto à solicitação {$overlap->request_number}.");
-        }
-    }
-
-    protected function assertDocuments(array $files, array $requiredCodes): void
-    {
-        if (empty($requiredCodes)) {
-            return;
-        }
-
-        $submitted = collect($files)->pluck('type')->filter()->map(fn ($type) => (string) $type)->values();
-
-        $missing = collect($requiredCodes)->reject(fn ($code) => $submitted->contains($code));
-
-        if ($missing->isNotEmpty()) {
-            $names = $missing->map(fn ($code) => Dispensa::documentLabels()[$code] ?? $code)->implode(', ');
-
-            throw new DomainException("Documentos obrigatórios em falta: {$names}.");
         }
     }
 

@@ -40,7 +40,7 @@ class AbsenceJustificationService extends AbstractService
                 throw new DomainException('Funcionário de férias: não é permitido registar falta nesta data.');
             }
 
-            if (! empty($data['employee_id']) && Dispensa::approvedFullDayForDate((int) $data['employee_id'], $data['date'])) {
+            if (! empty($data['employee_id']) && Dispensa::approvedForDate((int) $data['employee_id'], $data['date'])) {
                 throw new DomainException('Funcionário com dispensa aprovada nesta data: não é permitido registar falta.');
             }
 
@@ -100,6 +100,12 @@ class AbsenceJustificationService extends AbstractService
     {
         return DB::transaction(function () use ($id, $reviewNotes) {
             $model = $this->repository->show($id);
+
+            if ($model->status !== 'approved'
+                && Dispensa::approvedForDate((int) $model->employee_id, Carbon::parse($model->date)->format('Y-m-d'))
+            ) {
+                throw new DomainException('Funcionário com dispensa aprovada nesta data: não é permitido registar falta.');
+            }
 
             $model->update([
                 'status' => 'approved',

@@ -66,8 +66,8 @@
             <td class="label">Cargo / Categoria</td>
             <td>
                 {{ $request->employee?->position?->name }}
-                {{ $request->employee?->position && $request->employee?->category ? ' — ' : '' }}
-                {{ $request->employee?->category?->name }}
+                {{ $request->employee?->position && $request->employee?->careerCategory ? ' — ' : '' }}
+                {{ $request->employee?->careerCategory?->name }}
             </td>
         </tr>
         <tr>
