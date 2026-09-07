@@ -417,10 +417,14 @@ class AttendanceRequestService extends AbstractService
                 continue;
             }
 
-            $record = Attendance::firstOrNew([
+            $record = Attendance::withTrashed()->firstOrNew([
                 'employee_id' => $request->employee_id,
                 'date' => $date,
             ]);
+
+            if ($record->trashed()) {
+                $record->restore();
+            }
 
             if ($record->exists && $record->status === 'present') {
                 if (! $record->attendance_request_id) {

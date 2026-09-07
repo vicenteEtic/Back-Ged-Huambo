@@ -527,7 +527,11 @@ class AttendanceService extends AbstractService
                     if (Dispensa::approvedFullDayForDate($employee->id, $date)) {
                         throw new \Exception('Funcionário com dispensa aprovada nesta data: não é permitido registar o ponto.');
                     }
-                    $record = Attendance::firstOrNew(['employee_id' => $employee->id, 'date' => $date]);
+                    $record = Attendance::withTrashed()->firstOrNew(['employee_id' => $employee->id, 'date' => $date]);
+
+                    if ($record->trashed()) {
+                        $record->restore();
+                    }
 
                     if ($record->exists && $record->status === 'absent') {
                         throw new \Exception('Funcionário registado como ausente nesta data: primeiro justifique a falta.');
