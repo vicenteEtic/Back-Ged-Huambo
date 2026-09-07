@@ -133,6 +133,7 @@ class AttendanceRequestService extends AbstractService
             $type = $this->resolveType($data['type_code'] ?? ($data['attendance_request_type_id'] ?? null));
 
             $data = $this->clean($data);
+            $data = $this->normalizeDateFields($data);
             $data = $this->applyTypeBenefits($type, $data);
 
             $this->assertPeriod($data);
@@ -189,6 +190,7 @@ class AttendanceRequestService extends AbstractService
             }
 
             $data = $this->clean($data);
+            $data = $this->normalizeDateFields($data);
             $data = $this->applyTypeBenefits($type, $data);
 
             $this->assertPeriod($data);
@@ -577,6 +579,20 @@ class AttendanceRequestService extends AbstractService
 
             if (Carbon::parse($data['end_date']) > Carbon::parse($until)) {
                 throw new DomainException("O benefício de amamentação termina em {$until}; o período solicitado excede o prazo legal de 18 meses.");
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * As colunas de período são DATE; o frontend pode enviar ISO datetime.
+     */
+    protected function normalizeDateFields(array $data): array
+    {
+        foreach (['start_date', 'end_date', 'benefit_start_date'] as $field) {
+            if (! empty($data[$field])) {
+                $data[$field] = Carbon::parse($data[$field])->toDateString();
             }
         }
 
