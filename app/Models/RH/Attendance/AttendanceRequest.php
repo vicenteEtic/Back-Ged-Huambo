@@ -95,9 +95,9 @@ class AttendanceRequest extends Model
     public function isDecided(): bool
     {
         return in_array($this->status, [
-            AttendanceRequestStatus::APPROVED,
-            AttendanceRequestStatus::REJECTED,
-            AttendanceRequestStatus::CANCELLED,
+            AttendanceRequestStatus::Approved->value,
+            AttendanceRequestStatus::Rejected->value,
+            AttendanceRequestStatus::Cancelled->value,
         ], true);
     }
 }
