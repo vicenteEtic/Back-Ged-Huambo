@@ -7,8 +7,6 @@ use App\Repositories\AbstractRepository;
 
 class AttendanceRequestTypeRepository extends AbstractRepository
 {
-    protected $model;
-
     public function __construct(AttendanceRequestType $model)
     {
         $this->model = $model;
