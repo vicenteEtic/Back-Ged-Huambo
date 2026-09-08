@@ -45,7 +45,7 @@ return new class extends Migration
         }
 
         // 3. Limpar responsible_id inválido (user sem employee correspondente)
-        foreach (self::TABLES as $table) {
+        foreach (array_keys(self::TABLES) as $table) {
             DB::statement("
                 UPDATE {$table} t
                 SET t.responsible_id = NULL
