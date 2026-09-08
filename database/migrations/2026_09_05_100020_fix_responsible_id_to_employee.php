@@ -42,7 +42,17 @@ return new class extends Migration
             ");
         }
 
-        // 3. Re-criar as FKs apontando para employees
+        // 3. Limpar responsible_id inválido (user sem employee correspondente)
+        foreach (self::TABLES as $table) {
+            DB::statement("
+                UPDATE {$table} t
+                SET t.responsible_id = NULL
+                WHERE t.responsible_id IS NOT NULL
+                  AND NOT EXISTS (SELECT 1 FROM employees e WHERE e.id = t.responsible_id)
+            ");
+        }
+
+        // 4. Re-criar as FKs apontando para employees
         Schema::table('departments', function (Blueprint $table) {
             $table->foreign('responsible_id')->references('id')->on('employees')->nullOnDelete();
         });
