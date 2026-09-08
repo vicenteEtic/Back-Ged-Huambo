@@ -21,9 +21,11 @@ return new class extends Migration
     {
         // 1. Remover as FKs atuais (apontam para users) antes de converter os dados
         foreach (self::TABLES as $table => $fkName) {
-            Schema::table($table, function (Blueprint $blueprint) use ($fkName) {
-                $blueprint->dropForeign($fkName);
-            });
+            if (DB::select("SELECT 1 FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ? AND CONSTRAINT_TYPE = 'FOREIGN KEY'", [$table, $fkName])) {
+                Schema::table($table, function (Blueprint $blueprint) use ($fkName) {
+                    $blueprint->dropForeign($fkName);
+                });
+            }
         }
 
         // 2. Converter user_id → employee_id
@@ -66,9 +68,11 @@ return new class extends Migration
     {
         // 1. Remover as FKs atuais (apontam para employees)
         foreach (self::TABLES as $table => $fkName) {
-            Schema::table($table, function (Blueprint $blueprint) use ($fkName) {
-                $blueprint->dropForeign($fkName);
-            });
+            if (DB::select("SELECT 1 FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ? AND CONSTRAINT_TYPE = 'FOREIGN KEY'", [$table, $fkName])) {
+                Schema::table($table, function (Blueprint $blueprint) use ($fkName) {
+                    $blueprint->dropForeign($fkName);
+                });
+            }
         }
 
         // 2. Reverter: employee_id → user_id (quando tiver user associado)
