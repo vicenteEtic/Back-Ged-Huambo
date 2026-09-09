@@ -358,12 +358,7 @@ class AttendanceService extends AbstractService
             $query->whereHas('employee', fn ($q) => $q->where('department_id', $departmentId));
         }
 
-        // Sem filtro → listagem clássica (igual aos outros módulos)
-        if ($employeeId === null && $departmentId === null) {
-            return $paginate ? $query->paginate($paginate) : $query->take(100)->get();
-        }
-
-        // Com filtro → registos + resumo agrupado (por funcionário/tipo)
+        // Registos + resumo agrupado (por funcionário/tipo), incluindo a listagem mensal geral.
         $all = $query->get();
         $records = $paginate ? $query->paginate($paginate) : $all->take(100);
 
