@@ -99,6 +99,7 @@ foreach ($dispatchPrefixes as $dispatchPrefix) {
         Route::post('{id}/approve', [AttendanceRequestController::class, 'approve'])->name($base.'.approve')->middleware(['can:rh-dispensas-approve']);
         Route::post('{id}/reject', [AttendanceRequestController::class, 'reject'])->name($base.'.reject')->middleware(['can:rh-dispensas-reject']);
         Route::post('{id}/cancel', [AttendanceRequestController::class, 'cancel'])->name($base.'.cancel')->middleware(['can:rh-dispensas-cancel']);
+        Route::post('{id}/extend', [AttendanceRequestController::class, 'extend'])->name($base.'.extend')->middleware(['can:rh-dispensas-create']);
         foreach (['despatch', 'despacho'] as $despatchPrefix) {
             $despatchName = $despatchPrefix === 'despatch' ? $base : $base.'.'.$despatchPrefix;
             Route::get('{id}/'.$despatchPrefix, [AttendanceRequestController::class, 'despacho'])->name($despatchName.'.despacho')->middleware(['can:rh-dispensas-despacho']);

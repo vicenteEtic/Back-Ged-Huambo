@@ -21,6 +21,9 @@ class AttendanceRequestType extends Model
         'legal_ref',
         'is_active',
         'sort_order',
+        'allows_extension',
+        'extension_days',
+        'max_extensions',
     ];
 
     protected function casts(): array
@@ -30,6 +33,9 @@ class AttendanceRequestType extends Model
             'max_days' => 'integer',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
+            'allows_extension' => 'boolean',
+            'extension_days' => 'integer',
+            'max_extensions' => 'integer',
         ];
     }
 

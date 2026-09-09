@@ -8,9 +8,31 @@ use Illuminate\Support\Facades\Hash;
 
 class UserRepository extends AbstractRepository
 {
+    protected array $defaultRelations = [
+        'role',
+        'employee',
+        'employee.department',
+        'employee.position',
+        'employee.careerCategory',
+    ];
+
     public function __construct(User $model)
     {
         parent::__construct($model);
+    }
+
+    public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
+    {
+        $relationships = array_unique(array_merge((array) $relationships, $this->defaultRelations));
+
+        return parent::index($paginate, $filterParams, $orderByParams, $relationships);
+    }
+
+    public function show(int|string $id, array $relationships = [])
+    {
+        $relationships = array_unique(array_merge($relationships, $this->defaultRelations));
+
+        return parent::show($id, $relationships);
     }
 
    public function changePassword($data, $id)

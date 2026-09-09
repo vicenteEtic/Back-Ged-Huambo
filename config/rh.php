@@ -69,6 +69,9 @@ return [
                 'description' => 'Dispensa do serviço por motivo devidamente justificado.',
                 'required_documents' => [],
                 'max_days' => null,
+                'allows_extension' => false,
+                'extension_days' => null,
+                'max_extensions' => null,
             ],
             [
                 'code' => 'amamentacao',
@@ -76,6 +79,9 @@ return [
                 'description' => 'Dois períodos diários de até uma hora cada, enquanto durar e até o filho perfazer 18 meses; horário escolhido pela funcionária, sem diminuição do salário.',
                 'required_documents' => [],
                 'max_days' => null,
+                'allows_extension' => false,
+                'extension_days' => null,
+                'max_extensions' => null,
             ],
             [
                 'code' => 'pre_natal',
@@ -83,6 +89,9 @@ return [
                 'description' => 'Dispensa do serviço pelo tempo e número de vezes clinicamente determinados.',
                 'required_documents' => [],
                 'max_days' => null,
+                'allows_extension' => false,
+                'extension_days' => null,
+                'max_extensions' => null,
             ],
             [
                 'code' => 'relatorio_medico',
@@ -90,6 +99,9 @@ return [
                 'description' => 'Até 30 dias com relatório médico, prorrogável uma única vez pelo mesmo período; período superior é submetido à Junta Médica.',
                 'required_documents' => [],
                 'max_days' => 30,
+                'allows_extension' => true,
+                'extension_days' => 30,
+                'max_extensions' => 1,
             ],
             [
                 'code' => 'acompanhamento_deficiencia',
@@ -97,6 +109,9 @@ return [
                 'description' => 'Dispensa do trabalho pelo tempo e número de vezes clinicamente recomendados para cuidar de pessoa com necessidades especiais sob a sua responsabilidade.',
                 'required_documents' => [],
                 'max_days' => null,
+                'allows_extension' => false,
+                'extension_days' => null,
+                'max_extensions' => null,
             ],
             [
                 'code' => 'outro',
@@ -104,6 +119,9 @@ return [
                 'description' => 'Outro tipo de dispensa não previsto nos demais tipos.',
                 'required_documents' => [],
                 'max_days' => null,
+                'allows_extension' => false,
+                'extension_days' => null,
+                'max_extensions' => null,
             ],
         ],
 

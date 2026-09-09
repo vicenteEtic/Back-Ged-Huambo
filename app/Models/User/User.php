@@ -3,6 +3,7 @@
 namespace App\Models\User;
 
 use App\Models\Permission\Role;
+use App\Models\RH\Employee\Employee;
 use App\Notifications\CustomResetPassword;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Auth\Authenticatable;
@@ -71,6 +72,11 @@ class User extends Model implements
     public function role()
     {
         return $this->belongsTo(Role::class, 'role_id', 'id');
+    }
+
+    public function employee()
+    {
+        return $this->hasOne(Employee::class, 'user_id');
     }
 
     public function sendPasswordResetNotification($token)

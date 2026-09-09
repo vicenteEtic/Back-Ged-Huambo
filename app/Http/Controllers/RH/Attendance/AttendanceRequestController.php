@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\RH\Attendance;
 
+use App\Http\Requests\RH\Attendance\AttendanceRequestExtendFormRequest;
 use App\Http\Requests\RH\Attendance\AttendanceRequestFormRequest;
 use App\Services\RH\Attendance\AttendanceRequestService;
 use DomainException;
@@ -76,6 +77,29 @@ class AttendanceRequestController
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Exception $e) {
             Log::error('Erro ao criar solicitação de dispensa', ['message' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function extend(AttendanceRequestExtendFormRequest $request, int $id)
+    {
+        try {
+            $data = $request->validated();
+            $files = array_values($data['documents'] ?? []);
+            unset($data['documents']);
+
+            $model = $this->service->extend($data, $id, $files, auth()->id());
+
+            return response()->json($model, Response::HTTP_CREATED);
+        } catch (ValidationException $e) {
+            return response()->json(['error' => 'Erro de validação.', 'message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (DomainException $e) {
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (Exception $e) {
+            Log::error('Erro ao prorrogar solicitação de dispensa', ['message' => $e->getMessage()]);
 
             return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }

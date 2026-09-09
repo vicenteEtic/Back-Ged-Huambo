@@ -15,10 +15,13 @@ class AttendanceRequest extends Model
 
     protected $table = 'attendance_requests';
 
+    public $appends = ['can_extend', 'is_vigente'];
+
     protected $fillable = [
         'request_number',
         'employee_id',
         'attendance_request_type_id',
+        'extends_request_id',
         'start_date',
         'end_date',
         'applies_full_day',
@@ -62,6 +65,21 @@ class AttendanceRequest extends Model
         return $this->belongsTo(AttendanceRequestType::class, 'attendance_request_type_id');
     }
 
+    public function extendsRequest()
+    {
+        return $this->belongsTo(AttendanceRequest::class, 'extends_request_id');
+    }
+
+    public function extensions()
+    {
+        return $this->hasMany(AttendanceRequest::class, 'extends_request_id');
+    }
+
+    public function isExtension(): bool
+    {
+        return $this->extends_request_id !== null;
+    }
+
     public function requester()
     {
         return $this->belongsTo(User::class, 'requested_by');
@@ -99,5 +117,15 @@ class AttendanceRequest extends Model
             AttendanceRequestStatus::Rejected->value,
             AttendanceRequestStatus::Cancelled->value,
         ], true);
+    }
+
+    protected function getCanExtendAttribute(): bool
+    {
+        return \App\Support\Dispensa::canExtend($this);
+    }
+
+    protected function getIsVigenteAttribute(): bool
+    {
+        return \App\Support\Dispensa::isStillVigent($this);
     }
 }

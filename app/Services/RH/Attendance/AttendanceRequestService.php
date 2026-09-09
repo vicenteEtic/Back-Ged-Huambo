@@ -58,6 +58,9 @@ class AttendanceRequestService extends AbstractService
                     ->map(fn ($code) => Dispensa::documentLabels()[$code] ?? $code)
                     ->values()
                     ->all(),
+                'allows_extension' => $type['allows_extension'] ?? false,
+                'extension_days' => $type['extension_days'] ?? null,
+                'max_extensions' => $type['max_extensions'] ?? null,
             ];
         })->values()->all();
     }
@@ -80,7 +83,7 @@ class AttendanceRequestService extends AbstractService
         $filters = $filterParams ?? [];
 
         $query = AttendanceRequest::query()
-            ->with(['employee', 'type', 'documents'])
+            ->with(['employee', 'type', 'documents', 'extendsRequest'])
             ->orderBy('created_at', 'desc');
 
         if (! empty($filters['status'])) {
@@ -120,7 +123,71 @@ class AttendanceRequestService extends AbstractService
             'requester',
             'reviewer',
             'decidedBy',
+            'extendsRequest',
+            'extensions',
         ])->findOrFail($id);
+    }
+
+    /**
+     * Cria uma solicitação de prorrogação para uma dispensa aprovada e vigente.
+     * Regras:
+     * - a solicitação original tem de estar aprovada;
+     * - o tipo permite prorrogação (allows_extension);
+     * - a prorrogação só pode ser pedida enquanto a dispensa ainda estiver
+     *   vigente (dentro do intervalo de datas);
+     * - respeita o nº máximo de prorrogações configurado (max_extensions).
+     */
+    public function extend(array $data, int $id, array $files = [], ?int $userId = null): AttendanceRequest
+    {
+        return DB::transaction(function () use ($data, $id, $files, $userId) {
+            $original = AttendanceRequest::findOrFail($id);
+
+            if ($original->status !== AttendanceRequestStatus::Approved->value) {
+                throw new DomainException('Apenas solicitações aprovadas podem ser prorrogadas.');
+            }
+
+            $original->loadMissing('type');
+
+            $code = $original->type?->code;
+
+            if (! $code || ! Dispensa::allowsExtension($code)) {
+                throw new DomainException('Este tipo de solicitação não permite prorrogação.');
+            }
+
+            if (! Dispensa::isStillVigent($original)) {
+                throw new DomainException('O período da dispensa já terminou: não é possível prorrogar. A prorrogação só pode ser solicitada enquanto a dispensa estiver vigente.');
+            }
+
+            if (! Dispensa::canExtend($original)) {
+                throw new DomainException('Foi atingido o número máximo de prorrogações permitido para este tipo de solicitação.');
+            }
+
+            $extensionDays = Dispensa::extensionDays($code) ?? 1;
+
+            $startDate = Carbon::parse($original->end_date)->addDay()->toDateString();
+            $endDate = Carbon::parse($startDate)->addDays($extensionDays - 1)->toDateString();
+
+            $extended = $this->repository->store([
+                'request_number' => $this->nextRequestNumber(now()->year),
+                'employee_id' => $original->employee_id,
+                'attendance_request_type_id' => $original->attendance_request_type_id,
+                'extends_request_id' => $original->id,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'applies_full_day' => $original->applies_full_day,
+                'reason' => $data['reason'] ?? null,
+                'description' => $data['description'] ?? 'Prorrogação da solicitação '.$original->request_number,
+                'oversight_note' => $data['oversight_note'] ?? null,
+                'status' => AttendanceRequestStatus::Pending->value,
+                'benefit_active' => $original->benefit_active,
+                'requested_by' => $userId,
+            ]);
+
+            $this->storeDocuments($extended->id, $extended->request_number, array_values($files), $userId);
+            $this->logAction($extended->id, 'created', null, 'pending', 'Prorrogação da solicitação '.$original->request_number.'.', $userId);
+
+            return $this->showWithRelations($extended->id);
+        }, 6);
     }
 
     /**
@@ -615,6 +682,9 @@ class AttendanceRequestService extends AbstractService
             'legal_ref' => $type['legal_ref'] ?? null,
             'is_active' => true,
             'sort_order' => $type['sort_order'] ?? 0,
+            'allows_extension' => $type['allows_extension'] ?? false,
+            'extension_days' => $type['extension_days'] ?? null,
+            'max_extensions' => $type['max_extensions'] ?? null,
         ]);
     }
 

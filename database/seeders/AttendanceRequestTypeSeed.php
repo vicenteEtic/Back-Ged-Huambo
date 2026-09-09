@@ -33,6 +33,9 @@ class AttendanceRequestTypeSeed extends Seeder
                     'legal_ref' => self::LEGAL_REFS[$code] ?? null,
                     'is_active' => true,
                     'sort_order' => $index,
+                    'allows_extension' => $type['allows_extension'] ?? false,
+                    'extension_days' => $type['extension_days'] ?? null,
+                    'max_extensions' => $type['max_extensions'] ?? null,
                 ]
             );
 

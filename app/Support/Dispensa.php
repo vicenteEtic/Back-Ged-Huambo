@@ -33,6 +33,9 @@ class Dispensa
                 'legal_ref' => $type->legal_ref,
                 'is_active' => $type->is_active,
                 'sort_order' => $type->sort_order,
+                'allows_extension' => $type->allows_extension,
+                'extension_days' => $type->extension_days,
+                'max_extensions' => $type->max_extensions,
             ])->values()->all();
         }
 
@@ -75,6 +78,70 @@ class Dispensa
     public static function statuses(): array
     {
         return config('rh.dispensa.statuses', []);
+    }
+
+    /**
+     * Verifica se o tipo de solicitação permite prorrogação.
+     */
+    public static function allowsExtension(string $code): bool
+    {
+        return (bool) (self::typeByCode($code)['allows_extension'] ?? false);
+    }
+
+    /**
+     * Dias de cada prorrogação para o tipo informado.
+     */
+    public static function extensionDays(string $code): ?int
+    {
+        return self::typeByCode($code)['extension_days'] ?? null;
+    }
+
+    /**
+     * Número máximo de prorrogações permitidas para o tipo informado.
+     */
+    public static function maxExtensions(string $code): ?int
+    {
+        return self::typeByCode($code)['max_extensions'] ?? null;
+    }
+
+    /**
+     * Verifica se a solicitação pode ser prorrogada (tipo permite e não
+     * atingiu o limite de prorrogações).
+     */
+    public static function canExtend(AttendanceRequest $request, ?int $excludeId = null): bool
+    {
+        $request->loadMissing('type');
+
+        $code = $request->type?->code;
+
+        if (! $code || ! self::allowsExtension($code)) {
+            return false;
+        }
+
+        $max = self::maxExtensions($code);
+
+        if ($max === null) {
+            return true;
+        }
+
+        $count = AttendanceRequest::query()
+            ->where('extends_request_id', $request->id)
+            ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+            ->count();
+
+        return $count < $max;
+    }
+
+    /**
+     * A prorrogação só pode ser solicitada enquanto a licença/dispensa
+     * estiver vigente, ou seja, dentro do seu intervalo de datas.
+     */
+    public static function isStillVigent(AttendanceRequest $request): bool
+    {
+        $today = now()->toDateString();
+
+        return $request->start_date?->toDateString() <= $today
+            && $request->end_date?->toDateString() >= $today;
     }
 
     /**
