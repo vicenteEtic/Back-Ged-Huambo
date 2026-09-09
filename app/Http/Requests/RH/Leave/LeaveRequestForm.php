@@ -3,6 +3,7 @@
 namespace App\Http\Requests\RH\Leave;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\RH\Leave\LeavePlan;
 
 class LeaveRequestForm extends BaseFormRequest
 {
@@ -32,5 +33,32 @@ class LeaveRequestForm extends BaseFormRequest
         }
 
         return $rules;
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if (! $this->filled('leave_plan_id')) {
+                return;
+            }
+
+            $plan = LeavePlan::find($this->input('leave_plan_id'));
+            $leaveTypeId = $this->input('leave_type_id');
+            $employeeId = $this->input('employee_id');
+
+            if ($id = $this->route('id')) {
+                $current = \App\Models\RH\Leave\LeaveRequest::find($id);
+                $leaveTypeId ??= $current?->leave_type_id;
+                $employeeId ??= $current?->employee_id;
+            }
+
+            if ($plan && (($leaveTypeId !== null && (int) $plan->leave_type_id !== (int) $leaveTypeId)
+                || ($employeeId !== null && (int) $plan->employee_id !== (int) $employeeId))) {
+                $validator->errors()->add(
+                    'leave_plan_id',
+                    'O plano de férias não é compatível com o funcionário e o tipo de licença.'
+                );
+            }
+        });
     }
 }

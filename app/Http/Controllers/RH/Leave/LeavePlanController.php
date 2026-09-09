@@ -44,7 +44,7 @@ class LeavePlanController extends AbstractController
             return response()->json(['error' => 'Recurso não encontrado.'], 404);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Erro ao sincronizar saldo', ['message' => $e->getMessage()]);
-            return response()->json(['error' => $e->getMessage()], 422);
+            return response()->json(['error' => 'Erro ao sincronizar o saldo do plano.'], 422);
         }
     }
 
@@ -53,7 +53,8 @@ class LeavePlanController extends AbstractController
         try {
             $year = $request->input('year', now()->year);
             $departmentId = $request->input('department_id');
-            return response()->json($this->planService->calendar($year, $departmentId));
+            $leaveTypeId = $request->input('leave_type_id');
+            return response()->json($this->planService->calendar($year, $departmentId, $leaveTypeId));
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Erro ao obter calendário de férias', ['message' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], 422);

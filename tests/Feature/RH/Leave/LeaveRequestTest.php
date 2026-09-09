@@ -36,6 +36,7 @@ class LeaveRequestTest extends RhTestCase
         $this->leavePlan = LeavePlan::factory()->create([
             'employee_id' => $this->employee->id,
             'year' => now()->year,
+            'leave_type_id' => $this->leaveType->id,
         ]);
     }
 
@@ -61,6 +62,24 @@ class LeaveRequestTest extends RhTestCase
 
         $response = $this->postJsonAuth('/api/rh/leaves/leave-requests', $data);
         $response->assertStatus(201);
+    }
+
+    public function test_rejects_a_leave_plan_with_another_leave_type()
+    {
+        $otherType = LeaveType::factory()->create();
+        $otherPlan = LeavePlan::factory()->create([
+            'employee_id' => $this->employee->id,
+            'leave_type_id' => $otherType->id,
+        ]);
+
+        $this->postJsonAuth('/api/rh/leaves/leave-requests', [
+            'employee_id' => $this->employee->id,
+            'leave_type_id' => $this->leaveType->id,
+            'leave_plan_id' => $otherPlan->id,
+            'start_date' => now()->addMonth()->format('Y-m-d'),
+            'end_date' => now()->addMonth()->addDay()->format('Y-m-d'),
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('leave_plan_id');
     }
 
     public function test_can_show()

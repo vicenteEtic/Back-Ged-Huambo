@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use App\Services\AbstractService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 
 
@@ -47,7 +48,7 @@ abstract class AbstractController extends Controller
             DB::rollBack();
             $this->logRequest($e);
             Log::error("Erro ao criar {$this->nameEntity}", ['message' => $e->getMessage()]);
-            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return response()->json(['error' => $this->clientExceptionMessage($e)], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -72,7 +73,7 @@ abstract class AbstractController extends Controller
             DB::rollBack();
             $this->logRequest($e);
             Log::error("Erro ao atualizar {$this->nameEntity}", ['message' => $e->getMessage()]);
-            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return response()->json(['error' => $this->clientExceptionMessage($e)], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -107,7 +108,7 @@ abstract class AbstractController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['error' => $this->clientExceptionMessage($e)], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -156,7 +157,7 @@ abstract class AbstractController extends Controller
             ]);
 
             return response()->json([
-                'error' => $e->getMessage()
+                'error' => $this->clientExceptionMessage($e)
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -202,7 +203,7 @@ abstract class AbstractController extends Controller
             ]);
 
             return response()->json([
-                'error' => $e->getMessage()
+                'error' => $this->clientExceptionMessage($e)
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -224,8 +225,23 @@ abstract class AbstractController extends Controller
             ]);
 
             return response()->json([
-                'error' => $e->getMessage()
+                'error' => $this->clientExceptionMessage($e)
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    protected function clientExceptionMessage(Exception $e): string
+    {
+        $message = $e->getMessage();
+
+        if ($e instanceof QueryException || str_contains($message, 'SQLSTATE[') || str_contains($message, 'SQL:')) {
+            if (str_contains($message, 'Duplicate entry') || str_contains($message, '23000')) {
+                return 'Já existe um registo com estes dados.';
+            }
+
+            return 'Erro ao processar a operação na base de dados.';
+        }
+
+        return $message ?: 'Erro interno no servidor.';
     }
 }

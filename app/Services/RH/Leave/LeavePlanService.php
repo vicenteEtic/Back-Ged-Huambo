@@ -21,7 +21,8 @@ class LeavePlanService extends AbstractService
 
         $data = $this->resolveEntitlement($data);
 
-        $existing = LeavePlan::where('employee_id', $data['employee_id'])
+        $existing = LeavePlan::withTrashed()
+            ->where('employee_id', $data['employee_id'])
             ->where('year', $data['year'])
             ->where('leave_type_id', $data['leave_type_id'] ?? null)
             ->first();
@@ -30,17 +31,30 @@ class LeavePlanService extends AbstractService
             $data['upcoming_notified_at'] = null;
         }
 
-        return LeavePlan::updateOrCreate(
-            ['employee_id' => $data['employee_id'], 'year' => $data['year'], 'leave_type_id' => $data['leave_type_id'] ?? null],
-            $data
-        )->fresh();
+        if ($existing) {
+            if ($existing->trashed()) {
+                $existing->restore();
+            }
+
+            $existing->fill($data);
+            $existing->save();
+            $plan = $existing->fresh();
+        } else {
+            $plan = LeavePlan::create($data)->fresh();
+        }
+
+        return $this->syncBalance($plan->id);
     }
 
     public function syncBalance(int $planId): LeavePlan
     {
         $plan = LeavePlan::with('leaveRequests')->findOrFail($planId);
-        $query = $plan->leaveRequests()->where('status', 'approved');
-        $pendingQuery = $plan->leaveRequests()->where('status', 'pending');
+        $query = $plan->leaveRequests()
+            ->where('leave_type_id', $plan->leave_type_id)
+            ->where('status', 'approved');
+        $pendingQuery = $plan->leaveRequests()
+            ->where('leave_type_id', $plan->leave_type_id)
+            ->where('status', 'pending');
 
         $plan->days_used = round($query->sum('total_days'), 1);
         $plan->days_pending = round($pendingQuery->sum('total_days'), 1);
@@ -63,7 +77,7 @@ class LeavePlanService extends AbstractService
         );
     }
 
-    public function calendar(int $year, ?int $departmentId = null): array
+    public function calendar(int $year, ?int $departmentId = null, ?int $leaveTypeId = null): array
     {
         $query = \App\Models\RH\Leave\LeaveRequest::with(['employee', 'leaveType'])
             ->whereYear('start_date', $year)
@@ -71,6 +85,10 @@ class LeavePlanService extends AbstractService
 
         if ($departmentId) {
             $query->whereHas('employee', fn($q) => $q->where('department_id', $departmentId));
+        }
+
+        if ($leaveTypeId) {
+            $query->where('leave_type_id', $leaveTypeId);
         }
 
         return $query->get()->map(fn($r) => [
