@@ -85,9 +85,17 @@ class FilterHandler
                 $column = substr($field, $dotPosition + 1);
 
                 if (method_exists($query->getModel(), $relationship)) {
+                    $relationInstance = $query->getModel()->$relationship();
+
+                    // Relações múltiplas não podem ser usadas num JOIN para ordenar:
+                    // cada filho repetiria o registo da tabela principal.
+                    if (! $relationInstance instanceof \Illuminate\Database\Eloquent\Relations\HasOne
+                        && ! $relationInstance instanceof \Illuminate\Database\Eloquent\Relations\BelongsTo) {
+                        continue;
+                    }
+
                     if (!in_array($relationship, $joinedTables)) {
                         $joinedTables[] = $relationship;
-                        $relationInstance = $query->getModel()->$relationship();
                         $relatedModel = $relationInstance->getRelated();
                         $relatedTable = $relatedModel->getTable();
 
@@ -117,6 +125,11 @@ class FilterHandler
     
             }
         }
+
+        if (! empty($joinedTables)) {
+            $query->distinct();
+        }
+
         return $query;
     }
 

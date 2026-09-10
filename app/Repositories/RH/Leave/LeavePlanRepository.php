@@ -36,7 +36,13 @@ class LeavePlanRepository extends AbstractRepository
      */
     protected function withEmployeeRelations(array $relationships): array
     {
-        $relationships = array_values(array_filter((array) $relationships, static fn ($rel) => $rel !== 'user' && ! str_contains($rel, '.user')));
+        $relationships = array_values(array_filter(
+            (array) $relationships,
+            static fn ($rel) => $rel !== 'user'
+                && ! str_contains($rel, '.user')
+                && $rel !== 'leaveRequests'
+                && $rel !== 'leave_requests'
+        ));
 
         return array_values(array_unique(array_merge($relationships, $this->defaultRelations)));
     }
