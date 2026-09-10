@@ -22,6 +22,24 @@ class LeavePlanRepository extends AbstractRepository
 
     public function index(?int $paginate, ?array $filterParams, ?array $orderByParams, $relationships = [])
     {
+        // O plano de férias é exclusivamente o plano anual; licenças têm fluxo próprio.
+        $filterParams = (array) $filterParams;
+        if (! array_is_list($filterParams)) {
+            $legacyFilters = [];
+            foreach ($filterParams as $field => $filter) {
+                if (is_array($filter)) {
+                    $legacyFilters[] = ['field' => $field] + $filter;
+                }
+            }
+            $filterParams = $legacyFilters;
+        }
+
+        $filterParams[] = [
+            'field' => 'leaveType.code',
+            'filterType' => 'EQUALS',
+            'filterValue' => 'ANNUAL',
+        ];
+
         return parent::index($paginate, $filterParams, $orderByParams, $this->withEmployeeRelations($relationships));
     }
 
