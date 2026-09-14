@@ -710,6 +710,7 @@ class AttendanceService extends AbstractService
         return DB::transaction(function () use ($date, $items) {
             $date = Carbon::parse($date)->format('Y-m-d');
             $results = [];
+            $presenter = $this->recordPresenter();
 
             foreach ($items as $item) {
                 $employeeId = (int) $item['employee_id'];
@@ -747,13 +748,12 @@ class AttendanceService extends AbstractService
 
                     $record->update($data);
 
-                    $results[] = [
+                    $results[] = array_merge([
                         'employee_id' => $employeeId,
                         'record_id' => $record->id,
                         'success' => true,
-                        'check_out' => $time,
                         'message' => 'Saída registada.',
-                    ];
+                    ], $presenter($record->fresh()));
                 } catch (\DomainException $e) {
                     $results[] = [
                         'employee_id' => $employeeId,
