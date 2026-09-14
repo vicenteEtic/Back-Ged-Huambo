@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\RH\Leave;
 
 use App\Http\Controllers\AbstractController;
+use App\Http\Requests\RH\Leave\LeaveRequestExtendFormRequest;
 use App\Http\Requests\RH\Leave\LeaveRequestForm;
 use App\Http\Requests\RH\Leave\LeaveReturnCalculationRequest;
 use App\Models\RH\Leave\LeaveRequest;
@@ -45,6 +46,32 @@ class LeaveRequestController extends AbstractController
             fn () => $this->service->update($request->validated(), $id),
             $id,
         );
+    }
+
+    /**
+     * Prorrogação: cria uma nova licença encadeada a uma existente.
+     * POST /api/rh/leave-requests/{id}/extend
+     */
+    public function extend(LeaveRequestExtendFormRequest $request, int $id)
+    {
+        try {
+            $extended = $this->leaveService->extend($request->validated(), $id);
+
+            $this->logToDatabase(
+                type: 'rh', level: 'info',
+                customMessage: 'Prorrogação da licença #'.$id.' → nova licença #'.$extended->id.' por '.auth()->user()->first_name
+            );
+
+            return response()->json($extended, Response::HTTP_CREATED);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Recurso não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (\DomainException $e) {
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (Exception $e) {
+            Log::error('Erro ao prorrogar licença', ['message' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     public function balance(int $employeeId)

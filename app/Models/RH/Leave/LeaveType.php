@@ -25,6 +25,9 @@ class LeaveType extends Model
         'max_carryover_days',
         'requires_attachment',
         'is_active',
+        'allows_extension',
+        'extension_days',
+        'max_extensions',
     ];
 
     protected $casts = [
@@ -32,6 +35,7 @@ class LeaveType extends Model
         'service_years_based' => 'boolean',
         'requires_attachment' => 'boolean',
         'is_active' => 'boolean',
+        'allows_extension' => 'boolean',
     ];
 
     public function requests()

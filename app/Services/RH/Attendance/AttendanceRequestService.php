@@ -590,7 +590,10 @@ class AttendanceRequestService extends AbstractService
             ->where('employee_id', $employeeId)
             ->where('status', 'approved')
             ->whereDate('start_date', '<=', $end)
-            ->whereDate('end_date', '>=', $start)
+            ->where(function ($q) use ($start) {
+                $q->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', $start);
+            })
             ->exists();
 
         if ($overlap) {

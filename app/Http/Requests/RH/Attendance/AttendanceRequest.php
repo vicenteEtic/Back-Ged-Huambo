@@ -71,7 +71,10 @@ class AttendanceRequest extends BaseFormRequest
             $onLeave = LeaveRequest::where('employee_id', $value)
                 ->where('status', 'approved')
                 ->whereDate('start_date', '<=', $date)
-                ->whereDate('end_date', '>=', $date)
+                ->where(function ($q) use ($date) {
+                    $q->whereNull('end_date')
+                        ->orWhereDate('end_date', '>=', $date);
+                })
                 ->exists();
 
             if ($onLeave) {

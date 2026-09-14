@@ -4,6 +4,7 @@ namespace App\Http\Requests\RH\Leave;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\RH\Leave\LeavePlan;
+use App\Models\RH\Leave\LeaveRequest;
 
 class LeaveRequestForm extends BaseFormRequest
 {
@@ -20,7 +21,7 @@ class LeaveRequestForm extends BaseFormRequest
             'leave_type_id' => [$this->requiredOnCreate(), 'integer', 'exists:leave_types,id'],
             'leave_plan_id' => ['nullable', 'integer', 'exists:leave_plans,id'],
             'start_date' => [$this->requiredOnCreate(), 'date'],
-            'end_date' => ['sometimes', 'date', 'after_or_equal:start_date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'days' => ['sometimes', 'integer', 'min:1', 'max:366'],
             'reason' => ['nullable', 'string'],
         ];
@@ -38,6 +39,31 @@ class LeaveRequestForm extends BaseFormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            $id = $this->route('id');
+
+            if ($id) {
+                $current = LeaveRequest::find($id);
+            } else {
+                $current = null;
+            }
+
+            // Na criação: exige end_date ou days (a menos que o frontend indique tempo indeterminado)
+            // Na edição: permite actualização parcial de end_date
+            if (! $id && ! $this->filled('end_date') && ! $this->filled('days')) {
+                $leaveTypeId = $this->input('leave_type_id');
+                if ($leaveTypeId) {
+                    $leaveType = \App\Models\RH\Leave\LeaveType::find($leaveTypeId);
+                    $allowsIndefinite = $leaveType && $this->allowsIndefiniteLeave($leaveType);
+                    if (! $allowsIndefinite) {
+                        $validator->errors()->add(
+                            'end_date',
+                            'A data de término é obrigatória para este tipo de licença. Envie "end_date" ou "days".'
+                        );
+                    }
+                }
+            }
+
+            // Validação de leave_plan_id
             if (! $this->filled('leave_plan_id')) {
                 return;
             }
@@ -46,10 +72,10 @@ class LeaveRequestForm extends BaseFormRequest
             $leaveTypeId = $this->input('leave_type_id');
             $employeeId = $this->input('employee_id');
 
-            if ($id = $this->route('id')) {
-                $current = \App\Models\RH\Leave\LeaveRequest::find($id);
-                $leaveTypeId ??= $current?->leave_type_id;
-                $employeeId ??= $current?->employee_id;
+            if ($id) {
+                $currentPlan = $current;
+                $leaveTypeId ??= $currentPlan?->leave_type_id;
+                $employeeId ??= $currentPlan?->employee_id;
             }
 
             if ($plan && (($leaveTypeId !== null && (int) $plan->leave_type_id !== (int) $leaveTypeId)
@@ -60,5 +86,17 @@ class LeaveRequestForm extends BaseFormRequest
                 );
             }
         });
+    }
+
+    /**
+     * Verifica se o tipo de licença permite tempo indeterminado.
+     * Regra: tipos sem default_days definido (null ou 0) ou com código UNPAID.
+     */
+    private function allowsIndefiniteLeave(\App\Models\RH\Leave\LeaveType $leaveType): bool
+    {
+        $indefiniteCodes = array_map('strtolower', config('rh.leave.indefinite_type_codes', ['unpaid']));
+
+        return in_array(strtolower($leaveType->code), $indefiniteCodes)
+            || ($leaveType->default_days === null || $leaveType->default_days === 0);
     }
 }

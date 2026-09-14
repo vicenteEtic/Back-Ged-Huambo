@@ -26,6 +26,7 @@ Route::prefix('leave-requests')->group(function () {
     Route::put('{id}', [LeaveRequestController::class, 'update'])->name('leave_request.update')->middleware(['can:rh-ferias-edit']);
     Route::delete('{id}', [LeaveRequestController::class, 'destroy'])->name('leave_request.destroy')->middleware(['can:rh-ferias-delete']);
     Route::get('{id}/balance', [LeaveRequestController::class, 'balance'])->name('leave_request.balance')->middleware(['can:rh-ferias-show']);
+    Route::post('{id}/extend', [LeaveRequestController::class, 'extend'])->name('leave_request.extend')->middleware(['can:rh-ferias-create']);
 });
 
 Route::prefix('plans')->group(function () {

@@ -14,6 +14,7 @@ use App\Support\Dispensa;
 use App\Support\PontoExceptions;
 use App\Support\TimeNormalizer;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
 class AttendanceService extends AbstractService
@@ -592,7 +593,10 @@ class AttendanceService extends AbstractService
         $onLeave = LeaveRequest::query()
             ->where('status', 'approved')
             ->whereDate('start_date', '<=', $date)
-            ->whereDate('end_date', '>=', $date)
+            ->where(function ($q) use ($date) {
+                $q->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', $date);
+            })
             ->get(['employee_id', 'start_date', 'end_date'])
             ->keyBy('employee_id');
 
@@ -607,41 +611,313 @@ class AttendanceService extends AbstractService
 
         return $employees
             ->reject(fn (Employee $employee) => PontoExceptions::isEmployeeExempt($employee))
-            ->map(function (Employee $employee) use ($onLeave, $onDispensa) {
+            ->map(fn (Employee $employee) => $this->presentEmployeeForPoint($employee, $onLeave, $onDispensa))
+            ->values()->all();
+    }
+
+    /**
+     * Listagem inteligente de funcionários disponíveis para registo de ponto:
+     * apenas funcionários dos departamentos que assinam o livro de ponto e
+     * que ainda NÃO possuem um registo na data informada (default: hoje).
+     *
+     * Filtro opcional em `$departmentIds` apenas restringe dentro do conjunto
+     * elegível — funcionários de departamentos que não assinam o livro são
+     * sempre excluídos (a regra é aplicada no backend).
+     */
+    public function availableEmployeesForPoint(?string $date = null, array $departmentIds = []): array
+    {
+        $date = $date ? Carbon::parse($date)->format('Y-m-d') : now()->toDateString();
+
+        $query = Employee::query()
+            ->where('status', 'active')
+            ->with('department');
+
+        if (! empty($departmentIds)) {
+            $query->whereIn('department_id', array_map('intval', $departmentIds));
+        }
+
+        $employees = $query->orderBy('full_name')->get(['id', 'employee_number', 'full_name', 'department_id']);
+
+        $registered = Attendance::query()
+            ->whereDate('date', $date)
+            ->pluck('employee_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $onLeave = $this->approvedLeavesKeyedByEmployee($date);
+
+        $onDispensa = $this->approvedFullDayDispensasKeyedByEmployee($date);
+
+        return $employees
+            ->reject(fn (Employee $employee) => PontoExceptions::isEmployeeExempt($employee))
+            ->reject(fn (Employee $employee) => in_array($employee->id, $registered, true))
+            ->map(fn (Employee $employee) => $this->presentEmployeeForPoint($employee, $onLeave, $onDispensa))
+            ->values()->all();
+    }
+
+    /**
+     * Regista/actualiza apenas a saída de um registo de ponto
+     * (PATCH /rh/attendance/records/{id}/exit).
+     */
+    public function markExit(int $recordId, string $time, ?string $note = null): Attendance
+    {
+        return DB::transaction(function () use ($recordId, $time, $note) {
+            $record = Attendance::find($recordId);
+
+            if (! $record) {
+                throw new ModelNotFoundException('Registo de ponto não encontrado.');
+            }
+
+            $date = $record->date?->format('Y-m-d');
+
+            $this->assertNotExemptFromPonto($record->employee_id);
+            $this->assertNotOnLeave($record->employee_id, $date);
+            $this->assertNotOnFullDayDispensa($record->employee_id, $date);
+            $this->assertNotAbsent($record->employee_id, $date);
+
+            if (! $record->check_in) {
+                throw new \DomainException('Registo sem entrada: marca primeiro a entrada.');
+            }
+
+            if ($record->check_out) {
+                throw new \DomainException('Este registo já possui saída registada.');
+            }
+
+            $checkOut = TimeNormalizer::normalize($time);
+
+            $data = [
+                'check_out' => $checkOut,
+                'hours_worked' => round(Carbon::parse($record->check_in)->diffInMinutes(Carbon::parse($checkOut)) / 60, 2),
+            ];
+
+            if ($note !== null) {
+                $data['notes'] = $note;
+            }
+
+            $record->update($data);
+
+            return $record->fresh();
+        });
+    }
+
+    /**
+     * Marca a saída de vários funcionários numa única operação
+     * (PATCH /rh/attendance/records/bulk-exit). Cada registo é validado
+     * individualmente; falhas de regra de negócio são devolvidas por linha.
+     */
+    public function bulkExit(string $date, array $items): array
+    {
+        return DB::transaction(function () use ($date, $items) {
+            $date = Carbon::parse($date)->format('Y-m-d');
+            $results = [];
+
+            foreach ($items as $item) {
+                $employeeId = (int) $item['employee_id'];
+                $time = TimeNormalizer::normalize($item['check_out'] ?? $item['expected_check_out'] ?? null);
+                $note = $item['notes'] ?? null;
+
+                try {
+                    $record = Attendance::where('employee_id', $employeeId)->where('date', $date)->first();
+
+                    if (! $record) {
+                        throw new \DomainException('Sem registo de entrada nesta data.');
+                    }
+
+                    $this->assertNotExemptFromPonto($employeeId);
+                    $this->assertNotOnLeave($employeeId, $date);
+                    $this->assertNotOnFullDayDispensa($employeeId, $date);
+                    $this->assertNotAbsent($employeeId, $date);
+
+                    if (! $record->check_in) {
+                        throw new \DomainException('Registo sem entrada: marca primeiro a entrada.');
+                    }
+
+                    if ($record->check_out) {
+                        throw new \DomainException('Registo já possui saída registada.');
+                    }
+
+                    $data = [
+                        'check_out' => $time,
+                        'hours_worked' => round(Carbon::parse($record->check_in)->diffInMinutes(Carbon::parse($time)) / 60, 2),
+                    ];
+
+                    if ($note !== null) {
+                        $data['notes'] = $note;
+                    }
+
+                    $record->update($data);
+
+                    $results[] = [
+                        'employee_id' => $employeeId,
+                        'record_id' => $record->id,
+                        'success' => true,
+                        'check_out' => $time,
+                        'message' => 'Saída registada.',
+                    ];
+                } catch (\DomainException $e) {
+                    $results[] = [
+                        'employee_id' => $employeeId,
+                        'success' => false,
+                        'error' => $e->getMessage(),
+                    ];
+                }
+            }
+
+            $successful = collect($results)->where('success', true);
+
+            return [
+                'date' => $date,
+                'total' => count($results),
+                'updated' => $successful->count(),
+                'failed' => count($results) - $successful->count(),
+                'records' => $results,
+            ];
+        });
+    }
+
+    /**
+     * Livro de ponto diário: devolve todos os funcionários que deveriam
+     * assinar o livro na data (default: hoje), incluindo os que ainda não
+     * possuem registo (status ABSENT). Filtro opcional por departamentos.
+     */
+    public function dailyBook(?string $date = null, array $departmentIds = []): array
+    {
+        $date = $date ? Carbon::parse($date)->format('Y-m-d') : now()->toDateString();
+
+        $query = Employee::query()
+            ->where('status', 'active')
+            ->with(['department', 'position', 'careerCategory']);
+
+        if (! empty($departmentIds)) {
+            $query->whereIn('department_id', array_map('intval', $departmentIds));
+        }
+
+        $employees = $query->orderBy('full_name')->get();
+
+        $presenter = $this->recordPresenter();
+
+        $records = Attendance::query()
+            ->with('dispensa.type')
+            ->whereDate('date', $date)
+            ->get()
+            ->keyBy('employee_id');
+
+        $onLeave = $this->approvedLeavesKeyedByEmployee($date);
+
+        $onDispensa = $this->approvedFullDayDispensasKeyedByEmployee($date);
+
+        $rows = $employees
+            ->reject(fn (Employee $employee) => PontoExceptions::isEmployeeExempt($employee))
+            ->map(function (Employee $employee) use ($records, $onLeave, $onDispensa, $presenter, $date) {
+                $record = $records->get($employee->id);
                 $leave = $onLeave->get($employee->id);
                 $dispensa = $onDispensa->get($employee->id);
 
-                if ($dispensa) {
-                    return [
+                $status = match (true) {
+                    (bool) $leave => 'on_leave',
+                    (bool) $dispensa => 'dispensado',
+                    (bool) $record => $record->status ?? 'present',
+                    default => 'absent',
+                };
+
+                return [
+                    'employee' => [
                         'id' => $employee->id,
                         'employee_number' => $employee->employee_number,
                         'full_name' => $employee->full_name,
-                        'display_name' => "{$employee->full_name} — Dispensa aprovada",
-                        'on_leave' => false,
-                        'on_dispensa' => true,
-                        'blocked' => true,
-                        'dispensa_request_number' => $dispensa->request_number,
-                        'dispensa_start_date' => $dispensa->start_date?->format('Y-m-d'),
-                        'dispensa_end_date' => $dispensa->end_date?->format('Y-m-d'),
-                        'message' => "Funcionário com dispensa aprovada de {$dispensa->start_date->format('d/m/Y')} a {$dispensa->end_date->format('d/m/Y')}: não regista ponto.",
-                    ];
-                }
-
-                return [
-                    'id' => $employee->id,
-                    'employee_number' => $employee->employee_number,
-                    'full_name' => $employee->full_name,
-                    'display_name' => $leave ? "{$employee->full_name} — De férias" : $employee->full_name,
-                    'on_leave' => (bool) $leave,
-                    'on_dispensa' => false,
-                    'blocked' => (bool) $leave,
-                    'leave_start_date' => $leave?->start_date?->format('Y-m-d'),
-                    'leave_end_date' => $leave?->end_date?->format('Y-m-d'),
-                    'message' => $leave
-                        ? "Funcionário de férias de {$leave->start_date->format('d/m/Y')} a {$leave->end_date->format('d/m/Y')}."
-                        : null,
+                        'department' => $employee->department ? [
+                            'id' => $employee->department->id,
+                            'name' => $employee->department->name,
+                            'code' => $employee->department->code,
+                        ] : null,
+                        'position' => $employee->position?->name,
+                        'category' => $employee->careerCategory?->name,
+                    ],
+                    'attendance' => $record ? $presenter($record) : null,
+                    'status' => $status,
+                    'has_record' => (bool) $record,
+                    'date' => $date,
                 ];
-            })->values()->all();
+            })
+            ->values()
+            ->all();
+
+        $summary = collect($rows)->groupBy('status')->map->count();
+
+        return [
+            'date' => $date,
+            'total_employees' => count($rows),
+            'summary' => [
+                'present' => $summary->get('present', 0),
+                'late' => $summary->get('late', 0),
+                'absent' => $summary->get('absent', 0),
+                'dispensado' => $summary->get('dispensado', 0),
+                'on_leave' => $summary->get('on_leave', 0),
+            ],
+            'records' => $rows,
+        ];
+    }
+
+    private function approvedLeavesKeyedByEmployee(string $date)
+    {
+        return LeaveRequest::query()
+            ->where('status', 'approved')
+            ->whereDate('start_date', '<=', $date)
+            ->where(function ($q) use ($date) {
+                $q->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', $date);
+            })
+            ->get(['employee_id', 'start_date', 'end_date'])
+            ->keyBy('employee_id');
+    }
+
+    private function approvedFullDayDispensasKeyedByEmployee(string $date)
+    {
+        return \App\Models\RH\Attendance\AttendanceRequest::query()
+            ->where('status', 'approved')
+            ->where('benefit_active', true)
+            ->where('applies_full_day', true)
+            ->whereDate('start_date', '<=', $date)
+            ->whereDate('end_date', '>=', $date)
+            ->get(['id', 'employee_id', 'request_number', 'start_date', 'end_date', 'reason'])
+            ->keyBy('employee_id');
+    }
+
+    private function presentEmployeeForPoint(Employee $employee, $onLeave, $onDispensa): array
+    {
+        $leave = $onLeave->get($employee->id);
+        $dispensa = $onDispensa->get($employee->id);
+
+        if ($dispensa) {
+            return [
+                'id' => $employee->id,
+                'employee_number' => $employee->employee_number,
+                'full_name' => $employee->full_name,
+                'display_name' => "{$employee->full_name} — Dispensa aprovada",
+                'on_leave' => false,
+                'on_dispensa' => true,
+                'blocked' => true,
+                'dispensa_request_number' => $dispensa->request_number,
+                'dispensa_start_date' => $dispensa->start_date?->format('Y-m-d'),
+                'dispensa_end_date' => $dispensa->end_date?->format('Y-m-d'),
+                'message' => "Funcionário com dispensa aprovada de {$dispensa->start_date->format('d/m/Y')} a {$dispensa->end_date->format('d/m/Y')}: não regista ponto.",
+            ];
+        }
+
+        return [
+            'id' => $employee->id,
+            'employee_number' => $employee->employee_number,
+            'full_name' => $employee->full_name,
+            'display_name' => $leave ? "{$employee->full_name} — De férias" : $employee->full_name,
+            'on_leave' => (bool) $leave,
+            'on_dispensa' => false,
+            'blocked' => (bool) $leave,
+            'leave_start_date' => $leave?->start_date?->format('Y-m-d'),
+            'leave_end_date' => $leave?->end_date?->format('Y-m-d'),
+            'message' => $leave
+                ? "Funcionário de férias de {$leave->start_date->format('d/m/Y')} a ".($leave->end_date?->format('d/m/Y') ?? 'tempo indeterminado').'."'
+                : null,
+        ];
     }
 
     /**
@@ -918,13 +1194,16 @@ class AttendanceService extends AbstractService
             ->where('employee_id', $employeeId)
             ->where('status', 'approved')
             ->whereDate('start_date', '<=', $end->toDateString())
-            ->whereDate('end_date', '>=', $start->toDateString())
+            ->where(function ($q) use ($start) {
+                $q->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', $start->toDateString());
+            })
             ->get(['start_date', 'end_date']);
 
         $days = 0;
         foreach ($leaves as $leave) {
             $from = max($leave->start_date->startOfDay(), $start->startOfDay());
-            $to = min($leave->end_date->endOfDay(), $end->endOfDay());
+            $to = min($leave->end_date?->endOfDay() ?? $end->endOfDay(), $end->endOfDay());
             $days += $from->diffInDays($to) + 1;
         }
 

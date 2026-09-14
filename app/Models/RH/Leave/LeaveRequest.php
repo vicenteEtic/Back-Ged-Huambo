@@ -27,6 +27,8 @@ class LeaveRequest extends Model
         'approved_by',
         'approved_at',
         'rejection_reason',
+        'extends_request_id',
+        'extension_count',
     ];
 
     protected function casts(): array
@@ -36,6 +38,7 @@ class LeaveRequest extends Model
             'end_date' => 'date',
             'return_date' => 'date',
             'approved_at' => 'datetime',
+            'extension_count' => 'integer',
         ];
     }
 
@@ -62,5 +65,23 @@ class LeaveRequest extends Model
     public function approvals()
     {
         return $this->hasMany(LeaveApproval::class);
+    }
+
+    public function extendsRequest()
+    {
+        return $this->belongsTo(LeaveRequest::class, 'extends_request_id');
+    }
+
+    public function extensions()
+    {
+        return $this->hasMany(LeaveRequest::class, 'extends_request_id');
+    }
+
+    /**
+     * Licença sem data de término (tempo indeterminado).
+     */
+    public function isIndefinite(): bool
+    {
+        return $this->end_date === null;
     }
 }

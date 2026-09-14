@@ -24,6 +24,19 @@ class LeaveRequestFactory extends Factory
             'total_days' => fake()->numberBetween(1, 15),
             'reason' => fake()->sentence(),
             'status' => 'pending',
+            'extension_count' => 0,
         ];
+    }
+
+    /**
+     * Licença de tempo indeterminado (end_date = null).
+     */
+    public function indefinite(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'end_date' => null,
+            'total_days' => null,
+            'return_date' => null,
+        ]);
     }
 }

@@ -3,8 +3,13 @@
 namespace App\Http\Controllers\RH\Attendance;
 
 use App\Http\Controllers\AbstractController;
+use App\Http\Requests\RH\Attendance\AttendanceBookQueryRequest;
+use App\Http\Requests\RH\Attendance\AttendanceBulkExitRequest;
+use App\Http\Requests\RH\Attendance\AttendanceConfigurationRequest;
+use App\Http\Requests\RH\Attendance\AttendanceExitRequest;
 use App\Http\Requests\RH\Attendance\AttendanceRequest;
 use App\Models\RH\Attendance\AbsenceType;
+use App\Services\RH\Attendance\AttendanceBookConfigService;
 use App\Services\RH\Attendance\AttendanceService;
 use App\Support\TimeNormalizer;
 use Exception;
@@ -230,6 +235,116 @@ class AttendanceController extends AbstractController
             Log::error('Erro ao listar funcionários para ponto', ['message' => $e->getMessage()]);
 
             return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    /**
+     * Listagem inteligente de funcionários disponíveis para registo de ponto:
+     * apenas funcionários elegíveis (departamentos que assinam o livro) e que
+     * ainda NÃO possuem registo de ponto para a data informada (default: hoje).
+     */
+    public function availableEmployees(AttendanceBookQueryRequest $request)
+    {
+        try {
+            $date = $request->input('date', now()->toDateString());
+            $departmentIds = array_map('intval', $request->input('department_ids', []));
+
+            $employees = $this->attendanceService->availableEmployeesForPoint($date, $departmentIds);
+
+            return response()->json([
+                'date' => \Carbon\Carbon::parse($date)->format('Y-m-d'),
+                'message' => 'Funcionários elegíveis e ainda sem registo de ponto nesta data. Em férias ou com dispensa aprovada estão identificados e bloqueados para registo.',
+                'blocked_count' => collect($employees)->where('on_leave', true)->count() + collect($employees)->where('on_dispensa', true)->count(),
+                'employees' => $employees,
+            ]);
+        } catch (Exception $e) {
+            Log::error('Erro ao listar funcionários disponíveis para ponto', ['message' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    /**
+     * Livro de ponto diário: lista todos os funcionários que deveriam assinar
+     * o livro na data (default: hoje), incluindo os que ainda não têm registo
+     * (attendance null / status absent).
+     */
+    public function dailyBook(AttendanceBookQueryRequest $request)
+    {
+        try {
+            $date = $request->input('date', now()->toDateString());
+            $departmentIds = array_map('intval', $request->input('department_ids', []));
+
+            return response()->json($this->attendanceService->dailyBook($date, $departmentIds));
+        } catch (Exception $e) {
+            Log::error('Erro ao gerar o livro de ponto diário', ['message' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    /**
+     * Marca exclusivamente a saída de um registo de ponto.
+     */
+    public function markExit(AttendanceExitRequest $request, int $id)
+    {
+        try {
+            $attendance = $this->attendanceService->markExit(
+                $id,
+                $request->input('check_out'),
+                $request->input('notes')
+            );
+
+            return response()->json($attendance);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Registo de ponto não encontrado.'], Response::HTTP_NOT_FOUND);
+        } catch (\DomainException $e) {
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (Exception $e) {
+            Log::error('Erro ao registar saída', ['message' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    /**
+     * Marca a saída de vários funcionários numa única operação.
+     * Cada registo é validado individualmente no backend.
+     */
+    public function bulkExit(AttendanceBulkExitRequest $request)
+    {
+        try {
+            $result = $this->attendanceService->bulkExit(
+                $request->input('date'),
+                $request->input('records')
+            );
+
+            return response()->json($result);
+        } catch (Exception $e) {
+            Log::error('Erro ao registar saída em lote', ['message' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    /**
+     * Configuração dos departamentos/gabinetes que assinam o livro de ponto.
+     */
+    public function showConfiguration(AttendanceBookConfigService $configService)
+    {
+        return response()->json($configService->get());
+    }
+
+    public function updateConfiguration(AttendanceConfigurationRequest $request, AttendanceBookConfigService $configService)
+    {
+        try {
+            return response()->json($configService->updateConfiguration(
+                $request->input('attendance_book_departments', [])
+            ));
+        } catch (Exception $e) {
+            Log::error('Erro ao actualizar configuração do livro de ponto', ['message' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Erro interno no servidor.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 

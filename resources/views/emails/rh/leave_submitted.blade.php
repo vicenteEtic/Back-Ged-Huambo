@@ -35,8 +35,8 @@
             <p class="info-line"><strong>Funcionário:</strong> {{ $leaveRequest->employee->full_name }}</p>
             <p class="info-line"><strong>Tipo:</strong> {{ $leaveRequest->leaveType?->name ?? 'Férias' }}</p>
             <p class="info-line"><strong>Data de início:</strong> {{ $leaveRequest->start_date->format('d/m/Y') }}</p>
-            <p class="info-line"><strong>Data de fim:</strong> {{ $leaveRequest->end_date->format('d/m/Y') }}</p>
-            <p class="info-line"><strong>Dias úteis:</strong> {{ $leaveRequest->total_days }}</p>
+            <p class="info-line"><strong>Data de fim:</strong> {{ $leaveRequest->end_date ? $leaveRequest->end_date->format('d/m/Y') : 'tempo indeterminado' }}</p>
+            <p class="info-line"><strong>Dias úteis:</strong> {{ $leaveRequest->total_days ?? '—' }}</p>
             <p class="info-line"><strong>Motivo:</strong> {{ $leaveRequest->reason ?? '---' }}</p>
         </div>
 

@@ -26,7 +26,10 @@ class CheckPendingLeavesCommand extends Command
 
         $this->warn("{$stale->count()} pedido(s) pendente(s) há mais de 3 dias:");
         foreach ($stale as $leave) {
-            $this->line(" - #{$leave->id}: {$leave->employee->full_name} ({$leave->start_date->format('d/m/Y')} a {$leave->end_date->format('d/m/Y')})");
+            $period = $leave->end_date
+                ? "{$leave->start_date->format('d/m/Y')} a {$leave->end_date->format('d/m/Y')}"
+                : "{$leave->start_date->format('d/m/Y')} (tempo indeterminado)";
+            $this->line(" - #{$leave->id}: {$leave->employee->full_name} ({$period})");
         }
     }
 }

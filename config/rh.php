@@ -29,6 +29,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Férias / Licenças
+    |--------------------------------------------------------------------------
+    | Regras de prorrogação e tempo indeterminado para o módulo de férias.
+    |
+    | - Prorrogação (allows_extension): permite aumentar a duração de uma
+    |   licença que já tem fim definido. Configurável por tipo de licença na
+    |   tabela leave_types (allows_extension, extension_days, max_extensions).
+    |   A prorrogação cria uma nova licença encadeada (extends_request_id).
+    | - Tempo indeterminado (indefinite_type_codes): tipos de licença que podem
+    |   ser criadas sem data de término (end_date = null). Regra independente
+    |   da prorrogação: licenças indeterminadas não podem ser prorrogadas.
+    */
+    'leave' => [
+        'indefinite_type_codes' => ['unpaid'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Dispensas / Solicitações de Assiduidade
     |--------------------------------------------------------------------------
     | Tipos de solicitação de dispensa e regras associadas, em conformidade

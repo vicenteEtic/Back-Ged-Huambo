@@ -96,7 +96,8 @@ class LeavePlanService extends AbstractService
             'employee' => $r->employee?->full_name,
             'type' => $r->leaveType?->name,
             'start_date' => $r->start_date->format('Y-m-d'),
-            'end_date' => $r->end_date->format('Y-m-d'),
+            'end_date' => $r->end_date?->format('Y-m-d') ?? null,
+            'is_indefinite' => $r->end_date === null,
             'total_days' => $r->total_days,
             'status' => $r->status,
         ])->toArray();

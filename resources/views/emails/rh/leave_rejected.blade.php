@@ -32,7 +32,7 @@
 
         <div class="info-box">
             <p class="info-line"><strong>Tipo:</strong> {{ $leaveRequest->leaveType?->name ?? 'Férias' }}</p>
-            <p class="info-line"><strong>Período:</strong> {{ $leaveRequest->start_date->format('d/m/Y') }} a {{ $leaveRequest->end_date->format('d/m/Y') }}</p>
+            <p class="info-line"><strong>Período:</strong> {{ $leaveRequest->start_date->format('d/m/Y') }} a {{ $leaveRequest->end_date ? $leaveRequest->end_date->format('d/m/Y') : 'tempo indeterminado' }}</p>
             <p class="info-line"><strong>Motivo da rejeição:</strong> {{ $reason }}</p>
         </div>
 

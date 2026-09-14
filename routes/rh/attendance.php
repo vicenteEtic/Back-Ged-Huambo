@@ -25,12 +25,18 @@ Route::prefix('records')->group(function () {
     Route::get('{id}', [AttendanceController::class, 'show'])->name('attendance.show')->middleware(['can:rh-ponto-show']);
     Route::put('{id}', [AttendanceController::class, 'update'])->name('attendance.update')->middleware(['can:rh-ponto-edit']);
     Route::delete('{id}', [AttendanceController::class, 'destroy'])->name('attendance.destroy')->middleware(['can:rh-ponto-delete']);
+    Route::patch('bulk-exit', [AttendanceController::class, 'bulkExit'])->name('attendance.bulk_exit')->middleware(['can:rh-ponto-edit']);
+    Route::patch('{id}/exit', [AttendanceController::class, 'markExit'])->name('attendance.exit')->middleware(['can:rh-ponto-edit']);
 });
 
 Route::post('check-in', [AttendanceController::class, 'checkIn'])->name('attendance.checkin')->middleware(['can:rh-ponto-create']);
 Route::post('check-out', [AttendanceController::class, 'checkOut'])->name('attendance.checkout')->middleware(['can:rh-ponto-create']);
 Route::post('import-biometric', [AttendanceController::class, 'importBiometric'])->name('attendance.import')->middleware(['can:rh-ponto-create']);
 Route::get('employees-for-point', [AttendanceController::class, 'employeesForPoint'])->name('attendance.employees_for_point')->middleware(['can:rh-ponto-create']);
+Route::get('employees', [AttendanceController::class, 'availableEmployees'])->name('attendance.employees')->middleware(['can:rh-ponto-create']);
+Route::get('daily', [AttendanceController::class, 'dailyBook'])->name('attendance.daily')->middleware(['can:rh-ponto-show']);
+Route::get('configuration', [AttendanceController::class, 'showConfiguration'])->name('attendance.configuration_show')->middleware(['can:rh-ponto-show']);
+Route::put('configuration', [AttendanceController::class, 'updateConfiguration'])->name('attendance.configuration_update')->middleware(['can:rh-ponto-edit']);
 Route::prefix('shifts')->group(function () {
     Route::get('/', [AttendanceController::class, 'removedFeature'])->name('attendance.shifts.index.compat')->middleware(['can:rh-ponto-show']);
     Route::post('/', [AttendanceController::class, 'removedStore'])->name('attendance.shifts.store.compat')->middleware(['can:rh-ponto-create']);
