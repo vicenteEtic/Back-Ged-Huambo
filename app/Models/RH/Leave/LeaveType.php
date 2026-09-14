@@ -28,6 +28,7 @@ class LeaveType extends Model
         'allows_extension',
         'extension_days',
         'max_extensions',
+        'allows_indefinite_duration',
     ];
 
     protected $casts = [
@@ -36,6 +37,7 @@ class LeaveType extends Model
         'requires_attachment' => 'boolean',
         'is_active' => 'boolean',
         'allows_extension' => 'boolean',
+        'allows_indefinite_duration' => 'boolean',
     ];
 
     public function requests()

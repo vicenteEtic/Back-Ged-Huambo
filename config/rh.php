@@ -37,13 +37,13 @@ return [
     |   licença que já tem fim definido. Configurável por tipo de licença na
     |   tabela leave_types (allows_extension, extension_days, max_extensions).
     |   A prorrogação cria uma nova licença encadeada (extends_request_id).
-    | - Tempo indeterminado (indefinite_type_codes): tipos de licença que podem
-    |   ser criadas sem data de término (end_date = null). Regra independente
-    |   da prorrogação: licenças indeterminadas não podem ser prorrogadas.
+    | - Tempo indeterminado (allows_indefinite_duration): decidido pelo PRÓPRIO
+    |   tipo de licença na tabela leave_types (coluna allows_indefinite_duration,
+    |   semeada pelo LeaveTypeSeeder — ex.: UNPAID). Não é escolhível livremente
+    |   para qualquer solicitação. Regra independente da prorrogação: licenças
+    |   indeterminadas não podem ser prorrogadas.
     */
-    'leave' => [
-        'indefinite_type_codes' => ['unpaid'],
-    ],
+    'leave' => [],
 
     /*
     |--------------------------------------------------------------------------

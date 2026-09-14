@@ -90,13 +90,12 @@ class LeaveRequestForm extends BaseFormRequest
 
     /**
      * Verifica se o tipo de licença permite tempo indeterminado.
-     * Regra: tipos sem default_days definido (null ou 0) ou com código UNPAID.
+     * Regra: decidida pelo próprio tipo de licença (coluna
+     * `allows_indefinite_duration` em leave_types) — não escolhível
+     * livremente para qualquer licença.
      */
     private function allowsIndefiniteLeave(\App\Models\RH\Leave\LeaveType $leaveType): bool
     {
-        $indefiniteCodes = array_map('strtolower', config('rh.leave.indefinite_type_codes', ['unpaid']));
-
-        return in_array(strtolower($leaveType->code), $indefiniteCodes)
-            || ($leaveType->default_days === null || $leaveType->default_days === 0);
+        return (bool) $leaveType->allows_indefinite_duration;
     }
 }
