@@ -22,11 +22,11 @@ Route::prefix('absence-types')->group(function () {
 Route::prefix('records')->group(function () {
     Route::get('/', [AttendanceController::class, 'index'])->name('attendance.index')->middleware(['can:rh-ponto-show']);
     Route::post('/', [AttendanceController::class, 'store'])->name('attendance.store')->middleware(['can:rh-ponto-create']);
+    Route::match(['put', 'patch'], 'bulk-exit', [AttendanceController::class, 'bulkExit'])->name('attendance.bulk_exit')->middleware(['can:rh-ponto-edit']);
     Route::get('{id}', [AttendanceController::class, 'show'])->name('attendance.show')->middleware(['can:rh-ponto-show']);
     Route::put('{id}', [AttendanceController::class, 'update'])->name('attendance.update')->middleware(['can:rh-ponto-edit']);
     Route::delete('{id}', [AttendanceController::class, 'destroy'])->name('attendance.destroy')->middleware(['can:rh-ponto-delete']);
-    Route::patch('bulk-exit', [AttendanceController::class, 'bulkExit'])->name('attendance.bulk_exit')->middleware(['can:rh-ponto-edit']);
-    Route::patch('{id}/exit', [AttendanceController::class, 'markExit'])->name('attendance.exit')->middleware(['can:rh-ponto-edit']);
+    Route::match(['put', 'patch'], '{id}/exit', [AttendanceController::class, 'markExit'])->name('attendance.exit')->middleware(['can:rh-ponto-edit']);
 });
 
 Route::post('check-in', [AttendanceController::class, 'checkIn'])->name('attendance.checkin')->middleware(['can:rh-ponto-create']);
