@@ -267,15 +267,20 @@ class AttendanceController extends AbstractController
     /**
      * Livro de ponto diário: lista todos os funcionários que deveriam assinar
      * o livro na data (default: hoje), incluindo os que ainda não têm registo
-     * (attendance null / status absent).
+     * (attendance null / status absent). Suporta também um range de datas
+     * (start_date + end_date), devolvendo o livro de cada dia do intervalo.
      */
     public function dailyBook(AttendanceBookQueryRequest $request)
     {
         try {
             $date = $request->input('date', now()->toDateString());
             $departmentIds = array_map('intval', $request->input('department_ids', []));
+            $startDate = $request->input('start_date');
+            $endDate = $request->input('end_date');
 
-            return response()->json($this->attendanceService->dailyBook($date, $departmentIds));
+            return response()->json($this->attendanceService->dailyBook($date, $departmentIds, $startDate, $endDate));
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         } catch (Exception $e) {
             Log::error('Erro ao gerar o livro de ponto diário', ['message' => $e->getMessage()]);
 

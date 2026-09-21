@@ -779,11 +779,26 @@ class AttendanceService extends AbstractService
      * Livro de ponto diário: devolve todos os funcionários que deveriam
      * assinar o livro na data (default: hoje), incluindo os que ainda não
      * possuem registo (status ABSENT). Filtro opcional por departamentos.
+     *
+     * Suporta também um range de datas (`start_date` + `end_date`): devolve
+     * o livro de cada dia (`days`) com o resumo agregado do período (`summary`)
+     * e os feriados do intervalo (`holidays`).
      */
-    public function dailyBook(?string $date = null, array $departmentIds = []): array
+    public function dailyBook(?string $date = null, array $departmentIds = [], ?string $startDate = null, ?string $endDate = null): array
     {
+        if ($startDate && $endDate) {
+            return $this->dailyBookForRange($startDate, $endDate, $departmentIds);
+        }
+
         $date = $date ? Carbon::parse($date)->format('Y-m-d') : now()->toDateString();
 
+        $employees = $this->bookEmployees($departmentIds);
+
+        return $this->dailyBookForDate($date, $employees);
+    }
+
+    private function bookEmployees(array $departmentIds): \Illuminate\Support\Collection
+    {
         $query = Employee::query()
             ->where('status', 'active')
             ->with(['department', 'position', 'careerCategory']);
@@ -792,8 +807,11 @@ class AttendanceService extends AbstractService
             $query->whereIn('department_id', array_map('intval', $departmentIds));
         }
 
-        $employees = $query->orderBy('full_name')->get();
+        return $query->orderBy('full_name')->get();
+    }
 
+    private function dailyBookForDate(string $date, \Illuminate\Support\Collection $employees): array
+    {
         $presenter = $this->recordPresenter();
 
         $records = Attendance::query()
@@ -868,6 +886,66 @@ class AttendanceService extends AbstractService
                 'weekend' => $summary->get('weekend', 0),
             ],
             'records' => $rows,
+        ];
+    }
+
+    /**
+     * Livro de ponto com range de datas: gera o livro de cada dia do intervalo
+     * e agrega o resumo geral do período (incluindo dias de feriado/fim-de-semana).
+     */
+    private function dailyBookForRange(string $startDate, string $endDate, array $departmentIds): array
+    {
+        $start = Carbon::parse($startDate)->startOfDay();
+        $end = Carbon::parse($endDate)->endOfDay();
+
+        if ($start > $end) {
+            throw new \InvalidArgumentException('A data inicial não pode ser posterior à data final.');
+        }
+
+        $employees = $this->bookEmployees($departmentIds);
+
+        $holidayList = $this->holidayService?->holidaysBetween($start, $end) ?? [];
+
+        $days = [];
+        $summary = [
+            'present' => 0,
+            'late' => 0,
+            'absent' => 0,
+            'dispensado' => 0,
+            'on_leave' => 0,
+            'holiday' => 0,
+            'weekend' => 0,
+        ];
+        $totalRecords = 0;
+
+        for ($day = $start->copy(); $day->lte($end); $day->addDay()) {
+            $dayBook = $this->dailyBookForDate($day->format('Y-m-d'), $employees);
+
+            foreach (array_keys($summary) as $key) {
+                $summary[$key] += $dayBook['summary'][$key] ?? 0;
+            }
+            $totalRecords += count($dayBook['records']);
+
+            $days[] = [
+                'date' => $dayBook['date'],
+                'is_weekend' => $dayBook['is_weekend'],
+                'is_holiday' => $dayBook['is_holiday'],
+                'holiday_name' => $dayBook['holiday_name'],
+                'total_employees' => $dayBook['total_employees'],
+                'summary' => $dayBook['summary'],
+                'records' => $dayBook['records'],
+            ];
+        }
+
+        return [
+            'from' => $start->format('Y-m-d'),
+            'to' => $end->format('Y-m-d'),
+            'is_range' => true,
+            'total_days' => (int) $start->diffInDays($end) + 1,
+            'total_employees' => $days[0]['total_employees'] ?? 0,
+            'holidays' => $holidayList,
+            'summary' => $summary + ['total_records' => $totalRecords],
+            'days' => $days,
         ];
     }
 

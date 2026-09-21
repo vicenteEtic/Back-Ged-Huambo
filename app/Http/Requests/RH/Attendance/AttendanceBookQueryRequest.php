@@ -14,8 +14,10 @@ class AttendanceBookQueryRequest extends BaseFormRequest
 
     public function prepareForValidation(): void
     {
-        if ($this->has('date') && $this->input('date')) {
-            $this->merge(['date' => Carbon::parse($this->input('date'))->format('Y-m-d')]);
+        foreach (['date', 'start_date', 'end_date'] as $field) {
+            if ($this->has($field) && $this->input($field)) {
+                $this->merge([$field => Carbon::parse($this->input($field))->format('Y-m-d')]);
+            }
         }
     }
 
@@ -23,6 +25,8 @@ class AttendanceBookQueryRequest extends BaseFormRequest
     {
         return [
             'date' => ['nullable', 'date'],
+            'start_date' => ['nullable', 'date', 'required_with:end_date'],
+            'end_date' => ['nullable', 'date', 'required_with:start_date'],
             'department_ids' => ['nullable', 'array'],
             'department_ids.*' => ['integer', 'exists:departments,id'],
         ];
@@ -32,6 +36,8 @@ class AttendanceBookQueryRequest extends BaseFormRequest
     {
         return [
             'department_ids.*.exists' => 'Departamento inválido na filtragem.',
+            'start_date.required_with' => 'Para consultar um intervalo, envie também a data final (end_date).',
+            'end_date.required_with' => 'Para consultar um intervalo, envie também a data inicial (start_date).',
         ];
     }
 }

@@ -389,6 +389,53 @@ class AttendanceBookTest extends RhTestCase
         $this->assertEquals(1, $rows->where('status', 'weekend')->count());
     }
 
+    public function test_daily_book_accepts_date_range()
+    {
+        $start = now()->startOfMonth()->format('Y-m-d');
+        $end = now()->endOfMonth()->format('Y-m-d');
+
+        $employee = $this->makeEmployee();
+
+        $day = now()->startOfMonth();
+        if ($day->isWeekend()) {
+            $day = $day->nextWeekday();
+        }
+        Attendance::factory()->create(['employee_id' => $employee->id, 'date' => $day->format('Y-m-d')]);
+
+        $response = $this->getJsonAuth('/api/rh/attendance/daily?start_date='.$start.'&end_date='.$end);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('is_range', true)
+            ->assertJsonPath('from', $start)
+            ->assertJsonPath('to', $end)
+            ->assertJsonPath('total_days', (int) now()->startOfMonth()->diffInDays(now()->endOfMonth()) + 1)
+            ->assertJsonPath('holidays', []);
+
+        $days = $response->json('days');
+        $this->assertCount(now()->endOfMonth()->day, $days);
+
+        $first = collect($days)->firstWhere('date', $day->format('Y-m-d'));
+        $this->assertNotNull($first);
+        $this->assertEquals(1, $first['summary']['present']);
+    }
+
+    public function test_daily_book_range_rejects_inverted_dates()
+    {
+        $start = now()->format('Y-m-d');
+        $end = now()->subDay()->format('Y-m-d');
+
+        $response = $this->getJsonAuth('/api/rh/attendance/daily?start_date='.$start.'&end_date='.$end);
+
+        $response->assertStatus(400);
+    }
+
+    public function test_daily_book_range_requires_both_dates()
+    {
+        $response = $this->getJsonAuth('/api/rh/attendance/daily?start_date='.now()->format('Y-m-d'));
+
+        $response->assertStatus(422);
+    }
+
     /** Configuração do livro de ponto */
     public function test_configuration_get_returns_default_empty()
     {
