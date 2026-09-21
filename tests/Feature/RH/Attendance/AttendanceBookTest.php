@@ -7,7 +7,9 @@ use App\Models\RH\Attendance\Attendance;
 use App\Models\RH\Attendance\AttendanceBookConfig;
 use App\Models\RH\Department\Department;
 use App\Models\RH\Employee\Employee;
+use App\Models\RH\Leave\Holiday;
 use App\Models\RH\Position\Position;
+use Carbon\Carbon;
 
 class AttendanceBookTest extends RhTestCase
 {
@@ -341,6 +343,50 @@ class AttendanceBookTest extends RhTestCase
             ->assertJsonPath('date', $date)
             ->assertJsonFragment(['id' => $regular->id])
             ->assertJsonMissing(['id' => $exempt->id]);
+    }
+
+    public function test_daily_book_marks_holiday_instead_of_absence()
+    {
+        $holidayDate = now()->nextWeekday()->format('Y-m-d');
+
+        Holiday::factory()->create([
+            'name' => 'Dia de Teste',
+            'date' => $holidayDate,
+            'recurrent' => false,
+            'is_active' => true,
+        ]);
+
+        $this->makeEmployee();
+
+        $response = $this->getJsonAuth('/api/rh/attendance/daily?date='.$holidayDate);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('is_holiday', true)
+            ->assertJsonPath('summary.absent', 0)
+            ->assertJsonPath('summary.holiday', 1);
+
+        $rows = collect($response->json('records'));
+
+        $this->assertEquals(1, $rows->where('status', 'holiday')->count());
+        $this->assertEquals('Dia de Teste', $rows->first()['holiday_name']);
+    }
+
+    public function test_daily_book_marks_weekend_instead_of_absence()
+    {
+        $saturday = now()->next(Carbon::SATURDAY)->format('Y-m-d');
+
+        $this->makeEmployee();
+
+        $response = $this->getJsonAuth('/api/rh/attendance/daily?date='.$saturday);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('is_weekend', true)
+            ->assertJsonPath('summary.absent', 0)
+            ->assertJsonPath('summary.weekend', 1);
+
+        $rows = collect($response->json('records'));
+
+        $this->assertEquals(1, $rows->where('status', 'weekend')->count());
     }
 
     /** Configuração do livro de ponto */

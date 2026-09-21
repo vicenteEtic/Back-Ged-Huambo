@@ -806,9 +806,14 @@ class AttendanceService extends AbstractService
 
         $onDispensa = $this->approvedFullDayDispensasKeyedByEmployee($date);
 
+        $target = Carbon::parse($date);
+        $isWeekend = $target->isWeekend();
+        $isHoliday = $this->holidayService?->isHoliday($target) ?? false;
+        $holidayName = $isHoliday ? ($this->holidayService?->holidayName($target) ?? 'Feriado') : null;
+
         $rows = $employees
             ->reject(fn (Employee $employee) => PontoExceptions::isEmployeeExempt($employee))
-            ->map(function (Employee $employee) use ($records, $onLeave, $onDispensa, $presenter, $date) {
+            ->map(function (Employee $employee) use ($records, $onLeave, $onDispensa, $presenter, $date, $isWeekend, $isHoliday, $holidayName) {
                 $record = $records->get($employee->id);
                 $leave = $onLeave->get($employee->id);
                 $dispensa = $onDispensa->get($employee->id);
@@ -817,6 +822,8 @@ class AttendanceService extends AbstractService
                     (bool) $leave => 'on_leave',
                     (bool) $dispensa => 'dispensado',
                     (bool) $record => $record->status ?? 'present',
+                    $isHoliday => 'holiday',
+                    $isWeekend => 'weekend',
                     default => 'absent',
                 };
 
@@ -836,6 +843,7 @@ class AttendanceService extends AbstractService
                     'attendance' => $record ? $presenter($record) : null,
                     'status' => $status,
                     'has_record' => (bool) $record,
+                    'holiday_name' => $isHoliday ? $holidayName : null,
                     'date' => $date,
                 ];
             })
@@ -846,6 +854,9 @@ class AttendanceService extends AbstractService
 
         return [
             'date' => $date,
+            'is_weekend' => $isWeekend,
+            'is_holiday' => $isHoliday,
+            'holiday_name' => $holidayName,
             'total_employees' => count($rows),
             'summary' => [
                 'present' => $summary->get('present', 0),
@@ -853,6 +864,8 @@ class AttendanceService extends AbstractService
                 'absent' => $summary->get('absent', 0),
                 'dispensado' => $summary->get('dispensado', 0),
                 'on_leave' => $summary->get('on_leave', 0),
+                'holiday' => $summary->get('holiday', 0),
+                'weekend' => $summary->get('weekend', 0),
             ],
             'records' => $rows,
         ];

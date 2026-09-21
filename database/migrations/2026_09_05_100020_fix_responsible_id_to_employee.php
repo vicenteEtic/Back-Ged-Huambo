@@ -17,19 +17,39 @@ return new class extends Migration
      * (employees) em vez de utilizadores (users). Os valores existentes são
      * convertidos automaticamente: user_id → employee correspondente.
      */
+    /**
+     * Verifica se a FK existe. O information_schema é específico do MySQL;
+     * em SQLite (testes) as FKs não são impostas, logo não há nada a remover.
+     */
+    private function foreignKeyExists(string $table, string $fkName): bool
+    {
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return false;
+        }
+
+        return (bool) DB::select(
+            "SELECT 1 FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ? AND CONSTRAINT_TYPE = 'FOREIGN KEY'",
+            [$table, $fkName]
+        );
+    }
+
     public function up(): void
     {
         // 1. Remover as FKs atuais (apontam para users) antes de converter os dados
         foreach (self::TABLES as $table => $fkName) {
-            if (DB::select("SELECT 1 FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ? AND CONSTRAINT_TYPE = 'FOREIGN KEY'", [$table, $fkName])) {
+            if ($this->foreignKeyExists($table, $fkName)) {
                 Schema::table($table, function (Blueprint $blueprint) use ($fkName) {
                     $blueprint->dropForeign($fkName);
                 });
             }
         }
 
-        // 2. Converter user_id → employee_id
+        // 2. Converter user_id → employee_id (só MySQL: em SQLite não há dados a converter)
         foreach (self::TABLES as $table => $fkName) {
+            if (Schema::getConnection()->getDriverName() !== 'mysql') {
+                break;
+            }
+
             DB::statement("
                 UPDATE {$table} t
                 SET t.responsible_id = (
@@ -46,6 +66,10 @@ return new class extends Migration
 
         // 3. Limpar responsible_id inválido (user sem employee correspondente)
         foreach (array_keys(self::TABLES) as $table) {
+            if (Schema::getConnection()->getDriverName() !== 'mysql') {
+                break;
+            }
+
             DB::statement("
                 UPDATE {$table} t
                 SET t.responsible_id = NULL
@@ -68,7 +92,7 @@ return new class extends Migration
     {
         // 1. Remover as FKs atuais (apontam para employees)
         foreach (self::TABLES as $table => $fkName) {
-            if (DB::select("SELECT 1 FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ? AND CONSTRAINT_TYPE = 'FOREIGN KEY'", [$table, $fkName])) {
+            if ($this->foreignKeyExists($table, $fkName)) {
                 Schema::table($table, function (Blueprint $blueprint) use ($fkName) {
                     $blueprint->dropForeign($fkName);
                 });
@@ -77,6 +101,10 @@ return new class extends Migration
 
         // 2. Reverter: employee_id → user_id (quando tiver user associado)
         foreach (array_keys(self::TABLES) as $table) {
+            if (Schema::getConnection()->getDriverName() !== 'mysql') {
+                break;
+            }
+
             DB::statement("
                 UPDATE {$table} t
                 SET t.responsible_id = (
