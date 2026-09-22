@@ -13,7 +13,7 @@ class DisciplinaryRecordRequest extends BaseFormRequest
         return [
             'occurred_at.before_or_equal' => 'A data da ocorrência deve ser uma data anterior ou igual a :date.',
             'occurred_at.date' => 'A data da ocorrência deve ser uma data válida.',
-            'sanction_start.before_or_equal' => 'A data de início da sanção deve ser uma data anterior ou igual a :date.',
+            'sanction_start.after_or_equal' => 'A data de início da sanção não pode ser anterior à data da ocorrência.',
             'sanction_start.date' => 'A data de início da sanção deve ser uma data válida.',
             'sanction_end.after_or_equal' => 'A data de término da sanção deve ser igual ou posterior à data de início.',
         ];
@@ -31,7 +31,7 @@ class DisciplinaryRecordRequest extends BaseFormRequest
             'reported_by' => ['nullable', 'exists:users,id'],
             'resolution' => ['nullable', 'string'],
             'sanction' => ['nullable', 'string', 'max:255'],
-            'sanction_start' => ['nullable', 'date', 'before_or_equal:today'],
+            'sanction_start' => ['nullable', 'date', 'after_or_equal:occurred_at'],
             'sanction_end' => ['nullable', 'date', 'after_or_equal:sanction_start'],
         ];
     }
