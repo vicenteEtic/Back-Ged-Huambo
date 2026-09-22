@@ -5,6 +5,7 @@ namespace App\Http\Requests\RH\Leave;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\RH\Leave\LeavePlan;
 use App\Models\RH\Leave\LeaveRequest;
+use App\Models\RH\Leave\LeaveType;
 
 class LeaveRequestForm extends BaseFormRequest
 {
@@ -21,6 +22,7 @@ class LeaveRequestForm extends BaseFormRequest
             'leave_type_id' => [$this->requiredOnCreate(), 'integer', 'exists:leave_types,id'],
             'leave_plan_id' => ['nullable', 'integer', 'exists:leave_plans,id'],
             'start_date' => [$this->requiredOnCreate(), 'date'],
+            'duration_type' => ['sometimes', 'nullable', 'in:FIXED,INDEFINITE'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'days' => ['sometimes', 'integer', 'min:1', 'max:366'],
             'reason' => ['nullable', 'string'],
@@ -47,19 +49,44 @@ class LeaveRequestForm extends BaseFormRequest
                 $current = null;
             }
 
-            // Na criação: exige end_date ou days (a menos que o frontend indique tempo indeterminado)
-            // Na edição: permite actualização parcial de end_date
-            if (! $id && ! $this->filled('end_date') && ! $this->filled('days')) {
-                $leaveTypeId = $this->input('leave_type_id');
+            // Tempo indeterminado é uma intenção explícita: `duration_type`
+            // "FIXED" (default) ou "INDEFINITE". Quando INDEFINITE, o tipo de
+            // licença tem de permitir (allows_indefinite_duration) e nem
+            // `end_date` nem `days` podem ser enviados.
+            $durationType = strtoupper((string) ($this->input('duration_type') ?? 'FIXED'));
+
+            if ($durationType === 'INDEFINITE') {
+                $leaveTypeId = $this->input('leave_type_id') ?? $current?->leave_type_id;
                 if ($leaveTypeId) {
                     $leaveType = \App\Models\RH\Leave\LeaveType::find($leaveTypeId);
-                    $allowsIndefinite = $leaveType && $this->allowsIndefiniteLeave($leaveType);
-                    if (! $allowsIndefinite) {
+                    if (! $leaveType || ! $leaveType->allows_indefinite_duration) {
                         $validator->errors()->add(
-                            'end_date',
-                            'A data de término é obrigatória para este tipo de licença. Envie "end_date" ou "days".'
+                            'duration_type',
+                            'Este tipo de licença não permite tempo indeterminado.'
                         );
                     }
+                }
+
+                if ($this->input('end_date') !== null) {
+                    $validator->errors()->add(
+                        'end_date',
+                        'Licenças por tempo indeterminado não podem ter "end_date". Remova o campo.'
+                    );
+                }
+
+                if ($this->filled('days')) {
+                    $validator->errors()->add(
+                        'days',
+                        'Licenças por tempo indeterminado não podem ter "days". Remova o campo.'
+                    );
+                }
+            } else {
+                // FIXED: na criação exige end_date ou days
+                if (! $id && ! $this->filled('end_date') && ! $this->filled('days')) {
+                    $validator->errors()->add(
+                        'end_date',
+                        'A data de término é obrigatória para este tipo de licença. Envie "end_date" ou "days".'
+                    );
                 }
             }
 
