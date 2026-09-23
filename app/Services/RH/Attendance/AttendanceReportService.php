@@ -5,7 +5,7 @@ namespace App\Services\RH\Attendance;
 use App\Models\RH\Employee\Employee;
 use App\Models\RH\Attendance\Attendance;
 use App\Models\RH\Leave\Holiday;
-use App\Models\User;
+use App\Models\User\User;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options;
