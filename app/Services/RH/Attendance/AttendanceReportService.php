@@ -138,19 +138,23 @@ class AttendanceReportService
 
         $rows = $employees->map(function (Employee $employee) use ($records, $absenceCodes, $workingDays) {
             $employeeRecords = $records->where('employee_id', $employee->id);
-            $counts = array_fill_keys(array_keys($absenceCodes), 0);
+            $counts = array_fill_keys([...array_keys($absenceCodes), 'other'], 0);
 
             foreach ($employeeRecords as $record) {
                 $code = strtolower((string) $record->absence_type);
+                $matched = false;
                 foreach ($absenceCodes as $column => $codes) {
                     if (in_array($code, $codes, true)) {
                         $counts[$column]++;
+                        $matched = true;
                         break;
                     }
                 }
 
-                if ((bool) $record->is_justified === false && ! in_array($code, $absenceCodes['unjustified'], true)) {
+                if (! $matched && (bool) $record->is_justified === false) {
                     $counts['unjustified']++;
+                } elseif (! $matched) {
+                    $counts['other']++;
                 }
             }
 
@@ -211,6 +215,18 @@ class AttendanceReportService
     public function effectivenessMapFileName(int $year, int $month): string
     {
         return sprintf('Mapa_Efectividade_%02d-%d.pdf', $month, $year);
+    }
+
+    public function renderEffectivenessMapExcel(int $year, int $month, ?int $departmentId = null, ?int $gabineteId = null): string
+    {
+        $data = $this->effectivenessMap($year, $month, $departmentId, $gabineteId);
+
+        return view('rh.attendance.effectiveness-map-excel', $data)->render();
+    }
+
+    public function effectivenessMapExcelFileName(int $year, int $month): string
+    {
+        return sprintf('Mapa_Efectividade_%02d-%d.xls', $month, $year);
     }
 
     private function workingDays(Carbon $start, Carbon $end): int

@@ -79,6 +79,9 @@ Route::prefix('report')->group(function () {
 Route::get('effectiveness-map', [AttendanceReportController::class, 'effectivenessMap'])
     ->name('attendance.effectiveness_map')
     ->middleware(['can:rh-ponto-show']);
+Route::get('effectiveness-map/excel', [AttendanceReportController::class, 'effectivenessMapExcel'])
+    ->name('attendance.effectiveness_map.excel')
+    ->middleware(['can:rh-ponto-show']);
 
 $dispatchPrefixes = ['requests', 'solicitacoes'];
 

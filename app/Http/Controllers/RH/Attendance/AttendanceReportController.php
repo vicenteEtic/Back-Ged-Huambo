@@ -85,4 +85,31 @@ class AttendanceReportController
             ->download($tmp, $this->report->effectivenessMapFileName($year, $month), ['Content-Type' => 'application/pdf'])
             ->deleteFileAfterSend(true);
     }
+
+    public function effectivenessMapExcel(Request $request): BinaryFileResponse
+    {
+        $monthValue = (string) $request->query('month', '');
+        $year = (int) $request->query('year', now()->year);
+
+        if (preg_match('/^(\d{4})-(\d{1,2})$/', $monthValue, $matches)) {
+            $year = (int) $matches[1];
+            $monthValue = $matches[2];
+        }
+
+        $month = (int) $monthValue;
+        $departmentId = $request->integer('department_id') ?: null;
+        $gabineteId = $request->integer('gabinete_id') ?: ($request->integer('gabinete') ?: null);
+
+        if ($month < 1 || $month > 12 || $year < 2000 || $year > 2100) {
+            abort(422, 'O mês deve estar entre 1 e 12 e o ano deve ser válido.');
+        }
+
+        $content = $this->report->renderEffectivenessMapExcel($year, $month, $departmentId, $gabineteId);
+        $tmp = tempnam(sys_get_temp_dir(), 'mapa_efectividade_excel_');
+        file_put_contents($tmp, $content);
+
+        return response()
+            ->download($tmp, $this->report->effectivenessMapExcelFileName($year, $month), ['Content-Type' => 'application/vnd.ms-excel'])
+            ->deleteFileAfterSend(true);
+    }
 }
