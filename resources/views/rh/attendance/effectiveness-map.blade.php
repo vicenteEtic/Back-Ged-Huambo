@@ -96,6 +96,5 @@
     </table>
 
     <div class="footer">DEPARTAMENTO DE GESTÃO DE CARREIRAS E CAPACITAÇÃO TÉCNICA, do Gabinete de Recursos Humanos,<br>no Huambo, aos {{ $month_end }} de {{ $month_name }} de {{ $year }}.<br><br>O CHEFE DE DEPARTAMENTO<br><br>________________________________________</div>
-    <table class="signatures"><tr><td>Emitido por: {{ $generatedBy }}</td><td>Gerado em: {{ $generatedAt }}</td></tr></table>
 </body>
 </html>
