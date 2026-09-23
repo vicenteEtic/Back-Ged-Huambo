@@ -7,6 +7,7 @@
         * { font-family: 'Times New Roman', Times, serif; }
         body { color: #000; font-size: 8px; }
         .header { text-align: center; font-weight: bold; line-height: 1.2; }
+        .logo { display: block; width: 52px; height: 52px; margin: 0 auto 3px; }
         .header .country { font-size: 13px; }
         .header .org { font-size: 11px; }
         .director { position: absolute; right: 0; top: 0; width: 125px; text-align: center; font-size: 8px; }
@@ -33,13 +34,16 @@
 </head>
 <body>
     <div class="director"><b>VISTO<br>O DIRECTOR</b><br><br>________________<br><span class="small">Data e assinatura</span></div>
+    @if ($logo)
+        <img class="logo" src="{{ $logo }}" alt="Logo do Huambo">
+    @endif
     <div class="header">
         <div class="country">REPÚBLICA DE ANGOLA</div>
         <div class="org">GOVERNO DA PROVÍNCIA DO HUAMBO</div>
         <div class="org">GABINETE DE RECURSOS HUMANOS</div>
         <div class="org">DEPARTAMENTO DE GESTÃO DE CARREIRAS E CAPACITAÇÃO TÉCNICA</div>
     </div>
-    <div class="title">Mapa de efectividade do pessoal da sede do Governo, afecto ao Gabinete de Sua Excelência Governador, referente ao mês de {{ $month_name }}/{{ $year }}</div>
+    <div class="title">Mapa de efectividade do pessoal da sede do Governo, afecto ao Gabinete de Sua Excelência Governador, referente ao mês de {{ $month_name }}/{{ $year }}@if ($department_name), {{ $department_name }}@endif</div>
 
     <table>
         <thead>

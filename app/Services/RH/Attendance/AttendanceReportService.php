@@ -94,7 +94,7 @@ class AttendanceReportService
      * Prepara o mapa mensal de efectividade do pessoal.
      * Cada linha representa um funcionário activo, mesmo sem faltas registadas.
      */
-    public function effectivenessMap(int $year, int $month): array
+    public function effectivenessMap(int $year, int $month, ?int $departmentId = null, ?int $gabineteId = null): array
     {
         $start = Carbon::create($year, $month, 1)->startOfMonth();
         $end = $start->copy()->endOfMonth();
@@ -119,12 +119,22 @@ class AttendanceReportService
             ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
             ->get(['employee_id', 'absence_type', 'is_justified']);
 
-        $employees = Employee::query()
+        $employeesQuery = Employee::query()
             ->with(['careerCategory', 'position', 'department'])
             ->where('status', 'active')
-            ->whereNotIn('department_id', \App\Support\PontoExceptions::exemptDepartmentIds())
-            ->orderBy('full_name')
-            ->get();
+            ->whereNotIn('department_id', \App\Support\PontoExceptions::exemptDepartmentIds());
+
+        if ($departmentId) {
+            $employeesQuery->where('department_id', $departmentId);
+        }
+
+        if ($gabineteId) {
+            $employeesQuery->whereHas('department', function ($query) use ($gabineteId) {
+                $query->whereKey($gabineteId)->where('type', 'gabinete');
+            });
+        }
+
+        $employees = $employeesQuery->orderBy('full_name')->get();
 
         $rows = $employees->map(function (Employee $employee) use ($records, $absenceCodes, $workingDays) {
             $employeeRecords = $records->where('employee_id', $employee->id);
@@ -163,14 +173,22 @@ class AttendanceReportService
             'month_name' => $this->monthName($month),
             'month_end' => $end->format('d'),
             'working_days' => $workingDays,
+            'department_id' => $departmentId,
+            'gabinete_id' => $gabineteId,
+            'department_name' => $employees->first()?->department?->name,
             'rows' => $rows,
         ];
     }
 
-    public function renderEffectivenessMap(int $year, int $month, ?User $generatedBy = null): string
+    public function renderEffectivenessMap(int $year, int $month, ?int $departmentId = null, ?int $gabineteId = null, ?User $generatedBy = null): string
     {
-        $data = $this->effectivenessMap($year, $month);
+        $data = $this->effectivenessMap($year, $month, $departmentId, $gabineteId);
+        $logoPath = public_path('logo_huambo-D4WV4fyp.png');
+        $logo = is_file($logoPath)
+            ? 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath))
+            : null;
         $html = view('rh.attendance.effectiveness-map', array_merge($data, [
+            'logo' => $logo,
             'generatedAt' => now()->format('d/m/Y H:i'),
             'generatedBy' => $generatedBy?->name ?? ($generatedBy?->username ?? 'Sistema'),
             'appName' => config('app.name'),
