@@ -53,4 +53,34 @@ class AttendanceReportController
             ->download($tmp, $this->report->fileName($filters, $targetEmployeeId), ['Content-Type' => 'application/pdf'])
             ->deleteFileAfterSend(true);
     }
+
+    /**
+     * Imprime o mapa mensal de efectividade do pessoal.
+     * Aceita month=1..12 e year=YYYY; o ano actual é usado quando omitido.
+     */
+    public function effectivenessMap(Request $request): BinaryFileResponse
+    {
+        $monthValue = (string) $request->query('month', '');
+        $year = (int) $request->query('year', now()->year);
+
+        // Também aceita month=YYYY-MM para facilitar o uso por campos HTML month.
+        if (preg_match('/^(\d{4})-(\d{1,2})$/', $monthValue, $matches)) {
+            $year = (int) $matches[1];
+            $monthValue = $matches[2];
+        }
+
+        $month = (int) $monthValue;
+
+        if ($month < 1 || $month > 12 || $year < 2000 || $year > 2100) {
+            abort(422, 'O mês deve estar entre 1 e 12 e o ano deve ser válido.');
+        }
+
+        $pdf = $this->report->renderEffectivenessMap($year, $month, auth()->user());
+        $tmp = tempnam(sys_get_temp_dir(), 'mapa_efectividade_');
+        file_put_contents($tmp, $pdf);
+
+        return response()
+            ->download($tmp, $this->report->effectivenessMapFileName($year, $month), ['Content-Type' => 'application/pdf'])
+            ->deleteFileAfterSend(true);
+    }
 }

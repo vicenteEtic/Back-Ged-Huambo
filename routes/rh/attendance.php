@@ -76,6 +76,10 @@ Route::prefix('report')->group(function () {
     Route::get('employee/{employee_id}/download', [AttendanceReportController::class, 'download'])->name('attendance.report.employee_download')->middleware(['can:rh-ponto-show']);
 });
 
+Route::get('effectiveness-map', [AttendanceReportController::class, 'effectivenessMap'])
+    ->name('attendance.effectiveness_map')
+    ->middleware(['can:rh-ponto-show']);
+
 $dispatchPrefixes = ['requests', 'solicitacoes'];
 
 foreach ($dispatchPrefixes as $dispatchPrefix) {
