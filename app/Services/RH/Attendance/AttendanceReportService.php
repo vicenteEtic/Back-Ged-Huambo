@@ -231,7 +231,7 @@ class AttendanceReportService
         $rows = [
             [$title],
             ['Departamento/Gabinete: '.($data['department_name'] ?: 'Todos')],
-            ['Item', '«1»', '«2»', '«3»', '«4»', '', '', '', '', '«5»', '', '', '', '', '', '', 'Total de faltas', 'Dias de efectividade'],
+            ['Item', '«1»', '«2»', '«3»', '«4»', '«4»', '«4»', '«4»', '«4»', '«5»', '«5»', '«5»', '«5»', '«5»', '«5»', '«5»', 'Total de faltas', 'Dias de efectividade'],
             $header,
         ];
 
@@ -312,7 +312,7 @@ class AttendanceReportService
             $xml .= '</row>';
         }
 
-        $xml .= '</sheetData><mergeCells count="10"><mergeCell ref="A1:R1"/><mergeCell ref="A2:R2"/><mergeCell ref="A3:A4"/><mergeCell ref="B3:B4"/><mergeCell ref="C3:C4"/><mergeCell ref="D3:D4"/><mergeCell ref="E3:I3"/><mergeCell ref="J3:P3"/><mergeCell ref="Q3:Q4"/><mergeCell ref="R3:R4"/></mergeCells><drawing r:id="rId1"/></worksheet>';
+        $xml .= '</sheetData><cols><col min="1" max="1" width="7"/><col min="2" max="2" width="16"/><col min="3" max="3" width="30"/><col min="4" max="4" width="24"/><col min="5" max="18" width="15"/></cols><mergeCells count="2"><mergeCell ref="A1:R1"/><mergeCell ref="A2:R2"/></mergeCells><drawing r:id="rId1"/></worksheet>';
 
         return $xml;
     }
