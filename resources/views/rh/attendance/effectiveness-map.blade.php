@@ -7,7 +7,8 @@
         * { font-family: 'Times New Roman', Times, serif; }
         body { color: #000; font-size: 8px; }
         .header { text-align: center; font-weight: bold; line-height: 1.2; }
-        .logo { display: block; width: 52px; height: 52px; margin: 0 auto 3px; }
+        /* O ficheiro já contém o cabeçalho horizontal; fica centrado acima da República. */
+        .logo { display: block; width: 260px; height: auto; margin: 0 auto 4px; }
         .header .country { font-size: 13px; }
         .header .org { font-size: 11px; }
         .director { position: absolute; right: 0; top: 0; width: 125px; text-align: center; font-size: 8px; }
