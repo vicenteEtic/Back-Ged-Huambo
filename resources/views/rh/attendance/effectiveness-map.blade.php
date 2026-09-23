@@ -8,7 +8,7 @@
         body { color: #000; font-size: 8px; }
         .header { text-align: center; font-weight: bold; line-height: 1.2; }
         /* O ficheiro já contém o cabeçalho horizontal; fica centrado acima da República. */
-        .logo { display: block; width: 260px; height: auto; margin: 0 auto 4px; }
+        .logo { display: block; width: 220px; height: auto; margin: 0 auto 4px; }
         .header .country { font-size: 13px; }
         .header .org { font-size: 11px; }
         .director { position: absolute; right: 0; top: 0; width: 125px; text-align: center; font-size: 8px; }
@@ -35,10 +35,10 @@
 </head>
 <body>
     <div class="director"><b>VISTO<br>O DIRECTOR</b><br><br>________________<br><span class="small">Data e assinatura</span></div>
-    @if ($logo)
-        <img class="logo" src="{{ $logo }}" alt="Logo do Huambo">
-    @endif
     <div class="header">
+        @if ($logo)
+            <img class="logo" src="{{ $logo }}" alt="Logo do Huambo">
+        @endif
         <div class="country">REPÚBLICA DE ANGOLA</div>
         <div class="org">GOVERNO DA PROVÍNCIA DO HUAMBO</div>
         <div class="org">GABINETE DE RECURSOS HUMANOS</div>
