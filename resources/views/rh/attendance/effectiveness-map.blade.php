@@ -34,7 +34,7 @@
     </style>
 </head>
 <body>
-    <div class="director"><b>VISTO<br>O DIRECTOR</b><br><br>________________<br><span class="small">Data e assinatura</span></div>
+    <div class="director"><b>VISTO<br>O DIRECTOR</b><br><br>________________<br>____/_______/_____</div>
     <div class="header">
         @if ($logo)
             <img class="logo" src="{{ $logo }}" alt="Logo do Huambo">
