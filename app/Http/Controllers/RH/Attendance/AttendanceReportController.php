@@ -109,7 +109,7 @@ class AttendanceReportController
         file_put_contents($tmp, $content);
 
         return response()
-            ->download($tmp, $this->report->effectivenessMapExcelFileName($year, $month), ['Content-Type' => 'application/vnd.ms-excel'])
+            ->download($tmp, $this->report->effectivenessMapExcelFileName($year, $month), ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])
             ->deleteFileAfterSend(true);
     }
 }
