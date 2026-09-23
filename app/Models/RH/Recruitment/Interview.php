@@ -2,7 +2,7 @@
 
 namespace App\Models\RH\Recruitment;
 
-use App\Models\User;
+use App\Models\RH\Employee\Employee;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -30,6 +30,6 @@ class Interview extends Model
 
     public function interviewer()
     {
-        return $this->belongsTo(User::class, 'interviewer_id');
+        return $this->belongsTo(Employee::class, 'interviewer_id');
     }
 }
