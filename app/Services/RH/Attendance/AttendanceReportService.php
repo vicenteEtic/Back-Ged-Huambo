@@ -228,11 +228,12 @@ class AttendanceReportService
         ];
 
         $title = 'MAPA DE EFECTIVIDADE DO PESSOAL - '.$data['month_name'].'/'.$year;
-        $rows = [[$title]];
-        if ($data['department_name']) {
-            $rows[] = ['Departamento/Gabinete: '.$data['department_name']];
-        }
-        $rows[] = $header;
+        $rows = [
+            [$title],
+            ['Departamento/Gabinete: '.($data['department_name'] ?: 'Todos')],
+            ['Item', '«1»', '«2»', '«3»', '«4»', '', '', '', '', '«5»', '', '', '', '', '', '', 'Total de faltas', 'Dias de efectividade'],
+            $header,
+        ];
 
         foreach ($data['rows'] as $index => $row) {
             $rows[] = [
@@ -251,6 +252,13 @@ class AttendanceReportService
         $zip->addFromString('xl/workbook.xml', $this->xlsxWorkbook());
         $zip->addFromString('xl/_rels/workbook.xml.rels', $this->xlsxWorkbookRelationships());
         $zip->addFromString('xl/worksheets/sheet1.xml', $this->xlsxWorksheet($rows));
+        $zip->addFromString('xl/worksheets/_rels/sheet1.xml.rels', $this->xlsxWorksheetRelationships());
+        $zip->addFromString('xl/drawings/drawing1.xml', $this->xlsxDrawing());
+        $zip->addFromString('xl/drawings/_rels/drawing1.xml.rels', $this->xlsxDrawingRelationships());
+        $logoPath = public_path('Emblem_of_Angola.png');
+        if (is_file($logoPath)) {
+            $zip->addFile($logoPath, 'xl/media/image1.png');
+        }
         $zip->close();
 
         $content = (string) file_get_contents($path);
@@ -266,7 +274,7 @@ class AttendanceReportService
 
     private function xlsxContentTypes(): string
     {
-        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>';
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>';
     }
 
     private function xlsxRootRelationships(): string
@@ -286,7 +294,7 @@ class AttendanceReportService
 
     private function xlsxWorksheet(array $rows): string
     {
-        $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+        $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetData>';
 
         foreach ($rows as $rowIndex => $row) {
             $xml .= '<row r="'.($rowIndex + 1).'">';
@@ -304,7 +312,24 @@ class AttendanceReportService
             $xml .= '</row>';
         }
 
-        return $xml.'</sheetData></worksheet>';
+        $xml .= '</sheetData><mergeCells count="10"><mergeCell ref="A1:R1"/><mergeCell ref="A2:R2"/><mergeCell ref="A3:A4"/><mergeCell ref="B3:B4"/><mergeCell ref="C3:C4"/><mergeCell ref="D3:D4"/><mergeCell ref="E3:I3"/><mergeCell ref="J3:P3"/><mergeCell ref="Q3:Q4"/><mergeCell ref="R3:R4"/></mergeCells><drawing r:id="rId1"/></worksheet>';
+
+        return $xml;
+    }
+
+    private function xlsxWorksheetRelationships(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>';
+    }
+
+    private function xlsxDrawing(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><xdr:oneCellAnchor><xdr:from><xdr:col>7</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:ext cx="1100000" cy="1100000"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="1" name="Emblema de Angola"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>';
+    }
+
+    private function xlsxDrawingRelationships(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/></Relationships>';
     }
 
     private function workingDays(Carbon $start, Carbon $end): int
