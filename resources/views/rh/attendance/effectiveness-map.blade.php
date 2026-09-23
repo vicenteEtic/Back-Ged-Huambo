@@ -8,7 +8,7 @@
         body { color: #000; font-size: 8px; }
         .header { text-align: center; font-weight: bold; line-height: 1.2; }
         /* O ficheiro já contém o cabeçalho horizontal; fica centrado acima da República. */
-        .logo { display: block; width: 220px; height: auto; margin: 0 auto 4px; }
+        .logo { display: block; width: 58px; height: auto; margin: 0 auto 4px; }
         .header .country { font-size: 13px; }
         .header .org { font-size: 11px; }
         .director { position: absolute; right: 0; top: 0; width: 125px; text-align: center; font-size: 8px; }

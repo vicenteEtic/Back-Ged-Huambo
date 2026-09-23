@@ -183,9 +183,9 @@ class AttendanceReportService
     public function renderEffectivenessMap(int $year, int $month, ?int $departmentId = null, ?int $gabineteId = null, ?User $generatedBy = null): string
     {
         $data = $this->effectivenessMap($year, $month, $departmentId, $gabineteId);
-        $logoPath = public_path('logo_huambo-D4WV4fyp.png');
+        $logoPath = public_path('Emblem_of_Angola.svg.webp');
         $logo = is_file($logoPath)
-            ? 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath))
+            ? 'data:image/webp;base64,'.base64_encode((string) file_get_contents($logoPath))
             : null;
         $html = view('rh.attendance.effectiveness-map', array_merge($data, [
             'logo' => $logo,
