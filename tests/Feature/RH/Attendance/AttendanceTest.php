@@ -37,22 +37,23 @@ class AttendanceTest extends RhTestCase
         $response->assertStatus(200);
     }
 
-    public function test_absences_include_employee_summary_without_employee_or_department_filter()
+    public function test_absences_use_standard_index_structure_and_apply_year_month_filters()
     {
         Attendance::factory()->absent()->create([
             'employee_id' => $this->employee->id,
-            'date' => now()->startOfMonth()->format('Y-m-d'),
+            'date' => now()->setMonth(9)->startOfMonth()->format('Y-m-d'),
         ]);
 
-        $response = $this->getJsonAuth('/api/rh/attendance/absences?year='.now()->year.'&month='.now()->month);
+        $response = $this->getJsonAuth('/api/rh/attendance/absences?filters[0][field]=year&filters[0][filterType]=EQUALS&filters[0][filterValue]='.now()->year.'&filters[1][field]=month&filters[1][filterType]=EQUALS&filters[1][filterValue]=9&paginate=80');
 
         $response->assertStatus(200)
             ->assertJsonStructure([
-                'records',
-                'by_employee',
-                'by_type',
+                'current_page',
+                'data',
+                'per_page',
+                'total',
             ])
-            ->assertJsonCount(1, 'by_employee');
+            ->assertJsonCount(1, 'data');
     }
 
     public function test_can_create_record()

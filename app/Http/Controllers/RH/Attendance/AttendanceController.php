@@ -12,6 +12,7 @@ use App\Models\RH\Attendance\AbsenceType;
 use App\Services\RH\Attendance\AttendanceBookConfigService;
 use App\Services\RH\Attendance\AttendanceService;
 use App\Support\TimeNormalizer;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
@@ -196,17 +197,76 @@ class AttendanceController extends AbstractController
     public function absences(Request $request)
     {
         try {
-            $year = $request->integer('year') ?: now()->year;
-            $month = $request->integer('month') ?: now()->month;
-            $employeeId = $request->input('employee_id') ? (int) $request->input('employee_id') : null;
-            $departmentId = $request->input('department_id') ? (int) $request->input('department_id') : null;
+            $filters = $request->input('filters', $request->input('filtersV2', []));
+            $filters = is_array($filters) ? array_values($filters) : [];
 
-            return response()->json($this->attendanceService->absences(
-                $year,
-                $month,
-                $employeeId,
-                $departmentId,
-                $request->integer('paginate') ?: null
+            $year = $request->integer('year');
+            $month = $request->integer('month');
+            $remainingFilters = [];
+
+            foreach ($filters as $filter) {
+                if (! is_array($filter)) {
+                    continue;
+                }
+
+                $field = strtolower((string) ($filter['field'] ?? ''));
+                if ($field === 'year') {
+                    $year = (int) ($filter['filterValue'] ?? $year);
+                    continue;
+                }
+
+                if ($field === 'month') {
+                    $month = (int) ($filter['filterValue'] ?? $month);
+                    continue;
+                }
+
+                if ($field !== 'status') {
+                    $remainingFilters[] = $filter;
+                }
+            }
+
+            // O endpoint de faltas mantém a estrutura normal do index, mas só
+            // expõe registos ausentes no período solicitado.
+            $year = $year ?: now()->year;
+            $month = $month ?: now()->month;
+            $startDate = Carbon::create($year, $month, 1)->startOfMonth()->format('Y-m-d');
+            $endDate = Carbon::create($year, $month, 1)->endOfMonth()->format('Y-m-d');
+
+            $remainingFilters[] = [
+                'field' => 'status',
+                'filterType' => 'EQUALS',
+                'filterValue' => 'absent',
+            ];
+            $remainingFilters[] = [
+                'field' => 'date',
+                'filterType' => 'DATE_RANGE',
+                'filterValue' => [
+                    'startDate' => $startDate,
+                    'endDate' => $endDate,
+                ],
+            ];
+
+            foreach (['employee_id', 'department_id'] as $field) {
+                if ($request->filled($field)) {
+                    $remainingFilters[] = [
+                        'field' => $field,
+                        'filterType' => 'EQUALS',
+                        'filterValue' => $request->input($field),
+                    ];
+                }
+            }
+
+            $relationships = $this->legacyRelationships($request->input('relationships', []));
+            $relationships = array_values(array_unique(array_merge(
+                ['employee', 'employee.department', 'dispensa.type'],
+                $relationships
+            )));
+
+            return response()->json($this->service->index(
+                $request->integer('paginate') ?: null,
+                $remainingFilters,
+                $request->input('orderBy'),
+                $relationships
             ));
         } catch (\InvalidArgumentException $e) {
             return response()->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
