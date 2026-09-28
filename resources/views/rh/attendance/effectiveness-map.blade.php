@@ -84,7 +84,7 @@
         <tbody>
             @php($item = 0)
             @forelse ($groups as $group)
-                <tr class="gabinete-row"><th colspan="17">{{ strtoupper($group['name']) }}</th></tr>
+                <tr class="gabinete-row"><th colspan="18">{{ strtoupper($group['name']) }}</th></tr>
                 @foreach ($group['rows'] as $row)
                     @php($item++)
                     <tr>
@@ -96,7 +96,7 @@
                     </tr>
                 @endforeach
             @empty
-                <tr><td colspan="17">Não existem funcionários activos sujeitos ao registo de ponto.</td></tr>
+                <tr><td colspan="18">Não existem funcionários activos sujeitos ao registo de ponto.</td></tr>
             @endforelse
         </tbody>
     </table>
