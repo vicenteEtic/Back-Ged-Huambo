@@ -26,7 +26,7 @@
         .absence { width: 27px; }
         .total { width: 33px; }
         .effective { width: 36px; }
-        .gabinete-row th { padding: 3px; font-size: 10px; text-align: left; text-transform: uppercase; }
+        .gabinete-row th { padding: 3px; font-size: 10px; text-align: center; text-transform: uppercase; }
         tbody tr:nth-child(even) { background: #fafafa; }
         .footer { margin-top: 12px; text-align: center; font-weight: bold; font-size: 10px; }
         .signatures { margin-top: 20px; }
