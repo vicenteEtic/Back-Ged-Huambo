@@ -5,18 +5,18 @@
     <style>
         @page { margin: 14mm 9mm 12mm; }
         * { font-family: 'Times New Roman', Times, serif; }
-        body { color: #000; font-size: 8px; }
+        body { color: #000; font-size: 9px; }
         .header { text-align: center; font-weight: bold; line-height: 1.2; }
         /* O ficheiro já contém o cabeçalho horizontal; fica centrado acima da República. */
         .logo { display: block; width: 58px; height: auto; margin: 0 auto 4px; }
         .header .country { font-size: 13px; }
         .header .org { font-size: 11px; }
         .director { position: absolute; right: 0; top: 0; width: 125px; text-align: center; font-size: 8px; }
-        .title { margin: 10px 0 5px; text-align: center; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        .title { margin: 10px 0 5px; text-align: center; font-size: 11px; font-weight: bold; text-transform: uppercase; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th, td { border: 0.7px solid #333; text-align: center; padding: 2px; }
         th { font-weight: bold; }
-        .group { height: 21px; font-size: 9px; }
+        .group { height: 21px; font-size: 10px; }
         .vertical { height: 112px; padding: 0; vertical-align: bottom; }
         .vertical span { display: block; transform: rotate(-90deg); white-space: nowrap; width: 105px; margin: 0 auto 35px; }
         .item { width: 24px; }
@@ -26,11 +26,12 @@
         .absence { width: 27px; }
         .total { width: 33px; }
         .effective { width: 36px; }
+        .gabinete-row th { padding: 3px; font-size: 10px; text-align: left; text-transform: uppercase; }
         tbody tr:nth-child(even) { background: #fafafa; }
-        .footer { margin-top: 12px; text-align: center; font-weight: bold; font-size: 9px; }
+        .footer { margin-top: 12px; text-align: center; font-weight: bold; font-size: 10px; }
         .signatures { margin-top: 20px; }
         .signatures td { border: 0; width: 50%; padding-top: 20px; }
-        .small { font-size: 7px; font-weight: normal; }
+        .small { font-size: 8px; font-weight: normal; }
     </style>
 </head>
 <body>
@@ -81,20 +82,25 @@
             </tr>
         </thead>
         <tbody>
-            @forelse ($rows as $index => $row)
-                <tr>
-                    <td>{{ $index + 1 }}</td><td>{{ $row['employee_number'] }}</td>
-                    <td class="name">{{ $row['full_name'] }}</td><td class="category">{{ $row['category'] }}</td>
-                    <td>{{ $row['unjustified'] ?: '' }}</td><td>{{ $row['article_65'] ?: '' }}</td><td>{{ $row['article_66'] ?: '' }}</td><td>{{ $row['article_67'] ?: '' }}</td><td>{{ $row['article_68'] ?: '' }}</td>
-                    <td>{{ $row['sickness'] ?: '' }}</td><td>{{ $row['marriage'] ?: '' }}</td><td>{{ $row['childbirth'] ?: '' }}</td><td>{{ $row['disciplinary'] ?: '' }}</td><td>{{ $row['registered'] ?: '' }}</td><td>{{ $row['called'] ?: '' }}</td><td>{{ max($row['total_absences'] - array_sum([$row['unjustified'], $row['article_65'], $row['article_66'], $row['article_67'], $row['article_68'], $row['sickness'], $row['marriage'], $row['childbirth'], $row['disciplinary'], $row['registered'], $row['called']]), 0) ?: '' }}</td>
-                    <td>{{ $row['total_absences'] ?: '' }}</td><td>{{ $row['effective_days'] }}</td>
-                </tr>
+            @php($item = 0)
+            @forelse ($groups as $group)
+                <tr class="gabinete-row"><th colspan="17">{{ strtoupper($group['name']) }}</th></tr>
+                @foreach ($group['rows'] as $row)
+                    @php($item++)
+                    <tr>
+                        <td>{{ $item }}</td><td>{{ $row['employee_number'] }}</td>
+                        <td class="name">{{ $row['full_name'] }}</td><td class="category">{{ $row['category'] }}</td>
+                        <td>{{ $row['unjustified'] ?: '' }}</td><td>{{ $row['article_65'] ?: '' }}</td><td>{{ $row['article_66'] ?: '' }}</td><td>{{ $row['article_67'] ?: '' }}</td><td>{{ $row['article_68'] ?: '' }}</td>
+                        <td>{{ $row['sickness'] ?: '' }}</td><td>{{ $row['marriage'] ?: '' }}</td><td>{{ $row['childbirth'] ?: '' }}</td><td>{{ $row['disciplinary'] ?: '' }}</td><td>{{ $row['registered'] ?: '' }}</td><td>{{ $row['called'] ?: '' }}</td><td>{{ max($row['total_absences'] - array_sum([$row['unjustified'], $row['article_65'], $row['article_66'], $row['article_67'], $row['article_68'], $row['sickness'], $row['marriage'], $row['childbirth'], $row['disciplinary'], $row['registered'], $row['called']]), 0) ?: '' }}</td>
+                        <td>{{ $row['total_absences'] ?: '' }}</td><td>{{ $row['effective_days'] }}</td>
+                    </tr>
+                @endforeach
             @empty
                 <tr><td colspan="17">Não existem funcionários activos sujeitos ao registo de ponto.</td></tr>
             @endforelse
         </tbody>
     </table>
 
-    <div class="footer">DEPARTAMENTO DE GESTÃO DE CARREIRAS E CAPACITAÇÃO TÉCNICA, do Gabinete de Recursos Humanos,<br>no Huambo, aos {{ $month_end }} de {{ $month_name }} de {{ $year }}.<br><br>O CHEFE DE DEPARTAMENTO<br><br>________________________________________</div>
+    <div class="footer">DEPARTAMENTO DE GESTÃO DE CARREIRAS E CAPACITAÇÃO TÉCNICA, do Gabinete de Recursos Humanos,<br>no Huambo, aos {{ $generatedDay }} de {{ $generatedMonth }} de {{ $generatedYear }}.<br><br>O CHEFE DE DEPARTAMENTO<br><br>________________________________________</div>
 </body>
 </html>

@@ -4,6 +4,7 @@ namespace App\Services\RH\Attendance;
 
 use App\Models\RH\Employee\Employee;
 use App\Models\RH\Attendance\Attendance;
+use App\Models\RH\Department\Department;
 use App\Models\RH\Leave\Holiday;
 use App\Models\User\User;
 use Carbon\Carbon;
@@ -134,9 +135,16 @@ class AttendanceReportService
             });
         }
 
-        $employees = $employeesQuery->orderBy('full_name')->get();
+        $employees = $employeesQuery
+            ->orderBy('department_id')
+            ->orderBy('full_name')
+            ->get();
 
-        $rows = $employees->map(function (Employee $employee) use ($records, $absenceCodes, $workingDays) {
+        $departments = Department::query()
+            ->get(['id', 'name', 'type', 'parent_id'])
+            ->keyBy('id');
+
+        $rows = $employees->map(function (Employee $employee) use ($records, $absenceCodes, $workingDays, $departments) {
             $employeeRecords = $records->where('employee_id', $employee->id);
             $counts = array_fill_keys([...array_keys($absenceCodes), 'other'], 0);
 
@@ -165,11 +173,21 @@ class AttendanceReportService
                 'full_name' => $employee->full_name,
                 'category' => $employee->careerCategory?->name ?? $employee->position?->name ?? '-',
                 'department' => $employee->department?->name ?? '-',
+                'gabinete' => $this->gabineteName($employee->department_id, $departments),
             ], $counts, [
                 'total_absences' => $totalAbsences,
                 'effective_days' => max($workingDays - $totalAbsences, 0),
             ]);
         })->values();
+
+        $groups = $rows
+            ->groupBy('gabinete')
+            ->sortKeys()
+            ->map(fn ($group, $gabinete) => [
+                'name' => $gabinete,
+                'rows' => $group->values(),
+            ])
+            ->values();
 
         return [
             'year' => $year,
@@ -181,12 +199,41 @@ class AttendanceReportService
             'gabinete_id' => $gabineteId,
             'department_name' => $employees->first()?->department?->name,
             'rows' => $rows,
+            'groups' => $groups,
         ];
+    }
+
+    /**
+     * Resolve o gabinete de origem, mesmo quando o funcionário está num
+     * departamento filho do gabinete.
+     */
+    private function gabineteName(?int $departmentId, $departments): string
+    {
+        $currentId = $departmentId;
+        $visited = [];
+
+        while ($currentId && ! isset($visited[$currentId])) {
+            $visited[$currentId] = true;
+            $department = $departments->get($currentId);
+
+            if (! $department) {
+                break;
+            }
+
+            if ($department->type === 'gabinete') {
+                return $department->name;
+            }
+
+            $currentId = $department->parent_id;
+        }
+
+        return $departments->get($departmentId)?->name ?? 'Sem gabinete';
     }
 
     public function renderEffectivenessMap(int $year, int $month, ?int $departmentId = null, ?int $gabineteId = null, ?User $generatedBy = null): string
     {
         $data = $this->effectivenessMap($year, $month, $departmentId, $gabineteId);
+        $generatedAt = now();
         // Dompdf não garante suporte a WebP; usa a cópia PNG para o PDF.
         $logoPath = public_path('Emblem_of_Angola.png');
         $logo = is_file($logoPath)
@@ -194,7 +241,10 @@ class AttendanceReportService
             : null;
         $html = view('rh.attendance.effectiveness-map', array_merge($data, [
             'logo' => $logo,
-            'generatedAt' => now()->format('d/m/Y H:i'),
+            'generatedAt' => $generatedAt->format('d/m/Y H:i'),
+            'generatedDay' => $generatedAt->format('d'),
+            'generatedMonth' => $this->monthName($generatedAt->month),
+            'generatedYear' => $generatedAt->format('Y'),
             'generatedBy' => $generatedBy?->name ?? ($generatedBy?->username ?? 'Sistema'),
             'appName' => config('app.name'),
         ]))->render();
