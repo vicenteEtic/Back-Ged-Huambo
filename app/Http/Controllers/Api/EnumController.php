@@ -38,6 +38,7 @@ class EnumController
                 'label' => match ($case) {
                     BenefitCategory::Subsidy => 'Subsídio',
                     BenefitCategory::Medical => 'Assistência Médica',
+                    BenefitCategory::HealthInsurance => 'Seguro de Saúde',
                     BenefitCategory::SocialSupport => 'Apoio Social',
                     BenefitCategory::Institutional => 'Institucional',
                     BenefitCategory::Other => 'Outro',
