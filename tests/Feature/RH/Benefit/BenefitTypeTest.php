@@ -22,6 +22,16 @@ class BenefitTypeTest extends RhTestCase
         $response->assertStatus(201);
     }
 
+    public function test_can_create_health_insurance_category(): void
+    {
+        $data = $this->model::factory()->make()->toArray();
+        $data['category'] = 'health_insurance';
+
+        $response = $this->postJsonAuth(route('benefit_type.store'), $data);
+
+        $response->assertStatus(201);
+    }
+
     public function test_can_show(): void
     {
         $item = $this->model::factory()->create();

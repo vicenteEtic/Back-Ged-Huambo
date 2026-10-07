@@ -6,6 +6,7 @@ enum BenefitCategory: string
 {
     case Subsidy = 'subsidy';
     case Medical = 'medical';
+    case HealthInsurance = 'health_insurance';
     case SocialSupport = 'social_support';
     case Institutional = 'institutional';
     case Other = 'other';

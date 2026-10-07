@@ -14,7 +14,7 @@ class BenefitTypeFactory extends Factory
         return [
             'name' => fake()->unique()->randomElement(['Seguro de Saúde', 'Subsídio de Transporte', 'Subsídio de Alimentação', 'Prémio de Desempenho']),
             'code' => strtoupper(fake()->unique()->lexify('BNF???')),
-            'category' => fake()->randomElement(['subsidy', 'medical', 'social_support', 'institutional', 'other']),
+            'category' => fake()->randomElement(['subsidy', 'medical', 'health_insurance', 'social_support', 'institutional', 'other']),
             'description' => fake()->sentence(),
             'provider' => fake()->company(),
         ];
